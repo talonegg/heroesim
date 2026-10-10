@@ -25,12 +25,10 @@ import {
   parseId,
   playerGuild,
   setupRefusal,
-  type ContentSet,
   type EngineDeps,
   type EntityId,
   type Guild,
   type Hero,
-  type Module,
   type StopReason,
   type TurnEvent,
   type WorldDocument,
@@ -38,7 +36,7 @@ import {
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
-import { readableSeed } from '@heroesim/words';
+import { heroReading, playerReading, readableSeed, rowOf } from '@heroesim/words';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
 import { equipGear, unequipGear } from './commands/equip.js';
@@ -50,10 +48,10 @@ import { previewParty } from './commands/preview.js';
 import { setupRefusalWords, unknownStatWords, unspentStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
+import { refusalLine } from './namer.js';
 import { stopLine, renderAdvance } from './advance.js';
 import {
   renderBoard,
-  renderDate,
   renderGuildmaster,
   renderGuilds,
   renderHall,
@@ -64,43 +62,11 @@ import {
   renderRankings,
   renderRoster,
   renderSummary,
-  rowIn,
 } from './render.js';
-import { readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
+import { savePath, withModules, writeSave } from './saves.js';
+import { exitCodes, open, over, refuse, say, type CliIo, type Context, type Exit } from './context.js';
 
-/** Everything the CLI takes from outside itself. */
-export interface CliIo {
-  stdout(text: string): void;
-  stderr(text: string): void;
-  /** The working directory: saves and relative paths resolve against it. */
-  cwd: string;
-  /** Read for `HEROESIM_SAVE_DIR` (docs/environment.md). */
-  env: Readonly<Record<string, string | undefined>>;
-  /** The clock, read once by `new` for `meta.createdAt`. */
-  now(): Date;
-  /** A draw in `[0, 1)` for a made-up seed: `Math.random` in play. */
-  random(): number;
-}
-
-/**
- * 0 done; 1 refused (no save, a save that does not load, an id not in it, a save `new` would
- * replace, a file-system error); 2 a bad command line or a bad value on it (DL-21).
- */
-export const exitCodes = { ok: 0, refused: 1, usage: 2 } as const;
-
-export type Exit = (typeof exitCodes)[keyof typeof exitCodes];
-
-export interface Context {
-  io: CliIo;
-  content: ContentSet;
-  /** The save the command reads and writes. */
-  path: string;
-  /**
-   * The modules the command installs, by `--modules` on `new`, `load` and `advance` (M8-S4, DL-79):
-   * none unless given, and none for every other command.
-   */
-  modules: readonly Module[];
-}
+export { exitCodes, type CliIo, type Exit } from './context.js';
 
 /** Runs one command; returns the exit code. */
 export function main(argv: readonly string[], io: CliIo): Exit {
@@ -147,22 +113,22 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
     case 'preview':
       return look(context, (document, deps) => previewParty(command, document, deps));
     case 'dispatch':
-      return act(context, (document, deps) => dispatchParty(command, document, deps));
+      return act(context, command.name, (document, deps) => dispatchParty(command, document, deps));
     case 'build':
-      return act(context, (document, deps) => buildImprovement(command, document, deps));
+      return act(context, command.name, (document, deps) => buildImprovement(command, document, deps));
     case 'equip':
-      return act(context, (document, deps) => equipGear(command, document, deps));
+      return act(context, command.name, (document, deps) => equipGear(command, document, deps));
     case 'unequip':
-      return act(context, (document, deps) => unequipGear(command, document, deps));
+      return act(context, command.name, (document, deps) => unequipGear(command, document, deps));
     case 'buy':
-      return act(context, (document, deps) => buyItems(command, document, deps));
+      return act(context, command.name, (document, deps) => buyItems(command, document, deps));
     case 'sell':
-      return act(context, (document, deps) => sellItems(command, document, deps));
+      return act(context, command.name, (document, deps) => sellItems(command, document, deps));
     case 'transfer':
-      return act(context, (document, deps) => transferHero(command, document, deps));
+      return act(context, command.name, (document, deps) => transferHero(command, document, deps));
     case 'accept':
     case 'decline':
-      return act(context, (document, deps) => answerOffer(command, document, deps));
+      return act(context, command.name, (document, deps) => answerOffer(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -172,65 +138,20 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
   }
 }
 
-// ── Output ───────────────────────────────────────────────────────────────────────────────────
-
-export function say(io: CliIo, lines: readonly string[]): Exit {
-  io.stdout(`${lines.join('\n')}\n`);
-  return exitCodes.ok;
-}
-
-export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
-  io.stderr(`${problem}\n`);
-  return code;
-}
-
-/**
- * Why the save at `path` does not load, in a sentence. A save of an older schema than this engine
- * reads, as a `v1.1.1` save is since schema 5 and a `v1.1.2` save since schema 6, is refused in the
- * owner's words, the page's too (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7); the rest
- * name the engine's reason.
- */
-function loadRefusalWords(reason: Exclude<ReadSave, { ok: true }>['reason'], path: string): string {
-  if (reason.kind === 'missing') return `${reason.message}. Create a world with \`new\`, or name a save with --save.`;
-  if (reason.kind === 'unsupported-version' && reason.documentVersion < reason.schemaVersion) {
-    return `This game was saved by an older Heroesim and cannot be loaded: ${path}.`;
-  }
-  return `Cannot load ${path}: ${reason.message}.`;
-}
-
-/**
- * The save at `path`, loaded and checked, with the deps to play it under, `modules` installed (none
- * unless given); `undefined` after printing why it does not load. Content keys the content does not
- * define, and a module's slice no module in `modules` owns, are warned about and the save still loads
- * (data-model rule 5, §3.4).
- */
-export function open(
-  io: CliIo,
-  path: string,
-  content: ContentSet,
-  modules: readonly Module[] = [],
-): { document: WorldDocument; deps: EngineDeps } | undefined {
-  const read = readSave(path, content, modules);
-  if (!read.ok) {
-    refuse(io, loadRefusalWords(read.reason, path));
-    return undefined;
-  }
-  for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
-  return { document: read.document, deps: read.deps };
-}
-
 /**
  * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
  * `change` under the save's own deps, and on success writes the new document and prints its lines;
- * on a refusal prints the problem and writes nothing. A game that has ended is refused.
+ * on a refusal prints the problem and writes nothing. A game that has ended is refused, `action`
+ * its command.
  */
 function act(
   { io, content, path }: Context,
+  action: Command['name'],
   change: (document: WorldDocument, deps: EngineDeps) => CommandOutcome,
 ): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
-  const ended = over(io, opened.document, opened.deps, noActionAfterTheEnd);
+  const ended = over(io, opened.document, opened.deps, action);
   if (ended !== undefined) return ended;
   const outcome = change(opened.document, opened.deps);
   if (!outcome.ok) return refuse(io, outcome.problem);
@@ -313,6 +234,15 @@ function show(view: View, { io, content, path }: Context): Exit {
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
   const { world, history } = document;
+  // What the player reads the save through, once for the view (DL-241).
+  const reading = playerReading(document, deps);
+  /** The Guild named, or the player's; a refusal in the refusals' words when the save has no player's Guild (DL-240). */
+  const guildOf = (guildId: string | undefined): Guild | Exit => {
+    if (guildId === undefined) {
+      return reading.guild ?? refuse(io, refusalLine({ action: 'show', reason: 'no-player-guild' }, { world, content, calendar: deps.config }));
+    }
+    return rowOf(world.guilds, guildId) ?? refuse(io, `${path} has no Guild ${guildId}.`);
+  };
 
   switch (view.kind) {
     case 'summary':
@@ -320,41 +250,29 @@ function show(view: View, { io, content, path }: Context): Exit {
     case 'guilds':
       return say(io, renderGuilds(document, deps));
     case 'roster': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderRoster(guild, document, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderRoster(reading, guild));
     }
     case 'hall': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderHall(guild, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderHall(guild, deps));
     }
     case 'pool':
-      return say(io, renderPool(document, deps));
+      return say(io, renderPool(reading));
     case 'patrons':
       return say(io, renderPatrons(document, deps));
     case 'board':
-      return say(io, renderBoard(document, deps));
+      return say(io, renderBoard(reading));
     case 'rankings':
       return say(io, renderRankings(document, deps, view.by));
     case 'hero': {
-      const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
+      const hero: Hero | undefined = rowOf(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);
-      return say(io, renderHero(hero, document, deps));
+      return say(io, renderHero(heroReading(reading, hero), deps.config));
     }
     case 'guildmaster': {
-      const guild: Guild | undefined =
-        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
-      if (guild === undefined) {
-        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
-      }
-      return say(io, renderGuildmaster(guild, document, deps));
+      const guild = guildOf(view.guildId);
+      return typeof guild === 'number' ? guild : say(io, renderGuildmaster(guild, document, deps));
     }
     case 'market':
       return say(io, renderMarket(document, deps));
@@ -379,19 +297,6 @@ function show(view: View, { io, content, path }: Context): Exit {
 // ── advance and rebase ───────────────────────────────────────────────────────────────────────
 
 /**
- * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
- * once the player's game has ended the world stops as it stands (DL-28), and nothing is written. Its
- * date is by `deps.config`, the config the save plays under (`playDeps`, DL-210).
- */
-export function over(io: CliIo, document: WorldDocument, deps: EngineDeps, what = 'No Turn follows.'): Exit | undefined {
-  const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on ${renderDate(ended.turn, deps.config)}: ${ended.reason}. ${what}`);
-}
-
-/** What `over` says of an action refused after the end (M3 verification, DL-53). */
-export const noActionAfterTheEnd = 'Nothing more can be done in it.';
-
-/**
  * `advance [--turns n] [--modules ids]`: plays up to `turns` Turns under the rules the save plays
  * under, with the modules `--modules` installs (M8-S4), stopping early if the game ends or an
  * installed module asks to stop (M8-S2, DL-77), writes the save and prints what happened, and why it
@@ -402,7 +307,7 @@ function advanceTurns(turns: number, { io, content, path, modules }: Context): E
   if (opened === undefined) return exitCodes.refused;
   const { deps } = opened;
   let { document } = opened;
-  const refused = over(io, document, deps);
+  const refused = over(io, document, deps, 'advance');
   if (refused !== undefined) return refused;
 
   const events: TurnEvent[] = [];
@@ -434,10 +339,12 @@ function fastForwardTurns(
   const opened = open(io, path, content, modules);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
-  const refused = over(io, document, deps);
+  const refused = over(io, document, deps, 'advance');
   if (refused !== undefined) return refused;
   const guild = playerGuild(document.world);
-  if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
+  if (guild === undefined) {
+    return refuse(io, refusalLine({ action: 'fastForward', reason: 'no-player-guild' }, { world: document.world, content: deps.content, calendar: deps.config }));
+  }
 
   const maxTurns = command.max ?? deps.config.turnsPerYear;
   const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);
@@ -458,7 +365,7 @@ function rebaseRules({ io, content, path }: Context): Exit {
   const was = opened.document.meta.configVersion;
   const result = applyAction(opened.document, { kind: 'rebase' }, opened.deps);
   if (!result.ok) {
-    return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
+    return refuse(io, refusalLine(result.rejection, { world: opened.document.world, content, calendar: opened.deps.config }));
   }
   writeSave(path, result.document);
   return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.configVersion}.`]);

@@ -1,11 +1,9 @@
+// @vitest-environment node
 import {
   advance,
   createWorld,
   defaultConfig,
   milestoneTypes,
-  type CheckRoll,
-  type Encounter,
-  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -19,15 +17,17 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { narratedTypes, narrate as sentenceOf, type Slot } from '@heroesim/words';
-import { describe, expect, test } from 'vitest';
+import { narrate as sentenceOf, type Slot } from '@heroesim/words';
+import { beforeAll, describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { narrateSegments, narrateText, narrationFor, pageNamer, questNamer, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { anId, expectASentence } from './game.test-support';
+import { narrateSegments, narrateText, pageNamer, questNamer, resolvedWords, textOf, type Narration, type Segment } from './namer';
+import { readingOf } from './reading';
 
-// The page's Namer (v1.1.6-S12, DL-186 item 1) filling the narration's sentences (`@heroesim/words`):
+// The page's Namer (DL-186 item 1) filling the narration's sentences (`@heroesim/words`):
 // every sentence below is the page's as it was before the narration moved, word for word.
 //
-// The log's words (M7-S3's first box): every event type in the engine's union has a sentence. The
+// The log's words: every event type in the engine's union has a sentence. The
 // samples table's type is derived from the union, so a type the engine adds fails `npm run
 // typecheck` here, as it does in the map, until both have it; at run time the union is enumerated
 // by the engine's `milestoneTypes`, a record keyed by every event type.
@@ -38,14 +38,14 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
-/** A Rival Guildmaster's successor (M9-S2). */
+/** A Rival Guildmaster's successor. */
 const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
 const rivalId = 'guild-000003' as GuildId;
 const offerId = 'offer-000001' as OfferId;
-/** A Transfer Offer's terms (M6-S2): the Rival asks The Kestrel Guild for Brenna. */
+/** A Transfer Offer's terms: the Rival asks The Kestrel Guild for Brenna. */
 const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
 const labels: Record<string, string> = {
@@ -81,7 +81,7 @@ const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'world.created': event('world.created', [], { seed: 'demo' }),
-  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never }),
+  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never, wealth: 500 }),
   'guildmaster.generated': event('guildmaster.generated', [guildmasterId, guildId], { guildmasterId: guildmasterId as never, guildId }),
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
@@ -112,6 +112,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     target: 18,
     margin: -3.5,
     outcome: 'failure',
+    degree: 'failure',
+    decidedBy: 'steel',
+    checks: [{ key: 'steel', capability: 15, roll: 14.5, target: 18, margin: -3.5, degree: 'failure' }],
     injured: [heroId],
     died: [],
   }),
@@ -142,6 +145,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.morale-changed': event('hero.morale-changed', [heroId], {
     heroId,
     cause: 'roster-death',
+    questId,
     before: 45,
     after: 35,
     bandBefore: 'steady',
@@ -185,6 +189,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     patronId: patronId as never,
     guildId,
     cause: 'quest-failure',
+    questId,
     before: -3,
     after: -5,
     bandBefore: 'neutral',
@@ -195,6 +200,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     entityId: heroId,
     cause: 'quest-success',
+    questId,
     before: 3.5,
     after: 4.5,
     bandBefore: 'neutral',
@@ -204,6 +210,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     heroId,
     entityId: otherHeroId,
     cause: 'shared-quest',
+    questId,
     before: 11,
     after: 12.5,
     bandBefore: 'warm',
@@ -283,24 +290,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
 /** Every event type in the engine's union, enumerated by a record the engine keys by each. */
 const union = Object.keys(milestoneTypes).sort() as EngineEventType[];
 
-/** An entity id, which a sentence here never shows: the player types none. */
-const anId = /\b(guild|guildmaster|hero|patron|quest|party|offer|item|stack)-\d{6}\b/;
-
-/** What a sentence in the page must be: one line, a full stop, no id, nothing left unfilled. */
-function expectASentence(line: string): void {
-  expect(line).toMatch(/^[A-Z0-9].*\.$/);
-  expect(line).not.toContain('\n');
-  expect(line).not.toMatch(/undefined|null|NaN|\[object/);
-  expect(line).not.toMatch(anId);
-}
-
 describe('every event type in the engine\'s union has a sentence', () => {
-  test('the map has words for exactly the union, which the samples cover', () => {
-    expect([...narratedTypes].sort()).toEqual(union);
-    expect(Object.keys(samples).sort()).toEqual(union);
-    expect(union.length).toBeGreaterThanOrEqual(40);
-  });
-
   test.each(union)('%s reads as one sentence, naming whom it names and showing no id', (type) => {
     const line = narrateText(samples[type], narration);
 
@@ -318,110 +308,17 @@ function named(rows: Readonly<Record<string, { name: string }>>, key: string): s
 }
 
 /**
- * Every sample's sentence, word for word: the narration's (`@heroesim/words`), the CLI's words, with
- * the ids a command takes left out and a Party called its Guild's (DL-66 item 3). Pinned whole, so a sentence that
- * swaps who did what, or two numbers, or says one word for another, fails (M7 verification, DL-74).
+ * The one sentence the page's tests hold end to end (DL-231 item 4): `words` holds every event type's
+ * words and slots, and the page's Namer fills each slot in its own way; this sentence passes through
+ * every kind the page fills differently, a Guild by its name, a Party by its Heroes, a Quest by its
+ * name from the world, Items, and a date by the game's calendar.
  */
-const exactly: { [Type in EngineEventType]: string } = {
-  'world.created': 'The world was made from seed demo.',
-  'guild.founded': 'The Kestrel Guild was founded.',
-  'guildmaster.generated': 'Osric Vane leads The Kestrel Guild.',
-  'hero.generated': `Brenna Ashcombe, ${named(content.classes, 'rogue')}, joined the Unattached pool.`,
-  'patron.generated': `Lady Maud of the ${named(content.spheres, 'crown')} became a Patron.`,
-  'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
-  'guild.upkeep-paid': 'The Kestrel Guild paid 40 Upkeep, leaving 460 Wealth.',
-  'guild.below-floor':
-    "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 35 unless it is back to 0 or more on a night by then.",
-  'guild.floor-recovered':
-    "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.",
-  'hero.recruited': 'The Kestrel Guild signed Brenna Ashcombe for 110 Wealth.',
-  'hero.left-pool': 'Brenna Ashcombe left the Unattached pool.',
-  'quest.offered': `Lady Maud offered ${barrow}.`,
-  'quest.expired': `Lady Maud's ${barrow} expired untaken.`,
-  'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
-  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
-  'quest.resolved': `The Kestrel Guild's Party came home from ${named(content.questTemplates, 'guard-the-caravan')} and failed: Wealth 0, Fame -2.`,
-  'quest.loot': `The Kestrel Guild found Loot on ${barrow}: ${named(content.items, 'barrow-kings-blade')}.`,
-  'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
-  'hero.died': `Brenna Ashcombe died on ${barrow}.`,
-  'hero.xp-gained': 'Brenna Ashcombe gained 30 XP.',
-  'hero.morale-changed': "Brenna Ashcombe's Morale went from 45 to 35, low.",
-  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.heroTraits, 'scarred')}.`,
-  'hero.trait-gained': `Brenna Ashcombe earned the Trait ${named(content.heroTraits, 'scarred')} on ${barrow}, at ${named(content.encounters, 'ambush-on-the-road')}.`,
-  'hero.trait-lost': `Brenna Ashcombe lost the Trait ${named(content.heroTraits, 'lame')}, replaced by ${named(content.heroTraits, 'scarred')}.`,
-  'hero.retired': 'Brenna Ashcombe retired from The Kestrel Guild at 51.',
-  'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
-  'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',
-  'guild.folded': 'The Kestrel Guild had its Roster wiped out and folded.',
-  'guildmaster.succeeded': 'Osric Vane retired at 65 as Guildmaster of The Kestrel Guild, and Wenna Tolley succeeded them.',
-  'hero.left-guild': 'Brenna Ashcombe left The Kestrel Guild for the Unattached pool.',
-  'guild.improved': `The Kestrel Guild built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`,
-  'hero.levelled': `Brenna Ashcombe reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
-  'patron.regard-changed': "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.",
-  'guildmaster.regard-changed': "Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.",
-  'hero.regard-changed': "Brenna Ashcombe's Regard for Aldred Barrowby rose from warm to close after a Quest together.",
-  'item.expended': `The Kestrel Guild's Party used one ${named(content.items, 'healing-draught')} on Brenna Ashcombe: their Injury heals 5 Days sooner.`,
-  'item.equipped': `The Kestrel Guild put ${named(content.items, 'arming-sword')} in Brenna Ashcombe's weapon slot.`,
-  'item.unequipped': `The Kestrel Guild took ${named(content.items, 'lantern-of-stannary')} from Brenna Ashcombe's trinket slot.`,
-  'item.returned': `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe, who died.`,
-  'item.bought': `The Kestrel Guild bought 3 × ${named(content.items, 'whetstone')} at the Market for 75 Wealth.`,
-  'item.sold': `The Kestrel Guild's ${named(content.items, 'barrow-kings-blade')} went to the Market for 300 Wealth as the Guild folded.`,
-  'hero.transferred': 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
-  'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Year 1 Day 8.',
-  'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's Offer for Brenna Ashcombe.",
-  'guild.transfer-offer-expired': "The Iron Wardens's Offer for Brenna Ashcombe expired unanswered.",
-  'guild.wealth-changed': "The Kestrel Guild's Wealth went from 500 to 750.",
-};
+const endToEnd = `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`;
 
-describe('every sample in so many words', () => {
-  test.each(union)('%s says exactly what the CLI says, less its ids', (type) => {
-    expect(narrateText(samples[type], narration)).toBe(exactly[type]);
-  });
-
-  /** A sample of `type` with its payload changed. */
-  function varied<Type extends EngineEventType>(type: Type, change: Partial<EngineEventOf<Type>['payload']>): EngineEventOf<Type> {
-    const sample = samples[type] as EngineEventOf<Type>;
-    return { ...sample, payload: { ...sample.payload, ...change } } as EngineEventOf<Type>;
-  }
-
-  const rest = content.questTemplates['guard-the-caravan']?.name ?? '';
-  const draught = named(content.items, 'healing-draught');
-
-  test.each([
-    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3 }), `The Kestrel Guild's Party came home from ${rest} and succeeded: Wealth +120, Fame +3.`],
-    ['a Quest that succeeded strongly', varied('quest.resolved', { band: 'strong', wealthDelta: 150, fameDelta: 5 }), `The Kestrel Guild's Party came home from ${rest} and succeeded strongly: Wealth +150, Fame +5.`],
-    ['a consumable that healed a Day sooner', varied('item.expended', { days: 1 } as never), `The Kestrel Guild's Party used one ${draught} on Brenna Ashcombe: their Injury heals 1 Day sooner.`],
-    [
-      'a consumable that bonused a Check',
-      varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never),
-      `The Kestrel Guild's Party used one ${draught} on Encounter 3: +3 to its Check.`,
-    ],
-    [
-      'a consumable that tried an Encounter again',
-      varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never),
-      `The Kestrel Guild's Party used one ${draught} to try Encounter 1 again.`,
-    ],
-    ["the player's own sale", varied('item.sold', { cause: 'sale', quantity: 2, proceeds: 600 }), `The Kestrel Guild sold 2 × ${named(content.items, 'barrow-kings-blade')} at the Market for 600 Wealth.`],
-    ['a Transfer with no offer', varied('hero.transferred', { offerId: null }), 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth.'],
-    ['an offer lapsed as its Hero left', varied('guild.transfer-offer-expired', { cause: 'hero-left' }), "The Iron Wardens's Offer for Brenna Ashcombe lapsed: the Hero left that Roster."],
-    ['an offer lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), "The Iron Wardens's Offer for Brenna Ashcombe lapsed as a Guild folded."],
-    ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), 'The Kestrel Guild lost its Guildmaster to Retirement and folded.'],
-    ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), 'The Kestrel Guild went bankrupt and folded.'],
-    ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), 'The game ended: The Kestrel Guild lost its Guildmaster to Retirement.'],
-    ['a Hero made on a Roster', event('hero.generated', [heroId, guildId], { heroId, guildId, classKey: 'rogue' }), `Brenna Ashcombe, ${named(content.classes, 'rogue')}, joined The Kestrel Guild.`],
-    ['a Hero healed who kept no Trait', varied('hero.healed', { traitKey: null }), `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}.`],
-    ['gear back from a retired Hero', varied('item.returned', { cause: 'retired' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe, who retired.`],
-    ['gear back as the Guild folded', varied('item.returned', { cause: 'guild-folded' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe as the Guild folded.`],
-    ['Morale that rose', varied('hero.morale-changed', { before: 35, after: 45, bandAfter: 'steady' }), "Brenna Ashcombe's Morale went from 35 to 45, steady."],
-    [
-      "a Patron's Regard a module moved",
-      varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' }),
-      "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool through a Module.",
-    ],
-    ["a Hero's Regard a module moved", varied('hero.regard-changed', { cause: 'module', moduleId: 'probe' }), /^Brenna Ashcombe's Regard for .+ through a Module\.$/],
-  ] as const)('%s', (_name, event, sentence) => {
-    if (typeof sentence === 'string') expect(narrateText(event, narration)).toBe(sentence);
-    else expect(narrateText(event, narration)).toMatch(sentence);
+describe('one sentence end to end, through the page', () => {
+  test('a Party sent reads word for word, as text and as segments', () => {
+    expect(narrateText(samples['quest.taken'], narration)).toBe(endToEnd);
+    expect(textOf(narrateSegments(samples['quest.taken'], narration))).toBe(endToEnd);
   });
 });
 
@@ -430,11 +327,10 @@ function namesIn(segments: readonly Segment[]): [string, string][] {
   return segments.flatMap((segment) => (segment.kind === 'name' ? [[segment.entityId, segment.text] as [string, string]] : []));
 }
 
-describe('a line as segments: its words, and the names in it the page can open (M9-S5)', () => {
-  test.each(union)('%s reads word for word as its sentence, and marks only names of whom the event names', (type) => {
+describe('a line as segments: its words, and the names in it the page can open', () => {
+  test.each(union)('%s marks only names of whom the event names, each by its label', (type) => {
     const segments = narrateSegments(samples[type], narration);
 
-    expect(textOf(segments)).toBe(exactly[type]);
     for (const [entityId, text] of namesIn(segments)) {
       expect(samples[type].participants).toContain(entityId);
       expect(text).toBe(labels[entityId]);
@@ -464,7 +360,7 @@ describe('a line as segments: its words, and the names in it the page can open (
       [guildId, 'The Kestrel Guild'],
       [heroId, 'Brenna Ashcombe'],
     ]);
-    // M9-S2's Succession, each Guildmaster a name that opens their History.
+    // A Succession, each Guildmaster a name that opens their History.
     expect(namesIn(narrateSegments(samples['guildmaster.succeeded'], narration))).toEqual([
       [guildmasterId, 'Osric Vane'],
       [guildId, 'The Kestrel Guild'],
@@ -504,155 +400,17 @@ describe('a line as segments: its words, and the names in it the page can open (
   });
 });
 
-describe("a module's own event: one generic sentence for any type, never a crash (M8-S4)", () => {
-  /** An event a module made, as the History holds it: the page knows neither its type nor its payload. */
-  function moduleEvent(type: string, participants: string[], payload: unknown): ModuleEvent {
-    const named = Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]])));
-    return { type, turn: 9, participants, labels: named, milestone: false, payload } as unknown as ModuleEvent;
-  }
-
-  test("names the module, from its type's namespace, the type, and who it concerns, by name alone", () => {
-    const fired = moduleEvent('probe.fired', [heroId, patronId, guildId], { roll: 0.01, effects: [] });
-
-    expect(narrateText(fired, narration)).toBe('The probe Module recorded probe.fired for Brenna Ashcombe, Lady Maud and The Kestrel Guild.');
-  });
-
-  test.each([
-    ['a module the page has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather Module recorded weather.storm-broke.'],
-    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger Module recorded ledger.balanced for The Kestrel Guild.'],
-    ['a participant with no label, by what it is', moduleEvent('probe.fired', ['hero-000099', 'not-an-id'], undefined), 'The probe Module recorded probe.fired for a Hero and someone.'],
-    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A Module recorded mystery for Brenna Ashcombe.'],
-  ])('%s', (_name, event, sentence) => {
-    expect(narrateText(event, narration)).toBe(sentence);
-  });
-});
-
-describe("the CLI's words, adapted for the page", () => {
-  test('names content keys by content, Heroes by name, and Quests by their template', () => {
-    expect(narrateText(samples['quest.offered'], narration)).toBe(`Lady Maud offered ${barrow}.`);
-    expect(narrateText(samples['hero.healed'], narration)).toBe('Brenna Ashcombe recovered from Deep cut, left Scarred.');
-    expect(narrateText(samples['hero.declined'], narration)).toBe('Brenna Ashcombe, at 41, lost 1 Endurance to age.');
-    expect(narrateText(samples['hero.died'], narration)).toBe(`Brenna Ashcombe died on ${barrow}.`);
-    expect(narrateText(samples['quest.taken'], narration)).toBe(
-      `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Year 1 Day 8, carrying Whetstone ×2.`,
-    );
-    // An entry written before v1.1.4-S2 reads as its outcome, a Failure or a Success.
-    expect(narrateText(samples['quest.encounter'], narration)).toBe(
-      `The Kestrel Guild's Party failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe was injured.`,
-    );
-    expect(narrateText(samples['quest.resolved'], narration)).toMatch(/came home from .+ and failed: Wealth 0, Fame -2\.$/);
-    expect(narrateText(samples['item.bought'], narration)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
-    expect(narrateText(samples['hero.transferred'], narration)).toBe(
-      'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
-    );
-  });
-
-  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
-    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
-    const [front] = ambush.checks as [EncounterCheck];
-    const several: Narration = {
-      ...narration,
-      content: {
-        ...content,
-        encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [front, { ...front, key: 'nerve', name: 'Nerve' }], pass: ['and', front.key, 'nerve'] } },
-      },
-    };
-    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
-    const payload = {
-      ...samples['quest.encounter'].payload,
-      degree: 'setback' as const,
-      decidedBy: 'nerve',
-      checks: [
-        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
-        { key: 'nerve', ...roll, degree: 'setback' as const },
-      ],
-    };
-
-    expect(narrateText({ ...samples['quest.encounter'], payload }, several)).toBe(
-      `The Kestrel Guild's Party failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe was injured.`,
-    );
-    // One Check named as its Encounter names none: it is the Encounter's own (the old form's, v1.1.4-S1).
-    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
-    const own: Narration = {
-      ...narration,
-      content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: ambush.name }] } } },
-    };
-    expect(narrateText({ ...samples['quest.encounter'], payload: one }, own)).toBe(`The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph.`);
-    // One Check named otherwise than its Encounter is named (v1.1.4-S2's verification, DL-152).
-    const renamed: Narration = {
-      ...narration,
-      content: { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } },
-    };
-    expect(narrateText({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(
-      `The Kestrel Guild's Party came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`,
-    );
-  });
-
-  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero (v1.1.4-S3)", () => {
-    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
-    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
-    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
-    const line = (payload: EngineEventOf<'quest.encounter'>['payload']) => narrateText({ ...samples['quest.encounter'], payload }, narration);
-    const plain = line(base);
-
-    expect(plain).not.toMatch(/spirits/);
-    // Lowered from a Success to a Setback: the Encounter failed by form.
-    expect(line({ ...base, formDecided: 'lowered', checks: [{ ...front, formDecided: 'lowered' }] })).toBe(`${plain} Low spirits told against them.`);
-    // Raised from a Setback to a Success: the Encounter succeeded by form.
-    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], checks: [{ ...front, degree: 'success' as const }] };
-    expect(line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] })).toBe(`${line(won)} Their high spirits carried them through.`);
-    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
-    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
-    expect(line({ ...base, checks: [other, front] })).toBe(plain);
-    // An entry written before v1.1.4-S3, or before v1.1.4-S2, has no such sentence.
-    const older = { ...base };
-    Reflect.deleteProperty(older, 'checks');
-    expect(line(older)).not.toMatch(/spirits/);
-    // The sentence is words alone: no Hero's name is a segment of it.
-    const segments = narrateSegments({ ...samples['quest.encounter'], payload: { ...base, formDecided: 'lowered' as const } }, narration);
-    const after = segments.slice(segments.findIndex((segment) => segment.text.includes('Low spirits')));
-    expect(after.length).toBeGreaterThan(0);
-    expect(namesIn(after)).toEqual([]);
-    for (const sentence of ['Low spirits told against them.', 'Their high spirits carried them through.']) {
-      expect(sentence).not.toMatch(/Brenna|hero-/);
-    }
-  });
-
-  test('says a Regard band crossed, never the number', () => {
-    for (const type of ['patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed'] as const) {
-      expect(narrateText(samples[type], narration)).not.toMatch(/\d/);
-    }
-    expect(narrateText(samples['patron.regard-changed'], narration)).toBe(
-      "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.",
-    );
-  });
-
-  test('says a Level gained without the points Potential took', () => {
-    const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
-
-    expect(narrateText(allLost, narration)).toBe('Brenna Ashcombe reached Level 20.');
-    expect(narrateText(samples['hero.levelled'], narration)).toBe('Brenna Ashcombe reached Level 3: Courage +2, Strength +1.');
-  });
-
-  test('calls someone with no label by what they are, never by id', () => {
-    const unlabelled = { ...samples['hero.recruited'], labels: {} };
-
-    expect(narrateText(unlabelled, narration)).toBe('A Guild signed a Hero for 110 Wealth.');
-  });
-});
-
 describe('a played game narrates', () => {
-  /** A new game, then a month of Turns in which the Rivals take and resolve Quests. */
-  function played(): WorldDocument {
+  /** A new game, then a month of Turns in which the Rivals take and resolve Quests: played once, and only read (ADR-0008). */
+  let document: WorldDocument;
+  beforeAll(() => {
     const deps = { config: defaultConfig, content };
-    let { document } = createWorld('narrate-played', { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: 'test' }, deps);
+    document = createWorld('narrate-played', { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: 'test' }, deps).document;
     for (let turn = 0; turn < 90; turn += 1) document = advance(document, deps).document;
-    return document;
-  }
+  });
 
   test('every entry of its History as a sentence, Quests named from the History once their rows are gone', () => {
-    const document = played();
-    const narrated = narrationFor(document, content);
+    const narrated = readingOf(document).narration;
     const types = new Set(document.history.entries.map((entry) => entry.type));
 
     for (const entry of document.history.entries) expectASentence(narrateText(entry as never, narrated));
@@ -662,7 +420,6 @@ describe('a played game narrates', () => {
   });
 
   test('questNamer reads a row, then the History, and says `a Quest` for an id neither knows', () => {
-    const document = played();
     const name = questNamer(document, content);
     const onTheBoard = document.world.board[0];
     const resolved = document.history.entries.find((entry) => entry.type === 'quest.resolved');
@@ -679,7 +436,7 @@ describe('a played game narrates', () => {
   });
 });
 
-describe("the page's Namer (v1.1.6-S12)", () => {
+describe("the page's Namer", () => {
   const namer = pageNamer(narration.questName);
   const guild: Slot = { kind: 'name', table: 'guilds', id: guildId, label: 'The Kestrel Guild' };
   const brenna: Slot = { kind: 'hero', table: 'heroes', id: heroId, label: 'Brenna Ashcombe' };
@@ -727,7 +484,7 @@ describe("the page's Namer (v1.1.6-S12)", () => {
   test("cuts a Party's outcome at its band, reading as the History reads it", () => {
     const { lead, band, rest } = resolvedWords(samples['quest.resolved'], narration);
 
-    expect(`${textOf(lead)}${band}${textOf(rest)}`).toBe(exactly['quest.resolved']);
+    expect(`${textOf(lead)}${band}${textOf(rest)}`).toBe(narrateText(samples['quest.resolved'], narration));
     expect(band).toBe('failed');
     expect(lead[0]).toEqual({ kind: 'name', text: 'The Kestrel Guild', entityId: guildId, table: 'guilds' });
   });

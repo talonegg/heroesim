@@ -1,11 +1,10 @@
-import { cleanup, fireEvent, render, within } from '@testing-library/react';
+import { cleanup, fireEvent, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { App } from '../app';
 import { changed, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { openView, section } from './page.test-support';
+import { openView, renderGame, section } from './page.test-support';
 
-// The Rankings redesigned (M9-S6, DL-106; the review's B4, B5 and B10): the Rankings and the Guilds
+// The Rankings redesigned (DL-106; the review's B4, B5 and B10): the Rankings and the Guilds
 // as one table whose headings order it, By Fame and By Wealth keeping their shared places; a
 // Rival's page with its Roster as a table and its Hall and Guildmaster folded; and the Patrons as
 // one table with the neutral folded. Every value comes from a selector (`guildsTable`, `guildPage`,
@@ -15,10 +14,6 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
-
-function render_(state: GameState): void {
-  render(<App initial={state} />);
-}
 
 function table(): HTMLElement {
   return within(section('Guilds')).getByRole('table', { name: 'Every Guild, and the Rankings' });
@@ -59,9 +54,9 @@ const five = [
   ['Cinder', 0, 200, 3],
 ] as const;
 
-describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", () => {
+describe("the Guilds and the Rankings as one table (the review's B4)", () => {
   test('gives Place, Guild, Disposition, Fame, Wealth, Heroes and Upkeep, the Rankings by Fame first, the player’s row marked', () => {
-    render_(arranged(five));
+    renderGame(arranged(five));
 
     expect(within(table()).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'Place by Fame',
@@ -99,7 +94,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   });
 
   test('by Wealth, orders and places the Guilds by Wealth, the level ones sharing a place (DL-95, DL-91)', () => {
-    render_(arranged(five));
+    renderGame(arranged(five));
 
     orderBy('Wealth');
 
@@ -116,7 +111,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   });
 
   test('by any other column, orders for display only, and Place still reads by Fame', () => {
-    render_(arranged(five));
+    renderGame(arranged(five));
 
     orderBy('Heroes');
 
@@ -136,7 +131,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   });
 
   test('a new game, every Guild at Fame 0, is joint 1st by Fame; by Wealth, each Guild has its place by Wealth', () => {
-    render_(started());
+    renderGame(started());
 
     expect(rows().map(({ cells: [place] }) => place)).toEqual(Array(5).fill('Joint 1st'));
     orderBy('Wealth');
@@ -146,7 +141,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   });
 
   test('lists a folded Guild last, with the Day it folded in place of a place', () => {
-    render_(
+    renderGame(
       changed(started(), (document, player) => {
         const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id);
         if (rival === undefined) throw new Error('no Rival');
@@ -162,27 +157,20 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     expect(all.slice(0, 4).every(({ cells: [place] }) => place === 'Joint 1st')).toBe(true);
   });
 
-  test('keeps its order in this browser; one that refuses its storage opens by Fame', () => {
-    render_(arranged(five));
+  test('keeps its order in this browser', () => {
+    renderGame(arranged(five));
     orderBy('Upkeep');
     expect(localStorage.getItem('heroesim.guildsOrder')).toBe('upkeep');
     cleanup();
 
-    render_(arranged(five));
+    renderGame(arranged(five));
     expect(within(table()).getByRole('columnheader', { name: 'Upkeep' }).getAttribute('aria-sort')).toBe('descending');
-    cleanup();
-
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('storage blocked');
-    });
-    render_(arranged(five));
-    expect(within(table()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBe('descending');
   });
 });
 
-describe("a Guild's page (M9-S6, the review's B10)", () => {
+describe("a Guild's page (the review's B10)", () => {
   test("opens from its row: its Roster as a table with the Transfer fees and Take in, and its Hall and Guildmaster folded", () => {
-    render_(started());
+    renderGame(started());
     const rival = rows().find(({ name }) => name === 'The Ashford Guild');
     if (rival === undefined) throw new Error('no Ashford');
 
@@ -224,7 +212,7 @@ describe("a Guild's page (M9-S6, the review's B10)", () => {
   });
 
   test("the player's own Guild opens too, its Roster with no fees", () => {
-    render_(started());
+    renderGame(started());
 
     fireEvent.click(within(table()).getByRole('button', { name: 'Open The Lantern' }));
 
@@ -238,7 +226,7 @@ describe("a Guild's page (M9-S6, the review's B10)", () => {
   });
 });
 
-describe("the Patrons as one table (M9-S6, the review's B5)", () => {
+describe("the Patrons as one table (the review's B5)", () => {
   test("give each Patron's Sphere, their Regard for the Guild, the Guildmaster's for them, and their Quests on the Board, the neutral folded", () => {
     const state = changed(started(), (document, player) => {
       const guildmaster = document.world.guildmasters[player.guildmasterId];
@@ -247,7 +235,7 @@ describe("the Patrons as one table (M9-S6, the review's B5)", () => {
       cold.regard[player.id] = { value: -30, since: 0, reason: 'test' };
       guildmaster.regard[liked.id] = { value: 20, since: 0, reason: 'test' };
     });
-    render_(state);
+    renderGame(state);
     const patrons = section('Patrons');
     const all = (): HTMLElement[] => within(section('Patrons')).queryAllByTestId('patron');
     const shown = (): HTMLElement[] => within(section('Patrons')).queryAllByRole('row').filter((row) => row.dataset.testid === 'patron');

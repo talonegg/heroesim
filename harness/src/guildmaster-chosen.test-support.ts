@@ -1,4 +1,4 @@
-// v1.1.4-S11 (DL-149): "Choose myself" sets every attribute of the player's Guildmaster, and what is
+// DL-149: "Choose myself" sets every attribute of the player's Guildmaster, and what is
 // chosen replaces what is drawn after the draw, so the world a seed makes is otherwise the one "Choose
 // for me" makes: the creation hashes, but for the player's Guildmaster, are equal. Held over 60
 // seeds by creation.test.ts (`npm test`) and over HEROESIM_SEEDS, 1,000 by default, by
@@ -10,7 +10,7 @@ import { createWorld, playerGuild, serialise, type EngineDeps, type Guild, type 
 import { expect } from 'vitest';
 import { harnessSetup } from './creation.js';
 
-/** `document` with every Guildmaster's Portrait, Appearance and Biography set aside (v1.1.3-S5). */
+/** `document` with every Guildmaster's Portrait, Appearance and Biography set aside. */
 export function picturesAside(document: WorldDocument): WorldDocument {
   const copy = structuredClone(document);
   for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
@@ -37,7 +37,7 @@ function parts(document: WorldDocument): Record<string, string> {
  * Creates each of `seeds` with every attribute of the player's Guildmaster chosen, the choices dealt
  * round the seeds, and with none, and expects the two worlds equal but for that Guildmaster and the
  * Guildmasters' pictures and texts, and every stream where it was. Gives how many worlds a Rival's
- * picture moved in: one fits them among those not in use (v1.1.3-S5), so the player's may move one.
+ * picture moved in: one fits them among those not in use, so the player's may move one.
  */
 export function expectChosenAsNone(seeds: readonly string[], deps: EngineDeps): { rivalPictureMoved: number } {
   const portraits = deps.content.portraits.guildmaster;

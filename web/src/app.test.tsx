@@ -2,12 +2,14 @@ import type { Quest } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
-import { changed, started as startedFrom, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
-import { fastForwardStepTurns, gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
+import { changed, played, started, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
+import { fastForwardStepTurns, initialGameState, type GameState } from './state/reducer';
 import { download } from './views/download';
 import {
   closeMenu,
+  described,
   historyLines,
+  idle,
   inHistory,
   nav,
   navButton,
@@ -15,17 +17,19 @@ import {
   openGuildPart,
   openMenu,
   openView,
+  refuseStorage,
   rosterList,
   section,
-  sentenceOf,
+  startNewGame,
   time,
+  views,
   type ViewName,
 } from './views/page.test-support';
 
-// The page (M7-S3; views in a shell since M9-S3, DL-103): a new game, the status bar, the views
+// The page (views in a shell, DL-103): a new game, the status bar, the views
 // and the navigation between them, the home view's digest, the Board with dispatch, the Roster with
 // Hero pages and the History, driven through the page's own controls. Every play settles after the
-// busy state is painted (M7-S2), so each test waits for the page to be idle again. The file a
+// busy state is painted, so each test waits for the page to be idle again. The file a
 // player saves is kept, not downloaded: "Export this game" hands it to `download`.
 vi.mock('./views/download', () => ({ download: vi.fn() }));
 
@@ -35,28 +39,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const newGame: Play = {
-  kind: 'newGame',
-  seed: 'app-test',
-  guildName: 'The Lantern',
-  guildmasterName: 'Ada Vell',
-  createdAt: '2026-09-27T09:00:00.000Z',
-};
 
-/** Plays `action` as the page does, accepted then settled, outside React. */
-function played(state: GameState, action: Play): GameState {
-  return gameReducer(gameReducer(state, action), { kind: 'settle' });
-}
-
-function started(): GameState {
-  return played(initialGameState, newGame);
-}
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-/** The whole History, the game menu's debug view (M9-F4): a module's events are there alone. */
+/** The whole History, the game menu's debug view: a module's events are there alone. */
 function wholeHistory(): HTMLElement {
   return openDebugHistory();
 }
@@ -67,8 +51,6 @@ function summary(history: HTMLElement): { entries: number; fresh: number } {
   return { entries: Number(/, (\d+) entr/.exec(text)?.[1]), fresh: Number(/ (\d+) new since your last action\.$/.exec(text)?.[1] ?? 0) };
 }
 
-// The seven views in the navigation's order (M9-F2, DL-112 item 5).
-const views: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
 describe('before a game', () => {
   test('offers a new game, and names the content set it loaded', () => {
@@ -83,10 +65,7 @@ describe('before a game', () => {
   test('starts one from the names given, and shows its status bar and the home view', async () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Ada Vell' } });
-    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'app-test' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Lantern', guildmasterName: 'Ada Vell', seed: 'app-test' });
     await idle();
 
     const bar = screen.getByRole('banner');
@@ -117,12 +96,12 @@ describe('before a game', () => {
   });
 });
 
-describe('the shell (M9-S3, DL-103)', () => {
+describe('the shell (DL-103)', () => {
   test('opens on the home view, with the seven views in the navigation in order and the open one marked', () => {
     render(<App initial={started()} />);
 
     const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More(,|$)/.test(button.textContent ?? ''));
-    // The Guildmaster's is labelled with their name (M9-F2).
+    // The Guildmaster's is labelled with their name.
     expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(
       views.map((view) => (view === 'Guildmaster' ? 'Ada Vell' : view)),
     );
@@ -177,9 +156,7 @@ describe('the shell (M9-S3, DL-103)', () => {
     expect(screen.getByRole('region', { name: 'Market' })).toBeDefined();
 
     fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Bran Tull' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Second Lamp', guildmasterName: 'Bran Tull' });
     await idle();
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     // The page remembers the view in an effect after the play's render, which settles outside the click.
@@ -187,12 +164,7 @@ describe('the shell (M9-S3, DL-103)', () => {
   });
 
   test('opens on the home view where the browser keeps nothing, or keeps a view it does not know', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('The operation is insecure.', 'SecurityError');
-    });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
-    });
+    refuseStorage();
     const { unmount } = render(<App initial={started()} />);
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     openView('Board');
@@ -251,7 +223,7 @@ describe('the shell (M9-S3, DL-103)', () => {
   });
 });
 
-describe('the home view (M9-S3, DL-103)', () => {
+describe('the home view (DL-103)', () => {
   test('after a fast forward, opens with the stop, and each Quest it names opens that Quest’s Party on the Board', async () => {
     const initial = started();
     render(<App initial={initial} />);
@@ -281,7 +253,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const card = heading.closest('article') as HTMLElement;
     expect(within(card).getByRole('form', { name: `A Party for ${questName}` })).toBeDefined();
     expect(within(card).getByRole('button', { name: 'Close' }).getAttribute('aria-expanded')).toBe('true');
-    // The Party builder (M9-S4, DL-104): a row for each Hero on the Roster, and the card's details unfolded.
+    // The Party builder (DL-104): a row for each Hero on the Roster, and the card's details unfolded.
     const roster = Object.values(initial.document?.world.guilds ?? {}).find((guild) => guild.controller.kind === 'player')?.rosterIds;
     expect(within(card).getAllByTestId('party-row')).toHaveLength(roster?.length ?? -1);
     expect(within(card).getByRole('heading', { level: 4, name: 'Encounters' })).toBeDefined();
@@ -297,12 +269,11 @@ describe('the home view (M9-S3, DL-103)', () => {
   });
 
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
-    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: from v1.1.4-S6 the
+    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: the
     // Party sent is the one most likely to come through (DL-157), and on this seed's own Quest it does.
-    // The seed is report-f since v1.1.4-S8, whose Encounter tags bring report-d's Party home unhurt (DL-160),
-    // and report-l since v1.1.4-S10's balance pass, which brings report-f's to report-k's home unhurt
-    // (DL-166).
-    const hard = changed(withPartyOut(startedFrom('report-l')), (document, player) => {
+    // The seed is report-l: the Encounter tags bring report-d's Party home unhurt (DL-160), and the
+    // balance pass brings report-f's to report-k's home unhurt (DL-166).
+    const hard = changed(withPartyOut(started('report-l')), (document, player) => {
       for (const party of Object.values(document.world.parties)) {
         if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
       }
@@ -318,7 +289,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     const report = within(home).getByRole('region', { name: /^Quest report: / });
     const quest = /^Quest report: (.+)$/.exec(within(report).getByRole('heading', { level: 3 }).textContent ?? '')?.[1] ?? '';
     expect(within(report).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
-    // v1.1.4-S14: each Encounter the engine played names its Degree (v1.1.4-S2).
+    // Each Encounter the engine played names its Degree (DL-152).
     const encounters = within(report).getByRole('heading', { level: 4, name: 'Encounters' }).parentElement as HTMLElement;
     const steps = Array.from(encounters.querySelectorAll('.report__list > li'))
       .map((item) => item.textContent ?? '')
@@ -330,7 +301,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // This seed's Party comes home with an Injury: named, with the night it heals.
     expect(within(report).getByText(/^Injured: .+, healing on the night of Year \d+ Day \d+$/)).toBeDefined();
-    // The same outcome, as the History narrates it, new, on the player's Guild (M9-S5).
+    // The same outcome, as the History narrates it, new, on the player's Guild.
     const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
     expect(line.classList.contains('is-new')).toBe(true);
   });
@@ -348,10 +319,10 @@ describe('the home view (M9-S3, DL-103)', () => {
   });
 });
 
-describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 item 8)', () => {
+describe('a Party’s return opens its report on Guild › Home (DL-112 item 8)', () => {
   /** A Party of the player's out, and the game played to the Turn before the night it comes home. */
   function onTheEve(): GameState {
-    const out = withPartyOut(startedFrom('reducer-test'));
+    const out = withPartyOut(started('reducer-test'));
     const party = Object.values(out.document?.world.parties ?? {})[0];
     if (party === undefined || out.document === null) throw new Error('no Party out');
     return played(out, { kind: 'advance', turns: party.returnsOnTurn - out.document.world.turn - 1 });
@@ -375,7 +346,7 @@ describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 i
   });
 
   test.each(['Board', 'History'] as const)('after a fast forward, from the %s: Guild › Home at the report, with the keyboard on its heading', async (from) => {
-    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    render(<App initial={withPartyOut(started('reducer-test'))} />);
     openView(from);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
@@ -386,7 +357,7 @@ describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 i
   });
 
   test('a play that brings no Party home leaves the view where it was', async () => {
-    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    render(<App initial={withPartyOut(started('reducer-test'))} />);
     openView('Board');
 
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
@@ -396,7 +367,7 @@ describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 i
   });
 
   test('"Open the report" on an older entry shows it on Guild › Home; closing it returns to Home', async () => {
-    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    render(<App initial={withPartyOut(started('reducer-test'))} />);
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
     await waitFor(() => expect(document.activeElement).toBe(reportHeading()));
@@ -424,7 +395,7 @@ describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 i
   });
 
   test('"Open the report" in the rail shows it on Guild › Home too', async () => {
-    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    render(<App initial={withPartyOut(started('reducer-test'))} />);
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
     openView('Roster');
@@ -443,7 +414,7 @@ describe('a game in hand', () => {
     await idle();
 
     expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 1, afternoon');
-    // What the Turn added is the History's newest, under its Day and time of day, each line marked new (M9-S5).
+    // What the Turn added is the History's newest, under its Day and time of day, each line marked new.
     const history = wholeHistory();
     const before = started().document?.history.entries.length ?? 0;
     const { entries, fresh } = summary(history);
@@ -458,7 +429,7 @@ describe('a game in hand', () => {
 
   test('after a fast forward, the History has all it added, marked new, twenty entries a page', async () => {
     // A Party out on a Quest of ten Days: the fast forward plays until it comes home.
-    const state = withPartyOut(startedFrom('reducer-test'));
+    const state = withPartyOut(started('reducer-test'));
     // Counted now: the History is appended to in place, shared by the games that follow (ADR-0008).
     const before = state.document?.history.entries.length ?? 0;
     render(<App initial={state} />);
@@ -477,7 +448,7 @@ describe('a game in hand', () => {
   });
 
   test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', () => {
-    // The last play sent a Party: a purchase is no longer in the Guild's History, nor the rail (M9-F4).
+    // The last play sent a Party: a purchase is no longer in the Guild's History, nor the rail.
     render(<App initial={withPartyOut(started())} />);
 
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
@@ -490,7 +461,7 @@ describe('a game in hand', () => {
   });
 });
 
-describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', () => {
+describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
   /** The Turns the player's Stop says it played. */
   function stoppedAfter(): number {
     const sentence = within(screen.getByTestId('stop')).getByText(/^Stopped: you asked to stop, after \d+ Turns\.$/).textContent ?? '';
@@ -500,8 +471,8 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
   test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
     // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
     // the floor since its first Day, before the fast forward, so its countdown stands and no new crossing
-    // stops it (M9-S1, DL-101).
-    render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100, 0)} />);
+    // stops it (DL-101).
+    render(<App initial={withWealth(withPartyOut(started('reducer-test')), -100, 0)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
 
@@ -527,14 +498,14 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
     expect(screen.getByTestId('time').textContent).toBe('Year 1 Day 11, night');
-    // The History marks both steps' entries new: all it gained in the fast forward (M9-S5).
+    // The History marks both steps' entries new: all it gained in the fast forward.
     const { entries, fresh } = summary(wholeHistory());
-    expect(fresh).toBe(entries - (withPartyOut(startedFrom('reducer-test')).document?.history.entries.length ?? 0));
+    expect(fresh).toBe(entries - (withPartyOut(started('reducer-test')).document?.history.entries.length ?? 0));
   });
 
   test('Stop leaves the game, the log and the sentence as its step left them, and "Fast forward again" goes on from there', async () => {
     // The Roster released and Wealth to spare: a year with nothing of the player's to stop it.
-    render(<App initial={withRosterReleased(startedFrom())} />);
+    render(<App initial={withRosterReleased(started())} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
@@ -547,9 +518,9 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(first).toBeLessThan(1080);
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${first / 3 + 1}, morning`);
-    // The History marks new all the steps played until the Stop (M9-S5).
+    // The History marks new all the steps played until the Stop.
     const { entries, fresh } = summary(wholeHistory());
-    expect(fresh).toBe(entries - (withRosterReleased(startedFrom()).document?.history.entries.length ?? 0));
+    expect(fresh).toBe(entries - (withRosterReleased(started()).document?.history.entries.length ?? 0));
     expect((screen.getByRole('button', { name: 'Advance a Turn' }) as HTMLButtonElement).disabled).toBe(false);
 
     openView('Guild');
@@ -562,10 +533,10 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(screen.getByTestId('time').textContent).toBe(`Year 1 Day ${(first + second) / 3 + 1}, morning`);
   }, 30_000);
 
-  test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (v1.0.1-S6, DL-97)', async () => {
+  test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (DL-97)', async () => {
     // Between steps the game in hand shares its History with the steps' games (ADR-0008): a save of
     // it would hold Turns its World has not played, and the page's own load refuses one.
-    render(<App initial={withRosterReleased(startedFrom())} />);
+    render(<App initial={withRosterReleased(started())} />);
     const exporting = () => within(section('This game')).getByRole('button', { name: 'Export this game' }) as HTMLButtonElement;
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
@@ -590,97 +561,72 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
 });
 
 describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-99 item 1 amends it)", () => {
-  /** The sentence that says what a region is for: its accessible description. */
-  function described(region: HTMLElement): string {
-    const ids = region.getAttribute('aria-describedby')?.split(' ') ?? [];
-    return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
-  }
+  /** A Transfer Offer standing and older rules: every part the page has is drawn. Made once, and only rendered. */
+  const everyPart = withOlderRules(withOffer(started()));
 
-  /** Every region on the page, from every view and the game menu, by its heading. */
-  function everyRegion(): Map<string, HTMLElement> {
-    const regions = new Map<string, HTMLElement>();
-    const note = (): void => {
-      for (const region of screen.getAllByRole('region')) regions.set(region.getAttribute('aria-labelledby') ?? '', region.cloneNode(true) as HTMLElement);
-    };
-    for (const view of views) {
-      openView(view);
-      note();
-      // Each view's sentence and its parts' are in its "About this view", closed until asked for.
-      const about = within(screen.getByRole('region', { name: view })).getByText('About this view').closest('details');
-      expect(about?.open).toBe(false);
-      // The Guild's parts are tabs' panels, described as a region is (M9-F2).
-      const helpIds = [...screen.getAllByRole('region'), ...screen.queryAllByRole('tabpanel')].map((region) => region.getAttribute('aria-describedby'));
-      for (const id of helpIds) expect(about?.querySelector(`#${id}`), `${view}'s About holds ${id}`).not.toBeNull();
-    }
-    openMenu();
-    note();
-    closeMenu();
-    return regions;
-  }
+  test('before a game, its one region says what it is for', () => {
+    render(<App />);
+    const regions = screen.getAllByRole('region');
 
-  test('every view and every part of one says what it is for and what its controls do, before a game and with one', () => {
-    const { unmount } = render(<App />);
-    const before = screen.getAllByRole('region');
-    expect(before).toHaveLength(1);
-    for (const region of before) expect(described(region)).toMatch(/^[A-Z].{40,}\.$/);
-    unmount();
-
-    // A Transfer Offer standing and older rules: every part the page has is drawn.
-    render(<App initial={withOlderRules(withOffer(started()))} />);
-    const regions = everyRegion();
-    expect([...regions.keys()].sort()).toEqual(
-      [
-        'guildmaster', 'guild', 'roster', 'offers', 'pool', 'board', 'rankings', 'guilds', 'patrons', 'market', 'buy', 'sell',
-        'history', 'rules', 'game',
-      ]
-        .map((id) => `${id}-heading`)
-        .sort(),
-    );
-    for (const [id] of regions) {
-      const help = document.getElementById(id.replace(/-heading$/, '-help'));
-      // The menu's are gone with the menu; a view's are there while it is open.
-      if (help === null) continue;
-      expect(help.textContent, id).toMatch(/^[A-Z].{40,}\.$/);
-    }
-    for (const view of views) expect(described(openView(view))).toMatch(/^[A-Z].{40,}\.$/);
-    for (const part of ['Transfer Offers', 'Unattached pool', 'Buy', 'Sell', 'Guilds', 'Patrons', 'This game', 'New rules available']) {
-      expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
-    }
-    // Each of the Guild's parts, a tab's panel, says what it is for too, from the Guild's "About this view" (M9-F2).
-    for (const part of ['Home', 'Hall', 'Stores', 'Treasury']) {
-      expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
-    }
+    expect(regions).toHaveLength(1);
+    for (const region of regions) expect(described(region)).toMatch(/^[A-Z].{40,}\.$/);
   });
 
-  test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
+  // Where each region is drawn: the view that holds it, or the game menu; its parts, described as a
+  // region is; the Guild's, tabs' panels (DL-115, DL-116). Together the rows' regions are every region the
+  // page draws, each in the one place it is, so a region added anywhere fails the case it lands in (DL-236).
+  test.each<[ViewName | 'the game menu', string[], string[]]>([
+    ['Guildmaster', ['guildmaster'], []],
+    ['Guild', ['guild'], ['Home', 'Hall', 'Stores', 'Treasury']],
+    ['Roster', ['roster', 'offers', 'pool'], ['Transfer Offers', 'Unattached pool']],
+    ['Board', ['board'], []],
+    ['Rankings', ['rankings', 'guilds', 'patrons'], ['Guilds', 'Patrons']],
+    ['Market', ['market', 'buy', 'sell'], ['Buy', 'Sell']],
+    ['History', ['history'], []],
+    ['the game menu', ['rules', 'game'], ['New rules available', 'This game']],
+  ])('%s says what it is for, and each of its parts, in its About or the menu: %j', (where, ids, parts) => {
+    render(<App initial={everyPart} />);
+    const scope = where === 'the game menu' ? openMenu() : openView(where);
+    const regions = where === 'the game menu' ? within(scope).getAllByRole('region') : screen.getAllByRole('region');
+
+    expect(regions.map((region) => region.getAttribute('aria-labelledby')).sort()).toEqual(ids.map((id) => `${id}-heading`).sort());
+    for (const id of ids) expect(document.getElementById(`${id}-help`)?.textContent, id).toMatch(/^[A-Z].{40,}\.$/);
+    if (where !== 'the game menu') {
+      // The view's sentence and its parts' are in its "About this view", closed until asked for.
+      const about = within(scope).getByText('About this view').closest('details');
+      expect(about?.open).toBe(false);
+      const helpIds = [...regions, ...screen.queryAllByRole('tabpanel')].map((region) => region.getAttribute('aria-describedby'));
+      for (const id of helpIds) expect(about?.querySelector(`#${id}`), `${where}'s About holds ${id}`).not.toBeNull();
+      expect(described(scope)).toMatch(/^[A-Z].{40,}\.$/);
+    }
+    for (const part of parts) expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
+  });
+
+  test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (DL-97)', () => {
     render(<App initial={started()} />);
 
     expect(described(time())).toMatch(/^Time moves only here; .+\.$/);
     expect(described(time())).toContain(`It plays them ${fastForwardStepTurns} Turns, ten Days, at a time`);
   });
 
-  test('every control has a name that says what it does, in every view and the game menu', () => {
-    const { container } = render(<App initial={withOffer(started())} />);
+  /** A Transfer Offer standing: its controls drawn. Made once, and only rendered. */
+  const offered = withOffer(started());
 
-    const check = (where: string): void => {
-      const buttons = within(container).getAllByRole('button');
-      expect(within(container).getAllByRole('button', { name: /\S/ }), where).toHaveLength(buttons.length);
-      for (const role of ['textbox', 'searchbox', 'combobox', 'spinbutton', 'checkbox'] as const) {
-        const controls = within(container).queryAllByRole(role);
-        expect(within(container).queryAllByRole(role, { name: /\S/ }), `${where}: ${role}`).toHaveLength(controls.length);
-      }
-    };
-    for (const view of views) {
-      openView(view);
-      check(view);
+  // Each view, each of the Guild's parts, its tab opened (Stores and Treasury among them, DL-116), and the game menu.
+  test.each<[string, () => void]>([
+    ...views.map((view): [string, () => void] => [view, () => void openView(view)]),
+    ...(['Home', 'Hall', 'Stores', 'Treasury'] as const).map((part): [string, () => void] => [`the Guild's ${part}`, () => void openGuildPart(part)]),
+    ['the game menu', () => void openMenu()],
+  ])('every control has a name that says what it does: %s', (where, open) => {
+    const { container } = render(<App initial={offered} />);
+    open();
+
+    const buttons = within(container).getAllByRole('button');
+    expect(within(container).getAllByRole('button', { name: /\S/ }), where).toHaveLength(buttons.length);
+    for (const role of ['textbox', 'searchbox', 'combobox', 'spinbutton', 'checkbox'] as const) {
+      const controls = within(container).queryAllByRole(role);
+      expect(within(container).queryAllByRole(role, { name: /\S/ }), `${where}: ${role}`).toHaveLength(controls.length);
     }
-    // Each of the Guild's parts, its tab opened (M9-F3: Stores and Treasury among them).
-    for (const part of ['Home', 'Hall', 'Stores', 'Treasury'] as const) {
-      openGuildPart(part);
-      check(`the Guild's ${part}`);
-    }
-    openMenu();
-    check('the game menu');
   });
 });
 
@@ -717,11 +663,11 @@ describe('the Board with dispatch', () => {
     fireEvent.click(send);
     await idle();
 
-    // The Quest has left the Board, and its card is the Party out card in its place (M9-S4, DL-104).
+    // The Quest has left the Board, and its card is the Party out card in its place (DL-104).
     const [sent, ...others] = named();
     expect(sent?.dataset.testid).toBe('sent');
     expect(others.filter((card) => card.dataset.testid !== 'sent')).toHaveLength(before - 1);
-    // The play's line is the History's newest, marked new (M9-S5, DL-105).
+    // The play's line is the History's newest, marked new (DL-105).
     expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Year \\d+ Day \\d+`)).classList.contains('is-new')).toBe(true);
     expect(within(rosterList()).getAllByText(/^Away with a Party, back on the night of Year \d+ Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
@@ -745,7 +691,7 @@ describe('the Roster with Hero pages', () => {
     const outlooks = within(page)
       .getAllByRole('row')
       .flatMap((row) => {
-        // A Stat's row in its area's block (M9-S6): its value, then its Outlook as a chip.
+        // A Stat's row in its area's block: its value, then its Outlook as a chip.
         const cells = within(row).queryAllByRole('cell');
         return cells.length === 2 ? [cells[1]?.textContent?.replace(/^Outlook /, '')] : [];
       });
@@ -753,7 +699,7 @@ describe('the Roster with Hero pages', () => {
     for (const outlook of outlooks) expect(['Modest', 'Promising', 'Exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
     expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
-    // Grouped by date and time of day, as the History is (M9-S5); a first page has no newer one.
+    // Grouped by date and time of day, as the History is; a first page has no newer one.
     expect(within(page).getAllByRole('heading', { level: 5 }).length).toBeGreaterThan(0);
     expect((within(page).queryByRole('button', { name: 'Newer' }) as HTMLButtonElement | null)?.disabled ?? true).toBe(true);
 
@@ -762,7 +708,7 @@ describe('the Roster with Hero pages', () => {
   });
 });
 
-describe('the test-only switch for modules, the query parameter ?modules=probe (M8-S4)', () => {
+describe('the test-only switch for modules, the query parameter ?modules=probe', () => {
   afterEach(() => {
     window.history.replaceState(null, '', '/');
   });
@@ -771,11 +717,8 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
   async function elevenTurns(address: string): Promise<void> {
     window.history.replaceState(null, '', address);
     render(<App />);
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Ada Vell' } });
     // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Year 1 Day 4.
-    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'modules' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Lantern', guildmasterName: 'Ada Vell', seed: 'modules' });
     await idle();
     for (let turn = 1; turn <= 11; turn += 1) {
       fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
@@ -789,7 +732,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
 
     expect(screen.getByText('Installed for testing: the probe Module.')).toBeDefined();
     expect(within(openMenu()).getByText('The probe Module')).toBeDefined();
-    // In the whole History, new, under the night it fired (M9-S5).
+    // In the whole History, new, under the night it fired.
     wholeHistory();
     const fired = inHistory(/^The probe Module recorded probe\.fired for .+\.$/);
     expect(fired.classList.contains('is-new')).toBe(true);
@@ -798,13 +741,13 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
     expect(inHistory(/'s Wealth went from \d+ to \d+\.$/).classList.contains('is-new')).toBe(true);
   }, 30_000);
 
-  test('without it, nothing is installed: no word of a module, and no probe.fired on the same Turns', async () => {
-    await elevenTurns('/');
+  // With none installed, no module plays (reducer.test.ts's "with none, ... every engine call is made without
+  // one"; modules.test.ts reads the query).
+  test('without it, nothing is installed: no word of a module, on the page or in the game menu', () => {
+    window.history.replaceState(null, '', '/');
+    render(<App initial={started()} />);
 
     expect(screen.queryByText(/Installed for testing/)).toBeNull();
-    // Nothing new in the whole History names a probe.
-    const fresh = historyLines(wholeHistory()).filter((line) => line.classList.contains('is-new'));
-    expect(fresh.length).toBeGreaterThan(0);
-    expect(fresh.filter((line) => /probe/.test(sentenceOf(line)))).toEqual([]);
-  }, 30_000);
+    expect(within(openMenu()).queryByText(/ Module$/)).toBeNull();
+  });
 });

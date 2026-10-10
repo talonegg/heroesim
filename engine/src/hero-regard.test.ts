@@ -37,7 +37,7 @@ import {
 } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
-// M4-S4: Regard between Heroes, its writer on a shared Quest and its nightly decay, and
+// Regard between Heroes, its writer on a shared Quest and its nightly decay, and
 // Relationship, computed and never stored (DL-46). The values these tests rely on are pinned here,
 // never read from the defaults; Rivals are stilled where the player's Parties are the subject.
 
@@ -176,7 +176,7 @@ describe('Regard between Heroes on shared Quests', () => {
     expect(regardValue(hero(world, b).regard, a)).toBe(15);
     expect(regardBand(relationship(a, b, world, deps.config), deps.config)).toBe('close');
     const at = (n: number) => resolvedOn[n - 1];
-    // Each crossing names the Quest that made it (M9-F1).
+    // Each crossing names the Quest that made it.
     const q = (n: number) => questOn[n - 1] as QuestId;
     expect(crossings.map(({ turn, participants, milestone, payload }) => ({ turn, participants, milestone, payload }))).toEqual([
       { turn: at(3), participants: [a, b, q(3), guild.id], milestone: false, payload: { heroId: a, entityId: b, cause: 'shared-quest', questId: q(3), before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' } },
@@ -285,7 +285,7 @@ describe('regardOnSharedQuest', () => {
     return { document, world, heroes, questId: ids.takenQuest };
   }
 
-  test('emits hero.regard-changed only for a change that crosses a band, one for each Hero whose Regard crossed, naming the Quest (M9-F1)', () => {
+  test('emits hero.regard-changed only for a change that crosses a band, one for each Hero whose Regard crossed, naming the Quest', () => {
     const deps = soloDeps();
     const { document, world, heroes, questId } = scene();
     const [a, b, c] = heroes;

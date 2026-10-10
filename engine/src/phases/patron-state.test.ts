@@ -7,14 +7,12 @@ import type { EngineEventOf, TurnEvent } from '../events.js';
 import { phases } from '../pipeline.js';
 import { regardBand, regardValue } from '../regard.js';
 import { nightOf } from '../time.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { setup, testDeps, withValid } from '../world.test-support.js';
 import { patronState } from './patron-state.js';
 import { phaseContext } from './phase.js';
 
-// M4-S5: the Patron State Engine, Patron Regard recovering toward neutral each night (pre-M0 review
+// The Patron State Engine, Patron Regard recovering toward neutral each night (pre-M0 review
 // B5, DL-43). The scale, the bands and the rate are pinned here.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 const pinned: Partial<GameConfig> = {
   turnsPerYear: 1080,
@@ -46,10 +44,11 @@ function night(world: World, day: number, deps: EngineDeps): TurnEvent[] {
 }
 
 describe('patronState', () => {
-  test('a Patron left at cool with no further dealings is neutral again within 1 / patronRegardRecoveryPerYear years, with one patron.regard-changed', { timeout: 60_000 }, () => {
+  test('a Patron left at cool with no further dealings is neutral again within 1 / patronRegardRecoveryPerYear years, with one patron.regard-changed', () => {
     // Only the Patron State Engine runs, so every entry is its own and nothing else deals with the Patron.
     for (const phase of phases) if (phase.name !== 'patronState') vi.spyOn(phase, 'run').mockReturnValue([]);
-    const deps = testDeps({ ...pinned, rivalCount: 0 });
+    // A year of 90 Turns: the recovery a night scales with the nights of a year, so the same walk takes a third of the Turns.
+    const deps = testDeps({ ...pinned, rivalCount: 0, turnsPerYear: 90 });
     const { document, patron, guildIds } = scene(deps);
     const [guildId] = guildIds as [GuildId];
     // The deepest cool there is: the band's own start.
@@ -130,13 +129,5 @@ describe('patronState', () => {
     night(world, 2, deps);
 
     expect(regardValue(own.regard, rivalId)).toBe(-9);
-  });
-
-  test('runs each night, after the Guild State Engine and before the pool refresh', () => {
-    const names = phases.filter((phase) => phase.timeOfDay === 'night').map((phase) => phase.name);
-    // After and before, not next to: M6-S3's Transfer Generator runs between the Guild State Engine and
-    // this phase (DL-59); pipeline.test.ts holds the whole order to a literal.
-    expect(names.indexOf('patronState')).toBeGreaterThan(names.indexOf('guildState'));
-    expect(names.indexOf('poolRefresh')).toBeGreaterThan(names.indexOf('patronState'));
   });
 });

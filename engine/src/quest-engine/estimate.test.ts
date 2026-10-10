@@ -11,14 +11,15 @@ import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { testContent, testDeps } from '../world.test-support.js';
+import { setup, testContent, testDeps } from '../world.test-support.js';
 import { capability } from './check.js';
-import { chanceBand, chanceToReach, estimateQuest, questEstimator, type QuestEstimate } from './estimate.js';
+import { passDegree, passOf, succeeded } from './degree.js';
+import { chanceBand, chanceToReach, estimateQuest, partyEstimator, type CheckEstimate, type QuestEstimate } from './estimate.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
 import { applyAction } from '../actions/action.js';
 
-// v1.1.4-S5 (DL-156): the chance estimate. Its parts are held to their formulas, and the whole to
+// DL-156: the chance estimate. Its parts are held to their formulas, and the whole to
 // the resolver: a created world's player Guild, its Roster of one Hero a Class, set out on Quests of
 // several Checks a test writes into content, each Check's target set near the Party's capability so
 // that every Degree comes up, with consequences that hurt no one and move no Morale ("if no one
@@ -26,8 +27,6 @@ import { applyAction } from '../actions/action.js';
 // Hero State Engine's nights away (`homeNight`), as `questsConclude` does. The resolver's rate over a few thousand seeds of the `quests` stream is held within 3
 // points of the estimate here; the 200 Parties and Quests over 20,000 seeds each are the harness's
 // estimate probe (`HEROESIM_PROBE=estimate npm run harness`, harness/src/estimate.ts).
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** A Check keyed `key` reading `score`, its target `multiple` × the Party's capability on it (set by `scene`). */
 interface Drafted {
@@ -146,6 +145,34 @@ const courage: NumQuery = ['avg', 'party', ['stat', 'courage']];
 const wits: NumQuery = ['max', 'party', ['weighted', [['wits', 0.6], ['perception', 0.4]]]];
 const strongCount: NumQuery = ['count', ['where', 'party', ['>=', ['stat', 'strength'], 6]]];
 
+/**
+ * An Encounter's chance of each Degree from its Checks' (`checks`), `pass` read afresh for every
+ * combination of their Degrees with a chance above 0, met in the Checks' order and then the Degrees':
+ * `plain`, the first rolls standing; and `rerolled`, the chance it first falls short of Success and
+ * then, each Check that did rolled again, ends at each Degree. What the estimator folds, with no Degree
+ * kept from one combination to the next (DL-237).
+ */
+function foldedAfresh(pass: PassFormula, checks: readonly CheckEstimate[]): { plain: Record<Degree, number>; rerolled: Record<Degree, number> } {
+  const combinations = (of: readonly CheckEstimate[]): { byKey: Record<string, Degree>; chance: number }[] => {
+    let combined: { byKey: Record<string, Degree>; chance: number }[] = [{ byKey: {}, chance: 1 }];
+    for (const { key, degrees: chances } of of) {
+      combined = combined.flatMap(({ byKey, chance }) => degrees.filter((degree) => chances[degree] > 0).map((degree) => ({ byKey: { ...byKey, [key]: degree }, chance: chance * chances[degree] })));
+    }
+    return combined;
+  };
+  const plain = { failure: 0, setback: 0, success: 0, triumph: 0 };
+  const rerolled = { failure: 0, setback: 0, success: 0, triumph: 0 };
+  for (const first of combinations(checks)) {
+    const { degree } = passDegree(pass, first.byKey);
+    plain[degree] += first.chance;
+    if (succeeded(degree)) continue;
+    for (const again of combinations(checks.filter((it) => !succeeded(first.byKey[it.key] as Degree)))) {
+      rerolled[passDegree(pass, { ...first.byKey, ...again.byKey }).degree] += first.chance * again.chance;
+    }
+  }
+  return { plain, rerolled };
+}
+
 describe('one Check', () => {
   test('reaches x with chance 1 − clamp((x ÷ C − 1 + v) ÷ 2v, 0, 1)', () => {
     expect(chanceToReach(100, 0.2, 100)).toBeCloseTo(0.5, 12);
@@ -175,7 +202,7 @@ describe('one Check', () => {
     // The Whetstone's +3 is on the first Encounter's Check, and the raw gate's capability is its count.
     expect(check.capability).toBe(capable + 3);
     const reach = (threshold: number): number => chanceToReach(capable + 3, s.deps.config.checkVariance, threshold * check.target);
-    // Each threshold as configured (the Triumph's 1.25 became 1.35 in v1.1.4-S10, DL-166).
+    // Each threshold as configured (the Triumph's 1.25 became 1.35 in DL-166).
     const { triumph, success, setback } = s.deps.config.checkDegrees;
     expect(check.degrees).toEqual({
       failure: 1 - reach(setback),
@@ -205,11 +232,6 @@ describe('chance bands', () => {
     ]);
     expect(chanceBandNames).toEqual(['hopeless', 'unlikely', 'even', 'likely', 'near-certain']);
   });
-
-  // v1.1.4-S6 (DL-157): the margin of the player's best Party, as a Disposition's `partyMargin` is held.
-  test('playerPartyMargin is 0.05 by default', () => {
-    expect(defaultConfig.playerPartyMargin).toBe(0.05);
-  });
 });
 
 describe('the estimate', () => {
@@ -218,7 +240,6 @@ describe('the estimate', () => {
     const streams = structuredClone(s.world.rng);
     expect(estimated(s).ifNoOneFalls).toBe(true);
     expect(s.world.rng).toEqual(streams);
-    expect(estimateQuest(s.world, { ...s.quest, encounterKeys: [] }, s.heroes, s.deps)).toBeNull();
     expect(estimateQuest(s.world, { ...s.quest, encounterKeys: ['no-such-encounter'] }, s.heroes, s.deps)).toBeNull();
     // A key content lacks is left out, as the resolver leaves it out.
     expect(estimateQuest(s.world, { ...s.quest, encounterKeys: ['no-such-encounter', 'one'] }, s.heroes, s.deps)?.encounters.map((it) => it.encounterKey)).toEqual(['one']);
@@ -246,24 +267,89 @@ describe('the estimate', () => {
     expect(() => estimateQuest(s.world, s.quest, s.heroes, s.deps, [{ definitionKey: 'whetstone', quantity: 1.5 }])).toThrow(RangeError);
   });
 
-  // v1.1.4-S6: the Rivals' `partyFor` estimates many Parties of one pool, each Hero brought home once.
-  test('questEstimator gives every Party of its pool, in any order and carrying anything, exactly the estimate estimateQuest gives', () => {
+  // The Best Party module estimates many Parties of one world, each Hero brought home once a return night (DL-237).
+  test('partyEstimator gives every Party, on Quests of any length, in any order and carrying anything, exactly the estimate estimateQuest gives', () => {
     const s = scene('estimate-pool', [
       { key: 'first', kind: 'travel', checks: [draft('first', strength, 1), draft('second', wits, 1.1)], pass: ['or', 'first', 'second'] },
       { key: 'third', kind: 'combat', checks: [draft('third', courage, 0.9)] },
     ], { morale: [19, 38, 76, 91], carried: [['grappling-line', 1]] });
-    const estimate = questEstimator(s.world, s.quest, s.heroes, s.deps);
+    const estimate = partyEstimator(s.world, s.deps);
     const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
-    for (const party of [[], [a], [d, b], [b, d], [a, b, c, d], [c, a, d]]) {
-      for (const carried of [[], s.carried]) {
-        expect(estimate(party, carried), party.map((hero) => hero.id).join()).toEqual(estimateQuest(s.world, s.quest, party, s.deps, carried));
+    const longer = { ...s.quest, durationTurns: s.quest.durationTurns + 2 * turnsPerDay };
+    for (const quest of [s.quest, longer]) {
+      for (const party of [[], [a], [d, b], [b, d], [a, b, c, d], [c, a, d]]) {
+        for (const carried of [[], s.carried]) {
+          expect(estimate(quest, party, { carried, pool: [a, b] }), party.map((hero) => hero.id).join()).toEqual(estimateQuest(s.world, quest, party, s.deps, carried));
+        }
       }
     }
     // A Hero outside the pool is brought home on the call.
-    expect(questEstimator(s.world, s.quest, [a], s.deps)([a, b])).toEqual(estimateQuest(s.world, s.quest, [a, b], s.deps));
-    expect(() => estimate([a, a])).toThrow(`A Party names ${a.id} twice`);
-    expect(questEstimator(s.world, { ...s.quest, encounterKeys: [] }, s.heroes, s.deps)([a])).toBeNull();
-    expect(() => questEstimator(s.world, { ...s.quest, difficulty: 0 }, s.heroes, s.deps)).toThrow(RangeError);
+    expect(partyEstimator(s.world, s.deps)(s.quest, [a, b], { pool: [a] })).toEqual(estimateQuest(s.world, s.quest, [a, b], s.deps));
+    expect(() => estimate(s.quest, [a, a])).toThrow(`A Party names ${a.id} twice`);
+    expect(estimate({ ...s.quest, encounterKeys: ['no-such-encounter'] }, [a])).toBeNull();
+    expect(() => estimate({ ...s.quest, difficulty: 0 }, [a])).toThrow(RangeError);
+  });
+
+  // DL-237: the estimator keeps the Degree each pass formula gives each combination of Degrees it
+  // has met, so every Party and Quest asked of it after shares them; each must be the formula's own.
+  test("gives each Encounter's Degrees, over many pass formulas, Parties and Quests asked of one estimator, to the last bit as the formula read afresh for every combination gives them", () => {
+    let seed = 7;
+    const random = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const formula = (keys: readonly string[]): PassFormula => {
+      if (keys.length === 1) return keys[0] as string;
+      const cut = 1 + Math.floor(random() * (keys.length - 1));
+      const parts: PassFormula[] = keys.length > 2 && random() < 0.5 ? [formula(keys.slice(0, cut)), ...keys.slice(cut)] : [...keys];
+      const operator = random();
+      if (operator < 1 / 3) return ['and', ...parts] as PassFormula;
+      if (operator < 2 / 3) return ['or', ...parts] as PassFormula;
+      return ['at-least', 1 + Math.floor(random() * parts.length), ...parts] as PassFormula;
+    };
+    const scores = [strength, courage, wits, warriorsWeaponry];
+    // Up to four Checks an Encounter; a Check of no variance has a Degree of no chance, met by no combination.
+    const drafts: Drafting[] = Array.from({ length: 16 }, (_, n) => {
+      const keys = Array.from({ length: 1 + (n % 4) }, (_, k) => `e${n}c${k}`);
+      return {
+        key: `e${n}`,
+        kind: n % 2 === 0 ? 'travel' : 'combat',
+        checks: keys.map((key, k) => draft(key, scores[(n + k) % scores.length] as NumQuery, 0.6 + random() * 0.8, k === 1 && n % 3 === 0 ? { variance: 0 } : {})),
+        ...(keys.length === 1 ? {} : { pass: formula(keys) }),
+      };
+    });
+    const s = scene('estimate-passes', drafts, { morale: [19, 38, 76, 91] });
+    const estimate = partyEstimator(s.world, s.deps);
+    const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    const line = [{ definitionKey: 'grappling-line', quantity: 1 }];
+    let compared = 0;
+    for (const difficulty of [25, 50, 90]) {
+      for (const drafted of drafts) {
+        const quest = { ...s.quest, difficulty, encounterKeys: [drafted.key] };
+        const pass = passOf(s.deps.content.encounters[drafted.key] as Encounter);
+        for (const party of [[a], [b], [c, d], [d, c], [a, b, c], [b, d, a], [a, b, c, d], [d, c, b, a]]) {
+          for (const carried of [[], line]) {
+            const [met] = (estimate(quest, party, { carried }) as QuestEstimate).encounters;
+            if (met === undefined) throw new Error('no Encounter');
+            const { plain, rerolled } = foldedAfresh(pass, met.checks);
+            // The first Encounter's walk: the first rolls, or with a reroll a Success kept and the rest rolled again.
+            const rerolls = carried.length > 0 && drafted.kind === 'travel';
+            const expected = Object.fromEntries(
+              degrees.map((degree) => {
+                let reached = 0;
+                for (const chance of rerolls ? [succeeded(degree) ? plain[degree] : 0, rerolled[degree]] : [plain[degree]]) {
+                  if (chance !== 0) reached += chance;
+                }
+                return [degree, reached];
+              }),
+            );
+            expect(met.degrees, `${drafted.key} at ${difficulty}, ${party.map((hero) => hero.id).join()}, carrying ${carried.length}`).toEqual(expected);
+            compared += 1;
+          }
+        }
+      }
+    }
+    expect(compared).toBe(3 * 16 * 8 * 2);
   });
 
   test("reads the Party as the resolver meets it on the night it comes home: a wretched Hero's Morale has drifted a band up", () => {
@@ -293,7 +379,7 @@ describe('the estimate', () => {
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
   });
 
-  // v1.1.4-S7: a Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
+  // A Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
   // Trait an Injury leaves on a night away replaces one it conflicts with before the Party is met.
   test("reads a Trait an Injury leaves on a night away, which replaces one it conflicts with: its Stat change in, the other's bonus out", () => {
     const trait = (key: string, excludes: string[], effects: HeroTraitEffect[]) => ({ key, name: key, excludes, effects });

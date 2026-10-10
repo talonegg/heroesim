@@ -57,7 +57,10 @@ export interface PartyProblem {
 /** A Synergy the Party would have, and on how many of the Quest's Encounters it applies. */
 export interface SynergyReach {
   synergy: Synergy;
-  /** `null` for a Quest whose Encounters are drawn on the way (a Quest drawn before M4, DL-42). */
+  /**
+   * `null` for a Quest whose Encounters are drawn on the way: content defines none of those it was
+   * drawn with (data-model rule 5, DL-42).
+   */
   encounters: number | null;
 }
 
@@ -194,19 +197,13 @@ function problemsOf(guild: Guild, heroIds: readonly HeroId[], world: World): Par
 }
 
 /**
- * The Skills that help on a Quest (DL-70): from M4 the Checks read its Encounters' Skills and not
- * the template's (DL-42), so each Skill any of its Encounters' Checks names, once, in the order the
- * Quest meets them. A Quest drawn before M4, whose Encounters are drawn on the way, gives its own Skills,
- * the kind of work it is. A key content lacks is left out (data-model rule 5).
+ * The Skills that help on a Quest (DL-70): the Checks read its Encounters' Skills and not the
+ * template's (DL-42), so each Skill any of its Encounters' Checks names, once, in the order the
+ * Quest meets them. Every Quest is drawn with its Encounters (DL-248). A key content lacks is left
+ * out (data-model rule 5).
  */
-export function skillsThatHelp(
-  quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>,
-  content: Pick<ContentSet, 'encounters' | 'skills'>,
-): SkillKey[] {
-  const keys =
-    quest.encounterKeys.length === 0
-      ? quest.skillKeys
-      : [...new Set(quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
+export function skillsThatHelp(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters' | 'skills'>): SkillKey[] {
+  const keys = [...new Set(quest.encounterKeys.flatMap((key) => rowOf(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
   return keys.filter((key) => Object.hasOwn(content.skills, key));
 }
 

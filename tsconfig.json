@@ -9,6 +9,7 @@
     { "path": "web" },
     { "path": "tools/portraits" },
     { "path": "tools/editor" },
-    { "path": "tools/decisions" }
+    { "path": "tools/decisions" },
+    { "path": "tools/measure" }
   ]
 }

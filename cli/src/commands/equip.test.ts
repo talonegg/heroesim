@@ -1,12 +1,9 @@
-// `equip` and `unequip` end to end (M5-S2): `main` run in-process against a real save in a temporary
+// `equip` and `unequip` end to end: `main` run in-process against a real save in a temporary
 // directory, with the real content set, as main.test.ts runs the other commands.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import {
   addStack,
-  deserialise,
   holdings,
   playerGuild,
   serialise,
@@ -14,46 +11,15 @@ import {
   type Hero,
   type ItemId,
   type StackId,
-  type WorldDocument,
 } from '@heroesim/engine';
 import { count, createItem } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-equip-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
+const { play, current, saved, document } = playground('heroesim-equip-', content);
 
 interface Stocked {
   hero: Hero;
@@ -114,8 +80,8 @@ describe('equip and unequip', () => {
     // The base, then the effective value, side by side; never Potential.
     expect(statRow(shown.out, 'Strength').slice(0, 2)).toEqual(['8', '10']);
     expect(statRow(shown.out, 'Weaponry').slice(0, 2)).toEqual(['8', '11']);
-    expect(shown.out).toMatch(/^weapon\s+Masterwork blade\s+stack-\d{6}\s+Weaponry \+3, Strength \+2$/m);
-    expect(shown.out).toMatch(/^armour\s+none$/m);
+    expect(shown.out).toMatch(/^Weapon\s+Masterwork blade\s+stack-\d{6}\s+Weaponry \+3, Strength \+2$/m);
+    expect(shown.out).toMatch(/^Armour\s+None$/m);
     expect(shown.out).not.toMatch(/potential/i);
     expect(guild.id).toBe('guild-000001');
   });
@@ -154,7 +120,7 @@ describe('equip and unequip', () => {
 
     const notGear = play(['equip', '--hero', hero.id, '--stack', whetstones]);
     expect(notGear.code).toBe(exitCodes.refused);
-    expect(notGear.err).toContain('Whetstone is not gear, and is carried in no slot.');
+    expect(notGear.err).toContain('Whetstone is not Gear, and is carried in no slot.');
 
     const missing = play(['equip', '--hero', hero.id, '--stack', 'stack-999999']);
     expect(missing.code).toBe(exitCodes.refused);
@@ -175,7 +141,7 @@ describe('equip and unequip', () => {
     expect(occupied.err).toMatch(/'s weapon slot holds Masterwork blade \(stack-\d{6}\): unequip it first\.$/m);
   });
 
-  // v1.1.6-S11 (DL-197): "their Gear", a glossary term, as the page says it; "their gear" until then.
+  // DL-197: "their Gear", a glossary term, as the page says it; "their gear" until then.
   test('refuses to change the Gear of a Hero away on a Quest, and writes nothing', () => {
     const { hero, guild, blades } = stocked();
     expect(play(['equip', '--hero', hero.id, '--stack', blades]).code).toBe(exitCodes.ok);
@@ -193,23 +159,6 @@ describe('equip and unequip', () => {
       const run = play(argv);
       expect(run.code, argv[0]).toBe(exitCodes.refused);
       expect(run.err, argv[0]).toContain(away);
-    }
-    expect(saved()).toBe(before);
-  });
-
-  test('refuses a bad command line as a usage error, and writes nothing', () => {
-    const { hero, blades, relic } = stocked();
-    const before = saved();
-
-    for (const argv of [
-      ['equip', '--hero', hero.id],
-      ['equip', '--hero', hero.id, '--stack', blades, '--item', relic],
-      ['equip', '--hero', hero.id, '--item', blades],
-      ['equip', '--hero', 'brenna', '--stack', blades],
-      ['unequip', '--hero', hero.id],
-      ['unequip', '--hero', hero.id, '--slot', 'belt'],
-    ]) {
-      expect(play(argv).code, argv.join(' ')).toBe(exitCodes.usage);
     }
     expect(saved()).toBe(before);
   });

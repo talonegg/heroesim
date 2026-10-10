@@ -43,6 +43,7 @@ import {
   type WorldDocument,
 } from './document.js';
 import { sexes } from './generators/draw.js';
+import { questCauses } from './events.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
 import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
@@ -78,6 +79,7 @@ export const refusalChecks = [
   'history-index-mismatch',
   'history-turn-order',
   'removed-hero-in-history',
+  'entry-field-missing',
   'module-slice',
 ] as const;
 
@@ -204,6 +206,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   historyIndexMismatch,
   historyTurnOrder,
   removedHeroInHistory,
+  entryFieldMissing,
 ];
 
 const contentChecks: readonly ContentCheck[] = [
@@ -343,6 +346,7 @@ type FieldKind =
   | 'integer'
   | 'boolean'
   | 'list'
+  | 'list-of-one-or-more'
   | 'map'
   | 'string-or-null'
   | 'sex'
@@ -370,6 +374,8 @@ const kindTests: Record<FieldKind, (value: unknown) => boolean> = {
   integer: isInteger,
   boolean: (value) => typeof value === 'boolean',
   list: (value) => Array.isArray(value),
+  // A Quest's Encounters: every Quest is drawn with one or more (DL-248).
+  'list-of-one-or-more': (value) => Array.isArray(value) && value.length > 0,
   map: isMap,
   'string-or-null': (value) => value === null || typeof value === 'string',
   // One of the engine's `sexes` (v1.1.2-S6): a front end finds a Portrait's folder by it.
@@ -496,7 +502,7 @@ const questFields: Shape<Quest> = {
   fameEffect: 'number',
   durationTurns: 'integer',
   skillKeys: 'list',
-  encounterKeys: 'list',
+  encounterKeys: 'list-of-one-or-more',
   requirements: 'map',
   lootTableKey: 'string-or-null',
   status: 'string',
@@ -564,7 +570,7 @@ type Path = (string | number)[];
  * interface, of the right kind; every list and map a later check walks is one. A field no
  * interface names is kept and ignored (rule 5). Enumerated values and ranges are not checked, but for
  * a holder's kind and a person's sex, one of `sexes` (v1.1.2-S6), which the tables and a front end's
- * pictures are found by.
+ * pictures are found by, and a Quest's Encounters, one or more, as every Quest is drawn (DL-248).
  */
 function documentShape(document: unknown, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1305,6 +1311,32 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 }
 
 /**
+ * An entry holds what its type requires where the shape, which reads any payload, cannot say it
+ * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), an entry of a cause a
+ * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), and an Encounter's names its
+ * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247).
+ */
+function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [index, entry] of entriesFrom(history, from)) {
+    const payload: unknown = entry.payload;
+    if (!isMap(payload)) continue;
+    const id = formatPath(['history', 'entries', index]);
+    if (entry.type === 'guild.founded' && typeof payload.wealth !== 'number') {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth` });
+    }
+    const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
+    if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} is caused by ${q(payload.cause)}, a Quest's return, and names no Quest` });
+    }
+    if (entry.type === 'quest.encounter' && (typeof payload.degree !== 'string' || typeof payload.decidedBy !== 'string' || !Array.isArray(payload.checks))) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} records an Encounter and names no Degree, deciding Check or Checks rolled` });
+    }
+  }
+  return failures;
+}
+
+/**
  * Rule 8: a Hero's row is removed only when nothing but the passive entries, which an older save
  * holds, names them. Quests, Parties, offers and stacks are removed while the History keeps their
  * ids; that is not refused.
@@ -1449,8 +1481,8 @@ function laterTable(
 
 /**
  * A Quest's Encounter sequence (M4-S1, DL-42): each key an Encounter content defines. One it does
- * not is left out when the Quest resolves (`sequenceFor`). Content without an Encounter table, as
- * content before M4 has, defines none.
+ * not is left out when the Quest resolves (`sequenceFor`). Content without an Encounter table
+ * defines none.
  */
 function unknownEncounter({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
   const { warnings, known } = keyWarnings('unknown-encounter', 'an Encounter');

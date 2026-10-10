@@ -2563,6 +2563,7 @@ events' payloads; what becomes of the stub's five fields and of `quest.resolved`
    Quests already away when the save is loaded, with one rule. A stored key content no longer
    defines is left out, and a Quest left with none draws afresh; the validator warns of such a key
    (`unknown-encounter`, data-model rule 5).
+   *Superseded in part by DL-248 item 5, 2026-10-10: A Quest saved with no Encounters (`encounterKeys` `[]`), drawn when it resolves; now every Quest holds one or more, and a save with none is refused. A Quest whose stored Encounters content no longer defines still draws afresh. The record: [superseded/DL-42.md](superseded/DL-42.md).*
 8. **The Check** (`quest-engine/check.ts`): `capability(heroes, encounter, world, deps)` is, for
    each demand, its weight times the best member's effective value of the Stat (`best`) or the
    members' sum (`sum`); plus, for each of the Encounter's Skills, `skillBonusPerRating` times the
@@ -5885,6 +5886,7 @@ of work, so this entry is DL-70.
      still shows the template's demands: a summary of the kind of work, while each Check weighs its
      own Encounter's demands.
    - *Versions.* `configVersion` stays 6 and `contentVersion` stays 8.
+   *Superseded in part by DL-248 item 5, 2026-10-10: A Quest drawn before M4 showing its template's Skills; now no Quest is without its Encounters, and the Skills that help are always those its Encounters' Checks read. The record: [superseded/DL-70.md](superseded/DL-70.md).*
 2. **`help` names `preview`'s Synergies section** (DL-45 item 7) beside its other sections.
 3. **Tests that were too weak.** Each surviving mutant is now killed by a new or stronger test; no
    assertion was loosened.
@@ -7528,6 +7530,7 @@ twenty-year round trip of 3.6 s against 1 (DL-67, M7-S4's open box). What left e
    No lean-entry schema change now — against the recommended lean entries with gzipped CLI saves.
    This recording set §7's save target on the one twenty-year save measured gzipped, 12.08 MiB
    (DL-67 item 8); the compressed mean over a run waits for the harness to gzip its saves.
+   *Superseded in part by DL-254 item 1, 2026-10-10: The harness's saves gzipped; now only the saves players make are (the page's, and the CLI's as planned), and the harness's sample, a test fixture, stays plain JSON. The record: [superseded/DL-84.md](superseded/DL-84.md).*
 3. **Band-crossing logging against principle 11 (agenda 41).** Both are named as exceptions:
    principle 11, R36 and data-model rule 10 are amended to exempt Regard changes and the Transfer's
    Morale cost, which are recorded only when they cross a band — against the recommendation (the

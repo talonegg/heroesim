@@ -1,16 +1,12 @@
-import type { HeroId, QuestId, WorldDocument } from '@heroesim/engine';
+// @vitest-environment node
+import type { HeroId, QuestId } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { changed, holding, played, started, withPartyOut } from './game.test-support';
+import { changed, documentOf, holding, played, started, withPartyOut } from './game.test-support';
 import { carrying, choiceFor, noPartyChoices, partyBuilder, standingChoices, toggled, withChoice, type PartyChoice } from './party-choices';
 import { partyRows, previewView } from './selectors';
 
 // The Parties chosen on the Board and not sent (DL-109 item 2, Q16): kept by Quest, beyond the Board
 // view, until the Party is sent, its Quest leaves the Board, or another game is started or loaded.
-
-function documentOf(state: ReturnType<typeof started>): WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
 
 const someone = 'hero-000001' as HeroId;
 
@@ -43,7 +39,7 @@ describe('the Parties chosen and not sent', () => {
     expect(Object.keys(standingChoices(choices, documentOf(sent))).sort()).toEqual(documentOf(sent).world.board.slice().sort());
 
     // A Quest gone from the Board once its last Day has passed: its choice goes too.
-    const expiring = changed(state, (document) => {
+    const expiring = changed(started(), (document) => {
       const quest = document.world.quests[document.world.board[0] as QuestId];
       if (quest !== undefined) quest.expiresOnTurn = document.world.turn;
     });
@@ -54,7 +50,7 @@ describe('the Parties chosen and not sent', () => {
   });
 });
 
-// The Party builder's rows without React (v1.1.6-S14, DL-186 item 5): what `Builder` laid out is
+// The Party builder's rows without React (DL-186 item 5): what `Builder` laid out is
 // one answer now, whose parts the view only renders.
 describe('the Party builder', () => {
   const state = holding(started(), 'healing-draught', 3);

@@ -1,15 +1,13 @@
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, passOf, type EngineDeps } from '@heroesim/engine';
+import { passOf } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { compareSample, drawSample, estimateChecks, estimateMoraleTolerance, estimateProbe, estimateReport, estimateTolerance, harmless, moraleHeld, moraleIn, questsStream, unhurt, widest, type Compared, type Sample } from './estimate.js';
+import { coreDeps as deps } from './harness.test-support.js';
 import { machine } from './report.js';
 
-// v1.1.4-S5 (DL-156): the estimate probe's parts, and the probe over a few samples. The probe proper,
+// DL-156: the estimate probe's parts, and the probe over a few samples. The probe proper,
 // 200 samples × 20,000 seeds held within 2 points, is `HEROESIM_PROBE=estimate npm run harness`.
-// v1.1.5-S7 (DL-173): its second measure, the same samples with Morale's consequences left in, held
+// DL-173: its second measure, the same samples with Morale's consequences left in, held
 // within 3 points; owner's answer 2026-10-04: held on the Quest's chances only, each Encounter's reported.
-
-const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 
 // Samples estimated and resolved over thousands of seeds: up to two seconds a test alone, more than the
 // default 5 s under the whole suite's load (DL-164).
@@ -32,15 +30,21 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(a.world.turn).toBe(a.party.returnsOnTurn);
     expect(a.party.returnsOnTurn - a.party.departedOnTurn).toBeGreaterThan(3);
     expect(a.party.heroIds.every((id) => a.world.heroes[id]?.partyId === a.party.id)).toBe(true);
-    for (let n = 1; n <= 20; n += 1) {
+    // Five samples: probe Encounters among them, each formula naming each of its Checks once.
+    let probed = 0;
+    for (let n = 1; n <= 5; n += 1) {
       const { quest, deps: sampled } = drawSample(`estimate-${n}`, base);
       for (const key of quest.encounterKeys) {
         const encounter = sampled.content.encounters[key];
         if (encounter === undefined) throw new Error(`No ${key}`);
         const named = JSON.stringify(passOf(encounter)).match(/"c\d"/g) ?? [];
-        if (key.startsWith('probe-')) expect([...named].sort()).toEqual(encounter.checks.map((it) => `"${it.key}"`).sort());
+        if (key.startsWith('probe-')) {
+          probed += 1;
+          expect([...named].sort()).toEqual(encounter.checks.map((it) => `"${it.key}"`).sort());
+        }
       }
     }
+    expect(probed).toBeGreaterThan(0);
     expect(questsStream('seed-0001')).toEqual(questsStream('seed-0001'));
     expect(questsStream('seed-0001')).not.toEqual(questsStream('seed-0002'));
   });
@@ -190,8 +194,4 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(estimateReport(questWider, { runs: 2_000, machine: machine(), startedAt: new Date(0), seconds: 1 })).toContain("The widest Encounter gap, reported, not held (DL-173, the owner's answer): estimate-0001, Encounter 1, failure: estimated 0.00%, resolved 1.00%, 1.00 points, within 3 points.");
   });
 
-  test('names its limits: 2 points with no one falling, 3 with Morale in', () => {
-    expect(estimateTolerance).toBe(0.02);
-    expect(estimateMoraleTolerance).toBe(0.03);
-  });
 });

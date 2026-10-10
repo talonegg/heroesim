@@ -16,7 +16,7 @@ import { validate } from '../validate.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { createProbe, probe, probeDefaults, probeId, type ProbeFired, type ProbeSlice } from './probe.js';
 
-// M8-S3: the probe module (ADR-0005 as amended 2026-09-25, data-model §3.4, approach §2, N6, DL-78).
+// The probe module (ADR-0005 as amended 2026-09-25, data-model §3.4, approach §2, N6, DL-78).
 // A module that exists only to prove the contract: a slice, a stream, all three hooks, one effect
 // of each kind through the effects API, a stop, and a migration from a version 0 of its slice.
 
@@ -87,24 +87,40 @@ describe('the probe registers', () => {
   });
 });
 
-// ── M8-S3 box 1 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 1 ──────────────────────────────────────────────────────────────────────────────
 
-// A year of Turns, each through `advance`, which copies the world: about a second alone, and
-// five to eight under the whole suite's load, past the default 5 s (DL-164).
-describe('over a year', { timeout: 60_000 }, () => {
+// A year of Turns, each through `advance`. Its length is chosen: a year of 12 Turns, four Days, is
+// still a year of whole Days, and shows the counts as a year of any length does (DL-246); the
+// hooks Turn by Turn are `modules.test.ts`'s. A year of the default probe's would meet a stop and a
+// firing, which four Days of its defaults never do, so the probe here stops every second Day and
+// fires on a night in two: the counts hold on an afternoon that stops and on one that does not, and
+// on a night that fires and on one that does not (DL-246).
+describe('over a year', () => {
   // Wealth enough that the player's Guild, which takes no Quest here, lasts the year unbankrupt.
-  const yearDeps = testDeps({ startingWealth: 1_000_000 });
+  const yearDeps = testDeps({ startingWealth: 1_000_000, turnsPerYear: 12 });
   const turns = yearDeps.config.turnsPerYear;
 
   test("installed, the probe's counts equal the mornings, afternoons and nights played", () => {
-    const deps = withProbe({}, yearDeps);
+    const deps = withProbe({ probeStopEveryDays: 2, probeFireBelow: 0.5 }, yearDeps);
     let document = created('a-year', deps);
-    for (let turn = 1; turn <= turns; turn += 1) document = advance(document, deps).document;
+    let stops = 0;
+    let fired = 0;
+    for (let turn = 1; turn <= turns; turn += 1) {
+      const result = advance(document, deps);
+      document = result.document;
+      if (result.stoppedBecause?.kind === 'module') stops += 1;
+      fired += result.events.filter((event) => isModuleEvent(event) && (event.type as string) === 'probe.fired').length;
+    }
 
     const played = { morning: 0, afternoon: 0, night: 0 };
     for (let turn = 1; turn <= turns; turn += 1) played[timeOfDay(turn)] += 1;
     expect(withValid(document, deps).world.turn).toBe(turns);
     expect(sliceOf(document).hooks).toEqual(played);
+    // Both ways through each hook that may stop or fire were met.
+    expect(stops).toBeGreaterThan(0);
+    expect(stops).toBeLessThan(played.afternoon);
+    expect(fired).toBeGreaterThan(0);
+    expect(fired).toBeLessThan(played.night);
     // A year is whole Days, and Turn 0, a morning, plays no phase (DL-24): one of each a Day.
     expect(played).toEqual({ morning: turns / 3, afternoon: turns / 3, night: turns / 3 });
   });
@@ -319,7 +335,7 @@ describe("onNight's draw", () => {
   });
 });
 
-// ── M8-S3 box 2 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 2 ──────────────────────────────────────────────────────────────────────────────
 
 describe('only the probe stream moves when the probe draws', () => {
   test('each Turn, played from one document with the probe and without, the core streams agree; the probe stream moves only at night', () => {
@@ -361,7 +377,7 @@ describe('only the probe stream moves when the probe draws', () => {
   });
 });
 
-// ── M8-S3 box 3 ──────────────────────────────────────────────────────────────────────────────
+// ── Box 3 ──────────────────────────────────────────────────────────────────────────────
 
 describe('a save with a probe slice', () => {
   const deps = withProbe({ probeStopEveryDays: 2 });

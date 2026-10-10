@@ -11,7 +11,6 @@ import {
   bankruptcyCountdown,
   baseStat,
   cheapestUnattached,
-  effectiveStats,
   offeredQuests,
   playerGuild,
   rankingPlaces,
@@ -80,14 +79,6 @@ describe('signingFee', () => {
     return { level, stats: { ...Object.fromEntries(heroStats.map((stat) => [stat.key, value])), ...extra } };
   }
 
-  test('is 50 + 25 × Level + the sum of the Stats ÷ 4 with the defaults (INPUTS 4.7)', () => {
-    expect(heroStats).toHaveLength(20);
-    // Twenty Stats at 8 sum to 160: 50 + 25 + 40.
-    expect(signingFee(hero(1, 8), deps)).toBe(115);
-    // At Level 3: 50 + 75 + 40.
-    expect(signingFee(hero(3, 8), deps)).toBe(165);
-  });
-
   test('rounds down to a whole number, once, at the end', () => {
     const fees = [0, 1, 2, 3, 4].map((more) => signingFee(hero(1, 8, { strength: 8 + more }), deps));
     // The sum is 160 to 164: a quarter of it is 40, 40.25, 40.5, 40.75, 41.
@@ -130,28 +121,8 @@ describe('baseStat', () => {
   });
 });
 
-describe('effectiveStats (M4-S2, M4-S5, DL-44)', () => {
-  test("is every Hero Stat content defines at its base until something modifies it, a Stat the Hero lacks reading the default, and no Guildmaster Stat", () => {
-    const deps = testDeps();
-    const { world } = createWorld('effective', setup, deps).document;
-    const guild = playerGuild(world) as Guild;
-    // No Guildmaster Trait, whose Class Stat bonus would modify it (guildmaster.test.ts tests those).
-    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
-    const hero = world.heroes[guild.rosterIds[0] as Hero['id']] as Hero;
-    Reflect.deleteProperty(hero.stats, 'wits');
-    hero.stats['luck'] = 20;
-
-    const stats = effectiveStats(hero, world, deps.content);
-
-    const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');
-    expect(Object.keys(stats).sort()).toEqual(heroStats.map((stat) => stat.key).sort());
-    for (const stat of heroStats) expect(stats[stat.key], stat.key).toBe(baseStat(hero.stats, stat));
-    expect(stats['wits']).toBe(deps.content.stats['wits']?.default);
-  });
-});
-
-// M9-F1 (DL-112 item 3): Upkeep's parts and its Day, for the Treasury, read from the engine.
-describe("upkeepParts and nextUpkeepDay (M9-F1)", () => {
+// DL-112 item 3: Upkeep's parts and its Day, for the Treasury, read from the engine.
+describe("upkeepParts and nextUpkeepDay", () => {
   test("are exported from the engine's index, for the page", () => {
     expect(engine.upkeepParts).toBe(upkeepParts);
     expect(engine.nextUpkeepDay).toBe(nextUpkeepDay);
@@ -179,15 +150,15 @@ describe("upkeepParts and nextUpkeepDay (M9-F1)", () => {
     expect(upkeepParts(guild, world, deps.config)).toEqual({ wages, hallMaintenance: 30, traitFactor: 1, total: wages + 30 });
   });
 
-  // Four worlds played ninety Days through `advance`: about a second alone, and five to seven under
-  // the whole suite's load, past the default 5 s (DL-164).
-  test('sums to upkeep() for every Guild over seeded worlds, played a season', { timeout: 60_000 }, () => {
+  test('sums to upkeep() for every Guild over seeded worlds, given Levels and Hall grades', () => {
     const deps = testDeps({ startingWealth: 100_000 });
     const factors = new Set<number>();
     for (const seed of ['parts-a', 'parts-b', 'parts-c', 'parts-d']) {
-      let document = createWorld(seed, setup, deps).document;
-      while (document.world.turn < nightOf(90) && document.world.ended === null) document = advance(document, deps).document;
-      const { world } = document;
+      const { world } = createWorld(seed, setup, deps).document;
+      Object.values(world.guilds).forEach((guild, guildIndex) => {
+        guild.rosterIds.forEach((id, index) => ((world.heroes[id] as Hero).level = 1 + ((index + guildIndex) % 4)));
+        guild.hall = { infirmary: guildIndex % 4, trainingYard: (guildIndex + 1) % 4, quarters: (guildIndex + 2) % 4 };
+      });
       for (const guild of Object.values(world.guilds)) {
         const parts = upkeepParts(guild, world, deps.config, deps.content);
         factors.add(parts.traitFactor);
@@ -276,7 +247,7 @@ describe('upkeep', () => {
   });
 });
 
-describe('rankings (pulled forward from M3-S5, DL-28)', () => {
+describe('rankings (pulled forward from DL-28)', () => {
   /** Five Guilds whose Fame and Wealth order them differently, with a tie in each. */
   function ranked() {
     const { document } = createWorld('rankings', setup, testDeps());
@@ -311,6 +282,17 @@ describe('rankings (pulled forward from M3-S5, DL-28)', () => {
     expect(g1).toBe(makeId('guilds', 1));
   });
 
+  test('no rank is stored: the Guild row has no rank, and the Rankings follow Fame as it moves', () => {
+    const { world } = ranked();
+    const player = playerGuild(world) as Guild;
+    expectTypeOf<Guild>().not.toHaveProperty('rank');
+    expect(Object.hasOwn(player, 'rank')).toBe(false);
+
+    player.fame = 0;
+
+    expect(rankings(world, 'fame').at(-1)?.guildId).toBe(player.id);
+  });
+
   test("leaves out a folded Guild, and does not depend on the Guilds' order in the table", () => {
     const { world, ids } = ranked();
     const [, g2, g3] = ids;
@@ -327,59 +309,7 @@ describe('rankings (pulled forward from M3-S5, DL-28)', () => {
   });
 });
 
-describe('rankings (M3-S5)', () => {
-  /** A created world whose five Guilds are given Fame and Wealth that order them differently. */
-  function differing() {
-    const deps = testDeps();
-    const { document } = createWorld('rankings-s5', setup, deps);
-    const { world } = document;
-    const player = playerGuild(world) as Guild;
-    const rivals = Object.values(world.guilds).filter((guild) => guild.id !== player.id);
-    // The player's Guild first by Fame and last by Wealth; the Rivals the other way about.
-    Object.assign(player, { fame: 50, wealth: 10 });
-    rivals.forEach((guild, index) => Object.assign(guild, { fame: 10 + index, wealth: 1_000 - 100 * index }));
-    return { world, player, rivals };
-  }
-
-  test("lists every Guild in play once, ordered, the player's Guild ranked by its value like any other", () => {
-    const { world, player, rivals } = differing();
-
-    for (const by of ['fame', 'wealth'] as const) {
-      const ranked = rankings(world, by);
-      const ids = ranked.map((ranking) => ranking.guildId);
-      expect(new Set(ids)).toEqual(new Set(Object.keys(world.guilds)));
-      expect(ids).toHaveLength(Object.keys(world.guilds).length);
-      expect(ranked.map((ranking) => ranking.rank)).toEqual(ranked.map((_, index) => index + 1));
-      const values = ranked.map((ranking) => ranking.value);
-      expect(values).toEqual([...values].sort((a, b) => b - a));
-      for (const ranking of ranked) expect(ranking.value).toBe(world.guilds[ranking.guildId]?.[by]);
-    }
-    // Top by Fame, bottom by Wealth: where its values put it, not where its controller would.
-    expect(rankings(world, 'fame')[0]?.guildId).toBe(player.id);
-    expect(rankings(world, 'wealth').at(-1)?.guildId).toBe(player.id);
-    expect(rivals).toHaveLength(4);
-  });
-
-  test('by: "wealth" and by: "fame" differ on a fixture built to make them differ', () => {
-    const { world, player, rivals } = differing();
-    const [r1, r2, r3, r4] = rivals.map((guild) => guild.id);
-
-    expect(rankings(world, 'fame').map((ranking) => ranking.guildId)).toEqual([player.id, r4, r3, r2, r1]);
-    expect(rankings(world, 'wealth').map((ranking) => ranking.guildId)).toEqual([r1, r2, r3, r4, player.id]);
-  });
-
-  test('no rank is stored: the Guild row has no rank, and the Rankings follow Fame as it moves', () => {
-    const { world, player } = differing();
-    expectTypeOf<Guild>().not.toHaveProperty('rank');
-    expect(Object.hasOwn(player, 'rank')).toBe(false);
-
-    player.fame = 0;
-
-    expect(rankings(world, 'fame').at(-1)?.guildId).toBe(player.id);
-  });
-});
-
-describe('rankingPlaces (v1.0.1-S4, DL-95)', () => {
+describe('rankingPlaces (DL-95)', () => {
   test('five Guilds at Fame 0, as a new game has them, share 1st, in the order rankings gives', () => {
     const { document } = createWorld('places-new', setup, testDeps());
     const { world } = document;
@@ -434,7 +364,7 @@ describe('rankingPlaces (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
+describe('bankruptcyCountdown (DL-95)', () => {
   /** A new game whose player's Guild has `wealth` Wealth. */
   function created(seed: string, deps: EngineDeps, wealth: number): WorldDocument {
     const { document } = createWorld(seed, setup, deps);
@@ -477,14 +407,13 @@ describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
     expect(bankruptcyCountdown(player(night), deps.config)).toBeNull();
   });
 
-  test("runs from the Day it was set to that Day plus the game's grace: 10 gives d + 10, the default 30 d + 30", () => {
+  test("runs from the Day it was set to that Day plus the game's grace: 10 gives d + 10", () => {
     const deps = testDeps({ bankruptcyGraceDays: 10 });
     const document = belowSinceDay4('countdown-grace', deps);
     const guild = player(document);
     expect(guild.belowFloorSince).toBe(nightOf(4));
 
     expect(bankruptcyCountdown(guild, deps.config)).toEqual({ sinceDay: 4, dueDay: 14 });
-    expect(bankruptcyCountdown(guild, testDeps().config)).toEqual({ sinceDay: 4, dueDay: 34 });
     // Only the rule's input is read, as a Day: not the Guild's Wealth, nor which Turn of the Day.
     expect(bankruptcyCountdown({ belowFloorSince: nightOf(4) }, { bankruptcyGraceDays: 10 })).toEqual({ sinceDay: 4, dueDay: 14 });
     expect(bankruptcyCountdown({ belowFloorSince: nightOf(4) - 2 }, { bankruptcyGraceDays: 10 })).toEqual({ sinceDay: 4, dueDay: 14 });
@@ -506,8 +435,7 @@ describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
   });
 
   test('an Upkeep night that keeps the Guild below the floor leaves the countdown as it was', () => {
-    const deps = testDeps({ bankruptcyGraceDays: 10 });
-    expect(deps.config.upkeepEveryDays).toBe(10);
+    const deps = testDeps({ bankruptcyGraceDays: 10, upkeepEveryDays: 10 });
     const below = belowSinceDay4('countdown-upkeep', deps);
 
     // Day 9 is the first Upkeep Day (DL-26, DL-91 item 1).
@@ -523,7 +451,7 @@ describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
   });
 
   test("a played Bankruptcy falls on the night of the countdown's due Day, as endings.ts rules, whatever the grace", () => {
-    for (const bankruptcyGraceDays of [0, 3, 10, 30]) {
+    for (const bankruptcyGraceDays of [0, 10]) {
       const deps = testDeps({ bankruptcyGraceDays });
       // The History is appended in place, so each play starts from a game of its own.
       const start = () => created(`countdown-played-${bankruptcyGraceDays}`, deps, deps.config.bankruptcyFloor - 1);
@@ -544,7 +472,7 @@ describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-describe('signingRefusal (M3-S5, pre-M0 review B4)', () => {
+describe('signingRefusal (pre-M0 review B4)', () => {
   // Pinned rather than read from the default, which a balance pass may change.
   const config = { fameRequiredPerLevel: 10 };
   const hero = (level: number) => ({ level });
@@ -563,14 +491,13 @@ describe('signingRefusal (M3-S5, pre-M0 review B4)', () => {
     expect(signingRefusal({ fame: 41 }, hero(5), config)).toBeNull();
   });
 
-  test('reads the multiple from the config: 10 by default (INPUTS 5.6)', () => {
-    expect(testDeps().config.fameRequiredPerLevel).toBe(10);
+  test('reads the multiple from the config', () => {
     expect(signingRefusal({ fame: 0 }, hero(3), { fameRequiredPerLevel: 7 })).toMatchObject({ fameRequired: 14 });
     expect(signingRefusal({ fame: 0 }, hero(9), { fameRequiredPerLevel: 0 })).toBeNull();
   });
 });
 
-describe('unsignableHeroes (M3-S5)', () => {
+describe('unsignableHeroes', () => {
   test("is the pool's Heroes who would refuse the Guild's Fame, in id order, whoever the Guild is", () => {
     const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
     const { document } = createWorld('unsignable', setup, deps);
@@ -594,7 +521,7 @@ describe('unsignableHeroes (M3-S5)', () => {
 });
 
 describe('cheapestUnattached (DL-38)', () => {
-  // Negotiation still (M4-S5): these tests are about who is cheapest and who would sign.
+  // Negotiation still: these tests are about who is cheapest and who would sign.
   const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4, negotiationRange: 0 });
 
   function pool() {

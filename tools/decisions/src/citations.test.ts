@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { describe, expect, test } from 'vitest';
 import { citationsIn, unknownCitations, unknownInRepository } from './citations.js';
 import { repositoryRoot } from './cli.js';
-import { scratchRepository, smallLog } from './test-support.js';
+import { repositoryTextsOnce, scratchRepository, smallLog } from './test-support.js';
 
 // An id no entry holds, built so that this file cites none.
 const planted = `DL-${9}${9}${9}`;
@@ -36,7 +36,21 @@ describe('citations', () => {
     }
   });
 
+  test("leaves out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+    const { dir, remove } = scratchRepository({
+      ...smallLog,
+      'engine/src/a.ts': `// ${planted}\n`,
+      'web/src/boundary-probe-0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d.ts': `// ${planted}\n`,
+    });
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: dir });
+      expect(unknownInRepository(dir).map(({ file }) => file)).toEqual(['engine/src/a.ts']);
+    } finally {
+      remove();
+    }
+  });
+
   test('every DL-nn this repository cites is an entry', () => {
-    expect(unknownInRepository(repositoryRoot)).toEqual([]);
+    expect(unknownInRepository(repositoryRoot, repositoryTextsOnce())).toEqual([]);
   });
 });

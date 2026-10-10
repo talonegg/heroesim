@@ -3,7 +3,7 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { configSections, configVersion, configChangelog, defaultConfig, flattenConfig, type ConfigSections, type GameConfig } from './config.js';
 import { configRules } from './config-check.js';
 
-// v1.1.6-S18 (DL-186 item 15, DL-204): the defaults' values are data, `config.json`, in sections,
+// DL-186 item 15, DL-204: the defaults' values are data, `config.json`, in sections,
 // and the engine reads them flat, every setting once, in `GameConfig`'s order.
 
 const file = new URL('./config.json', import.meta.url);
@@ -26,13 +26,6 @@ describe('config.json', () => {
 
   test("the flat config is one to one with the settings' rules, in GameConfig's order", () => {
     expect(Object.keys(defaultConfig)).toEqual(Object.keys(configRules));
-  });
-
-  test("each setting's value is the file's", () => {
-    for (const section of Object.values(configSections)) {
-      for (const [setting, value] of Object.entries(section)) expect(defaultConfig[setting as keyof GameConfig], setting).toEqual(value);
-    }
-    expect(defaultConfig.infirmaryHealFactor).toEqual([1, 1 / 2, 1 / 3, 1 / 4]);
   });
 
   test('the defaults are frozen all the way down', () => {

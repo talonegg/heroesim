@@ -1,4 +1,3 @@
-import { loadContent } from '@heroesim/content/node';
 import {
   advance,
   applyAction,
@@ -28,18 +27,20 @@ import {
 import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
+import type { Gatherer } from './counter.js';
 import {
   copiesTimed,
-  countGame,
-  emptyObservations,
   heroFieldsLength,
+  historyLengthCounter,
   noConsumables,
   noDisposition,
+  noFameGate,
   noGear,
+  noHeroes,
   noOffers,
   noTransfers,
   noWealth,
-  observe,
+  observeFameGate,
   observeHeroes,
   observeSave,
   observeWorld,
@@ -48,13 +49,26 @@ import {
   questsTakenByController,
   regardSnapshot,
   savedLength,
-  takeCensus,
+  type HeroesSeen,
+  type SaveSize,
+  type WorldSize,
 } from './counters.js';
+import { content, coreDeps, countGame, observerOf } from './harness.test-support.js';
 
-// M2-S9's counter, against the core content: the player's Quests and the Rivals' counted apart.
+// The counter, against the core content: the player's Quests and the Rivals' counted apart.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
+const deps = coreDeps;
+
+/**
+ * Tells `observers` of `document` as a census reads it: as the world is created on Turn 0, and as a
+ * year ends on any other Turn, which the play loop announces only on a year's last Turn played.
+ */
+function census(document: WorldDocument, given: EngineDeps, ...observers: Gatherer<unknown>[]): void {
+  for (const observer of observers) {
+    if (document.world.turn === 0) observer.created?.({ document, deps: given, events: [] });
+    else observer.yearEnded?.({ document, deps: given, now: () => 0, worldLength: () => savedLength(document.world) });
+  }
+}
 
 /** The player's first Party, smallest first, that `dispatch` accepts for a Quest on the Board. */
 function playerDispatches(document: WorldDocument): WorldDocument {
@@ -226,7 +240,7 @@ describe("M3's counters, from the History", () => {
     expect(counters.heroesRetired).toEqual({ player: 1, rival: 2 });
   });
 
-  // v1.1.4-S7: the Traits earned and lost, and the careers they are counted over.
+  // The Traits earned and lost, and the careers they are counted over.
   test('Traits gained and lost by controller, and each Hero sent on a Quest once, by the Guild that first sent them', () => {
     const { document, player, rivals } = fixture('counters-traits');
     const [mine, rivalHero] = [firstHero(player), firstHero(rivals[0])];
@@ -251,7 +265,7 @@ describe("M3's counters, from the History", () => {
     expect(counters.traitsGainedByKey).toEqual({ player: { scarred: 1 }, rival: { lame: 1 } });
   });
 
-  // v1.1.4-S10: the Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
+  // The Party sizes and the XP each Hero took, for the owner's decision on splitting XP.
   test('Quests resolved by controller and the size of the Party sent, their bands, and the XP each Hero who came home took', () => {
     const { document, player, rivals } = fixture('counters-parties');
     const [a, b, c] = player.rosterIds as [HeroId, HeroId, HeroId];
@@ -338,7 +352,7 @@ describe("M3's counters, from the History", () => {
   });
 });
 
-describe("M9-S2's counter, from the History", () => {
+describe("the Rival Guildmasters' counter, from the History", () => {
   test('Rival folds by cause, and the Successions that met a Rival Guildmaster\'s Retirement (guildmaster.succeeded), which fold nothing', () => {
     const { document, rivals } = fixture('counters-succession');
     const [a, b] = rivals;
@@ -372,22 +386,22 @@ describe("M3's counters, from the World State while a game is played", () => {
     first.level = 5; // asks Fame 40: refuses the player, signs for Rival A
     second.level = 2; // asks Fame 10: likewise
 
-    const observations = emptyObservations();
-    observe(observations, world, shortYears);
-    expect(observations.fameGate).toEqual({
+    const fameGate = { player: noFameGate(), rival: noFameGate() };
+    observeFameGate(fameGate, world, shortYears);
+    expect(fameGate).toEqual({
       player: { heroDays: 2, guildDays: 1, guildDaysWithAny: 1 },
       rival: { heroDays: 0, guildDays: 1, guildDaysWithAny: 0 },
     });
 
     // Not on an afternoon or a night; again on the next morning, where Fame 10 now signs the second.
     world.turn = 1;
-    observe(observations, world, shortYears);
+    observeFameGate(fameGate, world, shortYears);
     world.turn = 2;
-    observe(observations, world, shortYears);
+    observeFameGate(fameGate, world, shortYears);
     world.turn = 3;
     player.fame = 10;
-    observe(observations, world, shortYears);
-    expect(observations.fameGate).toEqual({
+    observeFameGate(fameGate, world, shortYears);
+    expect(fameGate).toEqual({
       player: { heroDays: 3, guildDays: 2, guildDaysWithAny: 2 },
       rival: { heroDays: 0, guildDays: 2, guildDaysWithAny: 0 },
     });
@@ -416,26 +430,26 @@ describe("M3's counters, from the World State while a game is played", () => {
     a1.stats.strength = 20;
     a1.potential.strength = 25; // past content's maximum, 20, where growth stops too
 
-    const observations = emptyObservations();
-    takeCensus(observations, world, shortYears);
+    const rosters = observerOf('rosters');
+    census(document, shortYears, rosters);
     const rivalHeroes = a.rosterIds.length;
     const newWorld = {
       player: { guilds: 1, wealth: player.wealth, heroes: player.rosterIds.length, levels: player.rosterIds.length + 2, atPotential: 1 },
       // Rival B has folded: only A is in play.
       rival: { guilds: 1, wealth: a.wealth, heroes: rivalHeroes, levels: rivalHeroes, atPotential: 1 },
     };
-    expect(observations.rosters).toEqual([newWorld]);
+    expect(rosters.value()).toEqual([newWorld]);
 
     // Only on the first Turn of a year not yet counted.
     world.turn = 15;
-    takeCensus(observations, world, shortYears);
+    census(document, shortYears, rosters);
     world.turn = 30;
     p1.level = 4;
-    takeCensus(observations, world, shortYears);
-    takeCensus(observations, world, shortYears);
+    census(document, shortYears, rosters);
+    census(document, shortYears, rosters);
     world.turn = 90;
-    takeCensus(observations, world, shortYears);
-    expect(observations.rosters).toEqual([newWorld, { ...newWorld, player: { ...newWorld.player, levels: newWorld.player.levels + 1 } }]);
+    census(document, shortYears, rosters);
+    expect(rosters.value()).toEqual([newWorld, { ...newWorld, player: { ...newWorld.player, levels: newWorld.player.levels + 1 } }]);
   });
 });
 
@@ -508,7 +522,7 @@ describe("M4's counters, from the History", () => {
     };
     resolved(5, player, ['shadow-and-spell', 'sword-and-salve']);
     resolved(8, player, []);
-    // An entry written before M4-S3 has no synergyKeys: it applied none.
+    // An entry written before the Synergies were recorded has no synergyKeys: it applied none.
     resolved(9, rivals[0]);
     resolved(12, rivals[1], ['sword-and-salve']);
     document.world.turn = 20;
@@ -641,25 +655,26 @@ describe("M4's counters, from the World State after 10 years", () => {
   test("the census takes it after 10 years, and at no other year's start", () => {
     const { document, heroes } = regardFixture('counters-regard-census');
     const { world } = document;
-    const observations = emptyObservations();
+    const rosters = observerOf('rosters');
+    const regard = observerOf('regardAtCountedYear');
     for (let year = 0; year < 10; year += 1) {
       world.turn = year * 30;
-      takeCensus(observations, world, regardDeps);
-      expect(observations.regardAtCountedYear).toBeNull();
+      census(document, regardDeps, rosters, regard);
+      expect(regard.value()).toBeNull();
     }
     world.turn = 300;
-    takeCensus(observations, world, regardDeps);
+    census(document, regardDeps, rosters, regard);
 
-    expect(observations.rosters).toHaveLength(11);
-    expect(observations.regardAtCountedYear).toEqual(regardSnapshot(world, regardDeps.config));
-    expect(observations.regardAtCountedYear?.relationships.close).toBe(1);
+    expect(rosters.value()).toHaveLength(11);
+    expect(regard.value()).toEqual(regardSnapshot(world, regardDeps.config));
+    expect(regard.value()?.relationships.close).toBe(1);
 
     // The census as year 12 begins leaves it as it was after 10 years.
     for (const hero of heroes) hero.regard = {};
     world.turn = 330;
-    takeCensus(observations, world, regardDeps);
-    expect(observations.rosters).toHaveLength(12);
-    expect(observations.regardAtCountedYear?.relationships.close).toBe(1);
+    census(document, regardDeps, rosters, regard);
+    expect(rosters.value()).toHaveLength(12);
+    expect(regard.value()?.relationships.close).toBe(1);
   });
 });
 
@@ -814,7 +829,7 @@ describe("M5's counters, from the History", () => {
       { definitionKey: 'healing-draught', quantity: 1 },
     ]);
     taken(4, player, other, []);
-    // An entry written before M5-S3 carries nothing.
+    // An entry written before the Loot was recorded carries nothing.
     taken(5, rivals[0], makeId('quests', 902));
     const expended = (turn: number, id: EntityId, use: object): void => {
       add(document, turn, 'item.expended', [id, partyId, player.id], {
@@ -884,7 +899,7 @@ describe("M5's counters, from the History", () => {
     move(8, 'item.returned', rivals[0], 'retired');
     move(9, 'item.returned', rivals[1], 'guild-folded');
     move(10, 'item.returned', rivals[1], 'guild-folded');
-    // A Hero's gear goes back to the selling Guild with them transferred (M6-S2, DL-57; the merge, DL-63).
+    // A Hero's gear goes back to the selling Guild with them transferred (DL-57; the merge, DL-63).
     move(11, 'item.returned', rivals[0], 'transferred');
     document.world.turn = 20;
 
@@ -1234,26 +1249,27 @@ describe("M6's counters, from the World State as each year begins", () => {
     a.fame = 5;
     b.fame = 3;
     expect(b.wealth).toBeLessThan(player.wealth);
-    const observations = emptyObservations();
-    takeCensus(observations, world, shortYears);
+    const takers = { rosters: observerOf('rosters'), rivals: observerOf('rivalYearStarts'), rankings: observerOf('rankings') };
+    const observers = Object.values(takers) as Gatherer<unknown>[];
+    census(document, shortYears, ...observers);
     const miserly = { disposition: 'miserly', heroes: b.rosterIds.length, wealth: b.wealth };
     world.turn = 30;
     b.foldedOnTurn = 20;
     player.wealth = 5_000;
-    takeCensus(observations, world, shortYears);
+    census(document, shortYears, ...observers);
     world.turn = 45;
-    takeCensus(observations, world, shortYears);
+    census(document, shortYears, ...observers);
 
-    expect(observations.rivals).toEqual([[{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }, miserly], [{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }]]);
-    expect(observations.rankings).toEqual([
+    expect(takers.rivals.value()).toEqual([[{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }, miserly], [{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }]]);
+    expect(takers.rankings.value()).toEqual([
       { fame: 3, wealth: 2, guilds: 3 },
       { fame: 2, wealth: 1, guilds: 2 },
     ]);
-    expect(observations.rosters).toHaveLength(2);
+    expect(takers.rosters.value()).toHaveLength(2);
   });
 });
 
-describe("M9-S1's counters, from the History (DL-101)", () => {
+describe("the Bankruptcy floor counters, from the History (DL-101)", () => {
   test('a new world has fallen below the Bankruptcy floor, and recovered, never', () => {
     const { document } = fixture('counters-floor-new');
     const counted = countGame(document, shortYears);
@@ -1282,7 +1298,7 @@ describe("M9-S1's counters, from the History (DL-101)", () => {
   });
 });
 
-describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", () => {
+describe("the Portrait counters, from the World State (DL-134 item 9)", () => {
   test("every Guildmaster who entered play, by their Guild's controller: with a picture or the Silhouette, the age held and a Calling clashing", () => {
     const { document, player, rivals } = fixture('counters-portraits');
     const { guildmasters } = document.world;
@@ -1313,7 +1329,7 @@ describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", 
   });
 });
 
-describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
+describe("the Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
   test("reads each hero.generated of a batch of events, the pool's not in the History among them: a picture or the Silhouette, a repeat, the longest texts, and none gone", () => {
     const { document, events } = createWorld('counters-heroes', harnessSetup, shortYears);
     const { world } = document;
@@ -1321,24 +1337,24 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     const player = guilds.find((guild) => guild.controller.kind === 'player');
     const rivals = guilds.filter((guild) => guild.controller.kind === 'rival');
     if (player === undefined || rivals[0] === undefined || rivals[1] === undefined) throw new Error('Not a player and two Rivals');
-    const observations = emptyObservations();
-    observeHeroes(observations, world, events);
+    const seen: HeroesSeen = { tally: noHeroes(), turnsRead: null };
+    observeHeroes(seen, world, events);
     // Every Hero made with the world, the pool's too, which the History does not record (DL-211).
     const generated = Object.keys(world.heroes).length;
     expect(document.history.byType['hero.generated']?.length).toBeLessThan(generated);
     // The core has no Hero picture: every Hero the Silhouette, each with both texts.
-    expect(observations.heroes).toMatchObject({ generated, pictured: 0, silhouettes: generated, repeats: 0, blank: 0 });
+    expect(seen.tally).toMatchObject({ generated, pictured: 0, silhouettes: generated, repeats: 0, blank: 0 });
     const heroes = Object.values(world.heroes);
-    expect(observations.heroes.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
-    expect(observations.heroes.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
+    expect(seen.tally.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
+    expect(seen.tally.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
 
     // Read again, nothing new is counted.
-    observeHeroes(observations, world, events);
-    expect(observations.heroes.generated).toBe(generated);
+    observeHeroes(seen, world, events);
+    expect(seen.tally.generated).toBe(generated);
 
     // A batch with no hero.generated counts nothing.
-    observeHeroes(observations, world, events.filter((event) => event.type !== 'hero.generated'));
-    expect(observations.heroes.generated).toBe(generated);
+    observeHeroes(seen, world, events.filter((event) => event.type !== 'hero.generated'));
+    expect(seen.tally.generated).toBe(generated);
 
     // Three Heroes generated later, by hand: two holding one picture, the second a repeat, and one whose row is gone.
     const [first, second] = [player, rivals[0]].map((guild) => world.heroes[firstHero(guild)] as Hero);
@@ -1347,16 +1363,16 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     Object.assign(second, { portraitKey: 'hero-female-01', biography: '' });
     const made = (heroId: HeroId, guildId: GuildId | null, turn: number): Entry =>
       ({ turn, type: 'hero.generated', participants: [heroId], labels: {}, milestone: false, payload: { heroId, guildId, classKey: 'warrior' } });
-    observeHeroes(observations, world, [made(first.id, first.guildId, 5), made(second.id, second.guildId, 5), made(makeId('heroes', 999), null, 5)]);
+    observeHeroes(seen, world, [made(first.id, first.guildId, 5), made(second.id, second.guildId, 5), made(makeId('heroes', 999), null, 5)]);
 
     // The first was given a picture no one held; the second, read after it, one the first held.
-    expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 1, blank: 1 });
+    expect(seen.tally).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 1, blank: 1 });
 
     // A Hero generated in a later batch, given a picture the two already hold, is a repeat too.
     const third = world.heroes[firstHero(rivals[1])] as Hero;
     Object.assign(third, { portraitKey: 'hero-female-01' });
-    observeHeroes(observations, world, [made(third.id, third.guildId, 6)]);
-    expect(observations.heroes).toMatchObject({ generated: generated + 3, pictured: 3, repeats: 2 });
+    observeHeroes(seen, world, [made(third.id, third.guildId, 6)]);
+    expect(seen.tally).toMatchObject({ generated: generated + 3, pictured: 3, repeats: 2 });
   });
 
   test("the save's size as a year ends, and the part the Heroes' three fields take in it", () => {
@@ -1368,16 +1384,16 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     }
     expect(heroFieldsLength(document.world)).toBe(text.length - serialise(without).length);
 
-    const observations = emptyObservations();
-    observeSave(observations, document.world, text.length);
-    observeSave(observations, document.world, text.length, 1234);
-    expect(observations.saves).toEqual([
+    const saves: SaveSize[] = [];
+    observeSave(saves, document.world, text.length);
+    observeSave(saves, document.world, text.length, 1234);
+    expect(saves).toEqual([
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: null },
       { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: 1234 },
     ]);
   });
 
-  // v1.1.6-S17 (DL-203): the World State's size, its rows and the per-Turn copy's time as a year ends.
+  // DL-203: the World State's size, its rows and the per-Turn copy's time as a year ends.
   test('the World State as a year ends: its characters in the save, its rows in play and written once, and the copy timed', () => {
     const { document, player, rivals } = fixture('counters-world');
     const { world } = document;
@@ -1387,13 +1403,13 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     Object.assign(world.guildmasters[rivals[1].guildmasterId] as Guildmaster, { retiredOnTurn: 6 });
     const before = serialise(document);
     let clock = 0;
-    const observations = emptyObservations();
-    observeWorld(observations, world, () => (clock += 6));
+    const worlds: WorldSize[] = [];
+    observeWorld(worlds, world, () => (clock += 6));
 
     const heroes = Object.keys(world.heroes).length;
     const guildmasters = Object.keys(world.guildmasters).length;
     const others = ['patrons', 'quests', 'parties', 'items', 'stacks', 'offers'] as const;
-    expect(observations.worlds).toEqual([
+    expect(worlds).toEqual([
       {
         characters: savedLength(world),
         heroes: { live: heroes - 1, writeOnce: 1 },
@@ -1403,12 +1419,37 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
         copyMs: 6 / copiesTimed,
       },
     ]);
-    expect(observations.worlds[0]?.characters).toBe(JSON.stringify(world).length);
+    expect(worlds[0]?.characters).toBe(JSON.stringify(world).length);
     // The copies are dropped: the world plays on as it stood.
     expect(serialise(document)).toBe(before);
   });
 
-  // v1.1.5-S1 (DL-174): the years' saves are measured, not written.
+  // DL-238: the History is append-only (ADR-0008), so its length in the save is counted as it grows.
+  test("historyLengthCounter counts the History's length in the save as it grows, each entry once", () => {
+    const { document, player, rivals } = fixture('counters-history');
+    const { history } = document;
+    const counted = historyLengthCounter();
+    expect(counted(history)).toBe(savedLength(history));
+
+    const heroId = firstHero(player);
+    const batches: [number, EngineEventType, EntityId[]][][] = [
+      [],
+      // A new type and a new entity, an entity named twice in one entry, and a Milestone.
+      [[1, 'hero.recruited', [heroId, player.id]], [1, 'guild.folded', [rivals[0].id, rivals[0].id]]],
+      [[2, 'hero.recruited', [heroId, rivals[1].id]], [2, 'guild.improved', [player.id]], [3, 'hero.died', [heroId, player.id]]],
+      // Enough of one entity's entries for its list's positions to reach more digits.
+      Array.from({ length: 120 }, (_, at): [number, EngineEventType, EntityId[]] => [4 + at, 'guild.improved', [player.id]]),
+    ];
+    for (const batch of batches) {
+      for (const [turn, type, participants] of batch) add(document, turn, type, participants, { at: turn });
+      expect(counted(history)).toBe(savedLength(history));
+      expect(counted(history)).toBe(JSON.stringify(history).length);
+    }
+    // A count follows the one History it began with.
+    expect(() => counted({ ...history, entries: [...history.entries] })).toThrow(RangeError);
+  });
+
+  // DL-174: the years' saves are measured, not written.
   test("savedLength is the save's length, counted without writing it", () => {
     const { document } = fixture('counters-save');
     expect(savedLength(document)).toBe(serialise(document).length);

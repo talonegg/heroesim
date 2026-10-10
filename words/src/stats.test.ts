@@ -1,8 +1,8 @@
 import type { StatParts } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { statPartsWords, statSourcesMoving, statSourceWords } from './stats.js';
+import { statPartsWords, statSourcesMoving } from './stats.js';
 
-// v1.1.6-S13 (DL-186 item 3): a Stat's breakdown, the engine's, in the Roster's words.
+// DL-186 item 3: a Stat's breakdown, the engine's, in the Roster's words.
 
 /** A Stat's parts: its base, the Class bonus, the Gear and the Traits, its effective value and whether it was held. */
 function parts(base: number, [classBonus, gear, traits]: [number, number, number], effective: number, clamped = false): StatParts {
@@ -19,10 +19,6 @@ function parts(base: number, [classBonus, gear, traits]: [number, number, number
 }
 
 describe("a Stat's breakdown in words", () => {
-  test('names each source', () => {
-    expect(statSourceWords).toEqual({ classBonus: "the Guildmaster's Class bonus", gear: 'Gear', traits: 'Traits' });
-  });
-
   test.each([
     [parts(10, [0, 0, 0], 10), null, []],
     [parts(10, [0, 2, 0], 12), 'Base 10, +2 from Gear', [{ from: 'Gear', change: 2 }]],

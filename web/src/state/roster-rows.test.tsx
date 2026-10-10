@@ -4,11 +4,11 @@ import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { rosterList, section } from '../views/page.test-support';
-import { played, started } from './game.test-support';
+import { documentOf, played, started } from './game.test-support';
 import type * as Selectors from './selectors';
 import { rosterRows, rosterSortChoices, sortedRoster } from './selectors';
 
-// v1.1.6-S13 (DL-186 item 22): the Roster's rows apart from their sorting. The rows are built once for
+// DL-186 item 22: the Roster's rows apart from their sorting. The rows are built once for
 // a document (`rosterRows`) and a new sort only sorts them (`sortedRoster`). A build reads each Hero's
 // Stats through the engine's `statBreakdown` once, so its calls count the builds: the engine's entry
 // is wrapped in a spy that calls the real one.
@@ -16,7 +16,7 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof Engine>();
   return { ...engine, statBreakdown: vi.fn(engine.statBreakdown) };
 });
-// The sorts too, so that a test can count them (v1.1.6-S19, DL-205).
+// The sorts too, so that a test can count them (DL-205).
 vi.mock('./selectors', async (importOriginal) => {
   const selectors = await importOriginal<typeof Selectors>();
   return { ...selectors, sortedRoster: vi.fn(selectors.sortedRoster) };
@@ -32,13 +32,7 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-/** The game's document. */
-function documentOf(state: ReturnType<typeof started>): Engine.WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
-
-describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
+describe("the Roster's rows, built once for a document", () => {
   test('are the same rows for the same document, built once, and new rows for a new one', () => {
     const state = started();
     const document = documentOf(state);
@@ -90,7 +84,7 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
     expect(breakdowns.mock.calls.length).toBe(calls);
   });
 
-  // v1.1.6-S19 (DL-205): the sort in force is one value while it is kept, so a render for another
+  // DL-205: the sort in force is one value while it is kept, so a render for another
   // reason sorts nothing again.
   test('the Roster view: a render for another reason, the Columns opened and closed, sorts nothing again', () => {
     render(<App initial={started()} />);
@@ -110,7 +104,7 @@ describe("the Roster's rows, built once for a document (v1.1.6-S13)", () => {
     expect(sorts.mock.calls.length).toBe(sorted + 1);
   });
 
-  // v1.1.7-S7 (DL-206 item 25, DL-213): the filters read the rows kept and sorted, after both.
+  // DL-206 item 25, DL-213: the filters read the rows kept and sorted, after both.
   test('the Roster view: a filter, set or cleared, builds no row again and sorts nothing again', () => {
     render(<App initial={started()} />);
     const roster = section('Roster');

@@ -1,21 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { freshness, traitsDocPath, writeTraitsDoc } from './traits-doc.js';
-import { root, scratchRepository, status } from './test-support.js';
+import { root, scratch, status } from './test-support.js';
 
 // The freshness test (DL-150 item 14): docs/agents/traits-register.md's register part is what the
 // register makes now. It runs on this repository in CI; a stale doc in a scratch copy proves it fails,
 // and `traits doc` mends it, leaving the hand-written guardrails as they were.
-
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
-  scratches.push(remove);
-  return dir;
-}
 
 describe('the freshness test', () => {
   test("finds docs/agents/traits-register.md's register part as the register makes it", () => {

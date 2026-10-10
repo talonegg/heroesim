@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 import { contentDir, loadContent, loadDrafts } from '@heroesim/content/node';
-import { degrees, encounterKinds, type Encounter } from '@heroesim/engine';
+import { degrees, encounterKinds, type Encounter } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consequenceWords, passWords, reviewPage, type ReviewCalibration, type ReviewCell } from './quest-review.js';
 
-// v1.1.4-S9 (DL-162): the review page of the drafts, for the owner (DL-148 item 30), made from the
+// DL-162: the review page of the drafts, for the owner (DL-148 item 30), made from the
 // drafts, a calibration and the notes. `npm run quest-review` writes docs/quests/v1.1.4-review.html.
 
 const core = loadContent();
@@ -73,7 +73,7 @@ describe('the review page', () => {
     expect(page).toMatch(/ · Tags [A-Z]/);
   });
 
-  // v1.1.5-S8 (DL-172, DL-168 item 5): a negative earned Trait reads the Degree Failure, not "failed", which takes in a Setback.
+  // DL-172, DL-168 item 5: a negative earned Trait reads the Degree Failure, not "failed", which takes in a Setback.
   test('says a negative earned Trait falls on the Failure Degree only', () => {
     expect(page).toContain('a negative one falls only on a Hero the same Encounter injured at the Degree Failure (not a Setback)');
     expect(page).not.toMatch(/failed Encounter/i);

@@ -327,31 +327,27 @@ function Details({ card, id }: { card: QuestCard; id: string }) {
     <div className="quest__details" id={id}>
       <div className="quest__detail quest__reads">
         <h4>Encounters</h4>
-        {card.encounters.length === 0 ? (
-          <p className="subtle">Drawn on the way</p>
-        ) : (
-          <ol className="reads" data-testid="encounters">
-            {card.encounters.map((encounter, index) => (
-              <li key={index}>
-                <span className="reads__name">
-                  {encounter.kind === null ? null : <Icon name={encounterIcons[encounter.kind]} />}
-                  {encounter.name}
-                </span>
-                {encounter.one ? (
-                  <p>Reads {encounter.checks[0]?.reads}</p>
-                ) : (
-                  <ul>
-                    {encounter.checks.map((check) => (
-                      <li key={check.key}>
-                        {check.name}: {check.reads}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
+        <ol className="reads" data-testid="encounters">
+          {card.encounters.map((encounter, index) => (
+            <li key={index}>
+              <span className="reads__name">
+                {encounter.kind === null ? null : <Icon name={encounterIcons[encounter.kind]} />}
+                {encounter.name}
+              </span>
+              {encounter.one ? (
+                <p>Reads {encounter.checks[0]?.reads}</p>
+              ) : (
+                <ul>
+                  {encounter.checks.map((check) => (
+                    <li key={check.key}>
+                      {check.name}: {check.reads}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
       </div>
       <div className="quest__detail">
         <h4>Skills that help</h4>

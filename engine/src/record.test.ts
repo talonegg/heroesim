@@ -3,7 +3,7 @@ import { makeId, type EntityId, type Entry, type EventType } from './document.js
 import { append, createHistory, entriesFor, names } from './history.js';
 import { record, recorded } from './record.js';
 
-// v1.1.7-S5 (DL-206 items 20 and 21, DL-211): what the History records of a play's events. The
+// DL-206 items 20 and 21, DL-211: what the History records of a play's events. The
 // Unattached pool's comings and goings of a Hero no entry names are emitted and not recorded.
 
 const hero = (n: number): EntityId => makeId('heroes', n);

@@ -14,8 +14,8 @@ import { timeOfDay } from './time.js';
 import { validate } from './validate.js';
 import { testDeps, withValid } from './world.test-support.js';
 
-// M8-S1: the Module interface and its registration (ADR-0005 as amended 2026-09-25, data-model
-// §3.4, approach §2, N6, DL-76). Test modules only: the probe is M8-S3's.
+// The Module interface and its registration (ADR-0005 as amended 2026-09-25, data-model
+// §3.4, approach §2, N6, DL-76). Test modules only: the probe is tested in modules/probe.test.ts.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -178,7 +178,7 @@ describe('the hooks at the three positions of approach §2', () => {
   });
 });
 
-describe('a module with a stream (M8-S1 box 2)', () => {
+describe('a module with a stream', () => {
   test('draws from its own stream, seeded as a new stream of its name would be', () => {
     const documents = play('own-stream', withModules(diceModule()), 12);
 
@@ -218,7 +218,7 @@ describe('a module with a stream (M8-S1 box 2)', () => {
   });
 });
 
-describe('a module that throws inside a hook (M8-S1 box 3)', () => {
+describe('a module that throws inside a hook', () => {
   const failure = new TypeError('the module is broken');
   const broken = logModule('broken', {
     onAfternoon: () => {

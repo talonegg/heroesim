@@ -6,7 +6,7 @@ import { NotUndone } from './errors.js';
 import { formatJson } from './json-format.js';
 import { Transaction, transaction } from './transaction.js';
 
-// The files the tools write (v1.1.3-S2, moved from the portrait tool by v1.1.6-S4): JSON written as the
+// The files the tools write (DL-186 item 14): JSON written as the
 // content keeps it, and every change of a command undone together.
 
 const made: string[] = [];
@@ -66,7 +66,7 @@ describe('a transaction', () => {
     expect(existsSync(path.join(dir, 'deep'))).toBe(false);
   });
 
-  test('puts back every file it can when one cannot be put back, and names that one with the first failure (v1.1.3-S8)', async () => {
+  test('puts back every file it can when one cannot be put back, and names that one with the first failure', async () => {
     const dir = scratch();
     const [a, b] = [path.join(dir, 'a.txt'), path.join(dir, 'b.txt')];
     writeFileSync(a, 'A0');
@@ -85,7 +85,7 @@ describe('a transaction', () => {
     expect(readFileSync(b, 'utf8')).toBe('B0');
   });
 
-  // v1.1.6-S4: an error that names its problems, a tool's own refusal included, gives them, not its message.
+  // An error that names its problems, a tool's own refusal included, gives them, not its message.
   test("names a failure's problems where it names them, when a file cannot be put back", async () => {
     const dir = scratch();
     const a = path.join(dir, 'a.txt');

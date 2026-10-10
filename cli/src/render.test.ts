@@ -1,7 +1,35 @@
-import { advance, baseStat, createWorld, defaultConfig, playerGuild, rankings, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
+import {
+  advance,
+  createWorld,
+  defaultConfig,
+  playerGuild,
+  unattachedHeroes,
+  type Guild,
+  type GuildId,
+  type Hero,
+  type HeroId,
+  type PartyId,
+  type Quest,
+  type WorldDocument,
+} from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
+import {
+  bestPartyReading,
+  boardReading,
+  capitalised,
+  chanceWords,
+  listed,
+  playerReading,
+  poolReading,
+  rosterReading,
+  signsWords,
+  type HeroReading,
+  type QuestReading,
+  type Signs,
+  type StatReading,
+} from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
-import { renderCountdown, renderGuildmaster, renderGuilds, renderHero, renderRankings, renderSummary, table } from './render.js';
+import { renderBoard, renderCountdown, renderGuildmaster, renderGuilds, renderHero, renderPool, renderRankings, renderRoster, renderSummary, table } from './render.js';
 
 test('a table aligns its columns, numbers to the right, and leaves no trailing space', () => {
   const lines = table(
@@ -43,7 +71,7 @@ function rowFor(lines: readonly string[], guildId: string): string {
   return row;
 }
 
-describe('renderRankings: shared places (v1.0.1-S4, DL-95)', () => {
+describe('renderRankings: shared places (DL-95)', () => {
   test('a new game, every Guild at Fame 0, marks each Rank joint 1', () => {
     const document = newGame();
 
@@ -71,14 +99,12 @@ describe('renderRankings: shared places (v1.0.1-S4, DL-95)', () => {
       expect.stringMatching(new RegExp(`^ {6}4  ${g4}  `)),
     ]);
     expect(lines.some((line) => line.includes(g5 ?? 'none'))).toBe(false);
-    // The engine's own ranks stay one to a Guild, ties by Guild id.
-    expect(rankings(document.world, 'fame').map(({ rank }) => rank)).toEqual([1, 2, 3, 4]);
   });
 });
 
-// v1.1.2-S6 (the review's D): a Rival's Disposition by its name in content, as the page's Guilds' table
+// A Rival's Disposition by its name in content, as the page's Guilds' table
 // has it (DL-125 item 9), so the two read the same.
-describe("a Rival's Disposition by its content name in show guilds and show rankings (v1.1.2-S6)", () => {
+describe("a Rival's Disposition by its content name in show guilds and show rankings", () => {
   test("names the Disposition as content does, not its key capitalised, and a key content lacks as it is (rule 5)", () => {
     const document = structuredClone(newGame());
     const rivals = Object.values(document.world.guilds).filter((guild) => guild.controller.kind === 'rival');
@@ -95,7 +121,7 @@ describe("a Rival's Disposition by its content name in show guilds and show rank
   });
 });
 
-describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
+describe('the Bankruptcy countdown in show (DL-95)', () => {
   /** The Test below the floor from the start, played through the night of the first Day under `config`. */
   function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
     let document = structuredClone(newGame('render-countdown'));
@@ -123,7 +149,7 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
     expect(renderSummary(ten, playDeps(ten))[1]).toBe(line(10));
   });
 
-  test("names the save's own floor, from its rules (v1.0.1-S6, DL-97)", () => {
+  test("names the save's own floor, from its rules (DL-97)", () => {
     const fifty = belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 });
     const expected = line(10).replace('back to 0 or more', 'back to 50 or more');
 
@@ -143,19 +169,9 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
   });
 });
 
-// M9-F1 (DL-111 item 9, DL-112 item 4): the values of Sex are capitalised where the CLI prints them.
-describe('the Sex values, capitalised (M9-F1)', () => {
+// DL-111 item 9, DL-112 item 4: the values of Sex are capitalised where the CLI prints them.
+describe('the Sex values, capitalised', () => {
   const sexLine = (lines: readonly string[]) => lines.find((line) => line.startsWith('Sex'));
-
-  test('renderHero prints "Male" and "Female"', () => {
-    const document = newGame();
-    const deps = playDeps(document);
-    const heroes = Object.values(document.world.heroes);
-    for (const [sex, word] of [['male', 'Male'], ['female', 'Female']] as const) {
-      const hero = heroes.find((it) => it.sex === sex) as Hero;
-      expect(sexLine(renderHero(hero, document, deps))?.split(/\s+/)).toEqual(['Sex', word]);
-    }
-  });
 
   test('renderGuildmaster prints "Male" and "Female"', () => {
     for (const [sex, word] of [['male', 'Male'], ['female', 'Female']] as const) {
@@ -166,21 +182,159 @@ describe('the Sex values, capitalised (M9-F1)', () => {
   });
 });
 
-// v1.1.4-S7: a Hero's Traits with their effects in words. The effects' own words are
-// `@heroesim/words`' (`words/src/effects.test.ts`, v1.1.6-S11).
-describe("a Trait's effects in words (v1.1.4-S7)", () => {
-  test("show hero gives each Trait with what it does, and its Stat changes in the effective Stats", () => {
+// The layouts of the readings (DL-241): what a reading holds is `words/src/readings.test.ts`'s; these
+// hold how `show` lays each out, a cell that stands alone opening with a capital (docs/agents/ui-text.md).
+describe("show's layouts of the readings (DL-241)", () => {
+  const stat = (key: string, area: string, name: string, base: number, value: number, outlook: StatReading['outlook']): StatReading => ({ key, area, name, base, value, outlook });
+  const hero: HeroReading = {
+    id: 'hero-000007' as HeroId,
+    name: 'Finn Grimshaw',
+    sex: 'male',
+    portraitKey: null,
+    classKey: 'warrior',
+    className: 'Warrior',
+    level: 3,
+    age: 24,
+    morale: 61,
+    background: 'Levy soldier',
+    xp: 45,
+    moraleBand: 'steady',
+    guild: { id: 'guild-000002' as GuildId, name: 'The Ashford Guild' },
+    unattached: false,
+    injury: { name: 'Deep cut', healsOnTurn: 20 },
+    traits: [{ name: 'Lame', effect: '-2 Dexterity, -1 Endurance' }],
+    texts: [{ label: 'Biography', words: 'Once a drover.' }],
+    transferFee: 180,
+    signing: null,
+    partyId: 'party-000004' as PartyId,
+    died: 2_198,
+    retired: null,
+    leftPool: 0,
+    stats: [stat('strength', 'Physical', 'Strength', 9, 10, 'promising'), stat('dexterity', 'Physical', 'Dexterity', 7, 5, 'modest'), stat('wits', 'Mental', 'Wits', 6, 6, 'exceptional')],
+    gear: [
+      { slot: 'weapon', item: { id: 'stack-000003', name: 'Arming sword', modifies: 'Weaponry +2, Strength +1', definitionKey: 'arming-sword', unique: false } },
+      { slot: 'armour', item: null },
+    ],
+    skills: [{ key: 'swordcraft', name: 'Swordcraft', rating: 2 }],
+    relationships: [{ id: 'hero-000008' as HeroId, name: 'Ada Brack', classKey: 'mage', className: 'Mage', regard: 'warm', relationship: 'neutral' }],
+  };
+
+  test("show hero lays out a Hero's reading: its Attributes, then its Stats, gear, Skills and Relationships as tables", () => {
+    expect(renderHero(hero, defaultConfig)).toEqual([
+      'Finn Grimshaw (hero-000007)',
+      '',
+      'Sex            Male',
+      'Portrait       None: the Silhouette',
+      'Age            24',
+      'Class          Warrior',
+      'Background     Levy soldier',
+      'Guild          The Ashford Guild (guild-000002)',
+      'Level          3',
+      'XP             45',
+      'Morale         61',
+      'Injury         Deep cut, healing on the night of Year 1 Day 7 (Turn 20)',
+      'Traits         Lame (-2 Dexterity, -1 Endurance)',
+      'Biography      Once a drover.',
+      'Transfer fee   180',
+      'Party          party-000004',
+      'Died           Year 3 Day 13 (Turn 2198)',
+      'Left the pool  Year 1 Day 1 (Turn 0)',
+      '',
+      'Stats',
+      'Area      Stat       Base  Effective  Outlook',
+      '--------  ---------  ----  ---------  -----------',
+      'Physical  Strength      9         10  Promising',
+      '          Dexterity     7          5  Modest',
+      'Mental    Wits          6          6  Exceptional',
+      '',
+      'Gear',
+      'Slot    Item          Id            Modifies',
+      '------  ------------  ------------  ------------------------',
+      'Weapon  Arming sword  stack-000003  Weaponry +2, Strength +1',
+      'Armour  None',
+      '',
+      'Skills',
+      'Skill       Rating',
+      '----------  ------',
+      'Swordcraft       2',
+      '',
+      'Relationships on the Roster',
+      'Id           Hero       Class  Regard  Relationship',
+      '-----------  ---------  -----  ------  ------------',
+      'hero-000008  Ada Brack  Mage   Warm    Neutral',
+    ]);
+  });
+
+  test('show hero says what a Hero lacks: no Guild, Injury, Trait, Skill or other Hero on the Roster, and no Relationships off one', () => {
+    const lines = (reading: Partial<HeroReading>) => renderHero({ ...hero, ...reading }, defaultConfig);
+    const field = (all: readonly string[], label: string) => all.find((line) => line.startsWith(`${label} `))?.replace(/\s+/g, ' ');
+
+    const bare = lines({ guild: null, unattached: false, injury: null, traits: [], skills: [], relationships: [], sex: 'female' });
+    expect(field(bare, 'Guild')).toBe('Guild None');
+    expect(field(bare, 'Injury')).toBe('Injury None');
+    expect(field(bare, 'Traits')).toBe('Traits None');
+    expect(field(bare, 'Sex')).toBe('Sex Female');
+    expect(bare.slice(bare.indexOf('Skills'), bare.indexOf('Skills') + 2)).toEqual(['Skills', 'None']);
+    expect(bare.slice(-2)).toEqual(['Relationships on the Roster', 'None']);
+    expect(field(lines({ guild: null, unattached: true }), 'Guild')).toBe('Guild Unattached');
+    expect(field(lines({ guild: { id: 'guild-000009' as GuildId, name: undefined } }), 'Guild')).toBe('Guild guild-000009 (guild-000009)');
+    expect(lines({ relationships: null }).join('\n')).not.toContain('Relationships');
+    expect(lines({ transferFee: null, partyId: null, died: null, leftPool: null, retired: 1_079 }).filter((line) => /^(Transfer fee|Party|Died|Left the pool|Retired) /.test(line)).map((line) => line.replace(/\s{2,}/, '  '))).toEqual([
+      'Retired  Year 1 Day 360 (Turn 1079)',
+    ]);
+  });
+
+  test("show pool and show roster lay out their Heroes' rows: the pool's with the fee and whether they sign, another Guild's Roster with the Transfer fee", () => {
     const document = newGame();
-    const hero = Object.values(document.world.heroes).find((it) => it.guildId !== null && it.traits.length === 0) as Hero;
-    const dexterity = content.stats.dexterity;
-    if (dexterity === undefined) throw new Error('no Dexterity');
-    const before = baseStat(hero.stats, dexterity);
-    hero.traits = ['lame'];
+    const pool = unattachedHeroes(document.world);
+    (pool[0] as Hero).level = 9;
+    const reading = playerReading(document, playDeps(document));
+    const guild = playerGuild(document.world) as Guild;
 
-    const lines = renderHero(hero, document, playDeps(document));
+    const lines = renderPool(reading);
 
-    expect(lines.find((line) => line.startsWith('Traits'))?.replace(/\s+/, ' ')).toBe('Traits Lame (-2 Dexterity, -1 Endurance)');
-    const row = lines.find((line) => line.includes(' Dexterity '));
-    expect(row?.trim().split(/\s+/).slice(-3, -1)).toEqual([String(before), String(Math.max(1, before - 2))]);
+    expect(lines.slice(0, 3)).toEqual(['Unattached pool', '', expect.stringMatching(/^Id\s+Name\s+Class\s+Level\s+Age\s+Morale\s+Background\s+Fee\s+Signs$/)]);
+    for (const row of poolReading(reading)) {
+      const cells = rowFor(lines, row.id).split(/\s{2,}/);
+      expect(cells).toEqual([row.id, row.name, row.className, String(row.level), String(row.age), String(row.morale), row.background, String(row.fee), capitalised(signsWords(row.signs as Signs))]);
+    }
+    expect(rowFor(lines, (pool[0] as Hero).id)).toMatch(/\sNeeds Fame \d+$/);
+    expect(lines.slice(-2)).toEqual(['', `The Test has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`]);
+
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id) as Guild;
+    const roster = renderRoster(reading, rival);
+    expect(roster[2]).toMatch(/\sBackground\s+Transfer fee$/);
+    for (const row of rosterReading(reading, rival)) expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.transferFee}$`));
+    expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground$/);
+  });
+
+  test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {
+    const document = newGame();
+    const [first, second, third] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest, Quest];
+    first.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+    // Its Encounters are none the content in use defines (data-model rule 5).
+    second.encounterKeys = ['no-such-encounter'];
+    const reading = playerReading(document, playDeps(document));
+    const quests = boardReading(reading);
+
+    const lines = renderBoard(reading);
+
+    expect(lines[0]).toBe(`Board: ${quests.length} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
+    expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Difficulty', 'Days', 'Reward', 'Fame', 'Party', 'Requires', 'On offer through']);
+    const [one, two, three] = quests as [QuestReading, QuestReading, QuestReading];
+    expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 to 4', 'Mage, Lockpicking', 'Year 1 Day 3']);
+    const rows = lines.filter((line) => line.startsWith(one.id) || line.startsWith(two.id)).map((line) => line.split(/\s{2,}/));
+    expect(rows[2]).toEqual([one.id, one.skills.join(', '), capitalised(one.encounters.map((encounter) => encounter.kind).join(', '))]);
+    // An Encounter content does not define, by its key; no Skill is known to help, since its Encounters'
+    // Checks name them, not its template (DL-42, DL-248).
+    expect(rows[3]).toEqual([two.id, 'None', 'No-such-encounter']);
+
+    const block = (quest: QuestReading): string[] => lines.slice(lines.indexOf(`${quest.id}, ${quest.name}`));
+    const encounter = one.encounters[0];
+    expect(block(one).slice(1, 2 + (encounter?.checks.length ?? 0))).toEqual([`  ${encounter?.name} (${encounter?.kind})`, ...(encounter?.checks ?? []).map((check) => `    ${check.name}: ${check.reads}`)]);
+    const best = bestPartyReading(reading, third);
+    if (best === null || best.chance === null) throw new Error('no Best Party');
+    expect(block(three)).toContain(`  Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${listed(best.names)}.`);
+    expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
   });
 });

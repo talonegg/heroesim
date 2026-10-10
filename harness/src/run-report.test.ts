@@ -2,23 +2,22 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import { checkGate, readGateSpec } from './gate.js';
+import { content, coreDeps, twentyDays } from './harness.test-support.js';
 import { defaultPolicyConfig } from './policy.js';
 import { coreCounters } from './module-report.js';
 import { machine, whole } from './report.js';
 import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
-import { sweepFingerprint, sweepPlay, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { sweepFingerprint, sweepPlay, type PlaySweep } from './sweep.js';
 
-// v1.1.6-S2 (DL-186 item 13): a play sweep's JSON report beside its Markdown, and two runs compared.
+// DL-186 item 13: a play sweep's JSON report beside its Markdown, and two runs compared.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
-const sweep = sweepPlay(seedNames(2), deps, { years, validate: true });
+const deps = coreDeps;
+const years = twentyDays;
+const sweep = await sweepPlay(seedNames(2), deps, { years, validate: true });
 const context = { milestone: 'm9-v116-s2', profile: 'neutral' as const, startedAt: new Date(2026, 9, 5, 12), settings: ['HEROESIM_SEEDS=2'], machine: machine(), config: deps.config, content };
 const report = runReport(sweep, context);
 
@@ -110,7 +109,7 @@ describe('compare', () => {
     expect(compareRuns(b, fewer)).toEqual(expect.arrayContaining(['Seeds: 1 only in a, 0 only in b.', `Years: ${years} → 2.`, '  refusals: 1 → 0 (−1)']));
   });
 
-  // v1.1.6-S19 (DL-205): the save's size as each year ended is a measure, as the worlds are: a change
+  // DL-205: the save's size as each year ended is a measure, as the worlds are: a change
   // of the save's shape or its config moves it while no play counter moves.
   test("lists the save's sizes moved apart from the counters, as measures", () => {
     // A year's saves, which these games are too short to reach.
@@ -130,7 +129,7 @@ describe('compare', () => {
     expect(same).toContain(`Counters: 0 moved, ${whole(counters.length)} the same.`);
   });
 
-  // v1.1.6-S2's verification (DL-188): a seed one run alone played is not a save that differs, and a
+  // DL-188: a seed one run alone played is not a save that differs, and a
   // change of content or of modules is named.
   test('names the content and modules changed, and counts only the seeds both played among the saves that differ', () => {
     const b = structuredClone(report);
@@ -149,7 +148,7 @@ describe('compare', () => {
   });
 });
 
-// v1.1.6-S2's verification (DL-188): each game's line reads its record, an ended, stopped, refused or
+// DL-188: each game's line reads its record, an ended, stopped, refused or
 // invalid game as such, so that the Gate's invariants are read from the JSON.
 test("a game's line reads how it ended, whether it was stopped or invalid, and its refusals", () => {
   const [first, second] = sweep.games as [PlaySweep['games'][number], PlaySweep['games'][number]];

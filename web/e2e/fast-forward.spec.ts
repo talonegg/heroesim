@@ -3,16 +3,16 @@ import { turnsPerDay } from '@heroesim/engine';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
 
-// Fast forward in steps (v1.0.1-S5, DL-96), in the built page at a phone's width and a desktop's.
+// Fast forward in steps (DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
 // the Unattached pool, as a fold releases a Rival's, and Wealth to spare, so nothing of the
 // player's stops it before `max-turns`. Opened with "Load a save file", its fast forward shows its
 // progress between steps, the Day moving; a second one, stopped midway, ends within a step, with
 // the page's own sentence and "Fast forward again".
 //
-// Through the shell (M9-S3, DL-103): the game's file is the game menu's, the time controls are the
+// Through the shell (DL-103): the game's file is the game menu's, the time controls are the
 // status bar's, and the end of a fast forward opens the home view, where its stop is; a Party home
-// opens it at the Party's Quest report (M9-F5).
+// opens it at the Party's Quest report.
 
 /** The Turns in a step of fast forward: `fastForwardStepTurns` (`web/src/state/reducer.ts`). */
 const stepTurns = 30;
@@ -124,7 +124,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await openGameMenu(page);
   // Read the page between steps and take Stop in one task of the page's, so no step runs between
   // them. Between steps the year's stop has gone, and "Export this game" waits: the game in hand's
-  // History holds the steps' Turns, which its World has not played (v1.0.1-S6, DL-97).
+  // History holds the steps' Turns, which its World has not played (DL-97).
   const shown = await page.evaluate(() => {
     const text = document.querySelector('[data-testid="progress"] p')?.textContent ?? '';
     const stopShown = document.querySelector('[data-testid="stop"]') !== null;
@@ -155,7 +155,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
 
 /**
  * Exports the game in hand and writes it back with the player's Guild's Wealth at `wealth`: below the
- * Bankruptcy floor, the next night's check finds it there (M9-S7).
+ * Bankruptcy floor, the next night's check finds it there.
  */
 async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promise<string> {
   const [download] = await Promise.all([
@@ -173,7 +173,7 @@ async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promi
   return made;
 }
 
-test("falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market's Sell and the Board (M9-S7, M9-F2)", async ({
+test("falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market's Sell and the Board", { tag: '@one-width' }, async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -205,7 +205,7 @@ test("falling below the Bankruptcy floor stops a fast forward unasked; the home 
   await expectNoHorizontalOverflow(page, 'the Bankruptcy stop');
 
   // Its ways to Wealth: the Market's Sell, where what the Guild holds is sold (DL-109 item 2, Q20, as
-  // M9-F2 moved it), and the Board.
+  // DL-115 moved it), and the Board.
   await stop.getByRole('button', { name: 'Sell what the Guild holds' }).click();
   await expect(page.getByRole('heading', { level: 3, name: 'Sell', exact: true })).toBeFocused();
   await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('button', { name: /^Sell / })).toHaveCount(1);
@@ -214,7 +214,7 @@ test("falling below the Bankruptcy floor stops a fast forward unasked; the home 
   await expect(page.getByRole('heading', { level: 2, name: 'Board', exact: true })).toBeFocused();
 });
 
-test("a Party's return stops a fast forward at its Quest report on Guild › Home, from the Board (M9-F5)", async ({ page }) => {
+test("a Party's return stops a fast forward at its Quest report on Guild › Home, from the Board", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });

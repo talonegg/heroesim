@@ -6,14 +6,14 @@ import { seedNames } from './seeds.js';
 import { runSettings } from './settings.js';
 import { probeInParallel, successionProbeAge, successionReport } from './succession.js';
 
-// M9-F1's Succession probe (DL-113 item 7), collected only by the harness-run project and run only
+// The Succession probe (DL-113 item 7), collected only by the harness-run project and run only
 // when HEROESIM_PROBE names it (`npm run harness -- succession`), in place of the milestone's creation
 // and play runs: set the first Rival's Guildmaster, in id order, to 50 at founding, play HEROESIM_SEEDS
 // games (50 by default) from `seed-0001` for HEROESIM_YEARS years (12 by default) under the automatic
 // policy, the core content and `defaultConfig`, each in a child process of its own, HEROESIM_WORKERS
-// at once (v1.1.6-S2: the sweep's queue); with HEROESIM_VALIDATE=1, validate after every advance; and
+// at once (DL-186 item 20: the sweep's queue); with HEROESIM_VALIDATE=1, validate after every advance; and
 // write the Successions, the Rival across its Succession, the Regard held for it and the folds after
-// to harness/reports/succession-<date>.md. M9-F6 runs it and records it in its DL.
+// to harness/reports/succession-<date>.md.
 
 const settings = runSettings();
 const probe = settings.run === 'succession' ? settings : null;

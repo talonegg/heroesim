@@ -17,6 +17,7 @@ rules brief each release's agents were given in a session's scratchpad (DL-218).
 | Requirements (`R`, `N` numbers); the World State document | `docs/requirements.md`; `docs/data-model.md` |
 | Environment variables; the deploy | `docs/environment.md`; `docs/deploy.md` |
 | The harness, its commands and the Gate's spec | `harness/README.md`, `harness/gate.json` |
+| Coverage, and the measures of the suite, CI and a game | `tools/measure/README.md` |
 | The content editor; the portrait tool | `tools/editor/README.md`; `tools/portraits/README.md` |
 
 Read a decision through the index: open its file and search for `## DL-nn `. Never read an archive
@@ -30,7 +31,8 @@ name its path, or use `rg -u`.
    for one is not a word for the next.
 2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`).
    Run `npm run edit -- traits doctor` before the first change and after the last of every story
-   that touches `engine/src/` or `content/src/validate.ts`, and record both readings.
+   that touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content
+   kinds, `content/src/kinds/`), and record both readings.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:
@@ -42,12 +44,13 @@ name its path, or use `rg -u`.
    is fine.
 5. **Saves** need no backward compatibility until the owner says otherwise: no migrations, no
    loading tests of old saves. `schemaVersion` is raised only when the document's shape changes.
-6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running, with
-   `HEROESIM_WORKERS=8`.
+6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running.
+   - A `gate`, and every sweep but a `neutral`, runs with `HEROESIM_WORKERS=8`.
+   - A `neutral` runs with no `HEROESIM_WORKERS`: its profile plays one process a seed up to 10,
+     more seeds sharing the 10 (DL-231 Q13, DL-251).
    - Run each in the background and wait for its completion notice; never poll in a loop.
-   - A `neutral` run takes about 7 minutes, and a full `gate` about 25.
-   - The quick check is
-     `HEROESIM_WORKERS=8 HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`.
+   - A `neutral` run takes about 4 minutes, and a full `gate` about 25.
+   - The quick check is `HEROESIM_SEEDS=4 HEROESIM_YEARS=2 npm run harness -- neutral <name>`.
    - A report is committed, with `git add -f`, only where the story says so.
 7. **A permission denied is not laundered:** never get the same effect another way. Stop and
    report it.
@@ -137,6 +140,9 @@ name its path, or use `rg -u`.
      `neutral --expect` where it cannot. The baseline moves as `documentation.md` says. Where play
      could move, run the engine's twenty-year boxes too, alone:
      `npm run harness -- rivals-build-and-buy transfer-generator` (DL-230).
+   - Run the engine's boxes kept apart at full size alone, `npm run harness -- resolve.harness
+     patron-offers.harness` (DL-246).
+   - Run the tests of a time limit alone, `npm run harness -- speed` (DL-233).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
    - `v1.1-release` is fast-forwarded to the dev branch and pushed;

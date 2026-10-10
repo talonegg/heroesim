@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { loadContent, loadDrafts } from '@heroesim/content/node';
 import type { EngineDeps, GameConfig } from '@heroesim/engine';
 import { modulesFor } from './modules.js';
-import { recordGame, type GameRecord, type PlayOptions } from './play.js';
+import { recordGame, type GameRecord, type RecordOptions } from './play.js';
 import type { PolicyConfig } from './policy.js';
 import { probeSeeds, type ProbeGame } from './succession.js';
 
@@ -24,10 +24,10 @@ export interface PlayedSeeds {
 }
 
 /** Plays `seeds` in this process, in order, and keeps each game's record, never its document. */
-export function playSeeds(seeds: readonly string[], deps: EngineDeps, options: PlayOptions = {}): PlayedSeeds {
+export async function playSeeds(seeds: readonly string[], deps: EngineDeps, options: RecordOptions = {}): Promise<PlayedSeeds> {
   const played: PlayedSeeds = { games: [], advanceMs: [], validateMs: [] };
   for (const seed of seeds) {
-    const { record, advanceMs, validateMs } = recordGame(seed, deps, options);
+    const { record, advanceMs, validateMs } = await recordGame(seed, deps, options);
     played.games.push(record);
     for (const ms of advanceMs) played.advanceMs.push(ms);
     for (const ms of validateMs) played.validateMs.push(ms);
@@ -58,7 +58,7 @@ export interface ShardResult extends PlayedSeeds {
 }
 
 /** Plays a job with the core content, or its drafts, and the job's modules, as the child process does. */
-export function runShard(job: ShardJob): ShardResult {
+export async function runShard(job: ShardJob): Promise<ShardResult> {
   const content = job.drafts === undefined ? loadContent() : loadDrafts(job.drafts).content;
   const { seeds, config, years, validate, policy, modules = [], probe } = job;
   const deps: EngineDeps = modules.length === 0 ? { config, content } : { config, content, modules: modulesFor(modules) };
@@ -66,7 +66,7 @@ export function runShard(job: ShardJob): ShardResult {
     const probes = probeSeeds(seeds, deps, { years, validate, policy, age: probe.age });
     return { games: [], advanceMs: [], validateMs: [], probes, content: { id: content.id, version: content.version } };
   }
-  const played = playSeeds(seeds, deps, { years, validate, policy });
+  const played = await playSeeds(seeds, deps, { years, validate, policy });
   return { ...played, content: { id: content.id, version: content.version } };
 }
 
@@ -74,5 +74,5 @@ if (import.meta.main) {
   const [jobPath, resultPath] = process.argv.slice(2);
   if (jobPath === undefined || resultPath === undefined) throw new Error('Usage: shard.ts <job.json> <result.json>');
   const job = JSON.parse(readFileSync(jobPath, 'utf8')) as ShardJob;
-  writeFileSync(resultPath, JSON.stringify(runShard(job)), 'utf8');
+  writeFileSync(resultPath, JSON.stringify(await runShard(job)), 'utf8');
 }

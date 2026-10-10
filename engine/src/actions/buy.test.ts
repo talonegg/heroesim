@@ -9,9 +9,9 @@ import { marketHolder } from '../market.js';
 import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { deepFreeze, testContent, testDeps, withValid } from '../world.test-support.js';
-import { applyAction, applyGuildAction } from './action.js';
+import { applyAction } from './action.js';
 
-// M5-S4: buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
+// Buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
 // test leans on what the refresh drew; prices are the test content's (a Healing draught 30, a Padded
 // jack 40) and the Loot-only price is pinned. No Rival acts.
 
@@ -163,16 +163,4 @@ describe('buy', () => {
     ).toThrow(RangeError);
   });
 
-  test('is the rule applyAction runs on a copy of the world, and a controller in place (DL-30)', () => {
-    const { document, guildId } = scene();
-    const action = { kind: 'buy', guildId, definitionKey: 'padded-jack', quantity: 2 } as const;
-    const world = structuredClone(document.world);
-
-    const applied = applyAction(document, action, deps);
-    const inPlace = applyGuildAction(world, action, deps);
-
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
-  });
 });

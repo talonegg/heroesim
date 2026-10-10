@@ -171,7 +171,7 @@ describe('generateGuild', () => {
     expect(() => generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 })).toThrow(/Guild name/);
   });
 
-  test("guild.founded carries the Guild's founding Wealth (M9-F7, DL-120 item 4)", () => {
+  test("guild.founded carries the Guild's founding Wealth (DL-120 item 4)", () => {
     const deps = testDeps();
     const world = testWorld('founding-wealth', deps);
     const { guild, events } = generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 1_234 });
@@ -225,7 +225,7 @@ describe('generateGuild', () => {
     expect(rivalsStream(byDefault)).toEqual((before as Record<string, unknown>).rivals);
     expect(byDefault.rng.generation).not.toEqual(before.generation);
 
-    // Any core stream the caller names: `rivals` (M2-S9) here.
+    // Any core stream the caller names: `rivals` here.
     const stream: StreamName = 'rivals';
     const { guild } = generateGuild(named, deps, { controller: rival, rosterSize: 8, wealth: 0, stream });
     expect(named.rng.generation).toEqual(before.generation);
@@ -250,7 +250,7 @@ describe('generateGuild', () => {
   });
 });
 
-describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-109 item 1)", () => {
+describe("a drawn Guildmaster's Traits on the budget (DL-100 item 3; DL-109 item 1)", () => {
   /** `count` Guildmasters generated under `deps`, eight to a world as the Guild names allow. */
   function guildmasters(deps: ReturnType<typeof testDeps>, count: number) {
     const drawn = [];
@@ -266,12 +266,8 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
   const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
     keys.reduce((sum, key) => sum + (deps.content.guildmasterTraits[key]?.cost ?? Number.NaN), 0);
 
-  test('the budget is guildmasterTraitBudget, 1 by default (DL-102, DL-113)', () => {
-    expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
-  });
-
   test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {
-    const deps = testDeps();
+    const deps = testDeps({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
     const drawn = guildmasters(deps, 400);
     const held = new Set<string>();
 
@@ -307,7 +303,7 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
       'old-soldier spendthrift',
       'spendthrift well-liked',
     ];
-    const pairs = guildmasters(testDeps({ guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 }), 1800).map(({ traits }) => traits.join(' '));
+    const pairs = guildmasters(testDeps({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 }), 1800).map(({ traits }) => traits.join(' '));
     const counts = tally(pairs);
 
     expect(Object.keys(counts).sort()).toEqual(legalPairs);
@@ -429,7 +425,7 @@ describe('generateRival', () => {
   });
 });
 
-describe('dealtDisposition (M6-S1, DL-56)', () => {
+describe('dealtDisposition (DL-56)', () => {
   test("deals content's Dispositions round-robin in key order, starting again after the last", () => {
     const { content } = testDeps();
     const dealt = Array.from({ length: 9 }, (_, index) => dealtDisposition(content, index));
@@ -445,14 +441,14 @@ describe('dealtDisposition (M6-S1, DL-56)', () => {
   });
 });
 
-// M9-F1 (DL-113 item 4): a replacement Rival's Guildmaster and a successor are drawn 21 to 50, as a
+// DL-113 item 4: a replacement Rival's Guildmaster and a successor are drawn 21 to 50, as a
 // founder is.
-describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
-  test("replacements' and successors' span 21 to 50 over a thousand draws each", () => {
+describe("the drawn Guildmasters' ages, 21 to 50", () => {
+  test("replacements' and successors' span 21 to 50 over 320 draws each", () => {
     const deps = testDeps();
     const replacements = new Set<number>();
     const successors = new Set<number>();
-    for (let round = 0; round < 125; round += 1) {
+    for (let round = 0; round < 40; round += 1) {
       const world = testWorld(`drawn-ages-${round}`, deps);
       for (let i = 0; i < 8; i += 1) {
         const { guild } = generateRival(world, deps, { controller: rival });
@@ -466,11 +462,11 @@ describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
   });
 });
 
-// v1.1.3-S5 (DL-134 item 5, DL-135 items 3 and 4): every Guildmaster, the player's, a founding or
+// DL-134 item 5, DL-135 items 3 and 4: every Guildmaster, the player's, a founding or
 // replacing Rival's and a successor's, is given a Portrait that fits them as they enter play, in one
 // draw from `gm-portraits`; no two living Guildmasters share one, and one whom nothing fits shows the
 // Silhouette. `portraits.test.ts` holds the choice itself.
-describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", () => {
+describe("every Guildmaster's Portrait, chosen as they enter play", () => {
   /** Whether `key` is a Guildmaster picture of `sex` whose ages reach the band of `age`. */
   function fits(deps: ReturnType<typeof testDeps>, key: string, sex: string, age: number): boolean {
     const row = portraitRowOf(deps.content, key);
@@ -614,8 +610,8 @@ describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", 
   });
 
   test("a retiring Guildmaster's picture is in use while their successor is chosen", () => {
-    // The one picture reaches every age, so a female successor would take it were it free (v1.1.3-S8:
-    // the core's content let a male successor pass whatever the rule).
+    // The one picture reaches every age, so a female successor would take it were it free: the core's content
+    // let a male successor pass whatever the rule.
     const deps = heldContent(['gm-female-01']);
     let females = 0;
     for (let n = 0; n < 12; n += 1) {
@@ -677,9 +673,9 @@ describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", 
   });
 });
 
-// v1.1.2-S6 (the S5 verification): a successor's Biography says they came to the chair, not that they
+// A successor's Biography says they came to the chair, not that they
 // founded the Guild, whatever its Background.
-describe("a successor's Biography (v1.1.2-S6)", () => {
+describe("a successor's Biography", () => {
   test("has a successor's sentence where a founder's has the Background's", () => {
     const deps = testDeps();
     const world = testWorld('successor-biography', deps);

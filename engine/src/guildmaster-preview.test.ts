@@ -3,8 +3,8 @@ import { createWorld, previewGuildmaster, type GuildmasterDrawn, type WorldSetup
 import { makeId, type Guild, type Guildmaster, type WorldDocument } from './document.js';
 import { testDeps, withoutPortraits } from './world.test-support.js';
 
-// The preview of the player's Guildmaster (v1.1.2-S4, DL-125 item 6): the sex, age, Traits and
-// Portrait "Start the game" makes, and the Guild's Background (v1.1.2-S5), from the same function `createWorld` calls, so the two cannot
+// The preview of the player's Guildmaster (DL-125 item 6): the sex, age, Traits and
+// Portrait "Start the game" makes, and the Guild's Background, from the same function `createWorld` calls, so the two cannot
 // disagree. Proved over many seeds and every way of choosing, since a preview that drifted from the
 // world would name a Guildmaster the player never gets.
 
@@ -44,7 +44,7 @@ function previewed(setup: WorldSetup, seed: string, withDeps = deps) {
 
 const seeds = Array.from({ length: 120 }, (_, n) => `preview-${n}`);
 
-/** Five Stats within the Stat points, as a player might choose them (v1.1.4-S11). */
+/** Five Stats within the Stat points, as a player might choose them. */
 const chosenStats = { inspiration: 12, influence: 8, negotiation: 15, coaching: 5, judgement: 10 };
 
 describe('previewGuildmaster', () => {
@@ -57,13 +57,14 @@ describe('previewGuildmaster', () => {
     ['the Traits chosen', { guildmasterTraitKeys: ['miser', 'old-soldier'] }],
     ['a Portrait chosen, and with it the sex', { guildmasterPortraitKey: 'gm-male-02' }],
     ['the sex and a Portrait of it chosen', { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-02' }],
-    ['the Stats chosen (v1.1.4-S11)', { guildmasterStats: chosenStats }],
+    ['the Stats chosen', { guildmasterStats: chosenStats }],
     [
       'every part chosen',
       { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: [], guildmasterPortraitKey: 'gm-male-01', guildmasterStats: chosenStats },
     ],
-  ])('names what createWorld makes, over %i seeds, with %s', (_, chosen) => {
-    for (const seed of seeds) {
+  ])('names what createWorld makes over the seeds, with %s', (_, chosen) => {
+    // Everything drawn takes all 120 seeds; a part chosen leaves less to draw, so the first 20 show it.
+    for (const seed of Object.keys(chosen).length === 0 ? seeds : seeds.slice(0, 20)) {
       const setup = { ...bare, ...chosen };
       expect(previewed(setup, seed), seed).toEqual(made(seed, setup));
     }
@@ -92,14 +93,14 @@ describe('previewGuildmaster', () => {
     }
   });
 
-  // v1.1.2-S6 (the review's I): which parts the seed draws is the engine's to say, a Portrait chosen
+  // Which parts the seed draws is the engine's to say, a Portrait chosen
   // choosing the sex with it, so a front end does not repeat the rule.
   test.each<[string, Partial<WorldSetup>, GuildmasterDrawn]>([
     ['everything drawn', {}, { sex: true, age: true, traits: true, portrait: true, stats: true }],
     ['the sex chosen', { guildmasterSex: 'male' }, { sex: false, age: true, traits: true, portrait: true, stats: true }],
     ['a Portrait chosen, and with it the sex', { guildmasterPortraitKey: 'gm-female-01' }, { sex: false, age: true, traits: true, portrait: false, stats: true }],
     ['the age and no Trait chosen', { guildmasterAge: 40, guildmasterTraitKeys: [] }, { sex: true, age: false, traits: false, portrait: true, stats: true }],
-    ['the Stats chosen (v1.1.4-S11)', { guildmasterStats: chosenStats }, { sex: true, age: true, traits: true, portrait: true, stats: false }],
+    ['the Stats chosen', { guildmasterStats: chosenStats }, { sex: true, age: true, traits: true, portrait: true, stats: false }],
     [
       'every part chosen',
       { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: ['miser'], guildmasterPortraitKey: 'gm-male-01', guildmasterStats: chosenStats },
@@ -109,7 +110,7 @@ describe('previewGuildmaster', () => {
     expect(previewGuildmaster({ ...bare, ...chosen }, 'drawn-seed', deps)?.drawn).toEqual(drawn);
   });
 
-  test('writes the three texts "Start the game" writes for those left blank, and keeps those given (v1.1.2-S6)', () => {
+  test('writes the three texts "Start the game" writes for those left blank, and keeps those given', () => {
     const given = { ...bare, guildmasterBirthplace: '  Kingsbridge  ', guildmasterBiography: 'Kept the toll bridge.' };
     for (const seed of seeds.slice(0, 20)) {
       expect(previewGuildmaster(given, seed, deps)?.description).toEqual(made(seed, given).description);

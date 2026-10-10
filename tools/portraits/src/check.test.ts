@@ -1,42 +1,28 @@
 import { appendFileSync, copyFileSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { check } from './check.js';
-import { run } from './cli.js';
-import { readJson, root, scratchRepository, writeJson } from './test-support.js';
+import { readRegistry } from './registry.js';
+import { cli, readJson, root, scratch, writeJson } from './test-support.js';
 
-// `check` (v1.1.3-S2): passes on the tree as shipped, and fails on each thing wrong, naming it.
+// `check`: passes on the tree as shipped, and fails on each thing wrong, naming it.
 
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
-  scratches.push(remove);
-  return dir;
-}
-
-/** The command line's JSON and exit code for a command. */
-async function cli(...argv: string[]): Promise<{ code: number; json: { ok: boolean; failures: { code: string; key?: string; message: string }[] } }> {
-  let out = '';
-  const code = await run([...argv, '--json'], { out: (text) => (out += text), err: () => undefined });
-  return { code, json: JSON.parse(out) };
-}
+/** The check's JSON. */
+type Checked = { ok: boolean; failures: { code: string; key?: string; message: string }[] };
 
 describe('check', () => {
   test('passes on the tree as shipped', async () => {
     const result = check(root);
     expect(result.failures).toEqual([]);
     expect(result.ok).toBe(true);
-    expect(result.live).toBe(40); // gm-female-01..20 and gm-male-01..20, since v1.1.3-S4
-    expect(await cli('check')).toMatchObject({ code: 0, json: { ok: true, failures: [] } });
+    expect(result.live).toBe(Object.values(readRegistry(root).portraits).filter((entry) => entry.status === 'live').length);
+    expect(await cli<Checked>('check')).toMatchObject({ code: 0, json: { ok: true, failures: [] } });
   });
 
   test('fails on a missing thumbnail, naming it', async () => {
     const dir = scratch();
     rmSync(path.join(dir, 'media/portraits/guildmasters/male/gm-male-01.thumb.webp'));
-    const { code, json } = await cli('check', '--root', dir);
+    const { code, json } = await cli<Checked>('check', '--root', dir);
     expect(code).toBe(1);
     expect(json.failures).toEqual([
       expect.objectContaining({
@@ -104,7 +90,7 @@ describe('check', () => {
   test('fails on a broken register, and says so', async () => {
     const dir = scratch();
     appendFileSync(path.join(dir, 'media/portraits/registry.json'), '}');
-    const { code, json } = await cli('check', '--root', dir);
+    const { code, json } = await cli<Checked>('check', '--root', dir);
     expect(code).toBe(1);
     expect(json.failures).toEqual([expect.objectContaining({ code: 'register' })]);
   });

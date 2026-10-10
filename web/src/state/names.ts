@@ -1,18 +1,13 @@
-// How the views name things (M7-S3): a row of the world by its id, an ordinal. Words only;
-// no rule. Shared by `selectors.ts`, `world-views.ts` and `trade-views.ts` (DL-73). A content row's
-// name, a list, a signed number, a capital and a Trait's effects are `@heroesim/words`', which the
-// CLI reads too (v1.1.6-S11, DL-186 item 1), and so is a night (v1.1.6-S12).
+// How the views name things: a Class's mark, an ordinal, a place in the Rankings. Words
+// only; no rule. Shared by `selectors.ts`, `world-views.ts` and `trade-views.ts` (DL-73). A row of
+// the world by its id, a content row's name, a list, a signed number, a capital and a Trait's effects
+// are `@heroesim/words`', which the CLI reads too (DL-186 item 1, DL-241), and so is a night.
 
 import { classIcons, isClassIcon, type ClassIcon, type ClassKey, type ContentSet, type Guild, type QuestBand } from '@heroesim/engine';
-import { nameIn } from '@heroesim/words';
+import { nameIn, rowOf } from '@heroesim/words';
 
 /** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
 export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
-
-/** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
-export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
-}
 
 /** The names a Class's icon may take: the engine's, handed on from here since only `state/` takes the engine's values (`imports.test.ts`), for the page's tests of its drawings. */
 export { classIcons };

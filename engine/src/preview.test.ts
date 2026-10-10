@@ -12,7 +12,7 @@ import { serialise } from './serialise.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
-// The dispatch preview (M7-S3, DL-66): what a proposed Party would meet on a Quest from the Board,
+// The dispatch preview (DL-66): what a proposed Party would meet on a Quest from the Board,
 // moved into the engine from the CLI's `preview` so that both front ends show the rule's own
 // answers, and dispatch's verdict found by dispatch's own checks.
 
@@ -109,7 +109,7 @@ describe('previewDispatch', () => {
     expect(preview?.synergies.find(({ synergy }) => synergy.key === 'shadow-and-spell')?.encounters).toBe(1);
   });
 
-  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one (v1.1.4-S3)", () => {
+  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one", () => {
     const setting = proposal();
     const { world } = setting.document;
     const party = [setting.rogue, setting.mage];
@@ -126,7 +126,7 @@ describe('previewDispatch', () => {
     expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
   });
 
-  test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way (v1.1.4-S6)', () => {
+  test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way', () => {
     const setting = proposal();
     const { world } = setting.document;
     const party = [setting.rogue, setting.mage];
@@ -139,7 +139,7 @@ describe('previewDispatch', () => {
     expect(preview?.chances?.encounters.map((it) => it.encounterKey)).toEqual(setting.quest.encounterKeys);
     expect(preview?.chances?.ifNoOneFalls).toBe(true);
     expect(previewDispatch(world, request(setting, []), deps)?.chances).toBeNull();
-    setting.quest.encounterKeys = [];
+    setting.quest.encounterKeys = ['no-such-encounter'];
     expect(previewDispatch(world, request(setting, party), deps)?.chances).toBeNull();
   });
 
@@ -153,7 +153,7 @@ describe('previewDispatch', () => {
     warrior.partyId = null;
 
     const drawn = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
-    (world.quests[setting.quest.id] as Quest).encounterKeys = [];
+    (world.quests[setting.quest.id] as Quest).encounterKeys = ['no-such-encounter'];
     const onTheWay = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
 
     expect(drawn?.synergies.find(({ synergy }) => synergy.key === 'a-full-company')?.encounters).toBe(3);
@@ -246,15 +246,16 @@ describe('skillsThatHelp', () => {
     ]);
   });
 
-  test("gives a Quest drawn before M4 its own Skills, and leaves out a key content lacks (rule 5)", () => {
+  test("leaves out a key content lacks (rule 5), and names none, not its template's, for a Quest whose Encounters content lacks (DL-248)", () => {
     const { quest } = proposal();
+    const gone: Quest = { ...quest, encounterKeys: ['no-such-encounter'], skillKeys: ['swordcraft'] };
 
-    expect(skillsThatHelp({ ...quest, encounterKeys: [], skillKeys: ['swordcraft', 'no-such-skill'] }, testContent)).toEqual(['swordcraft']);
+    expect(skillsThatHelp(gone, testContent)).toEqual([]);
     expect(skillsThatHelp({ ...quest, encounterKeys: ['no-such-encounter', 'the-flooded-ford'] }, testContent)).toEqual(['tactics']);
   });
 });
 
-// v1.1.4-S6 (DL-148 item 16): the Stats the Party builder shows, in place of the template's demands.
+// DL-148 item 16: the Stats the Party builder shows, in place of the template's demands.
 describe('statsRead', () => {
   test("names each Hero Stat the Quest's Encounters' Checks read, once, in the order it meets them", () => {
     const { quest } = proposal();
@@ -272,6 +273,6 @@ describe('statsRead', () => {
     const encounters = { ...testContent.encounters, odd };
 
     expect(statsRead({ encounterKeys: ['no-such-encounter', 'odd'] }, { ...testContent, encounters })).toEqual(['wits', 'perception', 'strength']);
-    expect(statsRead({ encounterKeys: [] }, testContent)).toEqual([]);
+    expect(statsRead({ encounterKeys: ['no-such-encounter'] }, testContent)).toEqual([]);
   });
 });

@@ -11,11 +11,13 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | --- | --- |
 | `npm run harness` | The default runs: 1,000 worlds created, then 200 games of 20 years played (INPUTS 4.13) |
 | `npm run harness -- gate <name>` | A release's Gate: 50 games of 20 years in 8 processes, the replay played once, alone, and compared with its shard's record, checked against `harness/gate.json` |
-| `npm run harness -- neutral <name> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years in 8 processes, about 7 minutes, its fingerprint checked against the one given (DL-186 item 30) |
+| `npm run harness -- neutral <name> --expect <fingerprint>` | A play-neutral story's proof: 10 games of 20 years, one process a game up to 10, more games sharing the 10 (DL-231 Q13, DL-251), its fingerprint checked against the one given (DL-186 item 30) |
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
 | `npm run harness -- rivals-build-and-buy transfer-generator` | The engine's twenty-year boxes, out of `npm test` (DL-230): Rivals build and buy over 4 seeds, and the Transfer Generator over 100, about fifty minutes alone; a bare `npm run harness` runs them too |
+| `npm run harness -- resolve.harness patron-offers.harness` | The engine's boxes kept apart at full size, out of `npm test` (DL-246): harm that reads the Stats over 20,000 draws a test, and Patron Regard on the Board over 50 seeds, whose first 10 `npm test` plays; seconds, alone, at a close; a bare `npm run harness` runs them too |
+| `npm run harness -- speed` | The tests of a time limit, `*.speed.test.ts`, out of `npm test` (DL-233): the History's range read under 1 ms and the validator under 50 ms; seconds, alone, at a close; a bare `npm run harness` runs them too, beside its sweeps |
 | `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
 
 `<name>` names the report: its release, or a word, each with kebab-case words after it if wanted, as
@@ -29,8 +31,8 @@ Sweeps run one at a time, with nothing else running, since a 20-year game's proc
 1.3 GB (DL-184).
 
 The current `neutral` baseline, every play-neutral story's `--expect`, is
-`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`m9-v118-s8-neutral`, v1.1.8's close,
-DL-226: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
+`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`v1.1.9-s16-neutral`, v1.1.9's close,
+DL-252: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
 at the same versions is `38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a`. Each changes
 only with a DL entry, as at a story that changes play or the save's shape or raises the content version
 or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
@@ -71,6 +73,21 @@ v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). The 84 com
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
 
+## Counters
+
+Each counter a play sweep reports is declared once, in `src/game-counters.ts` (DL-239): how a game
+gives it, read from its History once it stops or gathered by an observer of the play loop as it is
+played; where its total starts and how each game folds into it (summed, the greatest, or joined); its
+kind; and its rows and lines in the report. The totals (`sweepTotals`, `src/counter.ts`) and the
+report (`src/play-report.ts`) read nothing else, so a new counter is one declaration. Its kind decides
+how two runs compare: `compare` lists the play counters that moved and, apart, the measures (the
+save's sizes, DL-205), and leaves out the timings (the World State's copy) and the modules' own
+counters, which the module report states apart.
+
+The play loop (`src/play.ts`) tells its observers each moment of a game: the world created, each Turn
+before the policy chooses, each action applied, each `advance`, each year's end, and the game's end.
+The replay plays with none.
+
 ## The Gate
 
 `harness/gate.json` declares what a release's closing sweep must meet, line by line, with each line's
@@ -80,8 +97,8 @@ played once more, alone, its last save's length and fingerprint the same as its 
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
 the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
 30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
-each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.253 (0.847 ms
-over 3.346 ms, measured at v1.1.6-S17's full gate, DL-203), so at most 0.31625 (DL-206 item 17, DL-207),
+each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.390 (1.438 ms
+over 3.688 ms, measured at v1.1.9's closing full gate, DL-252), so at most 0.4875 (DL-206 item 17, DL-207),
 printed as it is applied, and the share printed to as many places as show it above the limit when it
 fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
 and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the

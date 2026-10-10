@@ -31,14 +31,14 @@
 // It assumes no one falls (`ifNoOneFalls`): no Hero is hurt or killed on the way, and no Morale an
 // Encounter costs or gives moves anyone's form, so every Encounter is met by the whole Party as it
 // comes home, as the resolver meets it when no harm lands. The front ends say "if no one falls". The
-// Encounters are the Quest's own, drawn when it was posted (`storedSequence`); a Quest without
-// them, generated before M4, draws its sequence on the way and has no estimate. A Party of no one
-// meets none of them, and fails.
+// Encounters are the Quest's own, drawn when it was posted (`storedSequence`); a Quest whose
+// Encounters content no longer defines (data-model rule 5) draws its sequence on the way and has no
+// estimate. A Party of no one meets none of them, and fails.
 
 import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.js';
 import { chanceBandNames, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type CheckKey, type Degree, type Encounter, type EncounterKey, type EncounterKind } from '../content-types.js';
-import { compareByCodeUnit, type Hero, type HeroId, type Quest, type World } from '../document.js';
+import { compareByCodeUnit, type Hero, type HeroId, type Quest, type Turn, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { clamp } from '../generators/draw.js';
 import { itemDefinition } from '../items.js';
@@ -134,47 +134,72 @@ export function estimateQuest(
   deps: CheckDeps,
   carried: readonly ConsumableRequest[] = [],
 ): QuestEstimate | null {
-  return questEstimator(world, quest, heroes, deps)(heroes, carried);
+  return partyEstimator(world, deps)(quest, heroes, { carried });
+}
+
+/** What the estimate reads of a Quest. */
+export type EstimatedQuest = Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns'>;
+
+/**
+ * `estimateQuest` on `world` for any Party on any Quest, carrying `carried` (none by default).
+ * Asked of a Hero not yet home for the Quest's return night, it brings home every Hero of `pool` not
+ * yet home for it, `heroes` among them, at once.
+ */
+export type PartyEstimator = (
+  quest: EstimatedQuest,
+  heroes: readonly Hero[],
+  options?: { carried?: readonly ConsumableRequest[]; pool?: readonly Hero[] },
+) => QuestEstimate | null;
+
+/**
+ * `estimateQuest` on `world`, many times over (the Best Party module's, DL-237): each Hero is brought
+ * home for a return night (`homecoming`), and read as a Query reads them (`queryParty`: their
+ * effective Stats, Morale, age and form, each of their own alone), once, however many Parties and
+ * Quests of that return night are estimated; each estimate equals `estimateQuest`'s for the same
+ * Quest, Party and consumables. `world` must not change while it is used, which the Best Party module
+ * holds its callers to. Throws as `estimateQuest` does, at the call.
+ */
+export function partyEstimator(world: World, deps: CheckDeps): PartyEstimator {
+  const { config, content } = deps;
+  // By return night: a world that holds every Hero brought home for it, and each of them as a Party's member.
+  const homes = new Map<Turn, { world: World; members: Map<HeroId, QueryMember> }>();
+  // By Encounter: the Degree its pass formula gives each combination of its Checks' Degrees, as read.
+  const passes: Passes = new Map();
+  return (quest, heroes, { carried = [], pool = heroes } = {}) => {
+    if (!(quest.difficulty > 0)) throw new RangeError(`A Quest of difficulty ${quest.difficulty} has no estimate; it is above 0`);
+    checkProposedParty(heroes.map((hero) => hero.id), carried);
+    const sequence = storedSequence(quest, content);
+    if (sequence.length === 0) return null;
+    if (heroes.length === 0) return noOne(sequence, config);
+    const night = returnNightOf(world.turn, quest);
+    let home = homes.get(night);
+    if (home === undefined || heroes.some((hero) => !home?.members.has(hero.id))) {
+      const known = home?.members;
+      const away = [...pool, ...heroes].filter((hero, at, all) => known?.has(hero.id) !== true && all.findIndex((other) => other.id === hero.id) === at);
+      const brought = homecoming(world, away, quest, deps);
+      const members = queryParty(brought.heroes, brought.world, deps).members;
+      if (home === undefined) {
+        home = { world: brought.world, members: new Map() };
+        homes.set(night, home);
+      } else {
+        // Each Hero comes home of their own alone, so the copies join the world the first brought home.
+        for (const hero of brought.heroes) home.world.heroes[hero.id] = hero;
+      }
+      for (const member of members) home.members.set(member.hero.id, member);
+    }
+    const { members } = home;
+    const party = { members: heroes.map((hero) => members.get(hero.id) as QueryMember), content };
+    return estimateFor(party, home.world, quest, sequence, deps, carried, passes);
+  };
 }
 
 /**
- * `estimateQuest` for any Party of `pool` on `quest`, many times over (v1.1.4-S6, the Rivals'
- * `partyFor`): each Hero of the pool is brought home, and read as a Query reads them (`queryParty`:
- * their effective Stats, Morale, age and form, each of their own alone), once, however many Parties
- * are estimated, and each estimate equals `estimateQuest`'s for the same Party and consumables. A
- * Hero outside the pool is brought home on each call. Throws as `estimateQuest` does: on a difficulty
- * not above 0 at once, and on a Party or consumables `dispatch` would
- * throw on, or a malformed Encounter, at the call.
+ * Each Encounter's pass formula read for the combinations of its Checks' Degrees met so far: the
+ * Degree `passDegree` gives a combination, at its number (`combinations`). A cache whose key is every
+ * input of `passDegree`, the Encounter's formula and the Degrees, living as long as the estimator
+ * that holds it (DL-237, DL-231 item 3).
  */
-export function questEstimator(
-  world: World,
-  quest: Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns'>,
-  pool: readonly Hero[],
-  deps: CheckDeps,
-): (heroes: readonly Hero[], carried?: readonly ConsumableRequest[]) => QuestEstimate | null {
-  const { config, content } = deps;
-  if (!(quest.difficulty > 0)) throw new RangeError(`A Quest of difficulty ${quest.difficulty} has no estimate; it is above 0`);
-  const sequence = storedSequence(quest, content);
-  // Brought home only when a Party is first estimated, since a Quest of no known Encounters needs none.
-  // A member of a Party is read of the Hero alone, so each is read once and the Parties are made of them.
-  let pooled: { world: World; members: Map<HeroId, QueryMember> } | undefined;
-  return (heroes, carried = []) => {
-    checkProposedParty(heroes.map((hero) => hero.id), carried);
-    if (sequence.length === 0) return null;
-    if (heroes.length === 0) return noOne(sequence, config);
-    if (pooled === undefined) {
-      const home = homecoming(world, pool, quest, deps);
-      pooled = { world: home.world, members: new Map(queryParty(home.heroes, home.world, deps).members.map((member) => [member.hero.id, member])) };
-    }
-    const { world: poolWorld, members } = pooled;
-    if (heroes.every((hero) => members.has(hero.id))) {
-      const party = { members: heroes.map((hero) => members.get(hero.id) as QueryMember), content };
-      return estimateFor(party, poolWorld, quest, sequence, deps, carried);
-    }
-    const home = homecoming(world, heroes, quest, deps);
-    return estimateFor(queryParty(home.heroes, home.world, deps), home.world, quest, sequence, deps, carried);
-  };
-}
+type Passes = Map<Encounter, Degree[]>;
 
 /** The estimate for `party`, brought home on `world` (`homecoming`), meeting `sequence` on `quest`. */
 function estimateFor(
@@ -184,6 +209,7 @@ function estimateFor(
   sequence: readonly Encounter[],
   deps: CheckDeps,
   carried: readonly ConsumableRequest[],
+  passes: Passes,
 ): QuestEstimate {
   const { config, content } = deps;
   const kit = carried
@@ -196,7 +222,12 @@ function estimateFor(
   const rolled = sequence.map((encounter) => {
     const bonus = takeBonuses(kit, encounter.kind).reduce((total, it) => total + bonusOf(it), 0);
     const checks = checksOf(party, encounter, quest, world, deps, bonus);
-    return { encounter, checks, ...foldedIn(encounter, checks) };
+    let read = passes.get(encounter);
+    if (read === undefined) {
+      read = [];
+      passes.set(encounter, read);
+    }
+    return { encounter, checks, ...foldedIn(encounter, checks, read) };
   });
 
   // The walk: the chance of each count of Successes and Triumphs so far, with each stock of rerolls left.
@@ -258,7 +289,7 @@ function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'd
 
 /**
  * A deep copy of `value`, JSON-safe as the document is (data-model rule 6), equal to `structuredClone`'s
- * at a third of its cost: the Rivals' `partyFor` brings its free Heroes home every afternoon (DL-164).
+ * at a third of its cost: a Rival's Best Party brings its free Heroes home every afternoon (DL-164).
  */
 function copyOf<T>(value: T): T {
   if (typeof value !== 'object' || value === null) return value;
@@ -324,30 +355,63 @@ function checksOf(
  * `encounter`'s chance of each Degree from its Checks' (`checks`), every combination of them read
  * through its pass formula: `plain`, the first rolls standing; and `rerolled`, the chance it first
  * falls short of Success and then, each Check that did rolled again, ends at each Degree (resolve.ts).
+ * The formula's Degree for each combination is read once into `read` (`Passes`), by its number; the
+ * combinations are met, and their chances summed, in the same order whether read or not, so the sums
+ * are the same to the last bit.
  */
-function foldedIn(encounter: Encounter, checks: readonly CheckEstimate[]): { plain: DegreeChances; rerolled: DegreeChances } {
+function foldedIn(encounter: Encounter, checks: readonly CheckEstimate[], read: Degree[]): { plain: DegreeChances; rerolled: DegreeChances } {
   if (checks.length === 0) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
   const pass = passOf(encounter);
+  const decided = (code: number): Degree => {
+    const known = read[code];
+    if (known !== undefined) return known;
+    const byKey: Record<CheckKey, Degree> = {};
+    checks.forEach((it, place) => {
+      byKey[it.key] = degreeAt(code, place);
+    });
+    const { degree } = passDegree(pass, byKey);
+    read[code] = degree;
+    return degree;
+  };
+  const places = checks.map((_, place) => place);
   const plain = noChance();
   const rerolled = noChance();
-  for (const first of combinations(checks)) {
-    const { degree } = passDegree(pass, first.byKey);
+  for (const first of combinations(checks, places)) {
+    const degree = decided(first.code);
     plain[degree] += first.chance;
     if (succeeded(degree)) continue;
-    for (const again of combinations(checks.filter((it) => !succeeded(first.byKey[it.key] as Degree)))) {
-      rerolled[passDegree(pass, { ...first.byKey, ...again.byKey }).degree] += first.chance * again.chance;
+    const short = places.filter((place) => !succeeded(degreeAt(first.code, place)));
+    // The Checks that succeeded keep their Degrees; those that fell short are rolled again.
+    const kept = short.reduce((code, place) => code - degrees.indexOf(degreeAt(code, place)) * 4 ** place, first.code);
+    for (const again of combinations(checks, short)) {
+      rerolled[decided(kept + again.code)] += first.chance * again.chance;
     }
   }
   return { plain, rerolled };
 }
 
-/** Every combination of `checks`' Degrees with a chance above 0, and its chance. */
-function combinations(checks: readonly CheckEstimate[]): { byKey: Record<CheckKey, Degree>; chance: number }[] {
-  let combined: { byKey: Record<CheckKey, Degree>; chance: number }[] = [{ byKey: {}, chance: 1 }];
-  for (const { key, degrees: chances } of checks) {
-    combined = combined.flatMap(({ byKey, chance }) =>
-      degrees.filter((degree) => chances[degree] > 0).map((degree) => ({ byKey: { ...byKey, [key]: degree }, chance: chance * chances[degree] })),
-    );
+/**
+ * Every combination of the Degrees of the Checks of `checks` at `places`, in their order, with a chance
+ * above 0, and its chance. A combination's number holds each Check's Degree at its place in
+ * `checks`, in base 4 (`degrees`' order: a Failure 0, a Triumph 3), and 0 at every place not among
+ * `places`.
+ */
+function combinations(checks: readonly CheckEstimate[], places: readonly number[]): { code: number; chance: number }[] {
+  let combined = [{ code: 0, chance: 1 }];
+  for (const place of places) {
+    const chances = (checks[place] as CheckEstimate).degrees;
+    const next: { code: number; chance: number }[] = [];
+    for (const { code, chance } of combined) {
+      degrees.forEach((degree, rank) => {
+        if (chances[degree] > 0) next.push({ code: code + rank * 4 ** place, chance: chance * chances[degree] });
+      });
+    }
+    combined = next;
   }
   return combined;
+}
+
+/** The Degree at `place` of the combination numbered `code` (`combinations`). */
+function degreeAt(code: number, place: number): Degree {
+  return degrees[Math.floor(code / 4 ** place) % 4] as Degree;
 }

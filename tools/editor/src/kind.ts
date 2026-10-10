@@ -1,8 +1,9 @@
 // A kind of content the editor edits (DL-150 item 12): one or more lists of keyed rows, each list a
-// content file, and the forms its rows are made in. The editor's core (`editor.ts`) holds the pending
-// edits, checks them with the content's checks, finds uses and finishes, the same for every kind;
-// a kind says only what its rows are. Traits are the first kind and, in v1.1.4, the only one
-// (`traits-kind.ts`); Encounters come when the owner asks.
+// content file, and the forms its rows are made in; and, as its extension, the uses of a row's key in
+// other content (`UseKind`). The edit session (`session.ts`, DL-244) holds the pending edits, checks
+// them and finishes, through the content files' adapter (`content-files.ts`), the same for every
+// kind; a kind says only what its rows are. Traits are the one kind (`traits-kind.ts`); Encounters
+// come when the owner asks.
 
 import type { ContentFileName } from '@heroesim/content';
 import type { ContentJson, JsonPath } from '@heroesim/content/uses';
@@ -100,6 +101,13 @@ export interface Kind {
   rules(list: string, row: Row): Rule[];
   /** A row's words for a search and a table: its effects, say. */
   words(list: string, row: Row): string[];
+}
+
+/**
+ * A kind's extension for the uses of a row's key in other content (DL-150 item 13, DL-186 item 14):
+ * the places the register names, and a use added, taken out or changed in place there.
+ */
+export interface UseKind {
   /** The places in other content where a key is used, and whether a use is added and removed there. */
   useEntries(): UseEntry[];
   /** The content with a use of `key` added in `entry`, at `target` (the fields its entry names). */

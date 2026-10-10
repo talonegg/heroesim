@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { NumQuery } from '../content-types.js';
 import { describeQuery, statsIn, type QueryAccount, type SetAccount, type ValAccount } from './describe.js';
 
-// v1.1.4-S5 (DL-156): the typed account of a Query, for the front ends to word. Every operator of
+// DL-156: the typed account of a Query, for the front ends to word. Every operator of
 // every type (content-types.ts) is accounted for, through a Num that holds it.
 
 const strength: ValAccount = { kind: 'stat', statKey: 'strength' };
@@ -94,7 +94,7 @@ describe('describeQuery', () => {
     });
   });
 
-  // v1.1.4-S6: the Stats a Check reads, for the Party builder's rows.
+  // The Stats a Check reads, for the Party builder's rows.
   test('statsIn names every Stat an account reads, once, in the order it names them: values, weightings, rankings, choices and filters', () => {
     const query: NumQuery = [
       '+',

@@ -37,13 +37,14 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 - **`finish`** checks the settings again, writes `config.json` in its own layout (only the changed
   values, the version and the changelog's new line change), raises `version` by one with the line
   `<version> from <reason>: <setting> <was> to <value>, ….`, and runs `npm test`. If a test fails, the
-  file is put back and the edits stay pending. It never commits. It shares the Traits' "Finish"
-  journal and lock (`tools/editor/README.md`).
+  file is put back and the edits stay pending. It never commits. It is the content editor's edit
+  session's "Finish", as the Traits' is, sharing its journal and lock (`tools/editor/README.md`).
 - **Write the decision first.** A default changed is a balance decision: give it a decision-log
   entry, and cite it in `--reason`.
-- **A test that pins a default** (`level-ups.test.ts` holds `wagePerLevel` at 20, say) fails
-  "Finish" for that setting, and so does any test whose expected numbers rest on the old value.
-  Change those tests in the same story, then finish again.
+- **A test whose expected numbers rest on the old value** fails "Finish" for that setting. No test
+  pins a default for its own sake: such a pin is removed, and a test that rests on a default either
+  passes the value through `testDeps` or changes with it (DL-231 Q10 b). Change those tests in the
+  same story, then finish again.
 - **Every game's fingerprint moves** with a raise: each save records `meta.configVersion` and the
   whole `meta.config`. Say so in the story's DL entry, with the new fingerprints.
 

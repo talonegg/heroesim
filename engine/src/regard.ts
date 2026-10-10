@@ -41,7 +41,7 @@ import {
   type World,
 } from './document.js';
 import type { Emit } from './emit.js';
-import type { EngineEvent, GuildmasterRegardCause, PatronRegardCause } from './events.js';
+import { namingTheQuest, questCauses, type EngineEvent, type GuildmasterRegardCause, type PatronRegardCause } from './events.js';
 import { guildmasterOf, influenceMultiplier } from './guildmaster.js';
 
 /** What the Regard rules read of the config. */
@@ -290,7 +290,7 @@ export function patronRegardChanged(
     ctx.emit({
       type: 'patron.regard-changed',
       participants: questId === undefined ? [patronId, guildId] : [patronId, guildId, questId],
-      payload: { patronId, guildId, cause, ...(questId === undefined ? {} : { questId }), ...change },
+      payload: { patronId, guildId, ...namingTheQuest(questCauses['patron.regard-changed'], cause, questId), ...change },
     }),
   ];
 }
@@ -339,7 +339,7 @@ export function guildmasterRegard(
     ctx.emit({
       type: 'guildmaster.regard-changed',
       participants: questId === undefined ? [guildmasterId, entityId, guildId] : [guildmasterId, entityId, guildId, questId],
-      payload: { guildmasterId, guildId, entityId, cause, ...(questId === undefined ? {} : { questId }), ...change },
+      payload: { guildmasterId, guildId, entityId, ...namingTheQuest(questCauses['guildmaster.regard-changed'], cause, questId), ...change },
     }),
   ];
 }

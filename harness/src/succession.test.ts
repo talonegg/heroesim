@@ -15,9 +15,9 @@ import {
   type ProbeGame,
 } from './succession.js';
 
-// M9-F1 (DL-113 item 7): the Succession probe's option, over a few seeds. The first Rival's
+// DL-113 item 7: the Succession probe's option, over a few seeds. The first Rival's
 // Guildmaster, in id order, is set to 50 at founding, and the games played. The probe proper, 50
-// seeds × 12 years of 1,080 Turns, is M9-F6's to run (`HEROESIM_PROBE=succession npm run harness`);
+// seeds × 12 years of 1,080 Turns, is run by hand (`HEROESIM_PROBE=succession npm run harness`);
 // here a year is 30 Turns, so a Guildmaster at 50 retires on the night of Turn 330, and twelve
 // years are 360 Turns.
 
@@ -93,6 +93,10 @@ describe('the Succession probe over a few seeds', () => {
   });
 
   test('the Guild carries on across it: its Roster, Wealth, Fame and Hall as they were, and the Regard held for it through its Guildmaster neutral', () => {
+    // The probe's observer of each `advance` (DL-239) sees the Guild across every Succession its History records.
+    const succeeded = games.filter((game) => game.successions.some((succession) => succession.guildId === game.rivalId));
+    expect(succeeded.length).toBeGreaterThan(0);
+    expect(games.filter((it) => it.after !== null).map((it) => it.seed)).toEqual(succeeded.map((it) => it.seed));
     for (const game of games.filter((it) => it.after !== null)) {
       const { eve, after } = game as Required<ProbeGame> & { eve: NonNullable<ProbeGame['eve']>; after: NonNullable<ProbeGame['after']> };
       expect(after.guildmasterId, game.seed).not.toBe(eve.guildmasterId);
@@ -119,11 +123,11 @@ describe('the Succession probe over a few seeds', () => {
     for (const game of games) expect(report).toContain(game.seed);
   });
 
-  // Child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long. Since
-  // v1.1.6-S2 (DL-186 item 20) each seed is a child of its own, at most `workers` at once, the next as
-  // one ends, as the play sweep's are: three seeds in two processes come back in seed order.
-  test('plays the same games shared among child processes, one seed a child, more seeds than processes', { timeout: 120_000 }, async () => {
-    const parallel = await probeInParallel(seeds, shortYears, { years, age: successionProbeAge, workers: 2 });
-    expect(parallel).toEqual(games);
+  // A child process, starting tsx and loading the content, as sweep.test.ts's: given as long. The
+  // probe's job carries its age to the child; how seeds are shared among children is the play
+  // sweep's, held by sweep.test.ts and children.test.ts (DL-186 item 20).
+  test('plays the same game in a child process, the probe its job names', { timeout: 120_000 }, async () => {
+    const parallel = await probeInParallel(seeds.slice(0, 1), shortYears, { years, age: successionProbeAge, workers: 1 });
+    expect(parallel).toEqual(games.slice(0, 1));
   });
 });

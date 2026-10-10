@@ -4,7 +4,7 @@ import { eventEmitter } from './emit.js';
 import { changeMorale } from './morale.js';
 import { buildDocument, testDeps } from './world.test-support.js';
 
-// `changeMorale`, the writer of a discrete change of Morale (M2-S6, DL-29). M9-F1 (DL-112 item 2):
+// `changeMorale`, the writer of a discrete change of Morale (DL-29). DL-112 item 2:
 // a change a Quest's return causes names the Quest; any other names none.
 
 describe('changeMorale', () => {
@@ -35,5 +35,13 @@ describe('changeMorale', () => {
 
     expect(event.payload).not.toHaveProperty('questId');
     expect(event.participants).toEqual([hero.id, hero.guildId]);
+  });
+
+  // A Quest's cause without its Quest, or another cause with one, is a writer's mistake (DL-246).
+  test("throws on a Quest's cause with no Quest, and on another cause naming one", () => {
+    const { hero, questId, emit } = scene();
+
+    expect(() => changeMorale(hero, 5, 'encounters', config, emit)).toThrow(RangeError);
+    expect(() => changeMorale(hero, 5, 'module', config, emit, questId)).toThrow(RangeError);
   });
 });

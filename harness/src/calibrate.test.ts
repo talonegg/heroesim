@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { contentDir, loadContent } from '@heroesim/content/node';
+import { contentDir } from '@heroesim/content/node';
 import { defaultConfig, degrees, describeQuery, estimateQuest, type EngineDeps, type NumQuery, type Quest } from '@heroesim/engine';
 import { afterAll, describe, expect, test } from 'vitest';
 import {
@@ -20,14 +20,14 @@ import {
   tunedFactors,
 } from './calibrate.js';
 import { drawer } from './estimate.js';
+import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { recordGame } from './play.js';
 import { defaultPolicyConfig } from './policy.js';
 import { runShard } from './shard.js';
 
-// v1.1.4-S9 (DL-162): the calibration's parts, on small samples. The calibration proper is
+// DL-162: the calibration's parts, on small samples. The calibration proper is
 // `npm run harness -- calibrate` (calibrate.harness.test.ts), which writes docs/quests/calibration.md.
 
-const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 const scratch = mkdtempSync(join(tmpdir(), 'heroesim-calibrate-'));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 
@@ -57,7 +57,7 @@ describe('loadDrafts', () => {
   // The verification (DL-162): the automatic buyer (`gearPurchase`) takes the dearest piece for a slot,
   // the lowest key on a tie, and the harness's player buys armour alone; so a new piece in the armour
   // slot, or at a core piece's price, would take the place of the Constitution armour it buys.
-  test("the gear the drafts added, the core's since v1.1.4-S10, never takes the armour slot, nor ties another piece's price in its slot", () => {
+  test("the gear the drafts added, the core's now, never takes the armour slot, nor ties another piece's price in its slot", () => {
     const core = deps.content.items;
     const drafted = loadDrafts(draftsDir).content.items;
     const added = ['commonplace-book', 'reading-glass', 'signet-ring', 'officers-sash', 'courtiers-brooch', 'scholars-almanac'];
@@ -84,21 +84,20 @@ describe('loadDrafts', () => {
   });
 });
 
-// Three games of forty Days, one through a shard: three seconds alone, more than the default 5 s under
-// the whole suite's load (DL-164).
+// Three games of twenty Days, two through a shard, under the whole suite's load given long (DL-164):
+// the drafts' Checks, twice as hard, differ from the core's once the first Quest resolves.
 describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () => {
-  test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', () => {
-    const years = 120 / deps.config.turnsPerYear;
+  test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', async () => {
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
-    // Drafts that differ from the core, which holds S9's since v1.1.4-S10: every Check twice as hard.
+    // Drafts that differ from the core, which holds the drafts' gear: every Check twice as hard.
     const dir = mkdtempSync(join(scratch, 'harder-'));
     const encounters = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, { checks: { difficultyFactor: number }[] }>;
     for (const encounter of Object.values(encounters)) for (const check of encounter.checks) check.difficultyFactor *= 2;
     writeFileSync(join(dir, 'encounters.json'), JSON.stringify(encounters), 'utf8');
-    const drafted = runShard({ ...job, drafts: dir });
-    const here = recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
+    const drafted = await runShard({ ...job, drafts: dir });
+    const here = await recordGame('seed-0001', { config: deps.config, content: loadDrafts(dir).content }, { years });
     expect(drafted.games[0]?.measures.fingerprint).toBe(here.record.measures.fingerprint);
-    expect(runShard(job).games[0]?.measures.fingerprint).not.toBe(here.record.measures.fingerprint);
+    expect((await runShard(job)).games[0]?.measures.fingerprint).not.toBe(here.record.measures.fingerprint);
   });
 });
 
@@ -125,7 +124,7 @@ describe('coverageGrid', () => {
     expect([checksAtLeast, kindsAtLeast]).toEqual([3, 2]);
     const grid = coverageGrid(deps.content);
     expect(grid.map((it) => it.statKey)).toEqual(Object.values(deps.content.stats).filter((it) => it.owner === 'hero').map((it) => it.key));
-    // The content as v1.1.4-S10 wrote it: Endurance, the least read, by Hold the line's Stamina and The
+    // The core content: Endurance, the least read, by Hold the line's Stamina and The
     // last assault's Holding out (combat) and The long march's Pace (travel); every Stat meets the gate.
     const endurance = grid.find((it) => it.statKey === 'endurance');
     expect(endurance?.byKind.combat).toEqual(['hold-the-line/stamina', 'the-last-assault/holding-out']);
@@ -230,7 +229,7 @@ describe('the rates', { timeout: 60_000 }, () => {
     expect(successOf(tunedDeps(tuning), 'ambush-on-the-road', aim.difficulty, partiesOf(aim.level, aim.size))).toBeCloseTo(aim.chance, 2);
   });
 
-  // v1.1.4-S9's verification (DL-162): a flat term, so the target grows more slowly than the difficulty.
+  // DL-162: a flat term, so the target grows more slowly than the difficulty.
   test('with a flat share, puts that share of each target at the aim into its flat term, and keeps the aim', () => {
     const aim = { level: 5, size: 3, difficulty: 60, chance: 0.6, flatShare: 0.5 };
     // Tuned over the one Encounter, to keep the test short.

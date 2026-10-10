@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
-import { partyFor, staffableQuests } from './controllers/rival.js';
+import { bestParties } from './best-party.js';
+import { staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, Party, Quest, WorldDocument } from './document.js';
 import type { EngineEvent, TurnEvent } from './events.js';
@@ -10,10 +11,8 @@ import { playerGuild } from './selectors.js';
 import { serialise } from './serialise.js';
 import { alwaysStops, stopConditions, type StopCondition } from './stops.js';
 import { timeOfDay } from './time.js';
-import { testDeps, withValid } from './world.test-support.js';
+import { setup, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return withValid(createWorld(seed, setup, deps).document, deps);
@@ -127,7 +126,7 @@ describe('fastForward: a decision needed (always on)', () => {
     for (const questId of questIds) {
       expect(newToday.has(questId), questId).toBe(true);
       const quest = after.world.quests[questId] as Quest;
-      const heroIds = partyFor(after.world, player(after), quest, player(after).rosterIds.map((id) => after.world.heroes[id]!), deps);
+      const heroIds = bestParties(after.world, player(after), deps).party(quest, player(after).rosterIds.map((id) => after.world.heroes[id]!))?.heroIds ?? null;
       expect(heroIds, questId).not.toBeNull();
       expect(applyAction(after, { kind: 'dispatch', guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }
@@ -157,7 +156,7 @@ describe('fastForward: a decision needed (always on)', () => {
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -183,7 +182,7 @@ describe('fastForward: a decision needed (always on)', () => {
   });
 });
 
-describe('fastForward: the Bankruptcy floor (always on, M9-S1)', () => {
+describe('fastForward: the Bankruptcy floor (always on)', () => {
   /** A new game from `seed` with the Guild `pick` chooses given `wealth`, and `belowFloorSince` as given. */
   function withWealth(seed: string, deps: EngineDeps, pick: (document: WorldDocument) => Guild, wealth: number, belowFloorSince: number | null = null) {
     const document = structuredClone(created(seed, deps));
@@ -233,7 +232,7 @@ describe('fastForward: the Bankruptcy floor (always on, M9-S1)', () => {
   });
 });
 
-describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () => {
+describe('fastForward: a Quest the free Heroes can staff (opt-in)', () => {
   // No Rivals, which would take the Board each afternoon; two of four Heroes out on a long Quest.
   const deps = testDeps({ rivalCount: 0 });
 
@@ -246,7 +245,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -273,7 +272,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     expect(result.stoppedBecause.questIds.length).toBeGreaterThan(0);
     for (const questId of result.stoppedBecause.questIds) {
       expect(newToday.has(questId), questId).toBe(true);
-      const heroIds = partyFor(after.world, player(after), after.world.quests[questId] as Quest, home, deps);
+      const heroIds = bestParties(after.world, player(after), deps).party(after.world.quests[questId] as Quest, home)?.heroIds ?? null;
       expect(heroIds, questId).not.toBeNull();
       expect(applyAction(after, { kind: 'dispatch', guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }
@@ -386,8 +385,12 @@ describe('fastForward: maxTurns', () => {
 
   test('always terminates within maxTurns', () => {
     const deps = testDeps();
+    // Each seed's world is made once; a fast forward appends to the History it is given, so each case plays a copy.
+    const made = new Map<string, WorldDocument>();
     for (const { seed, until, maxTurns } of cases) {
-      const { document } = createWorld(seed, setup, deps);
+      const base = made.get(seed) ?? createWorld(seed, setup, deps).document;
+      made.set(seed, base);
+      const document = structuredClone(base);
       const label = `${seed} ${until.join(',')} ${maxTurns}`;
 
       const result = fastForward(document, { guildId: player(document).id, until, maxTurns }, deps);

@@ -6,11 +6,11 @@ import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
-import { guildmasterPreview, setupFormChoices, startingStats, writtenDescription, type SetupFields } from '../state/setup';
+import { guildmasterPreview, setupFormChoices, startingStats, statPicksView, statsWords, writtenDescription, type SetupFields } from '../state/setup';
 import { NewGame } from './new-game';
 import { openView } from './page.test-support';
 
-// The new-game form's Guildmaster (M9-S7, #30): behind "Your Guildmaster", since v1.1.4-S11 (DL-149)
+// The new-game form's Guildmaster (#30): behind "Your Guildmaster" (DL-149)
 // two ways, "Choose for me", chosen at first, which leaves the whole Guildmaster to the seed, and "Choose
 // myself": the sex and the age with no draw, a Portrait of that sex, the five Stats within the Stat
 // points, the Traits chosen for the player or chosen within the budget, and the three descriptive
@@ -62,7 +62,7 @@ function setup(): HTMLElement {
   return details;
 }
 
-/** The two ways of "Your Guildmaster" (v1.1.4-S11). */
+/** The two ways of "Your Guildmaster". */
 function way(name: 'Choose for me' | 'Choose myself'): HTMLInputElement {
   return within(within(setup()).getByRole('radiogroup', { name: 'Who chooses' })).getByRole('radio', { name }) as HTMLInputElement;
 }
@@ -140,7 +140,7 @@ function lines(): string[] {
   return [...preview().querySelectorAll('p')].map((line) => line.textContent ?? '');
 }
 
-describe("the Guildmaster's setup in the new-game form (M9-S7; v1.1.4-S11)", () => {
+describe("the Guildmaster's setup in the new-game form ", () => {
   test('sits behind "Your Guildmaster", closed, on "Choose for me": no control for the Guildmaster shows, and all of them is drawn from the seed', () => {
     const { play } = form();
     named();
@@ -401,15 +401,15 @@ describe("the Guildmaster's setup in the new-game form (M9-S7; v1.1.4-S11)", () 
   });
 });
 
-// v1.1.4-S11 (DL-149 item 5): the five Guildmaster Stats, each with a stepper, within the Stat points.
-describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', () => {
+// DL-149 item 5: the five Guildmaster Stats, each with a stepper, within the Stat points.
+describe('the Stats "Choose myself" sets, within the Stat points', () => {
   function stepper(name: string, how: 'Raise' | 'Lower'): HTMLButtonElement {
     return within(part('Stats')).getByRole('button', { name: `${how} ${name}` }) as HTMLButtonElement;
   }
 
   /**
    * Whether a stepper's button is held: marked `aria-disabled`, and still a button the keyboard can be
-   * on, never `disabled` (v1.1.4-S14).
+   * on, never `disabled`.
    */
   function held(button: HTMLButtonElement): boolean {
     expect(button.disabled).toBe(false);
@@ -429,9 +429,10 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
     named();
     chosen();
 
-    expect(within(part('Stats')).getByText('Each 5 to 15, sharing 50 Stat points; each starts at 10.')).toBeDefined();
+    // The words the page's setup gives under the game's rules, which a view reads as it takes no engine value (DL-73).
+    expect(within(part('Stats')).getByText(statsWords())).toBeDefined();
     expect(points()).toContain('Stat points left: 0');
-    expect(points()).toContain('The Stats spend 50 of 50 Stat points.');
+    expect(points()).toContain(statPicksView(startingStats()).points.spentWords);
     const rows = within(within(part('Stats')).getByRole('list', { name: 'Guildmaster Stats' })).getAllByRole('listitem');
     expect(rows.map((row) => row.textContent)).toEqual([
       'Inspiration−10+The Morale baseline of the Heroes',
@@ -449,7 +450,7 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
     }
   });
 
-  // v1.1.4-S14: a button a browser disables loses the keyboard, so a step held is marked aria-disabled
+  // A button a browser disables loses the keyboard, so a step held is marked aria-disabled
   // and kept in the tab order; activated, it does nothing.
   test('a stepper pressed from the keyboard to its bound keeps the keyboard, and holds the value there', () => {
     form();
@@ -500,7 +501,7 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
   });
 });
 
-describe("the rest of the CLI's `new` in the form (M9-S8, the epic's §3)", () => {
+describe("the rest of the CLI's `new` in the form (the epic's §3)", () => {
   test("a Background chosen for the Guild and the Guildmaster's Appearance start the game with them, as `--background` and `--appearance` do", () => {
     const { play } = form();
     named();
@@ -524,7 +525,7 @@ describe("the rest of the CLI's `new` in the form (M9-S8, the epic's §3)", () =
   });
 });
 
-describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
+describe('when the Guildmaster retires (DL-113 item 5)', () => {
   test('the Age field says the age a Guildmaster retires at, from the configuration', () => {
     form();
     myself();
@@ -538,13 +539,14 @@ describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
   });
 });
 
-// v1.1.2-S4 (DL-125 items 3 and 6): the Portrait chosen from the owner's pictures, and the Guildmaster
-// chosen for the player shown before "Start the game". The core has 20 pictures of each sex (v1.1.3-S4).
-// Since v1.1.4-S11 (DL-149 item 4) the grid offers no draw, and shows no picture before a sex is chosen.
-describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, in the new-game form (v1.1.2-S4; v1.1.4-S11)", () => {
-  /** The names of the 20 pictures of a sex, by its word, as the form offers them. */
-  function twenty(sexWord: 'Female' | 'Male'): string[] {
-    return Array.from({ length: 20 }, (_, n) => `${sexWord} Portrait ${n + 1}`);
+// DL-125 items 3 and 6: the Portrait chosen from the owner's pictures, and the Guildmaster
+// chosen for the player shown before "Start the game". The pictures of each sex are the content's.
+// The grid (DL-149 item 4) offers no draw, and shows no picture before a sex is chosen.
+describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, in the new-game form", () => {
+  /** The names of the pictures of a sex, by its word, as the form offers them: one for each the content lists. */
+  function picturesOf(sexWord: 'Female' | 'Male'): string[] {
+    const count = content.portraits.guildmaster[sexWord === 'Female' ? 'female' : 'male'].length;
+    return Array.from({ length: count }, (_, n) => `${sexWord} Portrait ${n + 1}`);
   }
 
   /** The Portrait's radio buttons, by the words each is named by. */
@@ -572,7 +574,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(within(part('Portrait')).queryByRole('group', { name: 'Pictures shown' })).toBeNull();
 
     fireEvent.change(sexField(), { target: { value: 'female' } });
-    expect(portraitNames()).toEqual(twenty('Female'));
+    expect(portraitNames()).toEqual(picturesOf('Female'));
     expect(within(part('Portrait')).queryByTestId('portrait-unsexed')).toBeNull();
     const thumbnail = portraitRadio('Female Portrait 1').closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
     // Each from its thumbnail, never the full picture.
@@ -581,7 +583,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(thumbnail?.getAttribute('aria-hidden')).toBe('true');
 
     fireEvent.change(sexField(), { target: { value: 'male' } });
-    expect(portraitNames()).toEqual(twenty('Male'));
+    expect(portraitNames()).toEqual(picturesOf('Male'));
     expect(within(part('Portrait')).queryByRole('group', { name: 'Pictures shown' })).toBeNull();
   });
 
@@ -601,7 +603,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'male', guildmasterPortraitKey: 'gm-male-01' });
   });
 
-  // v1.1.3-S7 (DL-134 item 7): the engine's `portraitFit`, beside the choice, never a refusal.
+  // DL-134 item 7: the engine's `portraitFit`, beside the choice, never a refusal.
   test('notes beside the choice a Portrait chosen that looks older than the age chosen, and lets the game start', () => {
     const { play } = form();
     named();
@@ -634,7 +636,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
 
     const [lead, who, stats, traits, portrait] = lines();
     expect(lead).toBe('Chosen for you');
-    // 'new-game-test' draws a female of 26, and gm-female-13, of 26 to 36, fits her (v1.1.3-S5).
+    // 'new-game-test' draws a female of 26, and gm-female-13, of 26 to 36, fits her.
     expect(who).toBe('Female, 26');
     expect(stats).toMatch(/^Inspiration \d+, Influence \d+, Negotiation \d+, Coaching \d+ and Judgement \d+$/);
     expect(traits).toMatch(/^Traits: /);
@@ -657,7 +659,7 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
     expect(preview().textContent).toBe('The seed is blank, so one is made up when the game starts, and your Guildmaster is chosen for you then.');
   });
 
-  test('says what is chosen for the player in a polite live region, so a screen reader hears it follow the fields (v1.1.2-S6)', () => {
+  test('says what is chosen for the player in a polite live region, so a screen reader hears it follow the fields', () => {
     form();
     named();
     const live = within(setup()).getByTestId('guildmaster-preview-live');
@@ -681,9 +683,9 @@ describe("the Guildmaster's Portrait and the Guildmaster chosen for the player, 
   });
 });
 
-// v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again" fill the three texts, which stay the player's.
-// Since v1.1.4-S11 they are "Choose myself"'s, written once the sex, the age and the picture are chosen.
-describe("the Guildmaster's Birthplace, Appearance and Biography written in the new-game form (v1.1.2-S5)", () => {
+// DL-125 item 6: "Write them for me" and "Again" fill the three texts, which stay the player's.
+// They are "Choose myself"'s, written once the sex, the age and the picture are chosen.
+describe("the Guildmaster's Birthplace, Appearance and Biography written in the new-game form", () => {
   function field(label: 'Birthplace' | 'Appearance' | 'Biography'): HTMLInputElement | HTMLTextAreaElement {
     return within(setup()).getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
   }
@@ -773,7 +775,7 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
     expect(texts()).toEqual(writtenOf(mine, seed, 0)?.texts);
   });
 
-  // v1.1.2-S6 (the review's C): the buttons write only what is blank or still as written.
+  // The buttons write only what is blank or still as written.
   test('"Write them for me" and "Again" keep what the player typed, and write the rest', () => {
     form();
     named();
@@ -791,7 +793,7 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
     });
   });
 
-  // v1.1.2-S6 (the verification of the review's fixes): the Birthplace typed is the one the Biography names.
+  // The Birthplace typed is the one the Biography names.
   test('a Birthplace typed is the Biography\'s: "Write them for me", "Again" and a Biography still as written name it, and the game starts with both', () => {
     const { play } = form();
     named();
@@ -828,7 +830,7 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
     expect(writtenFor()).toBe('Written for a female Guildmaster of 47. Change them as you like.');
   });
 
-  // v1.1.2-S6 (the review's B): the texts follow the Guildmaster the form makes, unless the player changed them.
+  // The texts follow the Guildmaster the form makes, unless the player changed them.
   test('changing the sex and picture, the age or the seed writes the texts still as written for the new Guildmaster, and says so', () => {
     const { play } = form();
     named();
@@ -882,8 +884,8 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
   });
 });
 
-// The journey (v1.1.2-S4): from the form's choices, or its preview, to the Guildmaster view.
-describe('from the new-game form to the Guildmaster view (v1.1.2-S4; v1.1.4-S11)', () => {
+// The journey: from the form's choices, or its preview, to the Guildmaster view.
+describe('from the new-game form to the Guildmaster view', () => {
   async function begin(): Promise<void> {
     fireEvent.click(start());
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Start the game' })).toBeNull());
@@ -934,7 +936,7 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4; v1.1.4-S11)
     const terms = [...view.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
     expect(terms).toContainEqual(['Sex', sexWord]);
     expect(terms).toContainEqual(['Age', age]);
-    // DL-149 item 2 (v1.1.4-S14): the texts are written for them too.
+    // DL-149 item 2: the texts are written for them too.
     for (const term of ['Birthplace', 'Appearance', 'Biography']) expect(terms.find(([dt]) => dt === term)?.[1]?.trim() ?? '', term).not.toBe('');
     const shown = statsShown();
     expect(stats).toBe(
@@ -949,7 +951,7 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4; v1.1.4-S11)
     expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-${place.padStart(2, '0')}`).picture);
   });
 
-  test('the texts written, and one then changed, are the ones the Guildmaster view shows (v1.1.2-S5)', async () => {
+  test('the texts written, and one then changed, are the ones the Guildmaster view shows', async () => {
     render(<App />);
     named();
     chosen();

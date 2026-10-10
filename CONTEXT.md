@@ -23,7 +23,10 @@ _Avoid_: Company, Agency, Faction
 The person who runs a Guild: a named individual whose Stats and Traits bear on running it, never
 on fighting, for a Guildmaster joins no Party (R8; joining one is a later feature). Every Guild
 has one (R7 to R9); the player's character is the Guildmaster of the player's Guild. Distinct
-from the player, the human at the keyboard.
+from the player, the human at the keyboard, who sees what their Guildmaster sees and pays: a Hero's
+Potential hints through the Guildmaster's Judgement, and every fee at their Negotiation. The CLI and
+the page show a Hero, a Quest and a Hero of the pool or a Roster in one reading of the world through
+the Guildmaster, each laying it out its own way (DL-241).
 _Avoid_: Player, Owner, Boss
 
 **Hero**:
@@ -432,10 +435,10 @@ falls", and the numbers stay in the detail (DL-148 item 15, DL-156, DL-157).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
-The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
-Class and Skill requirements take, then whoever most raises the estimated chance of success up to
-its least Party size, then each Hero who raises it by more than the Guild's **Party margin**
-(DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
+The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
+first those its Class and Skill requirements take, then whoever most raises the estimated chance of
+success up to its least Party size, then each Hero who raises it by more than the Guild's
+**Party margin** (DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
@@ -507,8 +510,9 @@ _Avoid_: Factory, Spawner
 
 **State Engine**:
 A part of the engine that advances one kind of entity each night: the Hero State Engine
-(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep and the
-Bankruptcy floor) and the Patron State Engine (Patron Regard recovering towards neutral).
+(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep, the
+Bankruptcy floor and the Fame floor) and the Patron State Engine (Patron Regard recovering
+towards neutral).
 _Avoid_: System, Manager, Updater
 
 **Event**:
@@ -568,7 +572,9 @@ _Avoid_: Season, Annum
 A choice made through the engine, accepted with events or refused with a typed reason and
 nothing changed: dispatching a Party, recruiting, a Transfer, a Transfer Offer or its answer,
 buying, selling, equipping and unequipping gear, building an Improvement, and rebase. The player
-acts between Turns, while time stands still; the Rivals act in the afternoon.
+acts between Turns, while time stands still; the Rivals act in the afternoon. A refusal, an
+Action's or a new game's setup's, is said in one sentence for the CLI and the page alike, each
+naming its own way whom it concerns (DL-240).
 _Avoid_: Command (a front end's word), Move, Order
 
 **Outing**:
@@ -587,7 +593,7 @@ _Avoid_: Skip, Auto-play, Simulate
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
 and a module asking; others only when the caller names them: a Quest its free Heroes can staff
-appearing, even with a Party out, and the Unattached pool refreshing (approach §2, DL-33, DL-85,
+appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
 DL-101). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
@@ -842,6 +848,23 @@ change is checked with the content's checks and held as a pending edit until "Fi
 the files, raises the content version by one and runs the tests, putting every file back if one
 fails. It never commits.
 _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
+
+**Edit session**:
+The content editor's pending edits of one kind, from the first edit to "Finish": each checked with the
+kind's checks as it is made and held between commands, and "Finish", which writes the files, raises a
+version, the content's or the config's, by one, runs the tests and puts every file back if one fails.
+A "Finish" cut off is put back by the next command. The Traits are edited in one, and the tuning
+values in another, the same session over two kinds of file (DL-244).
+_Avoid_: Draft, Transaction (for the whole)
+
+**Content kind**:
+One kind of content, in its module of `content/src/kinds/`: the file it is written in, the shape of
+its rows and how they are read, their defaults, and its rules with their refusals (DL-243). Content is
+read kind by kind and then checked kind by kind, every refusal naming its file or table and key; the
+page reads with the kinds' readers alone. A Trait's effects are each described once by their fields,
+and read, checked and offered in the content editor's forms from that description. The content
+editor's Traits edit two content kinds, the Guildmaster's and the Hero's.
+_Avoid_: Schema (for one kind)
 
 **Uses register**:
 The one list, in code (`content/src/uses/`), of every place a Trait is used: where its key stands in

@@ -1,11 +1,11 @@
-import { defaultConfig } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { calendarOf, dateOfDay, dateOfTurn, fileDateOfTurn, nightOfDay, nightOfTurn, whenOfTurn } from './calendar.js';
 
-// v1.1.7-S4 (DL-206 items 30 to 33, DL-210): a date as a player reads it, "Year Y Day D", the Year
+// DL-206 items 30 to 33, DL-210: a date as a player reads it, "Year Y Day D", the Year
 // from 1 and the Day of the Year from 1, the engine's Turn, Day and Year counting from 0.
 
-const year = { turnsPerYear: defaultConfig.turnsPerYear };
+// A Year of 1080 Turns, 360 Days of three.
+const year = { turnsPerYear: 1080 };
 
 describe('a date from a Turn', () => {
   test('Turn 0 is the morning of Year 1 Day 1', () => {
@@ -21,7 +21,6 @@ describe('a date from a Turn', () => {
   });
 
   test('the last Turn of Day 360, and the first of the next Year', () => {
-    expect(year.turnsPerYear).toBe(1080);
     expect(whenOfTurn(1079, year)).toBe('Year 1 Day 360, night');
     expect(whenOfTurn(1080, year)).toBe('Year 2 Day 1, morning');
     expect(calendarOf(1080, year)).toEqual({ year: 2, day: 1, timeOfDay: 'morning' });

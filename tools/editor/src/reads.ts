@@ -1,6 +1,6 @@
 // Where the engine and the content's checks read a Trait (v1.1.4-S12, DL-150 item 14): the drift
-// test's eyes. Each TypeScript file of `engine/src/` and `content/src/validate.ts`, tests left out,
-// is parsed with TypeScript's own parser, and every read of a Trait in its code (never a comment or
+// test's eyes. Each TypeScript file of `engine/src/`, `content/src/validate.ts` and the content kinds,
+// `content/src/kinds/` (DL-243), tests left out, is parsed with TypeScript's own parser, and every read of a Trait in its code (never a comment or
 // a type) is named by its file and the top-level declaration it stands in:
 // - the two lists, `guildmasterTraits` and `heroTraits`, and a person's or a sentence list's
 //   `.traits`, read as a property or destructured;
@@ -18,35 +18,27 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { contentFieldNames, guildmasterTraitEffects, heroTraitEffects } from '@heroesim/content';
 import { traitHelpers, type SourcePlace } from '@heroesim/content/uses';
-import type { GuildmasterTraitEffectKind, HeroTraitEffectKind } from '@heroesim/engine';
 import ts from 'typescript';
 
 /** The properties whose read is a read of a Trait. */
 const traitProperties = new Set(['guildmasterTraits', 'heroTraits', 'traits', 'leavesTrait']);
 /**
- * Every effect kind of both lists, held to the engine's unions (v1.1.4-S14): a kind added there and
- * not here fails to compile. `plain` where no other field shares its name, so that one of them as an
- * object's key is a read; `shared` where one does (Gear's `statModifiers`).
+ * Every effect kind of both lists, from content's description of each kind's fields, which the
+ * engine's unions hold (DL-243): a kind added there and not described fails to compile. Held to the
+ * editor's forms by a test.
  */
-const effectKindNames = {
-  classStatBonus: 'plain',
-  guildMoraleShift: 'plain',
-  upkeepFactor: 'plain',
-  encounterBonus: 'plain',
-  statModifiers: 'shared',
-} as const satisfies Record<GuildmasterTraitEffectKind | HeroTraitEffectKind, 'plain' | 'shared'>;
-/** The effect kinds the scanner reads, for a test to hold to the editor's forms. */
-export const scannedEffectKinds: ReadonlySet<string> = new Set(Object.keys(effectKindNames));
+export const scannedEffectKinds: ReadonlySet<string> = new Set([...Object.keys(guildmasterTraitEffects), ...Object.keys(heroTraitEffects)]);
 /** The kinds that are a read of a Trait where a kind is compared, chosen or listed: the effect kinds, and the earned Trait's consequence. */
 const traitKinds = new Set([...scannedEffectKinds, 'trait']);
-/** The effect kinds no other field shares: one of them as an object's key is a read. */
-const plainEffectKinds = new Set(Object.entries(effectKindNames).flatMap(([kind, shared]) => (shared === 'plain' ? [kind] : [])));
+/** The effect kinds no field of content shares, as gear's `statModifiers` does: one of them as an object's key is a read. */
+const plainEffectKinds: ReadonlySet<string> = ((fields) => new Set([...scannedEffectKinds].filter((kind) => !fields.has(kind))))(contentFieldNames());
 /** The effect kinds as an object's keys: two of them are a read. */
 const effectKinds = scannedEffectKinds;
 
 /** Where the drift test looks, under a repository's root. */
-export const scannedPlaces = ['engine/src', 'content/src/validate.ts'] as const;
+export const scannedPlaces = ['engine/src', 'content/src/validate.ts', 'content/src/kinds'] as const;
 
 /** One read of a Trait: its file (from the root, with `/`), the top-level declaration it stands in, its line and what it reads. */
 export interface TraitRead {

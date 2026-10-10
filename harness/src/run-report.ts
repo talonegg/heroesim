@@ -1,6 +1,6 @@
 // A play sweep's JSON report (v1.1.6-S2, DL-186 item 13), written beside its Markdown report: what the
 // sweep played (seeds, years, content, config and policy), its fingerprint, each game's line, its
-// timings and its totals (`sweepTotals`, S1's one fold), so that the Gate is checked over data
+// timings and its totals (`sweepTotals`, the one fold, DL-187, DL-239), so that the Gate is checked over data
 // (`gate.ts`) and two runs are compared by machine (`compareRuns`) rather than by eye.
 //
 // A number JSON cannot hold (`NaN`, as an empty series' mean is, or an infinity) is written as its name
@@ -15,8 +15,10 @@ import type { PolicyConfig } from './policy.js';
 import { fixed, whole, type Machine } from './report.js';
 import type { ProfileName } from './settings.js';
 import type { Summary } from './stats.js';
+import { kindOf, sweepTotals, type Counter } from './counter.js';
+import { gameCounters, type SweepTotals } from './game-counters.js';
 import { coreCounters, counterDeltas, type CounterDelta } from './module-report.js';
-import { sweepFingerprint, sweepTotals, type PlaySweep, type SweepTotals } from './sweep.js';
+import { sweepFingerprint, type PlaySweep } from './sweep.js';
 
 /** The report's format: raised when its shape changes, so a reader refuses a report it cannot read. */
 export const runReportFormat = 1;
@@ -203,11 +205,8 @@ function changedKeys(a: Readonly<Record<string, unknown>>, b: Readonly<Record<st
 /** A counter's value, whole when it is. */
 const valueOf = (n: number): string => (Number.isInteger(n) ? whole(n) : fixed(n, 3));
 
-/**
- * Whether a core counter is a measure rather than play: the save's size as each year ended, which a
- * change of the save's shape or its `meta.config` moves while no play counter does (DL-205).
- */
-const isMeasure = (counter: string): boolean => counter.startsWith('saves[]');
+/** The key of the counter a counter's path is in: `saves` of `saves[].lengths[]`, `wealth` of `wealth.rival.items`. */
+const keyOf = (path: string): string => /^[^.[]*/.exec(path)?.[0] ?? path;
 
 /** A counter's line: its path, its value in `a` and in `b`, and the change. */
 function deltaLine(delta: CounterDelta): string {
@@ -218,11 +217,12 @@ function deltaLine(delta: CounterDelta): string {
 /**
  * What moved between two runs' reports, `a` then `b` (DL-186 item 13), as lines to print: what each
  * played; whether their fingerprints agree and, if not, the seeds whose last saves differ; the seeds,
- * years, content, config and policy where they differ; every core counter that moved
- * (`counterDeltas`), with how many did not; and, apart, the save's sizes moved, which are measures,
- * not play (DL-205). Timings are not counters, and are left out.
+ * years, content, config and policy where they differ; every play counter that moved
+ * (`counterDeltas`), with how many did not; and, apart, the measures moved, the save's sizes, which
+ * are not play (DL-205). A counter is play or a measure by its declared kind among `counters` (DL-239);
+ * the timings, the run's and the copy's, and the modules' own counters are left out.
  */
-export function compareRuns(a: RunReport, b: RunReport): string[] {
+export function compareRuns(a: RunReport, b: RunReport, counters: readonly Counter[] = gameCounters): string[] {
   const played = (label: string, run: RunReport): string =>
     `${label}: ${run.milestone}, begun ${run.startedAt} · ${whole(run.seeds.length)} seeds × ${run.years} years · ` +
     `content ${run.content.id} ${run.content.version} · config version ${configVersionOf(run)} · fingerprint ${run.fingerprint}`;
@@ -251,12 +251,13 @@ export function compareRuns(a: RunReport, b: RunReport): string[] {
     if (changes.length > 0) lines.push(`${what}: ${changes.join('; ')}.`);
   }
 
-  const { moved, unchanged } = counterDeltas(a.totals, b.totals);
+  const isMeasure = (path: string): boolean => kindOf(counters, keyOf(path)) === 'measure';
+  const { moved, unchanged } = counterDeltas(a.totals, b.totals, counters);
   const measures = moved.filter((delta) => isMeasure(delta.counter));
-  const counters = moved.filter((delta) => !isMeasure(delta.counter));
-  const measured = new Set([...coreCounters(a.totals).keys(), ...coreCounters(b.totals).keys()].filter(isMeasure)).size;
-  lines.push('', `Counters: ${whole(counters.length)} moved, ${whole(unchanged - (measured - measures.length))} the same.`);
-  lines.push(...counters.map(deltaLine));
+  const playMoved = moved.filter((delta) => !isMeasure(delta.counter));
+  const measured = new Set([...coreCounters(a.totals, counters).keys(), ...coreCounters(b.totals, counters).keys()].filter(isMeasure)).size;
+  lines.push('', `Counters: ${whole(playMoved.length)} moved, ${whole(unchanged - (measured - measures.length))} the same.`);
+  lines.push(...playMoved.map(deltaLine));
   if (measures.length > 0) lines.push(`Measures moved, the save's size as each year ended, not play: ${whole(measures.length)}.`, ...measures.map(deltaLine));
   return lines;
 }

@@ -5,7 +5,7 @@ import { nightOf } from '../time.js';
 import { testDeps } from '../world.test-support.js';
 import { deps, newWatch, pins, rivalsInPlay, ruleProblems, setup, stillPlayer, transfersPhase, unwatchPhase, watchPhase } from './transfer-generator.test-support.js';
 
-// The second of M6-S3's two boxes (DL-59): the player's Roster is never changed by the Transfer
+// The second of two acceptance boxes (DL-59): the player's Roster is never changed by the Transfer
 // Generator's phase, run alone on a hundred seeds' worlds, every Rival rich enough to hire and to
 // pay. The first box, a hundred seeds played for twenty years, is a harness run,
 // `transfer-generator.harness.test.ts` (DL-230).
@@ -14,7 +14,7 @@ afterEach(() => {
   unwatchPhase();
 });
 
-describe("the player's Roster over 100 seeds (M6-S3)", () => {
+describe("the player's Roster over 100 seeds", () => {
   test('is never changed by the phase, while the Rivals, rich, deal among themselves on its nights', () => {
     // The phase alone, on each of 100 seeds' worlds, on ten Generator nights in turn: every Rival rich
     // enough to hire and to pay, every pair bidding every week, the player idle and rich too. What the

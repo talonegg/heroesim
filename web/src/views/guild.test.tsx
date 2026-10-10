@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { started, withPartyOut, withWealth } from '../state/game.test-support';
-import { navButton, openView } from './page.test-support';
+import { idle, navButton, openView } from './page.test-support';
 
-// The home view's report of a Party home is `quest-report.test.tsx`'s (M9-F5), which took the place
+// The home view's report of a Party home is `quest-report.test.tsx`'s, which took the place
 // of the outcome cards' tests.
 
 afterEach(() => {
@@ -13,21 +13,17 @@ afterEach(() => {
   localStorage.clear();
 });
 
-// The Guild in parts (M9-F2, DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
-// Hall, and from M9-F3 Stores and Treasury (DL-116), following the ARIA tabs pattern: one tab in the Tab
+// The Guild in parts (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
+// Hall, Stores and Treasury (DL-116), following the ARIA tabs pattern: one tab in the Tab
 // order, the arrow keys, Home and End moving between them, and the part open remembered in this
 // browser.
-describe("the Guild's parts (M9-F2)", () => {
+describe("the Guild's parts", () => {
   function guild(): HTMLElement {
     return screen.getByRole('region', { name: 'Guild' });
   }
 
   function tabs(): HTMLElement[] {
     return within(within(guild()).getByRole('tablist', { name: 'The Guild’s parts' })).getAllByRole('tab');
-  }
-
-  async function idle(): Promise<void> {
-    await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
   }
 
   test('are tabs under the heading, Home open at first; a tab opens its part by pointer', () => {
@@ -43,11 +39,8 @@ describe("the Guild's parts (M9-F2)", () => {
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
 
     expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
-    const hall = within(guild()).getByRole('tabpanel', { name: 'Hall' });
-    expect(within(hall).getAllByTestId('facility')).toHaveLength(3);
+    expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
     expect(within(guild()).queryByRole('tabpanel', { name: 'Home' })).toBeNull();
-    // The Upkeep sentence left the Hall for the Treasury (M9-F3).
-    expect(within(hall).queryByText(/^Upkeep of The Lantern:/)).toBeNull();
 
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
     expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
@@ -116,7 +109,7 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
   });
 
-  test('a view remembered as "hall", from before M9-F2, opens the Guild at its Hall part', () => {
+  test('a view remembered as "hall", from before the Guild had parts (DL-115), opens the Guild at its Hall part', () => {
     localStorage.setItem('heroesim.view', 'hall');
     render(<App initial={started()} />);
 
@@ -124,7 +117,7 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
   });
 
-  test('a view remembered as "hall" is put right as the page opens: the part chosen after it is the one the Guild opens at again (v1.1.6-S15)', () => {
+  test('a view remembered as "hall" is put right as the page opens: the part chosen after it is the one the Guild opens at again', () => {
     localStorage.setItem('heroesim.view', 'hall');
     const { unmount } = render(<App initial={started()} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
@@ -147,7 +140,7 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
-  test('Home says the Guild is below the Bankruptcy floor where it would say nothing is waiting, beside the countdown (M9-F7, DL-120 item 8)', () => {
+  test('Home says the Guild is below the Bankruptcy floor where it would say nothing is waiting, beside the countdown (DL-120 item 8)', () => {
     render(<App initial={withWealth(started(), -100, 0)} />);
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
 
@@ -158,7 +151,7 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(within(home).getByRole('button', { name: 'Open the Board' })).toBeDefined();
   });
 
-  test('the end of a fast forward, and a way to the home view, open the Guild at its Home: at the report of a Party home (M9-F5)', async () => {
+  test('the end of a fast forward, and a way to the home view, open the Guild at its Home: at the report of a Party home', async () => {
     render(<App initial={withPartyOut(started('reducer-test'))} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
 

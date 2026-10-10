@@ -8,20 +8,21 @@ import { machine, print, reportPath, writeReport } from './report.js';
 import { addCommand, jsonPathOf, runReport, writeRunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { runSettings, settingsSet } from './settings.js';
-import { playReport, sweepPlayInParallel } from './sweep.js';
+import { playReport } from './play-report.js';
+import { sweepPlayInParallel } from './sweep.js';
 
-// The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
+// The milestone's harness run (DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
 // M6's, DL-69; M8's, the first build's tagged run with HEROESIM_SEEDS=1000, DL-81), collected only
 // by the harness-run project, which exists when HEROESIM_HARNESS is set (`npm run harness`): play
 // the games the run's settings name (`settings.ts`: 200 by default, INPUTS 4.13) from `seed-0001`
 // onward for 20 years or to their ending, under the automatic policy, the core content and
 // `defaultConfig`, shared among child processes; with HEROESIM_VALIDATE=1, validate after every
-// advance; check M6-S3's harness assertion, that no `hero.transferred` names the player's Guild;
+// advance; check the harness assertion (DL-69), that no `hero.transferred` names the player's Guild;
 // replay the first seed and compare the two games byte for byte; and write the counters and measures
-// to harness/reports/<milestone>-<date>.md and its JSON beside it (v1.1.6-S2). Run only when no probe
+// to harness/reports/<milestone>-<date>.md and its JSON beside it. Run only when no probe
 // and no module is named: those runs are their own.
 //
-// Under a profile (`npm run harness -- gate <milestone>` or `neutral`, v1.1.6-S2, DL-186 items 13
+// Under a profile (`npm run harness -- gate <milestone>` or `neutral`, DL-186 items 13
 // and 30) the run checks itself against `harness/gate.json`, line by line, and its fingerprint
 // against `--expect` when given; it prints each line's verdict, writes them into both reports, and
 // on a pass prints the `git add -f` line that commits them (DL-186 item 28).
@@ -39,7 +40,7 @@ test.runIf(run !== null)(`${seeds.length} games of ${run?.years ?? 0} years play
   const startedAt = new Date();
   const drafted = drafts === null ? null : loadDrafts(drafts);
   const content = drafted?.content ?? loadContent();
-  // Every setting checked before any game, a bad one refused by name (v1.1.6-S7, DL-193).
+  // Every setting checked before any game, a bad one refused by name (DL-193).
   const deps: EngineDeps = { config: runConfig(configured), content };
   const policy = { ...defaultPolicyConfig, ...policyChanged };
 

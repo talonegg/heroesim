@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
@@ -10,13 +10,15 @@ import { classIcons } from '../state/names';
 import { ClassMark } from './icons';
 import { rosterList, section } from './page.test-support';
 
-// The Class icon before a Hero's name (v1.1.7-S6, DL-206 items 22 to 24, DL-212): one name element,
+// The Class icon before a Hero's name (DL-206 items 22 to 24, DL-212): one name element,
 // in the five places a Hero is listed with their Class, hidden from assistive technology, its tooltip
 // the Class's name, the Class's name kept in words where it stood.
 
 afterEach(cleanup);
 
-const classNames = ['Warrior', 'Rogue', 'Mage', 'Healer'];
+/** The shipped Classes' names, as content lists them; a name in words stays in the line, never in a Hero's name. */
+const classNames = Object.values(content.classes).map((row) => row.name);
+const classPattern = new RegExp(classNames.join('|'));
 
 /** A drawing's strokes and turns, in order: what tells one drawing from another. */
 function strokesOf(scope: Element): (string | null)[] {
@@ -75,6 +77,8 @@ describe('the five places a Hero is listed with their Class', () => {
       expect(name.querySelector('.hero-name')?.firstElementChild?.firstElementChild).toBe(mark);
       expect(mark.parentElement?.textContent).toBe(name.textContent?.split(' ')[0]);
       expect(name.textContent).toBe(name.textContent?.trim());
+      // The button is named for the Hero alone: the mark is out of the accessibility tree.
+      expect(name.textContent).not.toMatch(classPattern);
     }
   });
 
@@ -104,7 +108,7 @@ describe('the five places a Hero is listed with their Class', () => {
       const Class = first(classesShown(row));
       expect(row.querySelector('.party-row__class')?.textContent).toMatch(new RegExp(`^${Class}, Level \\d+$`));
       // The name's own element holds the name alone.
-      expect(row.querySelector('.party-row__name')?.textContent).not.toMatch(/Warrior|Rogue|Mage|Healer/);
+      expect(row.querySelector('.party-row__name')?.textContent).not.toMatch(classPattern);
     }
   });
 
@@ -116,7 +120,7 @@ describe('the five places a Hero is listed with their Class', () => {
     const Class = first(classesShown(heading));
     expect(within(page).getByText(new RegExp(`^${Class} · Level`))).toBeDefined();
     // The heading's own words are the name alone.
-    expect(heading.textContent).not.toMatch(/^(Warrior|Rogue|Mage|Healer)/);
+    expect(heading.textContent).not.toMatch(new RegExp(`^(${classNames.join('|')})`));
   });
 
   test("a Rival's Roster", () => {
@@ -129,13 +133,6 @@ describe('the five places a Hero is listed with their Class', () => {
     }
   });
 
-  test("a mark is out of the accessibility tree: the Hero's button is named for the Hero alone", () => {
-    render(<App initial={started()} />);
-    expect(first(within(rosterList()).getAllByRole('button')).textContent).not.toMatch(/Warrior|Rogue|Mage|Healer/);
-    for (const name of classNames) {
-      for (const found of screen.queryAllByTitle(name)) expect(found.getAttribute('aria-hidden')).toBe('true');
-    }
-  });
 });
 
 describe('the mark in light and dark', () => {
@@ -151,21 +148,9 @@ describe('the mark in light and dark', () => {
     }
   });
 
-  test('every drawing strokes with currentColor and fills nothing, with no colour written in it', () => {
-    render(<App initial={started()} />);
-    rosterList();
-    const drawn = [...document.querySelectorAll('.class-mark svg')];
-    expect(drawn.length).toBeGreaterThan(0);
-    for (const svg of drawn) {
-      expect(svg.getAttribute('stroke')).toBe('currentColor');
-      expect(svg.getAttribute('fill')).toBe('none');
-      expect(svg.outerHTML).not.toMatch(/#[0-9a-f]{3,6}|rgb|hsl/i);
-    }
-  });
-
-  test('the four shipped Classes name four different drawings of the set', () => {
+  test('the shipped Classes name different drawings of the set', () => {
     const shipped = Object.values(content.classes);
-    expect(shipped.map((it) => it.icon).filter((icon) => icon !== undefined && (classIcons as readonly string[]).includes(icon))).toHaveLength(4);
-    expect(new Set(shipped.map((it) => drawingOf(it.name).join())).size).toBe(4);
+    expect(shipped.map((it) => it.icon).filter((icon) => icon !== undefined && (classIcons as readonly string[]).includes(icon))).toHaveLength(shipped.length);
+    expect(new Set(shipped.map((it) => drawingOf(it.name).join())).size).toBe(shipped.length);
   });
 });

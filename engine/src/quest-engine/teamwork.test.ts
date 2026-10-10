@@ -15,7 +15,7 @@ import {
 } from '../world.test-support.js';
 import { teamwork } from './teamwork.js';
 
-// M4-S4: the teamwork scalar M4-S2's Check multiplies capability by (DL-42's seam, DL-46): 1 plus
+// The teamwork scalar the Check multiplies capability by (DL-42's seam, DL-46): 1 plus
 // `teamworkRange` times the Party's mean pairwise Relationship as a share of the scale's reach. The
 // config values these tests rely on are pinned.
 
@@ -88,7 +88,7 @@ describe('teamwork', () => {
 });
 
 describe('the Check with teamwork', () => {
-  // M4-S4's third box.
+  // The third acceptance box.
   test('a close Party out-scores a hostile one on identical Stats, with variance 0', () => {
     const { world, heroes } = party('close-and-hostile', 4);
     const [a, b, c, d] = heroes as [Hero, Hero, Hero, Hero];

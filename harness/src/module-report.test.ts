@@ -1,17 +1,15 @@
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
+import { coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { coreCounters, counterDeltas, moduleReport, nightsPlayed } from './module-report.js';
 import { fixed, machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { sweepFingerprint, sweepPlay, sweepTotals, type SweepTotals } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import type { SweepTotals } from './game-counters.js';
+import { sweepFingerprint, sweepPlay } from './sweep.js';
 
-// M8-S3 (DL-78): the report of a module run, on two short sweeps of the same seeds.
+// DL-78: the report of a module run, on two short sweeps of the same seeds.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
 const seeds = seedNames(2);
 
 describe('coreCounters', () => {
@@ -26,7 +24,7 @@ describe('coreCounters', () => {
       ],
       moduleEvents: { 'probe.fired': 9 },
       moduleEffects: { probe: { 'hero.injured': 9 } },
-      // v1.1.6-S17 (DL-203): the copy's time differs between two runs of one game, so `compare` leaves it out.
+      // DL-203: the copy's time differs between two runs of one game, so `compare` leaves it out.
       worlds: [{ characters: [10], heroes: { live: [1], writeOnce: [1] }, copyMs: [1.5] }],
     } as unknown as SweepTotals;
 
@@ -61,9 +59,11 @@ test('nightsPlayed counts the nights among Turns 1 to n, Turn 2 the first', () =
   expect([0, 1, 2, 3, 4, 5, 6, 60].map(nightsPlayed)).toEqual([0, 0, 1, 1, 1, 2, 2, 20]);
 });
 
+// No replay: the report prints none, and no test reads one.
+const installed = await sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true, replay: false });
+const without = await sweepPlay(seeds, deps, { years, validate: true, replay: false });
+
 describe('moduleReport', () => {
-  const installed = sweepPlay(seeds, { ...deps, modules: [createProbe({ probeFireBelow: 1 })] }, { years, validate: true });
-  const without = sweepPlay(seeds, deps, { years, validate: true });
   const context = { deps, moduleIds: ['probe'], machine: machine(), startedAt: new Date(2026, 8, 27, 12, 0, 0) };
   const report = moduleReport(installed, without, context);
 
@@ -103,8 +103,17 @@ describe('moduleReport', () => {
     expect(report).toContain('| Games the validator refused | 0 | 0 |');
   });
 
+  test("names each sweep's replay, identical or not, and a dash for a sweep that played none", () => {
+    const replay = { seed: 'seed-0001', identical: true, length: 1, advance: installed.advance };
+    const replayed = moduleReport({ ...installed, replay }, { ...without, replay: { ...replay, identical: false } }, context);
+    const row = "| Byte equality, one seed played once more, alone, against its shard's record |";
+
+    expect(replayed).toContain(`${row} \`seed-0001\`: identical | \`seed-0001\`: DIFFERENT |`);
+    expect(report).toContain(`${row} — | — |`);
+  });
+
   test('refuses two sweeps of different seeds', () => {
-    const other = sweepPlay(seedNames(1), deps, { years });
+    const other = { ...without, seeds: ['seed-0001'], games: without.games.slice(0, 1) };
 
     expect(() => moduleReport(installed, other, context)).toThrow(RangeError);
   });

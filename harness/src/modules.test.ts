@@ -1,8 +1,6 @@
-import { loadContent } from '@heroesim/content/node';
 import {
   advance,
   createWorld,
-  defaultConfig,
   isModuleEvent,
   probe,
   type EngineDeps,
@@ -12,19 +10,18 @@ import {
 } from '@heroesim/engine';
 import { createProbe } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { countGame, effectEventTypes, moduleCounters } from './counters.js';
+import { effectEventTypes, moduleCounters } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { coreDeps as deps, countGame, twentyDays as years } from './harness.test-support.js';
 import { harnessModules, idsOf, modulesFor } from './modules.js';
 import { playGame } from './play.js';
 import { runShard } from './shard.js';
 import { seedNames } from './seeds.js';
-import { sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { sweepTotals } from './counter.js';
+import { sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
 
-// M8-S3 (DL-78): the modules a harness run installs, their counters, and a sweep with them.
+// DL-78: the modules a harness run installs, their counters, and a sweep with them.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-const years = 60 / deps.config.turnsPerYear;
 
 describe("the harness's modules", () => {
   test('are known by id', () => {
@@ -118,9 +115,10 @@ describe("the modules' counters (M8, DL-78)", () => {
   });
 });
 
+const seeds = seedNames(2);
+const sweep = await sweepPlay(seeds, { ...deps, modules: [probe] }, { years, validate: true });
+
 describe('a sweep with a module installed', () => {
-  const seeds = seedNames(2);
-  const sweep = sweepPlay(seeds, { ...deps, modules: [probe] }, { years, validate: true });
 
   test('plays with the probe: its slice in every save, the counters summed, the replay identical', () => {
     expect(sweep.games.every((game) => game.invalid === null && game.refusals.length === 0 && game.measures.roundTrips)).toBe(true);
@@ -130,22 +128,31 @@ describe('a sweep with a module installed', () => {
     expect(totals.moduleEvents).toEqual(fired === 0 ? {} : { 'probe.fired': fired });
   });
 
+  // Not validated, as a sweep is unless asked: a module run's child validates nothing by default.
   test('a child process installs the module its job names and plays the same games', { timeout: 120_000 }, async () => {
-    const parallel = await sweepPlayInParallel(seeds, { ...deps, modules: [probe] }, { years, validate: true, workers: 2 });
+    const parallel = await sweepPlayInParallel(['seed-0001'], { ...deps, modules: [probe] }, { years, workers: 1, replay: false });
     const played = (of: PlaySweep) => of.games.map(({ seed, counters, measures }) => ({ seed, counters, fingerprint: measures.fingerprint }));
 
-    expect(played(parallel)).toEqual(played(sweep));
-    const shard = runShard({ seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: sweep.policy, modules: ['probe'] });
-    expect(shard.games[0]?.measures.fingerprint).toBe(sweep.games[0]?.measures.fingerprint);
+    expect(played(parallel)).toEqual(played(sweep).slice(0, 1));
+    expect(parallel.validated).toBe(false);
+    expect(parallel.validation.count).toBe(0);
   });
 
-  // It plays the sweep again in this process: 0.6 s alone, and over 5 s under the whole suite's load
-  // from v1.1.4-S10's content, so it is given its time as DL-164 gave the long tests theirs (DL-166).
-  test('differs from the same seeds with no module, whose saves hold no slice', { timeout: 60_000 }, () => {
-    const none = sweepPlay(seeds, deps, { years });
-    const fingerprints = (of: PlaySweep) => of.games.map((game) => game.measures.fingerprint);
+  test('differs from the same seed with no module, whose save holds no slice', async () => {
+    const none = await sweepPlay(['seed-0001'], deps, { years, replay: false });
 
-    expect(fingerprints(none)).not.toEqual(fingerprints(sweep));
+    expect(none.games[0]?.measures.fingerprint).not.toBe(sweep.games[0]?.measures.fingerprint);
+  });
+
+  // The child's own code, `runShard`, in this process, where coverage reads it: one Turn is enough
+  // for the module's slice to be in the save.
+  test('a shard installs the modules its job names', async () => {
+    const job = { seeds: ['seed-0001'], config: deps.config, years: 1 / deps.config.turnsPerYear, validate: false, policy: sweep.policy };
+    const installed = await runShard({ ...job, modules: ['probe'] });
+    const none = await runShard(job);
+
+    expect(installed.games[0]?.turnsPlayed).toBe(1);
+    expect(installed.games[0]?.measures.fingerprint).not.toBe(none.games[0]?.measures.fingerprint);
   });
 
   test("refuses, before any child starts, a module that is not the harness's own", async () => {

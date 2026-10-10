@@ -44,7 +44,7 @@ import {
 import { capitalised, listed, nameIn } from '@heroesim/words';
 import { content } from '../content';
 import { newGameRefusal, type NewGame } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { guildmasterSetupChoices, traitBudgetView, type TraitChoice } from './selectors';
 import { guildmasterStatBearsOn } from './world-views';
 
@@ -84,8 +84,8 @@ export function setupFormChoices(set: ContentSet = content, config: GameConfig =
 }
 
 /**
- * Why the engine would refuse to start `play`, in the page's words (`rejections.ts`), or `null`
- * when it keeps the rules (M9-S7): `newGameRefusal`'s verdict, so the form says it before the click.
+ * Why the engine would refuse to start `play`, in the refusals' words (DL-240), or `null` when it
+ * keeps the rules: `newGameRefusal`'s verdict, so the form says it before the click.
  */
 export function setupRefusalWords(play: NewGame): string | null {
   const refusal = newGameRefusal(play);

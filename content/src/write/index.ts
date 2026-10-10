@@ -9,4 +9,4 @@ export { NotUndone, Undone } from './errors.js';
 export { editJson } from './json-edit.js';
 export { compact, format, formatJson } from './json-format.js';
 export { Transaction, transaction } from './transaction.js';
-export { raiseContentVersion, readContentVersion, versionPath } from './version.js';
+export { raiseContentVersion, raisedVersion, readContentVersion, versionPath } from './version.js';

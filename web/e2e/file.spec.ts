@@ -5,18 +5,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { dispatchAParty, guildmasterSetup, openView, part, playTurns, rosterList, startGame, statusBar } from './support';
 
-// The page opened from the filesystem shows its pictures (v1.1.2-S2; DL-125 item 1, the epic's gate),
+// The page opened from the filesystem shows its pictures (DL-125 item 1, the epic's gate),
 // in a Playwright project of its own: the built page, `dist/index.html`, over file://. Its Silhouettes,
-// inlined into the one script, load; and since v1.1.2-S4 the owner's two pictures are hashed files
-// beside the script, which the bundle gate passes, and a relative `<img>` the script made loads one,
-// on the new-game form and on the Guildmaster view. v1.1.2-S2 built the page again with a test
-// picture to see this before any picture existed; the owner's pictures take its place (DL-131). Since
-// v1.1.3-S7, a thumbnail in the setup grid, a Hero's small Silhouette on the Roster, and a Rival's
-// thumbnail in the Guilds' table and Portrait on their Guild's page, each loading over file://. Since
-// v1.1.4-S11 (DL-149), a game started each way: "Choose myself", the grid shown for each sex chosen, and
-// "Choose for me", the Guildmaster the preview shows the one the game begins with. Since v1.1.4-S14 (the
-// epic's Gate, "The page opens from `file://`"), a Quest sent there through the Party builder and its
-// Party brought home, its report giving each Encounter's Degree.
+// inlined into the one script, load; the owner's pictures are hashed files beside the script, which
+// the bundle gate passes (DL-131), and a relative `<img>` the script made loads one, on the new-game
+// form and on the Guildmaster view. A thumbnail in the setup grid, a Hero's small Silhouette on the
+// Roster, and a Rival's thumbnail in the Guilds' table and Portrait on their Guild's page each load
+// over file:// (DL-145). A game is started each way (DL-149): "Choose myself", the grid shown for each
+// sex chosen, and "Choose for me", the Guildmaster the preview shows the one the game begins with. By
+// the v1.1.4 epic's Gate ("The page opens from `file://`"), a Quest is sent there through the Party
+// builder and its Party brought home, its report giving each Encounter's Degree.
 
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(webDir, 'dist');
@@ -39,7 +37,7 @@ test("holds the owner's two pictures as hashed files beside the one script, and 
   expect(scripts).toHaveLength(1);
   expect(assets.filter((file) => /^gm-female-01-[\w-]{8}\.webp$/.test(file))).toHaveLength(1);
   expect(assets.filter((file) => /^gm-male-01-[\w-]{8}\.webp$/.test(file))).toHaveLength(1);
-  // Whatever pictures come later, everything beside the script is a hashed picture (v1.1.2-S6).
+  // Whatever pictures come later, everything beside the script is a hashed picture.
   expect(assets.filter((file) => !scripts.includes(file) && !/-[\w-]{8}\.webp$/.test(file))).toEqual([]);
   const gated = spawnSync(process.execPath, [gate, dist], { encoding: 'utf8' });
   expect(gated.stdout).toContain('no network or filesystem reference');
@@ -51,7 +49,7 @@ test("the built page, opened from the filesystem, loads its Silhouettes from its
   await opened(page, errors);
 
   // On the new-game form, with "Choose myself", each sex's pictures offered for the Portrait as thumbnails,
-  // from the folder beside the page (v1.1.3-S7: the setup grid shows the sex chosen's).
+  // from the folder beside the page (the setup grid shows the sex chosen's).
   const setup = await guildmasterSetup(page);
   const portrait = setup.getByRole('group', { name: 'Portrait', exact: true });
   await expect(portrait.getByTestId('portrait-unsexed')).toBeVisible();
@@ -87,8 +85,8 @@ test("the built page, opened from the filesystem, loads its Silhouettes from its
   await expect(small).toHaveAttribute('src', /^data:image\/svg\+xml,/);
   await expect.poll(() => loaded(small)).toBe(true);
 
-  // A Rival's Guildmaster with a picture chosen for them (v1.1.3-S5): their thumbnail in the Guilds'
-  // table, then their Portrait on their Guild's page, each from beside the page (v1.1.3-S7).
+  // A Rival's Guildmaster with a picture chosen for them: their thumbnail in the Guilds'
+  // table, then their Portrait on their Guild's page, each from beside the page.
   const guilds = await part(page, 'Guilds');
   const pictured = guilds.locator('[data-testid="guild-row"]:not(.mine)').filter({ has: page.locator('[data-testid="portrait-thumb"] img[data-picture="picture"]') });
   const row = pictured.first();
@@ -142,7 +140,7 @@ test('the built page, opened from the filesystem, starts a game with "Choose for
   expect(errors).toEqual([]);
 });
 
-test('the built page, opened from the filesystem, sends a Party on a Quest and brings it home to its report (v1.1.4-S14)', async ({ page }) => {
+test('the built page, opened from the filesystem, sends a Party on a Quest and brings it home to its report', async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
   await opened(page, errors);
@@ -155,7 +153,7 @@ test('the built page, opened from the filesystem, sends a Party on a Quest and b
   await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
   const report = page.getByRole('region', { name: `Quest report: ${quest}`, exact: true });
   await expect(report.getByRole('heading', { level: 4 }).first()).toHaveText('Encounters');
-  // Each Encounter's sentence names its Degree (v1.1.4-S2).
+  // Each Encounter's sentence names its Degree.
   const encounters = report.locator('.report__list > li');
   expect(await encounters.count()).toBeGreaterThan(0);
   for (const line of await encounters.allTextContents()) expect(line).toMatch(/Triumph|Success|Setback|Failure/);

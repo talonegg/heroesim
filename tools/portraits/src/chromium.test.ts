@@ -10,7 +10,7 @@ import { picturePaths, readRegistry } from './registry.js';
 import { noisePng, root } from './test-support.js';
 import { webpSize } from './webp.js';
 
-// Conversion and the fingerprint in Chromium, on the pictures committed (v1.1.3-S2), so CI proves
+// Conversion and the fingerprint in Chromium, on the pictures committed, so CI proves
 // them without the owner's 40, which owner.test.ts reads where they are. Chromium is Playwright's
 // (`npx playwright install chromium`), as the page's specs use; without it these are skipped.
 
@@ -121,7 +121,7 @@ describe.skipIf(!chromiumInstalled())('in Chromium', () => {
       expect(err).toContain('its picture would overwrite it; give --out <dir>');
     });
 
-    test('convert will not write over its source whatever the case of its extension, nor two sources to one picture (v1.1.3-S8)', async () => {
+    test('convert will not write over its source whatever the case of its extension, nor two sources to one picture', async () => {
       const source = path.join(scratch, 'upper.WEBP');
       copyFileSync(pictures[0]?.file ?? '', source);
       const before = readFileSync(source);
@@ -153,7 +153,7 @@ describe.skipIf(!chromiumInstalled())('in Chromium', () => {
       expect(json.files[0]?.nearest[1]?.similar).toBe(false);
     });
 
-    test('fingerprint of an inbox folder reads every picture in it, however deep, and names the uploads similar to each other (v1.1.3-S3)', async () => {
+    test('fingerprint of an inbox folder reads every picture in it, however deep, and names the uploads similar to each other', async () => {
       // As the portrait-intake skill calls it: the inbox of a role, with its sex subfolders.
       const inbox = path.join(scratch, 'inbox', 'guildmaster');
       mkdirSync(path.join(inbox, 'male'), { recursive: true });

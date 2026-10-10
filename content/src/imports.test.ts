@@ -3,7 +3,8 @@ import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
-import * as engine from '@heroesim/engine';
+import * as engineMain from '@heroesim/engine';
+import * as engine from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import * as content from './index.js';
 import { contentDir } from './node.js';
@@ -16,11 +17,11 @@ import { contentDir } from './node.js';
 
 const root = join(contentDir, '..');
 
-/** The TypeScript files of a package's src/, tests included unless `withTests` is false. */
+/** The TypeScript files of a package's src/, tests and their support included unless `withTests` is false. */
 function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceFile }[] {
   const dir = join(root, pkg, 'src');
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
-    .filter((file) => file.endsWith('.ts') && (withTests || !file.endsWith('.test.ts')))
+    .filter((file) => file.endsWith('.ts') && (withTests || !/\.test(-support)?\.ts$/.test(file)))
     // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
     .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
     .map((file) => ({
@@ -28,6 +29,19 @@ function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceF
       ast: ts.createSourceFile(file, readFileSync(join(dir, file), 'utf8'), ts.ScriptTarget.Latest),
     }));
 }
+
+/** One ESLint over the repository's config, for the subpaths' probes below. */
+const eslint = new ESLint({ cwd: root });
+
+/** The errors ESLint reports on `code` as though it stood at `<pkg>/src/<file>`. */
+async function errorsIn(code: string, pkg: string, file: string): Promise<ESLint.LintResult['messages']> {
+  const [result] = await eslint.lintText(code, { filePath: join(root, pkg, 'src', file) });
+  return (result?.messages ?? []).filter((message) => message.severity === 2);
+}
+
+/** The errors on a probe at `<pkg>/src/<file>` that imports `x` from `specifier`. */
+const lint = (pkg: string, specifier: string, file = 'subpath-probe.ts') =>
+  errorsIn(`import { x } from '${specifier}';\nexport { x };\n`, pkg, file);
 
 /** Every import and re-export in a file: where from, and whether it carries types only. */
 function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
@@ -62,7 +76,7 @@ describe('the sources these tests read', () => {
     // count among the files that take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
-    writeFileSync(path, "import { x } from '@heroesim/engine';\nexport { x };\n");
+    writeFileSync(path, "import { x } from '@heroesim/engine/content';\nexport { x };\n");
     try {
       const files = sources('content').map((source) => source.file);
 
@@ -74,32 +88,64 @@ describe('the sources these tests read', () => {
   });
 });
 
-describe("content's types come from @heroesim/engine", () => {
+describe("content's types come from the engine's content entry, @heroesim/engine/content", () => {
   const engineTypes = ['ContentSet', 'Stat', 'Class', 'Skill', 'Trait', 'Background', 'Sphere', 'Names'];
 
-  test('the pure and Node entries take the ContentSet type from the engine', () => {
+  // The drivers, the Node entry, the register and each content kind (DL-243); the kinds' vocabularies, `read.ts` and `error.ts`,
+  // and the content version's, a number, take none.
+  test('the entries, the drivers and every kind take their types from the engine', () => {
     const fromEngine = sources('content', false).filter(({ ast }) =>
-      importsOf(ast).some((it) => it.from === '@heroesim/engine'),
+      importsOf(ast).some((it) => it.from === '@heroesim/engine/content'),
     );
+    const kinds = sources('content', false)
+      .map(({ file }) => file.replace(/\\/g, '/'))
+      .filter((file) => file.startsWith('kinds/') && !['kinds/read.ts', 'kinds/error.ts', 'kinds/version.ts'].includes(file));
 
-    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts']);
+    expect(kinds).toContain('kinds/traits.ts');
+    expect(fromEngine.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['node.ts', 'parse.ts', 'uses/register.ts', 'validate.ts', ...kinds].sort());
   });
 
-  test('every import of another package, tests included, is of the engine by name', () => {
+  // DL-243: content's view of the engine is its content entry; a test may also take the main entry,
+  // and the testing entry, which proves the engine's writing within the bounds content proves
+  // (`kinds/descriptions.test.ts`, DL-248).
+  test("every import of another package is of the engine's content entry by name, a test's of the engine and its testing entry too", () => {
     for (const { file, ast } of sources('content')) {
+      const allowed = file.endsWith('.test.ts')
+        ? ['@heroesim/engine/content', '@heroesim/engine', '@heroesim/engine/testing']
+        : ['@heroesim/engine/content'];
       for (const it of importsOf(ast).filter((each) => each.from.startsWith('@heroesim/'))) {
-        expect({ file, from: it.from }).toEqual({ file, from: '@heroesim/engine' });
+        expect(allowed, `${file} imports ${it.from}`).toContain(it.from);
       }
     }
   });
 
-  // DL-186 item 6 (v1.1.6-S5): content may take the engine's values, so it repeats none of them.
-  test("takes the engine's values too: the parser, the checks and the register of a Trait's uses import some", () => {
+  test("ESLint lets a test take the engine's testing entry, and refuses it to content's own code", { timeout: 30_000 }, async () => {
+    expect(await lint('content', '@heroesim/engine/testing', 'subpath-probe.test.ts')).toEqual([]);
+    const errors = await lint('content', '@heroesim/engine/testing');
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
+  });
+
+  // DL-186 item 6: content may take the engine's values, so it repeats none of them.
+  test("takes the engine's values too: the kinds that read or check by its lists, and the register of a Trait's uses import some", () => {
     const withValues = sources('content', false).filter(({ ast }) =>
-      importsOf(ast).some((it) => it.from === '@heroesim/engine' && !it.typeOnly),
+      importsOf(ast).some((it) => it.from === '@heroesim/engine/content' && !it.typeOnly),
     );
 
-    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual(['parse.ts', 'uses/register.ts', 'validate.ts']);
+    expect(withValues.map(({ file }) => file.replace(/\\/g, '/')).sort()).toEqual([
+      'kinds/classes.ts',
+      'kinds/descriptions.ts',
+      'kinds/dispositions.ts',
+      'kinds/encounters.ts',
+      'kinds/improvements.ts',
+      'kinds/items.ts',
+      'kinds/names.ts',
+      'kinds/portraits.ts',
+      'kinds/quest-templates.ts',
+      'kinds/synergies.ts',
+      'kinds/trait-effects.ts',
+      'uses/register.ts',
+    ]);
   });
 
   test('content declares none of those types itself', () => {
@@ -113,7 +159,7 @@ describe("content's types come from @heroesim/engine", () => {
   });
 });
 
-// The copies DL-186 item 6 retired (v1.1.6-S5): content's own sources write out none of the engine's
+// The copies DL-186 item 6 retired: content's own sources write out none of the engine's
 // lists, as an array of its members or a table keyed by them, and its entry exports no name the
 // engine exports, as `descriptionBounds` and the Biography's Trait sentence counts once were.
 describe("content repeats none of the engine's values", () => {
@@ -121,7 +167,7 @@ describe("content repeats none of the engine's values", () => {
     encounterKinds: engine.encounterKinds,
     facilityKeys: engine.facilityKeys,
     gearSlotKeys: engine.gearSlotKeys,
-    descriptiveAttributes: engine.descriptiveAttributes,
+    descriptiveAttributes: engineMain.descriptiveAttributes,
     sexes: engine.sexes,
     degrees: engine.degrees,
     purchaseSteps: engine.purchaseSteps,
@@ -162,7 +208,7 @@ describe("content repeats none of the engine's values", () => {
   });
 
   test('the entry exports no name the engine exports', () => {
-    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name))).toEqual([]);
+    expect(Object.keys(content).filter((name) => Object.hasOwn(engine, name) || Object.hasOwn(engineMain, name))).toEqual([]);
   });
 });
 
@@ -189,22 +235,14 @@ describe('the TypeScript project references', () => {
   });
 });
 
-// Content's Node entry is one of the two subpaths any package exports (M1-S4, DL-14 item 7); the
-// other is its register of a Trait's uses, below (v1.1.4-S12).
+// Content's Node entry is one of the two subpaths any package exports (DL-14 item 7); the
+// other is its register of a Trait's uses, below.
 describe('@heroesim/content/node', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', file),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['cli', 'harness'])('may be imported by %s, which runs on Node', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/node')).toEqual([]);
   });
 
-  // M7-S1: web's tests compare the bundled content with the Node entry's (DL-64).
+  // Web's tests compare the bundled content with the Node entry's (DL-64).
   test.each(['subpath-probe.test.ts', 'subpath-probe.test.tsx'])(
     "may be imported by web's tests, which run on Node (%s)",
     async (file) => {
@@ -232,17 +270,9 @@ describe('@heroesim/content/node', { timeout: 30_000 }, () => {
   });
 });
 
-// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14), content's second subpath, is the tools':
+// The register of a Trait's uses (DL-150 item 14), content's second subpath, is the tools':
 // the game never imports it, so no byte of it is in the page's script.
 describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string) => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', 'subpath-probe.ts'),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/uses')).toEqual([]);
   });
@@ -259,17 +289,9 @@ describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
   });
 });
 
-// The tools' write module (v1.1.6-S4, DL-186 item 14), content's third subpath: Node's, and the tools'
+// The tools' write module (DL-186 item 14), content's third subpath: Node's, and the tools'
 // alone, so no byte of it is in the page's script and no front end or the harness writes content.
 describe('@heroesim/content/write', { timeout: 30_000 }, () => {
-  const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
-    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', file),
-    });
-    return (result?.messages ?? []).filter((message) => message.severity === 2);
-  };
-
   test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/write')).toEqual([]);
   });
@@ -288,10 +310,8 @@ describe('@heroesim/content/write', { timeout: 30_000 }, () => {
 
   test('may use Node, as the Node entry may, where the rest of content may not', async () => {
     const node = "import { readFileSync } from 'node:fs';\nexport const x = readFileSync;\n";
-    const [write] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'write', 'subpath-probe.ts') });
-    const [pure] = await eslint.lintText(node, { filePath: join(root, 'content', 'src', 'subpath-probe.ts') });
-    expect((write?.messages ?? []).filter((message) => message.severity === 2)).toEqual([]);
-    expect((pure?.messages ?? []).filter((message) => message.severity === 2)).toHaveLength(1);
+    expect(await errorsIn(node, 'content', 'write/subpath-probe.ts')).toEqual([]);
+    expect(await errorsIn(node, 'content', 'subpath-probe.ts')).toHaveLength(1);
   });
 
   test('is no export of the pure entry, which the page imports', () => {

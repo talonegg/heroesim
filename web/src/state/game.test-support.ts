@@ -1,30 +1,31 @@
-// Games in a given state, for the page's tests (M7-S3 part 2, DL-73). Tests outside `state/` take
-// only types from the engine (M7-S2's import check), so the setups that need its values live here:
-// a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead, retired
-// and gone from the world (DL-74); the Roster released, and a Party out, for fast forward's steps
-// (v1.0.1-S5, DL-96). Never imported by the page, so never bundled.
+// Games in a given state, for the page's tests (DL-73). Tests outside `state/` take
+// only types from the engine, so the setups that need its values live here:
+// a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead and
+// retired (DL-74); the Roster released, and a Party out, for fast forward's steps (DL-96); and the
+// helpers the state tests share. Never imported by the page, so never bundled.
 
 import {
+  bestParties,
   addStack,
+  advance,
   applyAction,
   availableHeroes,
   configVersion,
+  createWorld,
   dayOf,
   defaultConfig,
   durationDaysOf,
   estimateQuest,
   holdings,
-  isId,
   isMilestone,
   offeredQuests,
-  parseId,
   playerGuild,
   type ConsumableRequest,
+  type ConsumableUse,
   type Degree,
   type EncounterOutcome,
-  type EngineEventOf,
-  type EngineEventType,
-  type EntityId,
+  type EncounterResult,
+  type EngineEvent,
   type FormDecided,
   type Guild,
   type Hero,
@@ -40,11 +41,13 @@ import {
   type QuestId,
   type QuestTemplateKey,
   type RegardBand,
+  type Resolution,
   type SlotKey,
-  type StatKey,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, makeId, partyFor } from '@heroesim/engine/testing';
+import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
+import { expect } from 'vitest';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
@@ -66,15 +69,49 @@ export function started(seed = 'app-test'): GameState {
   });
 }
 
-function documentOf(state: GameState): WorldDocument {
+/** The game in hand's document; a test with no game in hand fails here. */
+export function documentOf(state: GameState): WorldDocument {
   if (state.document === null) throw new Error('no game in hand');
   return state.document;
 }
 
-function playerOf(document: WorldDocument): Guild {
+/** The player's Guild in `document`. */
+export function playerOf(document: WorldDocument): Guild {
   const guild = playerGuild(document.world);
   if (guild === undefined) throw new Error("no player's Guild");
   return guild;
+}
+
+/** An entity id, which a sentence the player reads never shows: the player types none (DL-65 item 6). */
+export const anId = /\b(guild|guildmaster|hero|patron|quest|party|offer|item|stack)-\d{6}\b/i;
+
+/** What a line of narration in the page must be: one line, a full stop, no id, nothing left unfilled. */
+export function expectASentence(line: string): void {
+  expect(line).toMatch(/^[A-Z0-9].*\.$/);
+  expect(line).not.toContain('\n');
+  expect(line).not.toMatch(/undefined|null|NaN|\[object/);
+  expect(line).not.toMatch(anId);
+}
+
+/** The new game's setup the page's tests found: The Lantern, led by Ada Vell. */
+export const newGameSetup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
+
+/** A new game's document from `seed`, as the engine creates it under the default rules and the page's content. */
+export function newDocument(seed: string): WorldDocument {
+  return createWorld(seed, newGameSetup, { config: defaultConfig, content }).document;
+}
+
+/** A new game from `seed` played `turns` Turns by the engine's `advance`, and the events of the last of them. */
+export function playedDocument(seed: string, turns: number): { document: WorldDocument; log: TurnEvent[] } {
+  const deps = { config: defaultConfig, content };
+  let document = newDocument(seed);
+  let log: TurnEvent[] = [];
+  for (let turn = 0; turn < turns; turn += 1) {
+    const result = advance(document, deps);
+    document = result.document;
+    log = result.events;
+  }
+  return { document, log };
 }
 
 /** `state` with its world changed by `change` on a copy: the document the page holds is never written to. */
@@ -87,9 +124,9 @@ export function changed(state: GameState, change: (document: WorldDocument, play
 /**
  * `state` with the player's first Hero holding the Hero Trait Lame, and a Trait they gained on a Quest
  * the History names and one they lost to Lame written to the History as the engine writes them, Milestones
- * both, at the Turn the world stands on (v1.1.4-S7): the gain as `quests-conclude.ts` emits it, naming the
+ * both, at the Turn the world stands on: the gain as `quests-conclude.ts` emits it, naming the
  * Hero and the Quest, the loss as `hero-state.ts` does, naming the Hero; `emit` appends the Hero's Guild
- * to each (v1.1.4-S14).
+ * to each.
  */
 export function withTraitNews(state: GameState): GameState {
   return changed(state, (document, player) => {
@@ -121,14 +158,36 @@ export function selling(state: GameState, stock: Readonly<Record<string, number>
 }
 
 /**
+ * `state` with `purchases` Whetstones bought at the Market one at a time, then `sales` of them sold one at
+ * a time, each a row of the player's ledger, a purchase an expense and a sale an income: the rows a
+ * ledger pages by, with no Turn played. The Guild is given the Wealth to buy them.
+ */
+export function withTrades(state: GameState, purchases: number, sales = 0): GameState {
+  const taken = (at: GameState, action: Play): GameState => {
+    const after = played(at, action);
+    if (after.rejection !== null) throw new Error(`${action.kind} refused: ${after.rejection.reason}`);
+    return after;
+  };
+  let next = selling(withWealth(state, 100_000), { whetstone: purchases });
+  for (let bought = 0; bought < purchases; bought += 1) next = taken(next, { kind: 'buy', definitionKey: 'whetstone', quantity: 1 });
+  for (let sold = 0; sold < sales; sold += 1) {
+    const document = documentOf(next);
+    const [stack] = holdings(document.world, { kind: 'guild', id: playerOf(document).id }).stacks.filter((each) => each.definitionKey === 'whetstone');
+    if (stack === undefined) throw new Error('no Whetstone to sell');
+    next = taken(next, { kind: 'sell', stackId: stack.id, quantity: 1 });
+  }
+  return next;
+}
+
+/**
  * The player's Guild holding one unique Item of `definitionKey` besides what it held, as Loot leaves
- * one (M5-S5): an Item of its own, which the CLI names by `--item` (M9-S8).
+ * one: an Item of its own, which the CLI names by `--item`.
  */
 export function holdingUnique(state: GameState, definitionKey: ItemDefinitionKey): GameState {
   return changed(state, (document, player) => void createItem(document.world, definitionKey, { kind: 'guild', id: player.id }));
 }
 
-/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it (M9-F3's Stores). */
+/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it. */
 export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey): GameState {
   return changed(state, (document, player) => {
     const [first] = player.rosterIds;
@@ -138,8 +197,8 @@ export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slo
 }
 
 /**
- * The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it
- * (v1.1.2-S2); or the Hero `at` that place in the order they joined (v1.1.5-S14).
+ * The player's first Hero carrying one unique Item of `definitionKey` in `slot`, as one equipped leaves it;
+ * or the Hero `at` that place in the order they joined.
  */
 export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey, at = 0): GameState {
   return changed(state, (document, player) => {
@@ -152,7 +211,7 @@ export function carryingUnique(state: GameState, definitionKey: ItemDefinitionKe
 /**
  * The player's Guild with `wealth` Wealth; and, given `belowFloorSince`, below the Bankruptcy floor
  * since that Turn, as a Guild that fell below it before the play to come: its countdown stands, and
- * no new crossing stops a fast forward (M9-S1, DL-101).
+ * no new crossing stops a fast forward (DL-101).
  */
 export function withWealth(state: GameState, wealth: number, belowFloorSince?: number): GameState {
   return changed(state, (_, player) => {
@@ -179,8 +238,8 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
 /**
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
- * comes home (or for an offer, or at the end). The Party is `partyFor`'s at the player's margin of 1,
- * the fewest the Quest allows (v1.1.4-S6), so that Heroes stay at home to staff what comes next.
+ * comes home (or for an offer, or at the end). The Party is the Best Party at the player's margin of 1,
+ * the fewest the Quest allows, so that Heroes stay at home to staff what comes next.
  */
 export function withPartyOut(state: GameState): GameState {
   const document = documentOf(state);
@@ -189,7 +248,7 @@ export function withPartyOut(state: GameState): GameState {
   const fewest = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
-      const heroIds = partyFor(document.world, playerOf(document), quest, available, fewest);
+      const heroIds = bestParties(document.world, playerOf(document), fewest).party(quest, available)?.heroIds ?? null;
       return heroIds === null ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
@@ -200,7 +259,7 @@ export function withPartyOut(state: GameState): GameState {
 }
 
 /**
- * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried` (v1.1.4-S6): for a
+ * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried`: for a
  * view's test to hold the page's chances to, since a view imports no engine value.
  */
 export function estimateOf(state: GameState, questId: QuestId, heroIds: readonly HeroId[], carried: ConsumableRequest[] = []): QuestEstimate | null {
@@ -229,21 +288,19 @@ export interface ReturningParty {
 }
 
 /**
- * What a Party's return did, as `withReturn` writes it. Each Hero is named by their place in the
- * Party, from 0; what is not told did not happen.
+ * What a Party's return did, for the engine to play (`withReturn`). Each Hero is named by their place
+ * in the Party, from 0; what is not told and the night's rules do not give did not happen.
  */
 export interface ReturnTold {
-  /** The Party: the player's one out in the world when not given. */
-  party?: ReturningParty;
-  /** The night it comes home: the Party's `returnsOnTurn` when not given. */
-  turn?: number;
+  /** The Party, out in the world and home on its own night: the player's one out when not given. */
+  party?: PartyId;
   band: QuestBand;
   wealth?: number;
   fame?: number;
   xp?: number;
   /**
-   * The Encounters, each written as before v1.1.4-S2, with no Degree, unless it is told one: then as
-   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so (v1.1.4-S3).
+   * The Encounters, each decided by its Encounter's first Check, at the Degree it is told or, told none, a
+   * Success or a Failure as its outcome (DL-152, DL-247); form decided it, and so the Encounter, when it is told so.
    */
   encounters?: readonly {
     encounterKey?: string;
@@ -255,12 +312,18 @@ export interface ReturnTold {
   }[];
   /** Consumables used, each a bonus to an Encounter's Check, or a heal of a Hero's Injury. */
   used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number })[];
+  /** The Loot the return leaves: one at most, as the Quest Engine draws. */
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
   deaths?: readonly number[];
-  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence (v1.1.4-S7). */
+  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence. */
   traits?: readonly { hero: number; traitKey: string; encounterIndex: number }[];
-  /** Morale the return moved, each change as the Hero State Engine records it; a Hero outside the Party by their id. */
+  /**
+   * Morale the return moves, each change as the Hero State Engine records it; a Hero outside the Party by
+   * their id. The first told of a Hero is their Morale before the return, and the Encounters' changes are
+   * the resolution's; a strong success's and a Death's are the engine's rules', and each told must be one
+   * the engine writes.
+   */
   morale?: readonly { hero: number | HeroId; cause: 'encounters' | 'strong-success' | 'roster-death'; before: number; after: number; bandAfter: MoraleBand }[];
   /** The Patron's Regard for the Guild crossing into a new band on the return. */
   patronRegard?: { bandBefore: RegardBand; bandAfter: RegardBand };
@@ -272,175 +335,170 @@ export interface ReturnTold {
   gear?: readonly { hero: number; definitionKey: ItemDefinitionKey; slot: SlotKey }[];
 }
 
-/** The ids a written return is read by, and the Party it was written for. */
+/** The ids a played return is read by, and the Party it was played for. */
 export interface Written {
   state: GameState;
   party: ReturningParty;
   turn: number;
 }
 
-/** The player's Party out in the world, as `withReturn` writes a return for it. */
-export function partyOut(state: GameState): ReturningParty {
+/** A Party out in the world, as `withReturn` plays a return for it: `partyId`'s, or the player's one out when not given. */
+export function partyOut(state: GameState, partyId?: PartyId): ReturningParty {
   const document = documentOf(state);
   const player = playerOf(document);
-  const party = Object.values(document.world.parties).find((each) => each.guildId === player.id);
+  const party = partyId === undefined ? Object.values(document.world.parties).find((each) => each.guildId === player.id) : document.world.parties[partyId];
   const quest = party === undefined ? undefined : document.world.quests[party.questId];
-  if (party === undefined || quest === undefined) throw new Error("no Party of the player's out");
+  if (party === undefined || quest === undefined) throw new Error(partyId === undefined ? "no Party of the player's out" : `no Party ${partyId} out`);
   return { partyId: party.id, questId: quest.id, heroIds: [...party.heroIds], patronId: quest.patronId, templateKey: quest.templateKey };
 }
 
 /**
- * `state` with a Party's return written to its History as the Quest Engine writes one
- * (`quests-conclude.ts`), then the night's Levels (`levelUps`) and a dead Hero's gear (`gearReturn`),
- * each entry completed as `emit` completes it: the Turn, the Heroes' Guild appended to the
- * participants, each named row's label, and the Milestone flag. The Party and its Quest then leave
- * the world, the dead leave the Roster, and the world stands at the night of the return. A test's
- * way to a return whose outcome it chooses: the engine's own draws rarely give a Death or a Level.
+ * `state` with a Party's return played by the engine on its night (DL-245): `told` is the Quest
+ * Engine's resolution, which the engine's own draws rarely give when a test needs a Death or a Level,
+ * and the engine applies it as `questsConclude` does, then plays the night's Levels and the dead's gear
+ * back (`playReturnNight`), every entry the engine's. The world is first set so the night's rules
+ * give what `told` says: each Hero's Morale before it, a told Level's XP, the dead's gear carried, the
+ * consumables in the Party's packs and a Regard just short of the told band. The Party and its Quest
+ * then leave the world, the dead leave the Roster, and the world stands at the night of the return.
  */
 export function withReturn(state: GameState, told: ReturnTold): Written {
-  const party = told.party ?? partyOut(state);
-  const turn = told.turn ?? documentOf(state).world.parties[party.partyId]?.returnsOnTurn;
-  if (turn === undefined) throw new Error('no night to come home on');
-  const next = changed(state, (document, player) => {
-    const { world, history } = document;
-    const config = { ...defaultConfig, ...document.meta.config };
-    const { partyId, questId, heroIds, patronId, templateKey } = party;
-    const hero = (at: number | HeroId): HeroId => (typeof at === 'number' ? (heroIds[at] as HeroId) : at);
-    const write = <Type extends EngineEventType>(type: Type, participants: readonly EntityId[], payload: EngineEventOf<Type>['payload']): void => {
-      const named = [...new Set(participants)];
-      for (const id of [...named]) {
-        const guildId = isId('heroes', id) ? world.heroes[id]?.guildId : null;
-        if (guildId !== null && guildId !== undefined && !named.includes(guildId)) named.push(guildId);
-      }
-      const labels: Record<EntityId, string> = {};
-      for (const id of named) {
-        const parsed = parseId(id);
-        const rows = parsed === null ? undefined : (world[parsed.table] as Record<string, { name?: unknown }>);
-        const name = rows !== undefined && Object.hasOwn(rows, id) ? rows[id]?.name : undefined;
-        if (typeof name === 'string') labels[id] = name;
-      }
-      append(history, { turn, type, participants: named, labels, milestone: isMilestone(type, payload), payload });
-    };
-    const guildId = player.id;
-    const deaths = (told.deaths ?? []).map(hero);
-    const survivors = heroIds.filter((id) => !deaths.includes(id));
+  return withReturns(state, [told])[0] as Written;
+}
 
-    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, degree, formDecided, injured = [], died = [] }, index) => {
-      const hurt = injured.map(hero);
-      const killed = died.map(hero);
-      const rolled = { roll: 10, target: 10, margin: 0 };
-      // Decided by the Encounter's first Check, as the resolver names it (v1.1.4-S2).
-      const decidedBy = content.encounters[encounterKey]?.checks[0]?.key ?? encounterKey;
-      write('quest.encounter', [questId, partyId, guildId, ...hurt, ...killed], {
-        questId,
-        partyId,
-        guildId,
-        index,
-        encounterKey,
-        kind: 'combat',
-        ...rolled,
-        outcome,
-        ...(degree === undefined
-          ? {}
-          : {
-              degree,
-              decidedBy,
-              ...(formDecided === undefined ? {} : { formDecided }),
-              checks: [{ key: decidedBy, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
-            }),
-        injured: hurt,
-        died: killed,
-      });
-    });
-    (told.used ?? []).forEach((use, at) => {
-      const stackId = makeId('stacks', 9000 + at);
-      if ('heal' in use) {
-        write('item.expended', [questId, partyId, guildId, hero(use.heal)], { questId, partyId, guildId, stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days });
-      } else {
-        write('item.expended', [questId, partyId, guildId], { questId, partyId, guildId, stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
+/**
+ * `state` with several Parties' returns played by the engine on their one night, each as `withReturn`
+ * plays one: the outcomes applied in Party id order, then the night's Levels and gear once, as the engine
+ * plays a night (DL-250). Each return is read by its own `Written`, all of one state.
+ */
+export function withReturns(state: GameState, tolds: readonly ReturnTold[]): Written[] {
+  const parties = tolds.map((told) => partyOut(state, told.party));
+  const turn = documentOf(state).world.parties[(parties[0] as ReturningParty).partyId]?.returnsOnTurn;
+  if (turn === undefined) throw new Error('no night to come home on');
+  let prepared = state;
+  const returns = tolds.map((told, at) => {
+    const party = parties[at] as ReturningParty;
+    const ready = preparedFor(prepared, told, party);
+    prepared = ready.state;
+    return { partyId: party.partyId, resolution: resolutionOf(told, party, turn, ready.uses) };
+  });
+  const document = documentOf(prepared);
+  const night = playReturnNight(document, returns, playDeps(document), turn);
+  tolds.forEach((told, at) => checkMorale(told, parties[at] as ReturningParty, night.events));
+  return parties.map((party) => ({ state: { ...prepared, document: night.document }, party, turn }));
+}
+
+/** A told Hero by their place in the Party, or by their id. */
+function heroOf(party: ReturningParty): (at: number | HeroId) => HeroId {
+  return (at) => (typeof at === 'number' ? (party.heroIds[at] as HeroId) : at);
+}
+
+/** `state` set so the night's rules give what `told` says of `party`'s return, and the consumables its Party used. */
+function preparedFor(state: GameState, told: ReturnTold, party: ReturningParty): { state: GameState; uses: ConsumableUse[] } {
+  const { partyId, heroIds, patronId } = party;
+  const hero = heroOf(party);
+  const deaths = (told.deaths ?? []).map(hero);
+  const uses: ConsumableUse[] = [];
+  const prepared = changed(state, (document, player) => {
+    const { world } = document;
+    const config = { ...defaultConfig, ...document.meta.config };
+    // Each Hero's Morale as the night finds it: the first change told of them starts from it.
+    for (const { hero: at, before } of [...(told.morale ?? [])].reverse()) Object.assign(world.heroes[hero(at)] as Hero, { morale: before });
+    // A told Level is reached tonight: the Level before it, and the XP that reaches it with the Quest's.
+    for (const { hero: at, level } of told.levels ?? []) {
+      const row = world.heroes[hero(at)] as Hero;
+      const gained = heroIds.includes(row.id) && !deaths.includes(row.id) ? (told.xp ?? 0) : 0;
+      row.level = level - 1;
+      row.xp = Math.max(0, xpForLevel(level, config) - gained);
+    }
+    // The dead carry the told gear, and only it.
+    for (const heroId of deaths) {
+      for (const row of [...Object.values(world.items), ...Object.values(world.stacks)]) {
+        if (row.holder.kind === 'hero' && row.holder.id === heroId) row.holder = { kind: 'guild', id: player.id };
       }
-    });
-    const encounterCount = told.encounters?.length ?? 0;
-    write('quest.resolved', [questId, partyId, ...heroIds, guildId, patronId], {
-      questId,
-      partyId,
-      guildId,
-      heroIds: [...heroIds],
-      templateKey,
+    }
+    for (const { hero: at, definitionKey, slot } of told.gear ?? []) {
+      const holder = { kind: 'hero', id: hero(at), slot } as const;
+      if (content.items[definitionKey]?.unique === true) createItem(world, definitionKey, holder);
+      else addStack(world, definitionKey, 1, holder);
+    }
+    // The consumables used, each in the Party's packs.
+    for (const use of told.used ?? []) {
+      const stackId = addStack(world, use.definitionKey, 1, { kind: 'party', id: partyId });
+      uses.push('heal' in use ? { stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days } : { stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
+    }
+    // A told crossing of Regard: the value just short of the band it moves into, or the floor of the band it leaves.
+    const shortOf = (before: RegardBand, after: RegardBand): number =>
+      config.regardBands[after] > config.regardBands[before] ? config.regardBands[after] - 0.01 : config.regardBands[before];
+    if (told.patronRegard !== undefined) {
+      const patron = world.patrons[patronId];
+      if (patron !== undefined) patron.regard[player.id] = { value: shortOf(told.patronRegard.bandBefore, told.patronRegard.bandAfter), since: 0, reason: 'test' };
+    }
+    for (const { hero: at, mate, bandBefore, bandAfter } of told.heroRegard ?? []) {
+      (world.heroes[hero(at)] as Hero).regard[hero(mate)] = { value: shortOf(bandBefore, bandAfter), since: 0, reason: 'test' };
+    }
+  });
+  return { state: prepared, uses };
+}
+
+/** The Quest Engine's resolution `told` gives of `party`'s return on the night `turn`, with the consumables it used. */
+function resolutionOf(told: ReturnTold, party: ReturningParty, turn: number, uses: readonly ConsumableUse[]): Resolution {
+  const { heroIds } = party;
+  const hero = heroOf(party);
+  const deaths = (told.deaths ?? []).map(hero);
+  const encounterKeyOf = (key: string | undefined): string => key ?? Object.keys(content.encounters)[0] ?? '';
+  const encounters = (told.encounters ?? []).map(({ encounterKey, outcome, degree = outcome, formDecided, injured = [], died = [] }, index): EncounterResult => {
+    const key = encounterKeyOf(encounterKey);
+    const rolled = { roll: 10, target: 10, margin: 0 };
+    // Decided by the Encounter's first Check, as the resolver names it.
+    const decidedBy = content.encounters[key]?.checks[0]?.key ?? key;
+    const formed = formDecided === undefined ? {} : { formDecided };
+    const checks = [{ key: decidedBy, capability: 10, ...rolled, degree, ...formed }];
+    return { index, encounterKey: key, kind: 'combat', ...rolled, outcome, degree, decidedBy, ...formed, checks, injured: injured.map(hero), died: died.map(hero) };
+  });
+  const survivors = heroIds.filter((heroId) => !deaths.includes(heroId));
+  const moraleByHero: Record<HeroId, number> = {};
+  for (const { hero: at, cause, before, after } of told.morale ?? []) {
+    if (cause === 'encounters') moraleByHero[hero(at)] = (moraleByHero[hero(at)] ?? 0) + after - before;
+  }
+  const [loot, ...more] = told.loot ?? [];
+  if (more.length > 0) throw new Error('a Quest draws one Loot');
+  return {
+    outcome: {
       band: told.band,
       successes: (told.encounters ?? []).filter((each) => each.outcome === 'success').length,
-      encounterCount,
+      encounterCount: told.encounters?.length ?? 0,
       wealthDelta: told.wealth ?? 0,
       fameDelta: told.fame ?? 0,
       xpPerHero: told.xp ?? 0,
       moraleDelta: 0,
+      moraleByHero: Object.fromEntries(survivors.filter((heroId) => moraleByHero[heroId] !== undefined).map((heroId) => [heroId, moraleByHero[heroId]])) as Record<HeroId, number>,
       regardDelta: 0,
       injuries: (told.injuries ?? []).map(({ hero: at, typeKey, healsOnTurn }) => ({ heroId: hero(at), typeKey, healDays: dayOf(healsOnTurn) - dayOf(turn) })),
       deaths,
       synergyKeys: [],
-    });
-    (told.loot ?? []).forEach(({ definitionKey, quantity }, at) => {
-      write('quest.loot', [questId, partyId, guildId], { questId, partyId, guildId, lootTableKey: 'lesser-loot', definitionKey, quantity, itemId: null, stackId: makeId('stacks', 9100 + at) });
-    });
-    for (const { hero: at, typeKey, healsOnTurn } of told.injuries ?? []) {
-      write('hero.injured', [hero(at), questId], { heroId: hero(at), questId, typeKey, healsOnTurn });
-    }
-    for (const heroId of deaths) write('hero.died', [heroId, questId], { heroId, questId });
-    for (const { hero: at, traitKey, encounterIndex } of told.traits ?? []) {
-      const encounterKey = told.encounters?.[encounterIndex]?.encounterKey ?? Object.keys(content.encounters)[0] ?? '';
-      write('hero.trait-gained', [hero(at), questId], { heroId: hero(at), traitKey, questId, encounterIndex, encounterKey });
-      world.heroes[hero(at)]?.traits.push(traitKey);
-    }
-    for (const heroId of survivors) write('hero.xp-gained', [heroId, questId], { heroId, questId, amount: told.xp ?? 0 });
-    for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
-      write('hero.morale-changed', [hero(at), questId], { heroId: hero(at), cause, questId, before, after, bandBefore: 'steady', bandAfter });
-    }
-    if (told.patronRegard !== undefined) {
-      const { bandBefore, bandAfter } = told.patronRegard;
-      const cause = told.band === 'fail' ? 'quest-failure' : 'quest-success';
-      write('patron.regard-changed', [patronId, guildId, questId], {
-        patronId,
-        guildId,
-        cause,
-        questId,
-        before: config.regardBands[bandBefore],
-        after: config.regardBands[bandAfter],
-        bandBefore,
-        bandAfter,
-      });
-    }
-    for (const { hero: at, mate, bandBefore, bandAfter } of told.heroRegard ?? []) {
-      write('hero.regard-changed', [hero(at), hero(mate), questId], {
-        heroId: hero(at),
-        entityId: hero(mate),
-        cause: 'shared-quest',
-        questId,
-        before: config.regardBands[bandBefore],
-        after: config.regardBands[bandAfter],
-        bandBefore,
-        bandAfter,
-      });
-    }
-    for (const { hero: at, level } of told.levels ?? []) {
-      write('hero.levelled', [hero(at)], { heroId: hero(at), guildId, level, statDeltas: {} as Record<StatKey, number>, pointsLost: 0 });
-    }
-    for (const { hero: at, definitionKey, slot } of told.gear ?? []) {
-      write('item.returned', [hero(at), guildId], { heroId: hero(at), guildId, slot, definitionKey, itemId: null, stackId: null, cause: 'died' });
-    }
+    },
+    encounters,
+    traits: (told.traits ?? []).map(({ hero: at, traitKey, encounterIndex }) => ({ heroId: hero(at), traitKey, encounterIndex, encounterKey: encounterKeyOf(told.encounters?.[encounterIndex]?.encounterKey) })),
+    consumables: [...uses],
+    loot: loot === undefined ? null : { lootTableKey: 'lesser-loot', definitionKey: loot.definitionKey, quantity: loot.quantity, unique: content.items[loot.definitionKey]?.unique === true },
+  };
+}
 
-    // What the night leaves in the world: the dead off the Roster, the rest home, the Party and its Quest gone.
-    for (const heroId of heroIds) {
-      const row = world.heroes[heroId];
-      if (row === undefined) continue;
-      row.partyId = null;
-      if (deaths.includes(heroId)) row.diedOnTurn = turn;
-    }
-    player.rosterIds = player.rosterIds.filter((id) => !deaths.includes(id));
-    delete world.parties[partyId];
-    delete world.quests[questId];
-    world.turn = turn;
-  });
-  return { state: next, party, turn };
+/** Each Morale change told of `party`'s return is one the engine wrote, so a test tells only a return the rules give. */
+function checkMorale(told: ReturnTold, party: ReturningParty, events: readonly EngineEvent[]): void {
+  const hero = heroOf(party);
+  for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
+    const wrote = events.some(
+      (event) =>
+        event.type === 'hero.morale-changed' &&
+        event.payload.heroId === hero(at) &&
+        event.payload.cause === cause &&
+        event.payload.before === before &&
+        event.payload.after === after &&
+        event.payload.bandAfter === bandAfter,
+    );
+    if (!wrote) throw new Error(`the engine wrote no ${cause} Morale change of ${hero(at)} from ${before} to ${after}, ${bandAfter}`);
+  }
 }
 
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */
@@ -468,7 +526,7 @@ export function withOffer(state: GameState): GameState {
 }
 
 /**
- * `state` with the World History's news to come in its first Days (M9-F4): the first Rival's
+ * `state` with the World History's news to come in its first Days: the first Rival's
  * Guildmaster at the age a Guildmaster retires, read from the game's rules, so the first night meets
  * it with Succession; and the second Rival's Roster released to the Unattached pool with no Wealth,
  * so that night it folds, its Roster wiped, and a new Rival is founded in its place later.
@@ -501,34 +559,24 @@ export interface Named {
 
 /**
  * `state` with the player's first Hero dead and second retired, each off the Roster as the engine
- * leaves them, and a Hero of the Unattached pool gone from the world, whose History alone remains,
- * as it does for a Hero who left the pool: the Heroes the page opens from no Roster and no pool.
+ * leaves them: the Heroes the page opens from no Roster and no pool. A Hero gone from the world is
+ * none a current game holds: the engine deletes only a Hero no entry names (DL-211).
  */
-export function withTheGone(state: GameState): { state: GameState; dead: Named; retired: Named; gone: Named } {
+export function withTheGone(state: GameState): { state: GameState; dead: Named; retired: Named } {
   let dead: Named | undefined;
   let retired: Named | undefined;
-  let gone: Named | undefined;
   const next = changed(state, (document, player) => {
     const { world } = document;
     const [deadId, retiredId] = player.rosterIds;
     const deadHero = deadId === undefined ? undefined : world.heroes[deadId];
     const retiredHero = retiredId === undefined ? undefined : world.heroes[retiredId];
-    const poolHero = Object.values(world.heroes).find((hero) => hero.unattachedSince !== null);
-    if (deadHero === undefined || retiredHero === undefined || poolHero === undefined) throw new Error('expected two Heroes and a pool');
+    if (deadHero === undefined || retiredHero === undefined) throw new Error('expected two Heroes');
     deadHero.diedOnTurn = world.turn;
     retiredHero.retiredOnTurn = world.turn;
     player.rosterIds = player.rosterIds.filter((id) => id !== deadHero.id && id !== retiredHero.id);
-    // Gone from the world as a save made before DL-211 holds a pool Hero who left: named by their
-    // arrival and leaving alone, which the engine records for no Hero never hired (DL-211).
-    const { id, name, classKey } = poolHero;
-    const labels = { [id]: name };
-    append(document.history, { turn: world.turn, type: 'hero.generated', participants: [id], labels, milestone: false, payload: { heroId: id, guildId: null, classKey } });
-    append(document.history, { turn: world.turn, type: 'hero.left-pool', participants: [id], labels, milestone: false, payload: { heroId: id } });
-    delete world.heroes[poolHero.id];
     dead = { id: deadHero.id, name: deadHero.name };
     retired = { id: retiredHero.id, name: retiredHero.name };
-    gone = { id: poolHero.id, name: poolHero.name };
   });
-  if (dead === undefined || retired === undefined || gone === undefined) throw new Error('unreachable');
-  return { state: next, dead, retired, gone };
+  if (dead === undefined || retired === undefined) throw new Error('unreachable');
+  return { state: next, dead, retired };
 }

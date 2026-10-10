@@ -287,16 +287,18 @@ export interface Guildmaster {
   traits: TraitKey[];
   /**
    * The descriptive Attributes (R8, DL-100 item 3, DL-102): texts no rule reads, which the player
-   * may write for their Guildmaster at setup, stored trimmed; `''` when none was written, as for
-   * every drawn Guildmaster. At most `descriptiveAttributeMaxLength` characters each.
+   * may write for their Guildmaster at setup, stored trimmed; each left blank, for every Guildmaster,
+   * is written from content as they enter play (`describeBlanks`, DL-125 item 6, DL-132). At most
+   * `descriptiveAttributeMaxLength` characters each.
    */
   birthplace: string;
   appearance: string;
   biography: string;
   /**
-   * The picture the Guildmaster's Portrait shows (v1.1.2-S3, DL-125 items 3 and 4): a Guildmaster
-   * picture of their sex in content, chosen at setup or drawn from the `gm-portraits` stream; `null` for
-   * the Silhouette of their sex, as every Rival's Guildmaster, founding or a successor, has.
+   * The picture the Guildmaster's Portrait shows (DL-125 item 3): a Guildmaster picture of their sex
+   * in content, the player's choice at setup, else chosen to fit them on `gm-portraits` as they enter
+   * play, as every Rival's Guildmaster's is (`givePortrait`; DL-134 item 5, DL-144); `null` for the
+   * Silhouette of their sex, where none fits or every one that fits is in use.
    */
   portraitKey: PortraitKey | null;
   /**
@@ -423,8 +425,9 @@ export interface Quest {
   fameEffect: number;
   /** durationDays × 3, from the template's range. */
   durationTurns: number;
+  /** The template's Skills, kept with the row; the Checks read their Encounters' Skills (DL-42, DL-248). */
   skillKeys: SkillKey[];
-  /** Drawn at generation from M4; empty before. */
+  /** Drawn at generation, in the order met: one or more, which the validator holds (DL-248). */
   encounterKeys: EncounterKey[];
   requirements: QuestRequirements;
   lootTableKey: LootTableKey | null;

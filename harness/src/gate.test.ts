@@ -1,23 +1,23 @@
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, type EngineDeps } from '@heroesim/engine';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { estimateMoraleTolerance, estimateTolerance } from './estimate.js';
-import { checkGate, gatePrinted, gateSection, gateSpecProblems, parseGateSpec, readGateSpec, type GateSpec } from './gate.js';
+import { checkGate, gatePath, gatePrinted, gateSection, gateSpecProblems, parseGateSpec, readGateSpec, type GateSpec } from './gate.js';
+import { content, coreDeps as deps, twentyDays as years } from './harness.test-support.js';
 import { machine } from './report.js';
 import { runReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
+import { runSettings } from './settings.js';
 import { sweepPlay } from './sweep.js';
 
-// v1.1.6-S2 (DL-186 items 13 and 21): the Gate's spec, `harness/gate.json`, and a run checked against
+// DL-186 items 13 and 21: the Gate's spec, `harness/gate.json`, and a run checked against
 // it line by line; the spec as the owner approved it (DL-188).
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
 const spec = readGateSpec();
 const mebibyte = 1024 * 1024;
 
-/** Two short games' report, as a run of the spec's shape: 2 games of 1 year, its saves after the year given. */
-const sweep = sweepPlay(seedNames(2), deps, { years: 60 / deps.config.turnsPerYear });
+/** Two short games' report, as a run of the spec's shape: 2 games of 1 year, its saves and its replay given. */
+const sweep = await sweepPlay(seedNames(2), deps, { years, replay: false });
 const played = runReport(sweep, { milestone: 'm9-gate-test', startedAt: new Date(2026, 9, 5), machine: machine(), config: deps.config, content });
 const shaped: GateSpec = { ...spec, run: { ...spec.run, games: 2, years: 1 }, lines: { ...spec.lines, copyShare: { ...spec.lines.copyShare, baselineShare: 0.2 } } };
 
@@ -25,6 +25,7 @@ const shaped: GateSpec = { ...spec, run: { ...spec.run, games: 2, years: 1 }, li
 function passing(change: (run: RunReport) => void = () => {}): RunReport {
   const run = structuredClone(played);
   run.years = 1;
+  run.replay = { seed: 'seed-0001', identical: true, length: 1 };
   run.totals.saves = [{ lengths: [140 * mebibyte, 146 * mebibyte], heroFields: [0, 0], gzipped: [27 * mebibyte, 31 * mebibyte] }];
   const rows = { live: [1, 1], writeOnce: [0, 0] };
   // The copy's mean 0.95 ms over `advance`'s 4 ms: a share of 0.2375, under the shaped spec's limit, 0.25.
@@ -38,27 +39,15 @@ const verdicts = (run: RunReport, expect_: string | null = null): Record<string,
   Object.fromEntries(checkGate(shaped, run, expect_).lines.map((line) => [line.line, line.verdict]));
 
 describe("the Gate's spec", () => {
-  // The owner's answers (DL-188): the fixed lines as drafted; no band on the Traits a career; the
-  // Bankruptcies at most 3 of 50; the save's gzipped mean under 30 MiB, no guard on its uncompressed size.
-  test("the spec as shipped is whole and approved by the owner, its baseline v1.1.8's closing full gate (DL-229)", () => {
+  // The spec's values, its limits and its baseline, are the owner's record in `gate.json` and the DL
+  // entries its sources name (DL-188, DL-229): held here as properties, not copied.
+  test('the spec as shipped is whole and approved by the owner, its baseline a report in the repository, and its run the gate profile plays', () => {
     expect(gateSpecProblems(spec)).toEqual([]);
     expect(spec.status).toBe('approved');
-    expect(spec.run).toMatchObject({ games: 50, years: 20 });
-    expect(spec.baseline).toMatchObject({
-      release: 'v1.1.8',
-      report: 'harness/reports/v1.1.8-gate-2026-10-09.md',
-      fingerprint: '5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b',
-    });
-    expect(spec.lines.saveGzipped).toMatchObject({ baselineMeanMiB: 17.51, baselineMaxMiB: 20.64 });
-    expect(spec.lines.playerBankruptcies.baseline).toBe(0);
-    expect(Object.keys(spec.lines)).toEqual(['refusals', 'invalid', 'stopped', 'unfinished', 'roundTrips', 'replay', 'playerBankruptcies', 'saveGzipped', 'copyShare']);
-    // The owner's answers (DL-203 answer 3, DL-206 item 17): the copy's share of a Turn at most 25%
-    // over its baseline, 0.847 ms over 3.346 ms at S17's full gate, kept as the anchor by the owner (DL-229).
-    expect(spec.lines.copyShare).toMatchObject({ growth: 0.25, baselineShare: 0.253 });
-    expect(spec.lines.playerBankruptcies.max).toBe(3);
-    expect(spec.lines.saveGzipped.meanMiB).toBe(30);
-    expect(spec.estimate.noOneFalls.within).toBe(0.02);
-    expect(spec.estimate.moraleInQuest.within).toBe(0.03);
+    expect(existsSync(path.join(path.dirname(gatePath), '..', spec.baseline.report))).toBe(true);
+    expect(spec.baseline.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    const gate = runSettings({ HEROESIM_PROFILE: 'gate' });
+    expect(gate.run === 'milestone' ? { games: gate.games, years: gate.years } : gate).toEqual({ games: spec.run.games, years: spec.run.years });
   });
 
   test("the estimate's two limits are the spec's", () => {
@@ -82,7 +71,7 @@ describe("the Gate's spec", () => {
       'gate.lines.saveGrowth is not a line of the spec',
     ]);
     expect(() => parseGateSpec('{"status":"approved"}')).toThrow(/harness\/gate.json: gate.decided is missing/);
-    // The copy's baseline is a share, a number from 0 (v1.1.7-S1, DL-207).
+    // The copy's baseline is a share, a number from 0 (DL-207).
     const copyShare = (baselineShare: unknown): unknown => ({ ...spec, lines: { ...spec.lines, copyShare: { ...spec.lines.copyShare, baselineShare } } });
     expect(gateSpecProblems(copyShare(0.25))).toEqual([]);
     expect(gateSpecProblems(copyShare(null))).toEqual(['gate.lines.copyShare.baselineShare is a number from 0, not null']);
@@ -132,7 +121,7 @@ describe('a run checked against the Gate, line by line', () => {
     expect(result.lines.filter((it) => it.verdict === 'fail').map((it) => it.line)).toEqual([line]);
   });
 
-  // v1.1.6-S2's verification (DL-188): a game that ended before its last Turn finished; only a game
+  // DL-188: a game that ended before its last Turn finished; only a game
   // neither ended nor at its last Turn is unfinished.
   test('a game that ended early, by a Bankruptcy, is not unfinished', () => {
     const ended = passing((run) => {
@@ -145,19 +134,16 @@ describe('a run checked against the Gate, line by line', () => {
     expect(checkGate(shaped, ended).pass).toBe(true);
   });
 
-  // v1.1.7-S1 (DL-206 item 17): the copy's share of a Turn, the baseline S17's full gate measured,
-  // 0.847 ms over 3.346 ms, 0.253, read from the shipped spec; a run at its limit, 0.31625, passes, one
-  // over it fails.
-  test("the shipped spec's copy line holds the full gate's baseline share and reads it", () => {
-    expect(spec.lines.copyShare.baselineShare).toBe(0.253);
-    expect(0.847 / 3.346).toBeCloseTo(0.253, 3);
+  // DL-206 item 17: the copy's share of a Turn, its baseline read from the shipped spec, 0.390 (DL-252);
+  // a run at its limit, 0.4875, passes, one over it fails.
+  test("the shipped spec's copy line reads its baseline share", () => {
     const shipped: GateSpec = { ...spec, run: shaped.run };
     const copyLine = (copyMs: number[]) => checkGate(shipped, passing((run) => ((run.totals.worlds[0] as { copyMs: number[] }).copyMs = copyMs))).lines.at(-1);
-    // `advance`'s mean is 4 ms: the limit, 0.31625, is a copy of 1.265 ms, printed as it is applied.
-    expect(copyLine([1.265, 1.265])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.31625 (0.253 + 25%)' });
-    expect(copyLine([1.265, 1.265])?.measured).toMatch(/^share 0\.31625: /);
-    expect(copyLine([1.2, 1.3])).toMatchObject({ verdict: 'pass' });
-    expect(copyLine([1.27, 1.27])).toMatchObject({ verdict: 'fail' });
+    // `advance`'s mean is 4 ms: the limit, 0.4875, is a copy of 1.95 ms, printed as it is applied.
+    expect(copyLine([1.95, 1.95])).toMatchObject({ verdict: 'pass', limit: 'share at most 0.4875 (0.390 + 25%)' });
+    expect(copyLine([1.95, 1.95])?.measured).toMatch(/^share 0\.4875: /);
+    expect(copyLine([1.9, 2.0])).toMatchObject({ verdict: 'pass' });
+    expect(copyLine([1.96, 1.96])).toMatchObject({ verdict: 'fail' });
   });
 
   // The review of v1.1.7 S1–S4 (DL-207, DL-210): a failing share never prints as the limit it failed.
@@ -169,15 +155,15 @@ describe('a run checked against the Gate, line by line', () => {
       const line = copyLine(copyMs);
       return { verdict: line?.verdict, share: shown(line?.measured, /^share ([\d.]+):/), limit: shown(line?.limit, /^share at most ([\d.]+) /) };
     };
-    // A share of 0.3163 (a copy of 1.2652 ms over 4 ms): over 0.31625, so it fails, and prints so.
-    expect(copyLine(1.2652)).toMatchObject({ verdict: 'fail', limit: 'share at most 0.31625 (0.253 + 25%)' });
-    expect(copyLine(1.2652)?.measured).toMatch(/^share 0\.3163: /);
-    for (const copyMs of [1.2652, 1.26501, 1.265004, 1.2650004, 1.4]) {
+    // A share of 0.4876 (a copy of 1.9504 ms over 4 ms): over 0.4875, so it fails, and prints so.
+    expect(copyLine(1.9504)).toMatchObject({ verdict: 'fail', limit: 'share at most 0.4875 (0.390 + 25%)' });
+    expect(copyLine(1.9504)?.measured).toMatch(/^share 0\.4876: /);
+    for (const copyMs of [1.9504, 1.95001, 1.950004, 1.9500004, 2.2]) {
       const { verdict, share, limit } = read(copyMs);
       expect(verdict).toBe('fail');
       expect(share).toBeGreaterThan(limit);
     }
-    for (const copyMs of [1.265, 1.26499, 1.264996, 1.2649996, 1]) {
+    for (const copyMs of [1.95, 1.94999, 1.949996, 1.9499996, 1.5]) {
       const { verdict, share, limit } = read(copyMs);
       expect(verdict).toBe('pass');
       expect(share).toBeLessThanOrEqual(limit);

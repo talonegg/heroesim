@@ -1,10 +1,12 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import { commandLine, halfTheProcessors, probeNames, profileNames, profiles, runSettings, settingsSet, type Env, type RunSettings } from './settings.js';
+import { commandLine, halfTheProcessors, probeNames, profileNames, runSettings, settingsSet, type Env, type RunSettings } from './settings.js';
+import { readGateSpec } from './gate.js';
 
-// v1.1.6-S2 (DL-186 item 13): every `HEROESIM_*` variable a harness run reads, through one parser.
+// DL-186 item 13: every `HEROESIM_*` variable a harness run reads, through one parser.
 
 const half = Math.max(1, Math.floor(availableParallelism() / 2));
 
@@ -16,15 +18,16 @@ function settingsOf<Run extends RunSettings['run']>(run: Run, env: Env): Extract
 }
 
 describe('the milestone run', () => {
-  test("plays INPUTS 4.13's run when nothing is set: 1,000 worlds created, 200 games of 20 years on half the processors", () => {
-    expect(runSettings({})).toEqual({
+  test("plays the milestone's run when nothing is set, on half the processors, the replay played and nothing validated", () => {
+    const settings = settingsOf('milestone', {});
+    expect(settings).toEqual({
       run: 'milestone',
       profile: null,
       milestone: 'play',
       expect: null,
-      worlds: 1000,
-      games: 200,
-      years: 20,
+      worlds: expect.any(Number),
+      games: expect.any(Number),
+      years: expect.any(Number),
       workers: half,
       validate: false,
       replay: true,
@@ -32,6 +35,10 @@ describe('the milestone run', () => {
       config: {},
       policy: {},
     });
+    for (const count of [settings.worlds, settings.games, settings.years]) {
+      expect(Number.isInteger(count)).toBe(true);
+      expect(count).toBeGreaterThanOrEqual(1);
+    }
     expect(halfTheProcessors()).toBe(half);
   });
 
@@ -68,10 +75,23 @@ describe('the milestone run', () => {
 });
 
 describe('the profiles', () => {
-  test('gate is 50 games of 20 years in 8 processes, and neutral 10 (DL-186 items 13 and 30), the play sweep alone', () => {
+  test("the gate plays the Gate's games and years, and neutral a process a game (DL-186 items 13 and 30, DL-231 Q13), the play sweep alone", () => {
+    const { games, years } = readGateSpec().run;
     expect(profileNames).toEqual(['gate', 'neutral']);
-    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'v1.1.6-s3' })).toMatchObject({ profile: 'gate', games: 50, years: 20, workers: 8, replay: true, validate: false });
-    expect(settingsOf('milestone', { HEROESIM_PROFILE: ' Neutral ' })).toMatchObject({ profile: 'neutral', games: 10, years: 20, workers: 8 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_MILESTONE: 'v1.1.6-s3' })).toMatchObject({ profile: 'gate', games, years, replay: true, validate: false });
+    const neutral = settingsOf('milestone', { HEROESIM_PROFILE: ' Neutral ' });
+    expect(neutral.profile).toBe('neutral');
+    expect(neutral.workers).toBe(neutral.games);
+  });
+
+  test('neutral plays one process a seed up to 10, more seeds sharing the 10, unless HEROESIM_WORKERS says otherwise (DL-231 Q13, DL-251)', () => {
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '4', HEROESIM_YEARS: '2' })).toMatchObject({ games: 4, workers: 4 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '10' })).toMatchObject({ games: 10, workers: 10 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 10 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '50' })).toMatchObject({ games: 50, workers: 10 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_WORKERS: '8' })).toMatchObject({ games: 10, workers: 8 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'neutral', HEROESIM_SEEDS: '50', HEROESIM_WORKERS: '3' })).toMatchObject({ games: 50, workers: 3 });
+    expect(settingsOf('milestone', { HEROESIM_PROFILE: 'gate', HEROESIM_SEEDS: '12' })).toMatchObject({ games: 12, workers: 8 });
   });
 
   test('a variable set overrides its profile', () => {
@@ -84,12 +104,12 @@ describe('the profiles', () => {
     });
   });
 
-  test("the probes and the module run keep their own: the Succession probe's 50 × 12, the estimate's 200 × 20,000, the calibration's 120 and 4,000, the modules' 50", () => {
-    expect(runSettings({ HEROESIM_PROBE: 'succession' })).toEqual({ run: 'succession', games: 50, years: 12, workers: half, validate: false });
-    expect(runSettings({ HEROESIM_PROBE: 'estimate' })).toEqual({ run: 'estimate', milestone: 'estimate', samples: 200, resolutions: 20_000 });
-    expect(runSettings({ HEROESIM_PROBE: 'calibrate' })).toEqual({ run: 'calibrate', drafts: null, config: {}, parties: 120, spotSeeds: 4000, tune: null, flat: 0, out: null });
-    expect(runSettings({ HEROESIM_MODULES: 'probe' })).toEqual({ run: 'modules', modules: ['probe'], games: 50, workers: half, validate: false });
-    expect(profiles.succession).toMatchObject({ games: 50, years: 12 });
+  test('the probes and the module run keep their own kinds and settings', () => {
+    const count = expect.any(Number);
+    expect(runSettings({ HEROESIM_PROBE: 'succession' })).toEqual({ run: 'succession', games: count, years: count, workers: half, validate: false });
+    expect(runSettings({ HEROESIM_PROBE: 'estimate' })).toEqual({ run: 'estimate', milestone: 'estimate', samples: count, resolutions: count });
+    expect(runSettings({ HEROESIM_PROBE: 'calibrate' })).toEqual({ run: 'calibrate', drafts: null, config: {}, parties: count, spotSeeds: count, tune: null, flat: 0, out: null });
+    expect(runSettings({ HEROESIM_MODULES: 'probe' })).toEqual({ run: 'modules', modules: ['probe'], games: count, workers: half, validate: false });
   });
 });
 
@@ -168,7 +188,7 @@ describe('a bad value is refused by its name', () => {
   });
 
   // The CLI's, the live check's, the deploy's and the portrait tool's owner test's (docs/environment.md): one set
-  // in the shell for another package must not refuse a harness run (v1.1.6-S2's verification, DL-188).
+  // in the shell for another package must not refuse a harness run (DL-188).
   test("leaves alone the variables of the same prefix other packages read", () => {
     expect(runSettings({ HEROESIM_SAVE_DIR: 'x', HEROESIM_LIVE_URL: 'y', HEROESIM_DEPLOY_RECORD: 'z', HEROESIM_OWNER_PICTURES: 'w' })).toEqual(runSettings({}));
   });
@@ -208,11 +228,27 @@ describe('the command line', () => {
 });
 
 // The parser is the one reader of the environment: no other harness source reads `process.env`.
-test('no harness source but settings.ts reads the environment', () => {
-  const dir = fileURLToPath(new URL('.', import.meta.url));
-  const readers = readdirSync(dir)
+const harnessDir = fileURLToPath(new URL('.', import.meta.url));
+
+/** The harness's sources that read the environment, settings.ts and its test left out. */
+const environmentReaders = (): string[] =>
+  readdirSync(harnessDir)
     .filter((file) => file.endsWith('.ts') && file !== 'settings.ts' && file !== 'settings.test.ts')
-    .filter((file) => readFileSync(`${dir}/${file}`, 'utf8').includes('process.env'));
+    // engine/src/boundary.test.ts writes and deletes probe files here while other tests run (DL-236).
+    .filter((file) => !file.startsWith('boundary-probe-'))
+    .filter((file) => readFileSync(`${harnessDir}/${file}`, 'utf8').includes('process.env'));
+
+test('no harness source but settings.ts reads the environment', () => {
   // main.ts passes the environment on to Vitest, reading none of it.
-  expect(readers).toEqual(['main.ts']);
+  expect(environmentReaders()).toEqual(['main.ts']);
+});
+
+test("the sources read leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+  const file = `boundary-probe-${randomUUID()}.ts`;
+  writeFileSync(`${harnessDir}/${file}`, "export const env = process.env['HOME'];\n");
+  try {
+    expect(environmentReaders()).toEqual(['main.ts']);
+  } finally {
+    rmSync(`${harnessDir}/${file}`, { force: true });
+  }
 });

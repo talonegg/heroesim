@@ -4,82 +4,23 @@
 // only when the command succeeds.
 //
 // The CLI holds no rule: the engine's `equip` and `unequip` decide, a refusal is their typed
-// rejection put into words here (ADR-0003), and the Stats printed are the engine's `effectiveStats`.
+// rejection in the refusals' words (ADR-0003, DL-240), and the Stats printed are the engine's
+// `effectiveStats`.
 
 import {
   applyAction,
   effectiveStats,
   playerGuild,
-  type ContentSet,
   type EngineDeps,
   type EngineEvent,
-  type EquipRejection,
   type Hero,
   type HeroId,
-  type UnequipRejection,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { gearUnavailableWords, nameIn } from '@heroesim/words';
 import type { Command } from '../args.js';
-import { narrateLine } from '../namer.js';
-import { rowIn } from '../render.js';
+import { narrateLine, refusalLine } from '../namer.js';
 import type { CommandOutcome } from './outcome.js';
-
-/** A Hero by name and id, or the id alone when the save has no such Hero. */
-function heroCalled(world: World, heroId: HeroId): string {
-  const hero = rowIn(world.heroes, heroId);
-  return hero === undefined ? heroId : `${hero.name} (${heroId})`;
-}
-
-/** An Item or stack of `world` by content's name and its id, or the id alone. */
-function itemCalled(world: World, id: string, content: ContentSet): string {
-  const row = rowIn<{ definitionKey: string }>(world.items, id) ?? rowIn<{ definitionKey: string }>(world.stacks, id);
-  return row === undefined ? id : `${nameIn(content.items, row.definitionKey)} (${id})`;
-}
-
-/** `equip`'s rejection in words. */
-function explainEquip(rejection: EquipRejection, guildName: string, world: World, content: ContentSet): string {
-  switch (rejection.reason) {
-    case 'guild-folded':
-      return `${guildName} has folded and equips no one.`;
-    case 'hero-not-on-roster':
-      return `${heroCalled(world, rejection.heroId)} is not on ${guildName}'s Roster (show roster).`;
-    case 'hero-unavailable':
-      return `${heroCalled(world, rejection.heroId)} ${gearUnavailableWords[rejection.because]}.`;
-    case 'not-held-by-guild': {
-      const id = rejection.itemId ?? rejection.stackId ?? '';
-      return `${guildName} does not hold ${id}: show roster lists what it holds.`;
-    }
-    case 'not-gear':
-      return `${nameIn(content.items, rejection.definitionKey)} is not gear, and is carried in no slot.`;
-    case 'wrong-slot': {
-      const name = nameIn(content.items, rejection.definitionKey);
-      return rejection.slot === rejection.gearSlot
-        ? `${name} is ${rejection.gearSlot} gear, and Heroes have no ${rejection.gearSlot} slot in this game.`
-        : `${name} goes in the ${rejection.gearSlot} slot, not the ${rejection.slot} slot.`;
-    }
-    case 'slot-occupied':
-      return (
-        `${heroCalled(world, rejection.heroId)}'s ${rejection.slot} slot holds ` +
-        `${itemCalled(world, rejection.occupant, content)}: unequip it first.`
-      );
-  }
-}
-
-/** `unequip`'s rejection in words. */
-function explainUnequip(rejection: UnequipRejection, guildName: string, world: World): string {
-  switch (rejection.reason) {
-    case 'guild-folded':
-      return `${guildName} has folded and unequips no one.`;
-    case 'hero-not-on-roster':
-      return `${heroCalled(world, rejection.heroId)} is not on ${guildName}'s Roster (show roster).`;
-    case 'hero-unavailable':
-      return `${heroCalled(world, rejection.heroId)} ${gearUnavailableWords[rejection.because]}.`;
-    case 'slot-empty':
-      return `${heroCalled(world, rejection.heroId)}'s ${rejection.slot} slot is empty.`;
-  }
-}
 
 /**
  * The effective Stats of `heroId` that differ between `before` and `after`, in content order:
@@ -105,10 +46,11 @@ export function equipGear(
   document: WorldDocument,
   deps: EngineDeps,
 ): CommandOutcome {
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'equip', reason: 'no-player-guild' }, setting) };
   const result = applyAction(document, { kind: 'equip', guildId: guild.id, heroId: command.hero, ...command.gear }, deps);
-  if (!result.ok) return { ok: false, problem: explainEquip(result.rejection, guild.name, document.world, deps.content) };
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return {
     ok: true,
     document: result.document,
@@ -122,10 +64,11 @@ export function unequipGear(
   document: WorldDocument,
   deps: EngineDeps,
 ): CommandOutcome {
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'unequip', reason: 'no-player-guild' }, setting) };
   const result = applyAction(document, { kind: 'unequip', guildId: guild.id, heroId: command.hero, slot: command.slot }, deps);
-  if (!result.ok) return { ok: false, problem: explainUnequip(result.rejection, guild.name, document.world) };
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return {
     ok: true,
     document: result.document,

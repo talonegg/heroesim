@@ -1,14 +1,15 @@
-import { bankruptcyCountdown, nextUpkeepDay, playerGuild, retiresOn, type EngineEventOf, type Entry, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
+// @vitest-environment node
+import { bankruptcyCountdown, nextUpkeepDay, retiresOn, type EngineEventOf, type Entry, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { partiesOutView } from './digest';
-import { changed, played, started, withOffer, withPartyOut, withReturn } from './game.test-support';
+import { changed, documentOf, played, playerOf, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { saveFileName } from './game-file';
 import { historyView } from './history';
-import { narrationFor } from './namer';
 import { questReturn } from './quest-return';
+import { readingOf } from './reading';
 import { playDeps, type GameState } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { boardView, countdownView, headerView, heroPage, linesOf, partyRows, rosterRows, sentView } from './selectors';
 import { offersView } from './trade-views';
 import { ledgerPage, treasuryAccounts } from './treasury';
@@ -39,15 +40,6 @@ function shortYear(seed = 'dates'): GameState {
   });
 }
 
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game in hand');
-  return state.document;
-}
-
-function player(document: WorldDocument): Guild {
-  return playerGuild(document.world) as Guild;
-}
-
 /** `state` played Turn by Turn until the world stands at `turn`. */
 function playedTo(state: GameState, turn: number): GameState {
   let next = state;
@@ -62,7 +54,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
       guild.belowFloorSince = 13;
     });
     const document = documentOf(below);
-    const countdown = bankruptcyCountdown(player(document), playDeps(document).config);
+    const countdown = bankruptcyCountdown(playerOf(document), playDeps(document).config);
     if (countdown === null) throw new Error('no countdown');
     const due = nightIn(countdown.dueDay * 3);
 
@@ -85,7 +77,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
       if (quest === undefined) throw new Error(`no Quest ${card.questId}`);
       expect(card.until).toBe(`Until ${dateIn(quest.expiresOnTurn)}`);
     }
-    const party = Object.values(document.world.parties).find((each) => each.guildId === player(document).id);
+    const party = Object.values(document.world.parties).find((each) => each.guildId === playerOf(document).id);
     if (party === undefined) throw new Error('no Party out');
     expect(party.returnsOnTurn).toBeGreaterThanOrEqual(turnsPerYear);
     expect(sentView(out)?.returns).toBe(nightIn(party.returnsOnTurn));
@@ -101,7 +93,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
       (each.world.heroes[guild.rosterIds[0] as Hero['id']] as Hero).injury = { typeKey: 'sprained-ankle', healsOnTurn: 11 };
     });
     const hurt = documentOf(injured);
-    expect(heroPage(hurt, player(hurt).rosterIds[0] as Hero['id'])?.where.words).toBe(`Injured, healing on ${nightIn(11)}`);
+    expect(heroPage(hurt, playerOf(hurt).rosterIds[0] as Hero['id'])?.where.words).toBe(`Injured, healing on ${nightIn(11)}`);
   });
 
   test('the History, its lines and the save’s file name, a Turn into the second Year', () => {
@@ -113,13 +105,13 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     expect(groups.some((group) => Number(group.key) >= turnsPerYear)).toBe(true);
     const entries: Entry[] = document.history.entries.filter((entry) => entry.turn >= turnsPerYear);
     expect(entries.length).toBeGreaterThan(0);
-    for (const [index, line] of linesOf(entries, narrationFor(document, content)).entries()) expect(line.when).toBe(whenIn((entries[index] as Entry).turn));
+    for (const [index, line] of linesOf(entries, readingOf(document).narration).entries()) expect(line.when).toBe(whenIn((entries[index] as Entry).turn));
     // A sentence's own date: a Party sent on the first afternoon comes back in another Year than this release's would say.
     const sent = document.history.entries
       .filter((entry): entry is EngineEventOf<'quest.taken'> => entry.type === 'quest.taken')
       .find((entry) => entry.payload.returnsOnTurn >= turnsPerYear);
     if (sent === undefined) throw new Error('no Party sent');
-    expect(linesOf([sent], narrationFor(document, content))[0]?.sentence).toContain(`back on ${nightIn(sent.payload.returnsOnTurn)}`);
+    expect(linesOf([sent], readingOf(document).narration)[0]?.sentence).toContain(`back on ${nightIn(sent.payload.returnsOnTurn)}`);
     expect(saveFileName(document)).toBe(`heroesim-dates-year-2-day-1.json`);
   });
 
@@ -162,7 +154,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     expect(guildsTable(documentOf(folded), 'fame').folded[0]?.folded).toBe(`Folded on ${dateIn(13)}`);
 
     const document = documentOf(shortYear());
-    const guildmaster = document.world.guildmasters[player(document).guildmasterId];
+    const guildmaster = document.world.guildmasters[playerOf(document).guildmasterId];
     if (guildmaster === undefined) throw new Error('no Guildmaster');
     const night = retiresOn(guildmaster, document.world.turn, playDeps(document).config);
     expect(night).toBeGreaterThanOrEqual(turnsPerYear);
@@ -173,7 +165,7 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     });
     expect(guildmasterView(documentOf(over))?.retirement).toBe(`Never retired: the game ended in Bankruptcy on ${dateIn(13)}.`);
 
-    const heroId = player(document).rosterIds[0] as Hero['id'];
+    const heroId = playerOf(document).rosterIds[0] as Hero['id'];
     expect(rejectionSentence({ action: 'transferOut', reason: 'recently-transferred', heroId, transferredOnTurn: 0, untilTurn: 90 }, document, content)).toContain(
       `was transferred on ${dateIn(0)} and cannot be transferred again before ${dateIn(90)}.`,
     );
@@ -210,7 +202,7 @@ describe('every date the page shows reads the config the game plays under, fille
     /** Every date the page shows of the four games, as it shows it. */
     const datesOf = (game: { out: GameState; offered: GameState; ended: GameState }): string[] => {
       const document = documentOf(game.out);
-      const player_ = player(document);
+      const player_ = playerOf(document);
       const party = Object.values(document.world.parties).find((each) => each.guildId === player_.id);
       if (party === undefined) throw new Error('no Party out');
       const away = party.heroIds[0] as Hero['id'];
@@ -227,7 +219,7 @@ describe('every date the page shows reads the config the game plays under, fille
         heroPage(document, away)?.where.words ?? '',
         ...rosterRows(document).entries.map((entry) => entry.row.whereabouts),
         ...historyView(document, game.out.log, 'all', 0).groups.map((group) => group.when),
-        ...linesOf(document.history.entries, narrationFor(document, content)).map((line) => `${line.when}: ${line.sentence}`),
+        ...linesOf(document.history.entries, readingOf(document).narration).map((line) => `${line.when}: ${line.sentence}`),
         saveFileName(document),
         JSON.stringify(questReturn(document, { partyId: written.party.partyId, questId: written.party.questId })),
         ...(treasuryOf(document)?.rows.map((row) => row.when) ?? []),

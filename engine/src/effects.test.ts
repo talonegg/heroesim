@@ -14,7 +14,7 @@ import { serialise } from './serialise.js';
 import { dayOf, nightOf } from './time.js';
 import { buildDocument, testDeps, withValid, type FixtureIds } from './world.test-support.js';
 
-// M8-S2: the effects API (ADR-0005 as amended 2026-09-25, DL-77), the only way a module changes a
+// The effects API (ADR-0005 as amended 2026-09-25, DL-77), the only way a module changes a
 // core table. Each effect runs the core's own rule and emits the core's own event, naming the module.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
@@ -325,7 +325,7 @@ describe('adjustRegard', () => {
     expect(after.world.guildmasters[guildmasterId as never]?.regard).toEqual(before.world.guildmasters[guildmasterId as never]?.regard);
   });
 
-  // v1.1.6-S17 (ADR-0011, the owner's answer 2 in DL-203): a retired Guildmaster's row is written once,
+  // ADR-0011, the owner's answer 2 in DL-203: a retired Guildmaster's row is written once,
   // frozen and shared by the per-Turn copy, so a module may no longer move their Regard.
   test('refuses a retired Guildmaster as a holder, changing nothing', () => {
     let retiredId = '';

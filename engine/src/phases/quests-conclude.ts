@@ -1,8 +1,8 @@
 // Night, first: Quests concluding go to the Quest Engine and their outcomes are applied (approach
 // §2, M2-S5, DL-29; M4-S2, DL-42). Each Party whose `returnsOnTurn` has come, in id order, is
 // resolved by the Quest Engine (quest-engine/resolve.ts) through its Encounter sequence, drawing
-// from the `quests` stream (and, for a Quest generated before M4, `encounters`), and its outcome
-// applied here: one `quest.encounter` for each Encounter checked, in sequence order, then
+// from the `quests` stream (and `encounters`, for a Quest whose Encounters content no longer
+// defines), and its outcome applied here: one `quest.encounter` for each Encounter checked, in sequence order, then
 // `quest.resolved`; any Loot to the Guild's holding with `quest.loot` (M5-S5, quest-engine/loot.ts,
 // DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
 // night); a Hero injured carries the Injury until its night; a Hero who died leaves
@@ -49,15 +49,19 @@ export const questsConclude: PhaseRun = (world, ctx) => {
   return events;
 };
 
-interface Concluding {
+/** A Party's return to apply: the Party, its Guild and its Quest, and the Quest Engine's resolution of it. */
+export interface Concluding {
   party: Party;
   guild: Guild;
   quest: Quest;
   resolution: Resolution;
 }
 
-/** Applies the resolution's outcome to the world and returns its events, in the order they happened. */
-function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
+/**
+ * Applies the resolution's outcome to the world and returns its events, in the order they happened.
+ * The testing entry's `playReturnNight` applies a resolution a test chose through it (DL-245).
+ */
+export function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
   const { config, emit, turn } = ctx;
   const { outcome } = resolution;
   const heroes = party.heroIds.map((heroId) => requireRow(world.heroes, heroId));

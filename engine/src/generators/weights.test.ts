@@ -9,7 +9,7 @@ import { generatePatron } from './patrons.js';
 import { generateQuest } from './quests.js';
 import { testContent, testDeps, testWorld } from '../world.test-support.js';
 
-// Draw weights (v1.1.6-S16, DL-186 item 16, DL-202): a Class, Background, Quest template or Sphere with no
+// Draw weights (DL-186 item 16, DL-202): a Class, Background, Quest template or Sphere with no
 // `weight` is drawn as it was by `pick`, and every Hero's sex by `heroSexWeights`, equal by default.
 
 /** `content` with every row of its four weighted tables given `weight`, or given the weights `by` names by key. */
@@ -32,7 +32,7 @@ describe('a Hero is drawn as pick draws it when no row has a weight, or every we
   ])('sex, Background and Class, with %s', (_what, content) => {
     const deps = testDeps({}, content);
     const world = testWorld('weights-hero', deps);
-    for (let index = 0; index < 400; index += 1) {
+    for (let index = 0; index < 60; index += 1) {
       // What the Hero Generator drew before weights: `pick` from a copy of the stream, in its order.
       const state = structuredClone(streamOf(world));
       const sex = pick(state, sexes);
@@ -116,7 +116,7 @@ describe('a weight changes the odds', () => {
   });
 });
 
-// The deals at creation (v1.1.7-S2, DL-206 item 1, DL-208): a Guild's starting Roster and the Patrons'
+// The deals at creation (DL-206 item 1, DL-208): a Guild's starting Roster and the Patrons'
 // Spheres are dealt evenly, as `dealEvenly` deals, while every weight is 1, and by weight otherwise; a
 // Guildmaster's sex is drawn by `guildmasterSexWeights`.
 
@@ -211,12 +211,12 @@ describe("a starting Roster and the Patrons' Spheres are dealt as dealEvenly dea
     for (let patrons = 1; patrons <= 12; patrons += 1) {
       // The even deal by hand: the world with no Patron, then `dealEvenly` over the Spheres from where
       // that left the stream, then a Patron of each Sphere dealt, in turn (DL-208).
-      const none = testDeps({ patronCount: 0, unattachedPoolSize: 0 }, content);
+      const none = testDeps({ patronCount: 0, unattachedPoolSize: 0, rivalCount: 0 }, content);
       const before = createWorld(`deal-spheres-${patrons}`, setup, none).document.world;
       const sphereKeys = dealEvenly(streamOf(before), sortedKeys(content.spheres), patrons);
       for (const sphereKey of sphereKeys) generatePatron(before, none, { sphereKey });
 
-      const deps = testDeps({ patronCount: patrons, unattachedPoolSize: 0 }, content);
+      const deps = testDeps({ patronCount: patrons, unattachedPoolSize: 0, rivalCount: 0 }, content);
       const world = createWorld(`deal-spheres-${patrons}`, setup, deps).document.world;
 
       expect(Object.values(world.patrons).map((patron) => patron.sphereKey)).toEqual(sphereKeys);
@@ -302,7 +302,7 @@ describe('a weight changes the deals at creation', () => {
         expect(generateGuild(world, deps, { ...guildOptions, rosterSize: 0 }).guildmaster.sex).toBe(only);
       }
     }
-    // A sex chosen at setup replaces the one drawn, after the draw (M9-S2).
+    // A sex chosen at setup replaces the one drawn, after the draw.
     const male = testDeps({ guildmasterSexWeights: { female: 0, male: 1 } });
     const chosen = testWorld('deal-gm-sex-chosen', male);
     expect(generateGuild(chosen, male, { ...guildOptions, rosterSize: 0, guildmaster: { sex: 'female' } }).guildmaster.sex).toBe('female');

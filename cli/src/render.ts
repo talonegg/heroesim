@@ -3,36 +3,25 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn, a Hall grade), a content row's field (an Improvement's cost), the size of a
-// document table or list, or the result of an engine selector (`ageOf`, `baseStat`,
-// `effectiveStats`, `signingFee`, `transferFee`, `signingRefusal`, `rankingPlaces`,
-// `bankruptcyCountdown`, `unattachedHeroes`, `nextImprovement`, `holdings`, `carriedGear`); every
-// name is a document field or a content row's display name. Where the engine has no selector for
-// something a view needs, the selector goes into the engine, not here.
+// document table or list, or the result of an engine selector (`baseStat`, `rankingPlaces`,
+// `bankruptcyCountdown`, `unattachedHeroes`, `nextImprovement`, `holdings`); every name is a
+// document field or a content row's display name. Where the engine has no selector for something a
+// view needs, the selector goes into the engine, not here.
 //
-// Potential is stored plainly and never shown (data-model rule 9): no view reads
-// `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
-// printed Hero for it. Regard is shown as its band, never its number (M4-S5): no view prints a
-// `RegardEntry`'s value, only the engine's `regardBand` word for it, nor a Relationship's (M4-S4).
-//
-// What the player sees is what the player's Guildmaster sees and pays (M4-S5): fees at their
-// Negotiation, hints through their Judgement.
+// A Hero, a Roster's and the pool's rows and the Board are the readings of `@heroesim/words`
+// (DL-241), laid out here: the readings hold what the player sees, what their Guildmaster sees and
+// pays (R8), Potential never (data-model rule 9) and Regard as its band (DL-46).
 
 import {
   ageOf,
-  availableHeroes,
   bankruptcyCountdown,
-  bestParty,
   baseStat,
-  carriedGear,
   descriptiveAttributeLabels,
   descriptiveAttributes,
-  effectiveStats,
-  gearSlotKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
   holdings,
   itemDefinition,
-  judgedHintBands,
   patronRegardFor,
   facilityKeys,
   nextImprovement,
@@ -40,46 +29,47 @@ import {
   regardBand,
   regardValue,
   rankingPlaces,
-  signingFee,
-  signingRefusal,
-  skillsThatHelp,
-  transferFee,
-  durationDaysOf,
-  potentialHint,
-  relationship,
   unattachedHeroes,
   upkeep,
-  type ContentSet,
   type EngineDeps,
   type Entry,
   type FacilityKey,
   type Guild,
   type Guildmaster,
-  type Hero,
   type Patron,
-  type Quest,
   type RankingMeasure,
-  type Stack,
-  type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
 import {
+  bestPartyReading,
+  boardReading,
   capitalised,
   chanceWords,
   dateOfDay,
   dateOfTurn,
-  encounterReadings,
   facilityNames,
   kindWords,
+  listed,
   modifierWords,
   nameIn,
   nightOfDay,
   nightOfTurn,
+  poolNote,
+  poolReading,
   readsAsOne,
-  shownPercent,
+  rosterReading,
+  rowOf,
+  signsWords,
   traitEffectWords,
   whenOfTurn,
+  type BestPartyReading,
   type Calendar,
+  type HeroReading,
+  type HeroRow,
+  type PlayerReading,
+  type PoolRowReading,
+  type QuestReading,
+  type RosterRowReading,
 } from '@heroesim/words';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
@@ -122,14 +112,6 @@ function fields(pairs: readonly (readonly [string, string])[]): string[] {
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 // A content row's name, an Item's kind and what it does, a Trait's effects: `@heroesim/words`
 // (v1.1.6-S11, DL-186 item 1).
-
-/**
- * The row of `rows` keyed by `id`, or `undefined` when there is none: an ordinary lookup that
- * does not fall through to `Object.prototype` for a key such as `constructor`.
- */
-export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
-}
 
 function none(list: readonly string[]): string {
   return list.length === 0 ? 'None' : list.join(', ');
@@ -190,9 +172,9 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       guild.id,
       guild.name,
       controllerOf(guild, content),
-      rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
+      rowOf(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
       // Every Guildmaster's picture by its key (v1.1.3-S5), or the Silhouette where none fits them.
-      portraitWords(rowIn(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
+      portraitWords(rowOf(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
       String(guild.wealth),
@@ -315,20 +297,15 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
+// A Hero, a Roster's or the pool's rows and the Board are the readings of `@heroesim/words`
+// (`heroReading`, `rosterReading`, `poolReading`, `boardReading`, DL-241), laid out here as tables.
 
-/** A column a view adds to the Hero table, after the others: its heading and each Hero's cell. */
-interface HeroColumn extends Column {
-  cell: (hero: Hero) => string;
+/** A column a view adds to the Hero table, after the others: its heading and each row's cell. */
+interface HeroColumn<Row extends HeroRow> extends Column {
+  cell: (row: Row) => string;
 }
 
-function heroTable(
-  heroes: readonly Hero[],
-  document: WorldDocument,
-  deps: EngineDeps,
-  more: readonly HeroColumn[] = [],
-): string[] {
-  const { content, config } = deps;
-  const { turn } = document.world;
+function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly HeroColumn<Row>[] = []): string[] {
   return table(
     [
       { heading: 'Id' },
@@ -340,15 +317,15 @@ function heroTable(
       { heading: 'Background' },
       ...more,
     ],
-    heroes.map((hero) => [
-      hero.id,
-      hero.name,
-      nameIn(content.classes, hero.classKey),
-      String(hero.level),
-      String(ageOf(hero, turn, config)),
-      String(hero.morale),
-      nameIn(content.backgrounds, hero.backgroundKey),
-      ...more.map((column) => column.cell(hero)),
+    rows.map((row) => [
+      row.id,
+      row.name,
+      row.className,
+      String(row.level),
+      String(row.age),
+      String(row.morale),
+      row.background,
+      ...more.map((column) => column.cell(row)),
     ]),
   );
 }
@@ -356,32 +333,30 @@ function heroTable(
 /**
  * `show roster [guildId]`: the Guild's Roster in its own order, then what the Guild holds (M5-S2):
  * each unique Item and stack in its holding, with the id `equip` takes. Another Guild's Roster adds
- * each Hero's Transfer fee, what the player's Guild would pay to take them (`transfer --in`): the
- * engine's `transferFee` at the player's Guildmaster's Negotiation (M6-S2), shown before it is paid.
+ * each Hero's Transfer fee, what the player's Guild would pay to take them (`transfer --in`), shown
+ * before it is paid (`rosterReading`).
  */
-export function renderRoster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
-  const heroes = guild.rosterIds.flatMap((id) => rowIn(document.world.heroes, id) ?? []);
-  const player = playerGuild(document.world);
-  const buyer = player === undefined ? undefined : guildmasterOf(player, document.world);
-  const fees: HeroColumn[] =
-    player === undefined || player.id === guild.id
+export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
+  const { world, content } = reading;
+  const fees: HeroColumn<RosterRowReading>[] =
+    reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right', cell: (hero) => String(transferFee(hero, buyer, deps)) }];
-  const held = holdings(document.world, { kind: 'guild', id: guild.id });
+      : [{ heading: 'Transfer fee', align: 'right', cell: (row) => String(row.transferFee ?? '') }];
+  const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
-    const definition = itemDefinition(deps.content, row.definitionKey);
+    const definition = itemDefinition(content, row.definitionKey);
     return [
       row.id,
-      nameIn(deps.content.items, row.definitionKey),
+      nameIn(content.items, row.definitionKey),
       definition === undefined ? '' : kindWords(definition),
       'quantity' in row ? String(row.quantity) : '1',
-      definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
+      definition?.kind === 'gear' ? modifierWords(definition, content) : '',
     ];
   });
   return [
     `Roster of ${guild.name} (${guild.id})`,
     '',
-    ...heroTable(heroes, document, deps, fees),
+    ...heroTable(rosterReading(reading, guild), fees),
     '',
     `Held by ${guild.name}`,
     ...(rows.length === 0
@@ -394,159 +369,75 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
 }
 
 /**
- * The gear a Hero carries (M5-S2): a row for each gear slot (`gearSlotKeys`), the Item in it or
- * `none`, then any Item held in a slot that is no gear slot, as the engine's `carriedGear` gives.
+ * `show pool`: the Unattached Heroes, each with the signing fee and, when there is a player's Guild,
+ * whether they would sign for it: `Yes`, or the Fame they ask of it, since a Hero of a higher
+ * Level will not sign for a Guild whose Fame is below what their Level asks (`poolReading`).
  */
-function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string[][] {
-  const carried: (UniqueItem | Stack)[] = carriedGear(document.world, hero.id);
-  const slotOf = (row: UniqueItem | Stack): string => (row.holder.kind === 'hero' ? row.holder.slot : '');
-  const line = (slot: string, row: UniqueItem | Stack): string[] => {
-    const definition = itemDefinition(deps.content, row.definitionKey);
-    return [
-      slot,
-      nameIn(deps.content.items, row.definitionKey),
-      row.id,
-      definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
-    ];
-  };
-  const listed: string[] = [...gearSlotKeys];
-  return [
-    ...listed.flatMap((slot) => {
-      const inSlot = carried.filter((row) => slotOf(row) === slot);
-      return inSlot.length === 0 ? [[slot, 'none', '', '']] : inSlot.map((row) => line(slot, row));
-    }),
-    ...carried.filter((row) => !listed.includes(slotOf(row))).map((row) => line(slotOf(row), row)),
-  ];
-}
-
-/**
- * `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives and,
- * when there is a player's Guild, whether they would sign for it: `yes`, or the Fame they ask of
- * it (M3-S5, `signingRefusal`), since a Hero of a higher Level will not sign for a Guild whose Fame
- * is below what their Level asks.
- */
-export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
-  const guild = playerGuild(document.world);
-  // The fee the player's Guild would pay: its Guildmaster's Negotiation applied (M4-S5).
-  const buyer = guild === undefined ? undefined : guildmasterOf(guild, document.world);
-  const columns: HeroColumn[] = [{ heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps, buyer)) }];
-  if (guild !== undefined) {
-    columns.push({
-      heading: 'Signs',
-      cell: (hero) => {
-        const refusal = signingRefusal(guild, hero, deps.config);
-        return refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`;
-      },
-    });
+export function renderPool(reading: PlayerReading): string[] {
+  const columns: HeroColumn<PoolRowReading>[] = [{ heading: 'Fee', align: 'right', cell: (row) => String(row.fee) }];
+  if (reading.guild !== undefined) {
+    columns.push({ heading: 'Signs', cell: (row) => (row.signs === null ? '' : capitalised(signsWords(row.signs))) });
   }
-  const note =
-    guild === undefined
-      ? []
-      : ['', `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`];
-  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, columns), ...note];
+  const note = poolNote(reading);
+  return ['Unattached pool', '', ...heroTable(poolReading(reading), columns), ...(note === null ? [] : ['', note])];
 }
 
-/** A Hero's descriptive Attributes, in the order a Guildmaster's are shown: no Birthplace (v1.1.3-S6). */
-const heroAttributes = ['appearance', 'biography'] as const;
-
 /**
- * `show hero <id>`: the Hero's Attributes, their Portrait, Appearance and Biography (v1.1.3-S6), State, Stats, gear and Skills. Never Potential (rule 9):
- * each Stat's base value, read through `baseStat`, and beside it its effective value, the engine's
- * `effectiveStats` with the Guildmaster's Class bonus, the Hero's gear (M5-S2) and their Hero Traits'
- * Stat changes (v1.1.4-S7), which is what a
- * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
- * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
- * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
- * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads. For a Hero
- * on another Guild's Roster, the Transfer fee the player's Guild would pay to take them (M6-S2).
+ * `show hero <id>`: the Hero's reading laid out (`heroReading`): their Attributes, Portrait,
+ * Appearance and Biography, State, Stats, gear, Skills and, on a Roster, Relationships. Each Stat's
+ * base and the effective value a Quest's Check reads, then its Potential hint under "Outlook", never
+ * Potential (rule 9); Regard and Relationships as bands, never as numbers (DL-46); and for a
+ * Hero on another Guild's Roster, the Transfer fee the player's Guild would pay to take them.
+ * Its dates by `calendar`, each with its Turn (DL-210).
  */
-export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
-  const { content, config } = deps;
-  const { world } = document;
-  const guild = hero.guildId === null ? undefined : rowIn(world.guilds, hero.guildId);
-  const player = playerGuild(world);
-  const reader = player === undefined ? undefined : guildmasterOf(player, world);
-  const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
-
+export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
   const attributes: [string, string][] = [
     ['Sex', capitalised(hero.sex)],
-    // The picture by its key (v1.1.3-S6), which the page finds in `media/`; none shows the Silhouette.
+    // The picture by its key, which the page finds in `media/`; none shows the Silhouette.
     ['Portrait', hero.portraitKey ?? 'None: the Silhouette'],
-    ['Age', String(ageOf(hero, world.turn, config))],
-    ['Class', nameIn(content.classes, hero.classKey)],
-    ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
-    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'None' : 'Unattached') : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
+    ['Age', String(hero.age)],
+    ['Class', hero.className],
+    ['Background', hero.background],
+    ['Guild', hero.guild === null ? (hero.unattached ? 'Unattached' : 'None') : `${hero.guild.name ?? hero.guild.id} (${hero.guild.id})`],
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
     [
       'Injury',
       hero.injury === null
-        ? 'none'
-        : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on ${nightOfTurn(hero.injury.healsOnTurn, config)} ` +
-          `(Turn ${hero.injury.healsOnTurn})`,
+        ? 'None'
+        : `${hero.injury.name}, healing on ${nightOfTurn(hero.injury.healsOnTurn, calendar)} (Turn ${hero.injury.healsOnTurn})`,
     ],
-    // Each Trait with what it does (v1.1.4-S7): `Lame (-2 Dexterity, -1 Endurance)`.
-    ['Traits', none(hero.traits.map((key) => `${nameIn(content.heroTraits, key)} (${traitEffectWords(rowIn(content.heroTraits, key)?.effects ?? [], content)})`))],
-    // A Hero's two descriptive Attributes, written as they were generated (v1.1.3-S6); none is shown when empty.
-    ...heroAttributes.flatMap((attribute): [string, string][] => (hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]])),
+    // Each Trait with what it does: `Lame (-2 Dexterity, -1 Endurance)`.
+    ['Traits', none(hero.traits.map((trait) => `${trait.name} (${trait.effect})`))],
+    ...hero.texts.map(({ label, words }): [string, string] => [label, words]),
   ];
-  // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
-  if (player !== undefined && guild !== undefined && guild.id !== player.id && guild.rosterIds.includes(hero.id)) {
-    attributes.push(['Transfer fee', String(transferFee(hero, reader, deps))]);
-  }
+  if (hero.transferFee !== null) attributes.push(['Transfer fee', String(hero.transferFee)]);
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
-  if (hero.diedOnTurn !== null) attributes.push(['Died', renderDate(hero.diedOnTurn, config)]);
-  if (hero.retiredOnTurn !== null) attributes.push(['Retired', renderDate(hero.retiredOnTurn, config)]);
-  if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', renderDate(hero.leftPoolOnTurn, config)]);
+  if (hero.died !== null) attributes.push(['Died', renderDate(hero.died, calendar)]);
+  if (hero.retired !== null) attributes.push(['Retired', renderDate(hero.retired, calendar)]);
+  if (hero.leftPool !== null) attributes.push(['Left the pool', renderDate(hero.leftPool, calendar)]);
 
-  let lastArea = '';
-  const effective = effectiveStats(hero, world, content);
-  const stats = Object.values(content.stats)
-    .filter((stat) => stat.owner === 'hero')
-    .map((stat) => {
-      const area = stat.area === lastArea ? '' : capitalised(stat.area);
-      lastArea = stat.area;
-      return [
-        area,
-        stat.name,
-        String(baseStat(hero.stats, stat)),
-        String(effective[stat.key] ?? baseStat(hero.stats, stat)),
-        potentialHint(hero, stat.key, bands),
-      ];
-    });
-
-  const skillKeys = Object.keys(hero.skills);
-  const inContentOrder = [
-    ...Object.keys(content.skills).filter((key) => skillKeys.includes(key)),
-    ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
-  ];
-  const skills = inContentOrder.map((key) => [nameIn(content.skills, key), String(hero.skills[key])]);
-
-  // Relationships on the Roster (M4-S4): bands only.
-  const onRoster = guild?.rosterIds.includes(hero.id) === true;
-  const mates = (onRoster ? (guild?.rosterIds ?? []) : []).flatMap((id) => {
-    const mate = id === hero.id ? undefined : rowIn(world.heroes, id);
-    if (mate === undefined) return [];
-    return [
-      [
-        mate.id,
-        mate.name,
-        nameIn(content.classes, mate.classKey),
-        regardBand(regardValue(hero.regard, mate.id), config),
-        regardBand(relationship(hero.id, mate.id, world, config), config),
-      ],
-    ];
-  });
-  const relationships = onRoster
-    ? [
-        '',
-        'Relationships on the Roster',
-        ...(mates.length === 0
-          ? ['None']
-          : table([{ heading: 'Id' }, { heading: 'Hero' }, { heading: 'Class' }, { heading: 'Regard' }, { heading: 'Relationship' }], mates)),
-      ]
-    : [];
+  const stats = hero.stats.map((stat, index) => [
+    stat.area === hero.stats[index - 1]?.area ? '' : stat.area,
+    stat.name,
+    String(stat.base),
+    String(stat.value),
+    capitalised(stat.outlook),
+  ]);
+  const gear = hero.gear.map(({ slot, item }) => [capitalised(slot), item?.name ?? 'None', item?.id ?? '', item?.modifies ?? '']);
+  const skills = hero.skills.map((skill) => [skill.name, String(skill.rating)]);
+  const mates = (hero.relationships ?? []).map((mate) => [mate.id, mate.name, mate.className, capitalised(mate.regard), capitalised(mate.relationship)]);
+  const relationships =
+    hero.relationships === null
+      ? []
+      : [
+          '',
+          'Relationships on the Roster',
+          ...(mates.length === 0
+            ? ['None']
+            : table([{ heading: 'Id' }, { heading: 'Hero' }, { heading: 'Class' }, { heading: 'Regard' }, { heading: 'Relationship' }], mates)),
+        ];
 
   return [
     `${hero.name} (${hero.id})`,
@@ -566,12 +457,10 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ),
     '',
     'Gear',
-    ...table([{ heading: 'Slot' }, { heading: 'Item' }, { heading: 'Id' }, { heading: 'Modifies' }], gearRows(hero, document, deps)),
+    ...table([{ heading: 'Slot' }, { heading: 'Item' }, { heading: 'Id' }, { heading: 'Modifies' }], gear),
     '',
     'Skills',
-    ...(skills.length === 0
-      ? ['None']
-      : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+    ...(skills.length === 0 ? ['None'] : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
     ...relationships,
   ];
 }
@@ -587,7 +476,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
   const { world } = document;
   const measure = by === 'fame' ? 'Fame' : 'Wealth';
   const rows = rankingPlaces(world, by).map((ranking) => {
-    const guild = rowIn(world.guilds, ranking.guildId);
+    const guild = rowOf(world.guilds, ranking.guildId);
     return [
       ranking.joint ? `joint ${ranking.place}` : String(ranking.place),
       ranking.guildId,
@@ -623,7 +512,7 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
   const patrons: Patron[] = Object.values(document.world.patrons);
   const guild = playerGuild(document.world);
   const regard = (patron: Patron): string[] =>
-    guild === undefined ? [] : [regardBand(patronRegardFor(patron, guild.id), deps.config)];
+    guild === undefined ? [] : [capitalised(regardBand(patronRegardFor(patron, guild.id), deps.config))];
   const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sex' }, { heading: 'Sphere' }];
   if (guild !== undefined) columns.push({ heading: 'Regard for us' });
   return [
@@ -666,14 +555,15 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
   const { content, config } = deps;
   const guildmaster: Guildmaster | undefined = guildmasterOf(guild, world);
   if (guildmaster === undefined) return [`${guild.name} (${guild.id}) has no Guildmaster.`];
-  const band = (value: number): string => regardBand(value, config);
+  // A band stands alone in its cell, so it opens with a capital (docs/agents/ui-text.md rule 1, DL-241).
+  const band = (value: number): string => capitalised(regardBand(value, config));
 
   const stats = Object.values(content.stats)
     .filter((stat) => stat.owner === 'guildmaster')
     .map((stat) => [stat.name, String(baseStat(guildmaster.stats, stat)), guildmasterRules[stat.key] ?? '']);
   const traits = guildmaster.traits.map((key) => [
     nameIn(content.guildmasterTraits, key),
-    traitEffectWords(rowIn(content.guildmasterTraits, key)?.effects ?? [], content),
+    traitEffectWords(rowOf(content.guildmasterTraits, key)?.effects ?? [], content),
   ]);
   const patrons = Object.values(world.patrons).map((patron) => [
     patron.id,
@@ -682,7 +572,7 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     band(regardValue(guildmaster.regard, patron.id)),
   ]);
   const heroes = guild.rosterIds.flatMap((heroId) => {
-    const hero = rowIn(world.heroes, heroId);
+    const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
     return [[hero.id, hero.name, nameIn(content.classes, hero.classKey), band(regardValue(guildmaster.regard, hero.id))]];
   });
@@ -691,7 +581,7 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     .map((other) => [
       other.id,
       other.name,
-      rowIn(world.guildmasters, other.guildmasterId)?.name ?? other.guildmasterId,
+      rowOf(world.guildmasters, other.guildmasterId)?.name ?? other.guildmasterId,
       band(guildmasterRegardForGuild(guildmaster, other.id, world)),
     ]);
   const regardColumns = (kind: string, detail: string): Column[] => [
@@ -734,28 +624,17 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
 
 // ── The Board ────────────────────────────────────────────────────────────────────────────────
 
-/** What a Quest requires beyond its Party size: a Class, a Skill, both, or nothing. */
-function requiredOf(quest: Quest, content: ContentSet): string {
-  const { classKey, skillKey } = quest.requirements;
-  const needs = [
-    ...(classKey === undefined ? [] : [nameIn(content.classes, classKey)]),
-    ...(skillKey === undefined ? [] : [nameIn(content.skills, skillKey)]),
-  ];
-  return needs.join(', ');
-}
-
 /**
- * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last date it stays on offer; then the Skills that help in its Encounters'
- * Checks and the kinds of those Encounters (M4-S1, M4 verification); then each Quest's Encounters
- * with each Check's name and what it reads, and the player's best Party with its chance (v1.1.4-S6,
- * DL-148 items 15 to 17), where M2-S3's demands stood, which no view shows now.
+ * `show board`: the Quests on offer in the Board's order (`boardReading`), each with its template's
+ * name, its Patron, its terms, what it requires and the last date it stays on offer; then the Skills
+ * that help in its Encounters' Checks and the kinds of those Encounters; then each Quest's
+ * Encounters with each Check's name and what it reads, and the player's Best Party with its chance
+ * (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
  */
-export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
-  const { world } = document;
-  const { content } = deps;
-  const quests = world.board.flatMap((id) => rowIn(world.quests, id) ?? []);
-  const heading = `Board: ${quests.length} ${quests.length === 1 ? 'Quest' : 'Quests'} on offer, ${renderTime(world.turn, deps.config)}`;
+export function renderBoard(reading: PlayerReading): string[] {
+  const { world, calendar } = reading;
+  const quests = boardReading(reading);
+  const heading = `Board: ${quests.length} ${quests.length === 1 ? 'Quest' : 'Quests'} on offer, ${renderTime(world.turn, calendar)}`;
   if (quests.length === 0) return [heading, '', 'The Board is empty.'];
   return [
     heading,
@@ -775,72 +654,59 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
       ],
       quests.map((quest) => [
         quest.id,
-        nameIn(content.questTemplates, quest.templateKey),
-        rowIn(world.patrons, quest.patronId)?.name ?? quest.patronId,
+        quest.name,
+        quest.patron ?? quest.patronId,
         String(quest.difficulty),
-        String(durationDaysOf(quest)),
+        String(quest.days),
         String(quest.reward),
-        String(quest.fameEffect),
-        `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax}`,
-        requiredOf(quest, content),
-        dateOfTurn(quest.expiresOnTurn, deps.config),
+        String(quest.fame),
+        `${quest.partySizeMin} to ${quest.partySizeMax}`,
+        [quest.classRequired, quest.skillRequired].filter((name) => name !== null).join(', '),
+        dateOfTurn(quest.expiresOnTurn, calendar),
       ]),
     ),
     '',
     ...table(
       [{ heading: 'Id' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
-      quests.map((quest) => [quest.id, skillsThatHelpWords(quest, content), encounterKindsOf(quest, content)]),
+      quests.map((quest) => [quest.id, none(quest.skills), encounterKindsOf(quest)]),
     ),
-    ...quests.flatMap((quest) => ['', ...questReadings(document, quest, deps)]),
+    ...quests.flatMap((quest) => ['', ...questLines(quest, reading)]),
   ];
 }
 
 /**
- * A Quest's Encounters as the Board gives them (v1.1.4-S6): each with its kind and each Check's name
- * and what it reads, an Encounter of one Check of its own name on one line; then the Party the engine
- * would send from the player's free Heroes (`partyFor`) and its chance, if no one falls.
+ * A Quest's Encounters as the Board gives them: each with its kind and each Check's name and what it
+ * reads, an Encounter of one Check of its own name on one line; then the Best Party of the player's
+ * free Heroes and its chance, if no one falls.
  */
-function questReadings(document: WorldDocument, quest: Quest, deps: EngineDeps): string[] {
-  const { content } = deps;
-  const readings = encounterReadings(quest, content);
-  const lines = readings.flatMap((reading) => {
-    const kind = reading.kind === null ? '' : ` (${reading.kind})`;
-    if (readsAsOne(reading)) return [`  ${reading.name}${kind}: ${reading.checks[0]?.reads ?? ''}`];
-    return [`  ${reading.name}${kind}`, ...reading.checks.map((it) => `    ${it.name}: ${it.reads}`)];
+function questLines(quest: QuestReading, reading: PlayerReading): string[] {
+  const lines = quest.encounters.flatMap((encounter) => {
+    const kind = encounter.kind === null ? '' : ` (${encounter.kind})`;
+    if (readsAsOne(encounter)) return [`  ${encounter.name}${kind}: ${encounter.checks[0]?.reads ?? ''}`];
+    return [`  ${encounter.name}${kind}`, ...encounter.checks.map((it) => `    ${it.name}: ${it.reads}`)];
   });
+  const row = rowOf(reading.world.quests, quest.id);
   return [
-    `${quest.id}, ${nameIn(content.questTemplates, quest.templateKey)}`,
-    ...(readings.length === 0 ? ['  Its Encounters are drawn on the way.'] : lines),
-    `  ${bestPartyWords(document, quest, deps)}`,
+    `${quest.id}, ${quest.name}`,
+    ...lines,
+    `  ${bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }
 
-/** "Your best Party": the Party `partyFor` names from the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
-function bestPartyWords(document: WorldDocument, quest: Quest, deps: EngineDeps): string {
-  const { world } = document;
-  const guild = playerGuild(world);
-  const available = guild === undefined ? [] : availableHeroes(world, guild);
-  const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+/** "Your best Party": the Best Party of the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
+function bestPartyWords(best: BestPartyReading | null): string {
   if (best === null) return 'No Party of your free Heroes meets its requirements.';
-  const names = best.heroIds.flatMap((id) => rowIn(world.heroes, id)?.name ?? []).join(', ');
-  // The estimate the rule chose the Party by, which is `estimateQuest`'s for it: not worked out again.
-  const { estimate } = best;
-  if (estimate === null) return `Your best Party: ${names}; its chance is not known until its Encounters are drawn.`;
-  return `Your best Party: ${chanceWords[estimate.chance]} (${shownPercent(estimate.success)}% if no one falls), ${names}.`;
-}
-
-/** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-66, DL-70). */
-function skillsThatHelpWords(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
-  return none(skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)));
+  const names = listed(best.names);
+  if (best.chance === null) return `Your best Party: ${names}; its chance is not known until its Encounters are drawn.`;
+  return `Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${names}.`;
 }
 
 /**
- * The kinds of a Quest's Encounters in the order it meets them (M4-S1), so the player can see what
- * kind of work it is; a Quest drawn before M4 has its sequence drawn when it resolves (DL-42).
+ * The kinds of a Quest's Encounters in the order it meets them, so the player can see what
+ * kind of work it is. An Encounter content does not define is named by its key (data-model rule 5).
  */
-function encounterKindsOf(quest: Pick<Quest, 'encounterKeys'>, content: ContentSet): string {
-  if (quest.encounterKeys.length === 0) return 'drawn on the way';
-  return quest.encounterKeys.map((key) => rowIn(content.encounters, key)?.kind ?? key).join(', ');
+function encounterKindsOf(quest: QuestReading): string {
+  return capitalised(quest.encounters.map((encounter) => encounter.kind ?? encounter.encounterKey).join(', '));
 }
 
 // ── History ──────────────────────────────────────────────────────────────────────────────────

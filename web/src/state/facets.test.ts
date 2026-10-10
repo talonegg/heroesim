@@ -1,7 +1,8 @@
+// @vitest-environment node
 import { describe, expect, test } from 'vitest';
 import { chosenOf, faceted, kindFacet, toggled, type Facets } from './facets';
 
-// One filter of several choices (v1.1.7-S7, DL-206 items 26 to 29, DL-213): a row shown when it
+// One filter of several choices (DL-206 items 26 to 29, DL-213): a row shown when it
 // matches every filter, a filter with nothing chosen (All) matching every row; each option's count
 // what it would show with the other filters as they are.
 

@@ -4,7 +4,7 @@ import { App } from '../app';
 import { cameHome, played, started, withPartyOut, withReturn } from '../state/game.test-support';
 import { navButton } from './page.test-support';
 
-// The History rail (M9-S3, DL-103), as the player's Guild's History shows it since M9-F4 (DL-111
+// The History rail (DL-103), as the player's Guild's History shows it (DL-111
 // item 4, DL-112 item 7): no XP, Morale, Regard, Upkeep, purchase or sale, and "New" counting only
 // what it shows, as the navigation's count does.
 
@@ -14,14 +14,14 @@ function rail(): HTMLElement {
   return screen.getByRole('complementary', { name: 'Latest for The Lantern' });
 }
 
-/** The rail's lines, each its sentence: a return's is its own line's, without the Heroes' lines under it (M9-F5). */
+/** The rail's lines, each its sentence: a return's is its own line's, without the Heroes' lines under it. */
 function railSentences(): string[] {
   return Array.from(rail().querySelectorAll<HTMLElement>('.lines--rail > li')).map((item) =>
     (item.querySelector('.entry__text')?.textContent ?? (item.textContent ?? '').replace(/^Year \d+ Day \d+, (morning|afternoon|night)(New)? /, '')),
   );
 }
 
-describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
+describe('the rail keeps to what the Guild’s History shows', () => {
   test('a Party home: its return is there and new, its Heroes’ XP and Morale are not, and "New" is the navigation’s count', () => {
     render(<App initial={cameHome(started('reducer-test'))} />);
     const sentences = railSentences();
@@ -45,8 +45,8 @@ describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
   });
 });
 
-describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, its Injury after it (M9-F7), and no Encounter', () => {
+describe('a Party’s return in the rail (DL-111 item 2)', () => {
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, its Injury after it, and no Encounter', () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'strong',
       wealth: 150,
@@ -56,6 +56,7 @@ describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
       injuries: [{ hero: 0, typeKey: 'bruised-ribs', healsOnTurn: 999 }],
       levels: [{ hero: 1, level: 2 }],
       loot: [{ definitionKey: 'whetstone', quantity: 2 }],
+      morale: [0, 1].map((hero) => ({ hero, cause: 'strong-success' as const, before: 60, after: 65, bandAfter: 'steady' as const })),
     });
     render(<App initial={written.state} />);
     const items = within(rail()).getAllByRole('listitem').filter((item) => item.parentElement?.classList.contains('lines--rail'));
@@ -71,8 +72,8 @@ describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
     fireEvent.click(heroes);
     expect(lines.hidden).toBe(false);
     expect(within(lines).getAllByRole('listitem')).toHaveLength(written.party.heroIds.length);
-    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
-    expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2\.$/);
+    expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; Morale went from 60 to 65, steady; injured: Bruised ribs, healing on the night of Year \d+ Day \d+\.$/);
+    expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2; Morale went from 60 to 65, steady\.$/);
     expect(within(entry).getByRole('button', { name: /^Open the report: / })).toBeDefined();
     // The Loot is the next entry, then the Injury, standing out as an entry of its own (DL-120 item 6); no Encounter.
     expect(items[at + 1]?.textContent).toMatch(/The Lantern found Loot on .+: 2 × Whetstone\.$/);

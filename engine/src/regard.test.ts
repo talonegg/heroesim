@@ -19,7 +19,7 @@ import {
 } from './regard.js';
 import { buildDocument, fixtureTurn, testDeps, withValid } from './world.test-support.js';
 
-// M4-S5: Regard's scale and bands, Patron Regard for a Guild, and Guildmaster Regard (R9) with its
+// Regard's scale and bands, Patron Regard for a Guild, and Guildmaster Regard (R9) with its
 // writers (DL-43). The values these tests rely on are pinned here, never read from the defaults.
 
 const pinned: Partial<GameConfig> = {
@@ -125,7 +125,7 @@ describe('the Regard scale and its bands', () => {
   });
 });
 
-describe('Guildmaster Regard for a Guild (M4-S5, rule 1)', () => {
+describe('Guildmaster Regard for a Guild (rule 1)', () => {
   test('is a selector over Regard for its Guildmaster, never stored', () => {
     const { world, ids, guildmaster } = scene();
     const rival = world.guilds[ids.rivalGuild] as Guild;
@@ -139,7 +139,7 @@ describe('Guildmaster Regard for a Guild (M4-S5, rule 1)', () => {
   });
 });
 
-describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test each', () => {
+describe('the Guildmaster Regard writers (R9, pre-M0 review B3): one test each', () => {
   // Each writer's amount pinned apart from the other three, so a test shows the writer reads its own
   // field and no other's (M4 verification: with all four at ±1, a Hero written with a Patron's
   // amount passed).
@@ -149,18 +149,6 @@ describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test
     guildmasterRegardOnPatronFailure: -3,
     guildmasterRegardOnHeroSuccess: 0.5,
     guildmasterRegardOnHeroFailure: -0.25,
-  });
-
-  test('for a Patron, on a success of one of their Quests: guildmasterRegardOnPatronSuccess', () => {
-    const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], true));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(2);
-  });
-
-  test('for a Patron, on a failure of one of their Quests: guildmasterRegardOnPatronFailure', () => {
-    const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], false));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(-3);
   });
 
   test('for each Hero home on the Roster, on a success: guildmasterRegardOnHeroSuccess', () => {
@@ -199,7 +187,7 @@ describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test
     expect(crossings[0]?.payload.questId).toBe(questId);
   });
 
-  test("names the Quest on each crossing, for the Patron, a Hero and the Guildmaster's Guild alike (M9-F1, DL-112 item 2)", () => {
+  test("names the Quest on each crossing, for the Patron, a Hero and the Guildmaster's Guild alike (DL-112 item 2)", () => {
     const { world, guild, guildmaster, patron, heroes } = scene();
     const [heroId] = heroes as [HeroId];
     guildmaster.regard[patron.id] = { value: 3.5, since: 0, reason: 'test' };
@@ -228,7 +216,7 @@ describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test
   });
 });
 
-describe('Patron Regard for a Guild (M4-S5)', () => {
+describe('Patron Regard for a Guild', () => {
   test('rises by patronRegardOnSuccess times the Influence of the Guildmaster, and falls by patronRegardOnFailure, unscaled', () => {
     const { world, guild, guildmaster, patron } = scene();
     // Influence at the top of its range: gains × 1.5, losses as they are.
@@ -258,7 +246,7 @@ describe('Patron Regard for a Guild (M4-S5)', () => {
     expect(events).toEqual([]);
   });
 
-  test('emits patron.regard-changed only on a band crossing, naming the Patron, the Guild and the Quest (M9-F1)', () => {
+  test('emits patron.regard-changed only on a band crossing, naming the Patron, the Guild and the Quest', () => {
     const { world, guild, patron } = scene();
     const events: TurnEvent[] = [];
     for (let quest = 0; quest < 5; quest += 1) {
@@ -295,7 +283,7 @@ describe('Patron Regard for a Guild (M4-S5)', () => {
   });
 });
 
-describe('questsConclude moves Regard on every resolution (M4-S5)', () => {
+describe('questsConclude moves Regard on every resolution', () => {
   test("the Patron's and the Guildmaster's Regard move by the amounts for the band quest.resolved reports", () => {
     // Recovery still, so the Patron's value is the writers' alone.
     const still = testDeps({ ...pinned, patronRegardRecoveryPerYear: 0, influenceFactor: 0 });

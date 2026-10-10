@@ -2,10 +2,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
 
 // The deploy runs when Node runs web/scripts/deploy.mjs, and never when a module imports it
-// (v1.0.1-S3, DL-94 item 2): src/deploy.test.ts imports it, and so does playwright.live.config.ts,
+// (DL-94 item 2): src/deploy.test.ts imports it, and so does playwright.live.config.ts,
 // for the addresses. Under `npm test` an import sees no arguments and npm's own environment, so
 // on a clean checkout of a release tag a deploy run by an import would pass the guard, build and
-// upload to both hosts (v1.0.1-S6, DL-97). Here `spawnSync`, the script's one way to git, npm and
+// upload to both hosts (DL-97). Here `spawnSync`, the script's one way to git, npm and
 // wrangler, throws if called at all.
 
 afterEach(() => {

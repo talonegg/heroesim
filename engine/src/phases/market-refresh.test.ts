@@ -12,7 +12,7 @@ import { deepFreeze, plannedStreams, testContent, testDeps, withValid } from '..
 import { marketRefresh } from './market-refresh.js';
 import { phaseContext } from './phase.js';
 
-// M5-S4: the Market Engine's morning refresh (INPUTS 7.2, DL-51). The Market's size, its stacks'
+// The Market Engine's morning refresh (INPUTS 7.2, DL-51). The Market's size, its stacks'
 // quantities and the prices are pinned; no Rival acts, since none of these tests is about them.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };

@@ -9,7 +9,6 @@
 // an entry is new when it is one of `log`'s.
 
 import {
-  playerGuild,
   type Entry,
   type EngineEventOf,
   type GuildId,
@@ -18,13 +17,14 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { listed, nightOfTurn } from '@heroesim/words';
+import { listed, nightOfTurn, rowOf } from '@heroesim/words';
 import { content } from '../content';
 import { historyEntries, historyFilter } from './history';
+import { besideAReturn } from './history-reader';
 import { returnEntry, type ReturnEntry } from './quest-return';
-import { rowOf } from './names';
-import { narrationFor, questNamer } from './namer';
-import { calendarFor, type GameState } from './reducer';
+import { questNamer } from './namer';
+import { readingOf } from './reading';
+import type { GameState } from './reducer';
 import { boardView, linesOf, type LogLine } from './selectors';
 import { offersView } from './trade-views';
 
@@ -44,7 +44,7 @@ export interface NavCounts {
  */
 function freshFor(state: Pick<GameState, 'document' | 'log'>): TurnEvent[] {
   const { document } = state;
-  const guild = document === null ? undefined : playerGuild(document.world);
+  const guild = document === null ? undefined : readingOf(document).guild;
   if (document === null || guild === undefined) return [];
   const shows = historyFilter(document, guild.id);
   return state.log.filter((event) => event.participants.includes(guild.id) && shows(event));
@@ -79,10 +79,9 @@ export interface PartyOutRow {
 /** The player's Parties out, in the order they were sent. */
 export function partiesOutView(document: WorldDocument): PartyOutRow[] {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild, calendar } = readingOf(document);
   if (guild === undefined) return [];
   const questName = questNamer(document, content);
-  const calendar = calendarFor(document);
   return Object.values(world.parties)
     .filter((party) => party.guildId === guild.id)
     .map((party) => {
@@ -142,11 +141,11 @@ export interface RailView {
  */
 export function railView(state: Pick<GameState, 'document' | 'log'>, limit = railLength): RailView | null {
   const { document } = state;
-  const guild = document === null ? undefined : playerGuild(document.world);
+  const guild = document === null ? undefined : readingOf(document).guild;
   if (document === null || guild === undefined) return null;
   const fresh = new Set<object>(freshFor(state));
   const entries = besideTheirReturn(historyEntries(document, guild.id, limit));
-  const lines = linesOf(entries, narrationFor(document, content));
+  const lines = linesOf(entries, readingOf(document).narration);
   return {
     guildId: guild.id,
     guildName: guild.name,
@@ -187,6 +186,3 @@ function besideTheirReturn(entries: readonly Entry[]): Entry[] {
   }
   return ordered;
 }
-
-/** The entries of a return that stand beside its entry in the rail: its Loot, Injuries and Deaths, and the Traits its Heroes earned (v1.1.4-S7). */
-const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);

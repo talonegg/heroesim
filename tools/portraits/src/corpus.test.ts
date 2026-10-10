@@ -1,32 +1,16 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { run } from './cli.js';
 import { corpus } from './corpus.js';
 import { diffJson, diffRun } from './diff.js';
 import { writeRun } from './runs.js';
-import { readJson, root, scratchRepository, status, writeJson } from './test-support.js';
+import { cli, readJson, removeAfterTest, root, scratch, status, writeJson } from './test-support.js';
 
-// `corpus` and `diff` (v1.1.3-S3): what the `portrait-analyse` and `portrait-apply` skills read. Each
+// `corpus` and `diff`: what the `portrait-analyse` and `portrait-apply` skills read. Each
 // counts or compares, and changes nothing.
 
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
-  scratches.push(remove);
-  return dir;
-}
-
-/** A command line's exit code and JSON. */
-async function cli(...argv: string[]): Promise<{ code: number; json: Record<string, unknown> }> {
-  let out = '';
-  const code = await run([...argv, '--json'], { out: (text) => (out += text), err: () => undefined });
-  return { code, json: JSON.parse(out) as Record<string, unknown> };
-}
 
 type Appearances = { features: Record<string, unknown>; portraits: Record<string, Record<string, unknown>> };
 type Descriptions = { biography: { temperClosings: Record<string, string[]> }; tempers: string[] };
@@ -51,7 +35,7 @@ describe('corpus', () => {
       { key: 'middle', from: 31, to: 40 },
       { key: 'older', from: 41, to: null },
     ]);
-    // Since v1.1.3-S4 the game holds 40 pictures: gm-female-01..20 and gm-male-01..20.
+    // The game holds 40 pictures: gm-female-01..20 and gm-male-01..20.
     const pictures = result.pictures.map((picture) => [picture.key, picture.status, picture.listed, picture.bands, picture.picture, picture.row?.temper]);
     const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
     expect(pictures.map((picture) => picture[0])).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);
@@ -88,7 +72,7 @@ describe('corpus', () => {
     ]) {
       expect(keys).toContain(key);
     }
-    // Since v1.1.3-S4 no key is short of three; one cut back to a sentence is named.
+    // No key is short of three; one cut back to a sentence is named.
     expect(result.sentences.short).toEqual([]);
     const dir = scratch();
     const descriptions = readJson<Descriptions>(dir, 'content/descriptions.json');
@@ -141,7 +125,7 @@ describe('corpus', () => {
     expect(code).toBe(0);
     expect(json.source).toBe('docs/portraits/analysis/2026-10-02/');
     const sentences = json.sentences as { lists: { list: string; key: string; count: number }[] };
-    // The content's wry holds three sentences since v1.1.3-S4; the run's, two more.
+    // The content's wry holds three sentences; the run's, two more.
     expect(sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 5 });
     expect(corpus(dir).sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 3 });
     expect(status(dir)).toBe(before);
@@ -150,7 +134,7 @@ describe('corpus', () => {
   test('with --draft, counts a write-run draft before it is written, and write-run refuses a draft that fails the content checks', async () => {
     const dir = scratch();
     const outside = mkdtempSync(path.join(tmpdir(), 'heroesim-draft-'));
-    scratches.push(() => rmSync(outside, { recursive: true, force: true }));
+    removeAfterTest(() => rmSync(outside, { recursive: true, force: true }));
     const good = path.join(outside, 'good.json');
     writeFileSync(good, JSON.stringify(runDraft(dir, (files) => void files.descriptions.biography.temperClosings.wry?.push('{He} laughs last.'))));
     const counted = await cli('corpus', '--draft', good, '--root', dir);
@@ -253,7 +237,7 @@ describe('diff', () => {
   test('follows write-run through the command line, as the portrait-analyse skill calls it, from a draft outside the tree', async () => {
     const dir = scratch();
     const outside = mkdtempSync(path.join(tmpdir(), 'heroesim-draft-'));
-    scratches.push(() => rmSync(outside, { recursive: true, force: true }));
+    removeAfterTest(() => rmSync(outside, { recursive: true, force: true }));
     const draft = path.join(outside, 'analysis.json');
     writeFileSync(draft, JSON.stringify(runDraft(dir, (files) => void files.descriptions.biography.temperClosings.stern?.push('{He} keeps accounts.'))));
     const written = await cli('write-run', draft, '--date', '2026-10-03', '--root', dir);

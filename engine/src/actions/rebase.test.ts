@@ -14,7 +14,7 @@ import { newRules, rebase } from './rebase.js';
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * A game made under the rules of version 1, `meta.configVersion` (v1.1.6-S7, DL-193), one of which
+ * A game made under the rules of version 1, `meta.configVersion` (DL-193), one of which
  * differs from this release's defaults: `turnsPerYear` 12, so that the rules a game plays under show
  * which it has.
  */

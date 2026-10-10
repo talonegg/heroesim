@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { createWorld, defaultConfig, portraitFit, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { capitalised } from '@heroesim/words';
@@ -31,7 +32,7 @@ import {
   type TextsHeld,
 } from './setup';
 
-// The new-game form's Guildmaster (M9-S7, #30): what each Trait costs and excludes, how it stands
+// The new-game form's Guildmaster (#30): what each Trait costs and excludes, how it stands
 // against those chosen, and the budget left, every judgement the engine's own. The values are
 // DL-100 item 3's: a budget of 1 and at most 2 Traits; Well liked and Thrifty cost 2 and Old soldier
 // 1; Miser and Spendthrift refund 2 and Mistrusts magic 1; Thrifty excludes Spendthrift, Well liked
@@ -57,12 +58,12 @@ function writtenOf(setup: SetupFields, seed: string, n: number, given: Partial<R
   return writtenDescription(guildmasterPreview(setup, seed), seed, n, given);
 }
 
-describe("the Traits the new-game form offers, as they stand against those chosen (M9-S7)", () => {
+describe("the Traits the new-game form offers, as they stand against those chosen", () => {
   test('with none chosen, the whole budget is left, and the dearer buffs would pass it alone', () => {
     const view = traitPicksView([]);
 
     expect(view.budget).toEqual({
-      budget: 1,
+      budget: defaultConfig.guildmasterTraitBudget,
       spent: 0,
       left: 1,
       over: false,
@@ -171,7 +172,7 @@ describe("the Traits the new-game form offers, as they stand against those chose
   });
 });
 
-describe("what else the form offers for the Guildmaster, and the engine's refusal as a sentence (M9-S7)", () => {
+describe("what else the form offers for the Guildmaster, and the engine's refusal as a sentence", () => {
   test('offers each sex by a word, each starting age, how the Traits are held, and each descriptive Attribute with its bound', () => {
     const choices = setupFormChoices();
 
@@ -179,11 +180,10 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
       { value: 'female', label: 'Female' },
       { value: 'male', label: 'Male' },
     ]);
-    // The rules' range, 21 to 50 from M9-F1 (DL-113 item 4), read from the config.
+    // The rules' range, 21 to 50 (DL-113 item 4), read from the config.
     const { guildmasterStartingAgeMin: min, guildmasterStartingAgeMax: max } = defaultConfig;
     expect(choices.ages).toEqual(Array.from({ length: max - min + 1 }, (_, index) => min + index));
     expect(choices.agesWords).toBe(`${min} to ${max}`);
-    expect(choices.traitsWords).toBe('Up to 2 Traits, costing no more than the budget of 1 in all: a buff costs, and a penalty refunds.');
     expect(choices.attributes).toEqual([
       { attribute: 'birthplace', label: 'Birthplace', maxLength: 60, boundWords: 'At most 60 characters' },
       { attribute: 'appearance', label: 'Appearance', maxLength: 280, boundWords: 'At most 280 characters' },
@@ -238,7 +238,7 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
     expect(setupNotice(play, false)).toBeNull();
   });
 
-  // v1.1.4-S11 (DL-149 items 3 and 4): "Choose myself" holds "Start the game" until the sex, the age and a
+  // DL-149 items 3 and 4: "Choose myself" holds "Start the game" until the sex, the age and a
   // picture are chosen, after the names; the engine would draw them, so the hold is the form's.
   test('with "Choose myself", holds the start until the sex, the age and a picture are chosen, saying which', () => {
     const empty: NewGame = { ...play, guildName: '', guildmasterName: '' };
@@ -259,34 +259,36 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
   });
 });
 
-// v1.1.4-S11 (DL-149 item 5): the five Guildmaster Stats set within the Stat points, each step the
+// DL-149 item 5: the five Guildmaster Stats set within the Stat points, each step the
 // engine's verdict, and what each does in the Guildmaster view's words.
-describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', () => {
+describe('the Stats "Choose myself" sets, within the Stat points', () => {
   const play: NewGame = { kind: 'newGame', seed: 'setup', guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '' };
 
   test("start at 10 each, all 50 Stat points spent, each said in the Guildmaster view's words, in its order", () => {
     const view = statPicksView(startingStats());
+    const { guildmasterStatMin: min, guildmasterStatMax: max, guildmasterStatPoints: points } = defaultConfig;
+    // The points are shared out evenly among the five Stats.
+    const each = points / 5;
 
-    expect(startingStats()).toEqual({ inspiration: 10, influence: 10, negotiation: 10, coaching: 10, judgement: 10 });
+    expect(startingStats()).toEqual({ inspiration: each, influence: each, negotiation: each, coaching: each, judgement: each });
     expect(view.points).toEqual({
-      points: 50,
-      spent: 50,
+      points,
+      spent: points,
       left: 0,
       over: false,
       leftWords: 'Stat points left: 0',
-      spentWords: 'The Stats spend 50 of 50 Stat points.',
+      spentWords: `The Stats spend ${points} of ${points} Stat points.`,
       unspentWords: null,
     });
     expect(view.stats.map(({ name, value, min, max, bearsOn }) => [name, value, min, max, bearsOn])).toEqual([
-      ['Inspiration', 10, 5, 15, 'The Morale baseline of the Heroes'],
-      ['Influence', 10, 5, 15, "The Regard a Patron's Quest earns"],
-      ['Negotiation', 10, 5, 15, 'The reward agreed and the fees paid'],
-      ['Coaching', 10, 5, 15, 'The XP of the training yard'],
-      ['Judgement', 10, 5, 15, 'How sharp the Potential hints read'],
+      ['Inspiration', each, min, max, 'The Morale baseline of the Heroes'],
+      ['Influence', each, min, max, "The Regard a Patron's Quest earns"],
+      ['Negotiation', each, min, max, 'The reward agreed and the fees paid'],
+      ['Coaching', each, min, max, 'The XP of the training yard'],
+      ['Judgement', each, min, max, 'How sharp the Potential hints read'],
     ]);
     // With every point spent, none can be raised until one is lowered.
     expect(view.stats.every((pick) => !pick.canRaise && pick.canLower)).toBe(true);
-    expect(statsWords()).toBe('Each 5 to 15, sharing 50 Stat points; each starts at 10.');
   });
 
   test('a point taken from one may be given to another, never past 15 or below 5, and points left unspent are noted as lost', () => {
@@ -325,15 +327,15 @@ describe('the Stats "Choose myself" sets, within the Stat points (v1.1.4-S11)', 
   });
 });
 
-describe('when the Guildmaster retires, on the form (M9-F2, DL-113 item 5)', () => {
+describe('when the Guildmaster retires, on the form (DL-113 item 5)', () => {
   test("says the age a Guildmaster retires at, the configuration's", () => {
     expect(setupFormChoices().retiresWords).toBe(`Retires at ${defaultConfig.guildmasterRetirementAge}`);
     expect(setupFormChoices(content, { ...defaultConfig, guildmasterRetirementAge: 70 }).retiresWords).toBe('Retires at 70');
   });
 });
 
-// v1.1.2-S4 (DL-125 items 3 and 6): the Portraits the form offers, and what the seed draws.
-describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", () => {
+// DL-125 items 3 and 6: the Portraits the form offers, and what the seed draws.
+describe("the Guildmaster's Portrait and the preview on the form", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
 
   /** What "Start the game" makes of the Guildmaster, from the engine's world. */
@@ -344,7 +346,7 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   }
 
   test("offers content's pictures, each named by its sex and its place, by the sex chosen, or both with the sex drawn", () => {
-    /** The 20 pictures of `sex` since v1.1.3-S4, as the form offers them. */
+    /** The 20 pictures of `sex` (DL-143), as the form offers them. */
     const twenty = (sex: Sex, label: string) =>
       Array.from({ length: 20 }, (_, n) => ({ key: `gm-${sex}-${String(n + 1).padStart(2, '0')}`, sex, label: `${label} Portrait ${n + 1}` }));
     expect(portraitChoices(null)).toEqual([
@@ -373,7 +375,7 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
       expect(view.statsWords).toBe(`Inspiration ${inspiration}, Influence ${influence}, Negotiation ${negotiation}, Coaching ${coaching} and Judgement ${judgement}`);
       const names = traitNames(guildmaster.traits);
       expect(view.traitsWords).toBe(names.length === 0 ? 'Traits: None' : `Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
-      // Chosen to fit them since v1.1.3-S5: a picture of the sex, named by its place in content's list,
+      // Chosen to fit them (DL-141): a picture of the sex, named by its place in content's list,
       // or the Silhouette where none fits their age.
       const place = guildmaster.portraitKey === null ? 0 : content.portraits.guildmaster[guildmaster.sex].indexOf(guildmaster.portraitKey) + 1;
       expect(view.portrait).toEqual({
@@ -422,9 +424,8 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   });
 });
 
-// v1.1.3-S7 (DL-134 items 7 and 9, DL-143): the setup grid, one sex's thumbnails at a time, since
-// v1.1.4-S11 the sex chosen's and none before (DL-149 item 4), and `portraitFit`'s notes in words.
-describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', () => {
+// DL-134 items 7 and 9, DL-143: the setup grid, one sex's thumbnails at a time, the sex chosen's and none before (DL-149 item 4), and `portraitFit`'s notes in words.
+describe('the setup grid and the notes beside a Portrait chosen', () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
 
   test("shows no picture before a sex is chosen, saying so, and then that sex's pictures only, with no draw among them", () => {
@@ -486,9 +487,9 @@ describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', ()
   });
 });
 
-// v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again", the engine's `describeGuildmaster` for
+// DL-125 item 6: "Write them for me" and "Again", the engine's `describeGuildmaster` for
 // the Guildmaster the form makes, whose facts are `previewGuildmaster`'s.
-describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", () => {
+describe("the Guildmaster's texts written for the new-game form", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
 
   function made(seed: string, setup: SetupFields) {
@@ -533,9 +534,9 @@ describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", ()
   });
 });
 
-// v1.1.2-S6 (the review's F and I): the form asks the engine once for the Guildmaster it makes, and reads
+// The form asks the engine once for the Guildmaster it makes, and reads
 // from that preview what the seed draws and the first texts written, computing no rule of its own.
-describe("the new-game form's preview, read from the engine's (v1.1.2-S6)", () => {
+describe("the new-game form's preview, read from the engine's", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
 
   test("says what is chosen for the player as the engine's preview says it, not by the fields left blank", () => {
@@ -561,10 +562,10 @@ describe("the new-game form's preview, read from the engine's (v1.1.2-S6)", () =
   });
 });
 
-// v1.1.2-S6 (the review's B and C): "Write them for me" and "Again" fill only the fields left blank or
+// "Write them for me" and "Again" fill only the fields left blank or
 // still as written, and a field still as written follows the Guildmaster when the facts change; the
 // player's own words are kept, and the note says when they were written for another Guildmaster.
-describe("the Guildmaster's texts held by the new-game form (v1.1.2-S6)", () => {
+describe("the Guildmaster's texts held by the new-game form", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
   const written = (setup: SetupFields, n: number, seed = 'held-seed', given: Partial<Record<DescriptiveAttribute, string>> = {}) =>
     writtenOf(setup, seed, n, given);

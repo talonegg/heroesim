@@ -5,8 +5,8 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { run } from './cli.js';
 import { nextRun, today } from './records.js';
 
-// The files the tool writes (v1.1.3-S2): runs named by date. JSON written as the content keeps it, and
-// every change of a command undone together, are `@heroesim/content/write`'s (v1.1.6-S4).
+// The files the tool writes: runs named by date. JSON written as the content keeps it, and
+// every change of a command undone together, are `@heroesim/content/write`'s.
 
 const made: string[] = [];
 afterEach(() => {
@@ -36,7 +36,7 @@ describe('nextRun()', () => {
 });
 
 describe('--date', () => {
-  test('a date not written YYYY-MM-DD is a command line the tool cannot read, exit 2, before anything is read (v1.1.3-S8)', async () => {
+  test('a date not written YYYY-MM-DD is a command line the tool cannot read, exit 2, before anything is read', async () => {
     let out = '';
     const code = await run(['write-run', 'no-such-draft.json', '--date', '2026-1-2', '--json'], { out: (text) => (out += text), err: () => undefined });
     expect(code).toBe(2);

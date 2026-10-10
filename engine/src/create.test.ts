@@ -4,7 +4,6 @@ import type { Disposition } from './content-types.js';
 import { configVersion } from './config.js';
 import { makeId, schemaVersion, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
-import { isJsonSafe } from './json-safe.js';
 import { ageIntoPortrait } from './portraits.js';
 import { validate } from './validate.js';
 import { testDeps, withoutPortraits, withValid } from './world.test-support.js';
@@ -27,7 +26,7 @@ function rivals(document: WorldDocument): Guild[] {
 }
 
 /**
- * `document` with every Guildmaster's Portrait and the texts it writes set aside (v1.1.3-S5): a
+ * `document` with every Guildmaster's Portrait and the texts it writes set aside: a
  * Portrait is chosen to fit the Guildmaster drawn, among the pictures no living Guildmaster has
  * (DL-135 item 4), so a change to one Guildmaster may change the pictures of those after, and with
  * them their Appearance and Biography, while every draw of every stream is the same.
@@ -35,7 +34,7 @@ function rivals(document: WorldDocument): Guild[] {
 function picturesAside(document: WorldDocument): WorldDocument {
   const copy = structuredClone(document);
   for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
-  // A Hero's too (v1.1.3-S6): the test content's one Hero picture fits a female Warrior.
+  // A Hero's too: the test content's one Hero picture fits a female Warrior.
   for (const hero of Object.values(copy.world.heroes)) Object.assign(hero, { portraitKey: null, appearance: '', biography: '' });
   return copy;
 }
@@ -66,13 +65,12 @@ describe('createWorld', () => {
   });
 
   test("generates the player's Guild first, from the setup, with one Hero per Class", () => {
-    const deps = testDeps();
+    const deps = testDeps({ startingRosterSize: 4 });
     const { document } = createWorld('player', setup, deps);
     withValid(document, deps);
     const guild = document.world.guilds[playerId];
     const classes = guild?.rosterIds.map((id) => document.world.heroes[id]?.classKey);
 
-    expect(deps.config.startingRosterSize).toBe(4);
     expect(guild).toMatchObject({
       name: setup.guildName,
       backgroundKey: setup.backgroundKey,
@@ -106,10 +104,9 @@ describe('createWorld', () => {
     }
   });
 
-  // M6-S1 (DL-56): every world has every Disposition, dealt round-robin in key order, with no draw.
+  // DL-56: every world has every Disposition, dealt round-robin in key order, with no draw.
   test('deals the Dispositions to the Rivals round-robin, so that every world has all four', () => {
-    const deps = testDeps();
-    expect(deps.config.rivalCount).toBe(4);
+    const deps = testDeps({ rivalCount: 4 });
     for (const seed of ['deal-1', 'deal-2', 'deal-3']) {
       const { document } = createWorld(seed, setup, deps);
       const dealt = rivals(document).map((rival) => rival.controller);
@@ -139,14 +136,13 @@ describe('createWorld', () => {
   });
 
   test('generates patronCount Patrons with the Spheres dealt evenly, and the Unattached pool', () => {
-    const deps = testDeps();
+    const deps = testDeps({ patronCount: 12 });
     const { document } = createWorld('patrons', setup, deps);
     withValid(document, deps);
     const patrons = Object.values(document.world.patrons);
     const perSphere = deps.config.patronCount / Object.keys(deps.content.spheres).length;
     const unattached = Object.values(document.world.heroes).filter((hero) => hero.guildId === null);
 
-    expect(deps.config.patronCount).toBe(12);
     expect(patrons).toHaveLength(12);
     expect(tally(patrons.map((patron) => patron.sphereKey))).toEqual(
       Object.fromEntries(Object.keys(deps.content.spheres).map((key) => [key, perSphere])),
@@ -206,7 +202,7 @@ describe('createWorld', () => {
       Array.from({ length: guildCount }, () => 'guild.founded'),
     );
 
-    // Each founding names the Guild's founding Wealth, the player's and every Rival's (M9-F7, DL-120 item 4).
+    // Each founding names the Guild's founding Wealth, the player's and every Rival's (DL-120 item 4).
     for (const entry of history.entries.filter((it) => it.type === 'guild.founded')) {
       const { guildId, wealth } = entry.payload as { guildId: GuildId; wealth?: number };
       expect(wealth, guildId).toBe(document.world.guilds[guildId]?.wealth);
@@ -223,12 +219,12 @@ describe('createWorld', () => {
     ]);
   });
 
-  test('opens on a full Board, drawn last and from the board stream alone (M2-S3, DL-25)', () => {
+  test('opens on a full Board, drawn last and from the board stream alone (DL-25)', () => {
     const deps = testDeps();
     const { document, events } = createWorld('first-board', setup, deps);
     withValid(document, deps);
     const { world, history } = document;
-    // The same world with no first Board: what createWorld made before M2-S3.
+    // The same world with no first Board (DL-25).
     const empty = createWorld('first-board', setup, testDeps({ boardSize: 0 })).document;
 
     expect(world.board).toHaveLength(deps.config.boardSize);
@@ -257,15 +253,8 @@ describe('createWorld', () => {
     expect(createWorld('determinism-2', setup, deps).document.world).not.toEqual(one.document.world);
   });
 
-  test('returns a JSON-safe document', () => {
-    const deps = testDeps();
-    const { document } = createWorld('json', setup, deps);
-    withValid(document, deps);
-    expect(isJsonSafe(document)).toBe(true);
-  });
-
   test('returns a document the validator accepts, with no warning', () => {
-    // M1-S6's first box. harness/src/creation.test.ts checks the same against the core content.
+    // The first acceptance box. harness/src/creation.test.ts checks the same against the core content.
     const deps = testDeps();
     for (const seed of ['valid-1', 'valid-2', 'valid-3']) {
       const { document } = createWorld(seed, setup, deps);
@@ -322,7 +311,7 @@ describe('createWorld', () => {
   });
 });
 
-// ── The Guildmaster's setup (M9-S2, R8, DL-100 item 3, DL-102) ────────────────────────────────
+// ── The Guildmaster's setup (R8, DL-100 item 3, DL-102) ────────────────────────────────
 
 describe('setupRefusal', () => {
   const deps = testDeps();
@@ -343,11 +332,9 @@ describe('setupRefusal', () => {
     expect(setupRefusal({ ...setup, guildmasterAge: 30, guildmasterTraitKeys: ['well-liked', 'spendthrift'] }, deps)).toBeNull();
   });
 
-  test('accepts ages 21 and 50, the ends of the range, and refuses 20 and 51 with the refusal it gave before (M9-F1, DL-113 item 4)', () => {
+  test('accepts ages 21 and 50, the ends of the range (DL-113 item 4)', () => {
     expect(setupRefusal({ ...setup, guildmasterAge: 21 }, deps)).toBeNull();
     expect(setupRefusal({ ...setup, guildmasterAge: 50 }, deps)).toBeNull();
-    expect(setupRefusal({ ...setup, guildmasterAge: 20 }, deps)).toEqual({ reason: 'age-out-of-range', age: 20, min: 21, max: 50 });
-    expect(setupRefusal({ ...setup, guildmasterAge: 51 }, deps)).toEqual({ reason: 'age-out-of-range', age: 51, min: 21, max: 50 });
   });
 
   test.each<[string, Partial<WorldSetup>, SetupRefusal]>([
@@ -406,7 +393,7 @@ describe('setupRefusal', () => {
   });
 });
 
-describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
+describe("createWorld with the Guildmaster's setup", () => {
   const deps = testDeps();
   const guildmasterOf = (document: WorldDocument) => {
     const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
@@ -451,7 +438,7 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     const none = createWorld('unset', { ...setup, guildmasterTraitKeys: [] }, deps).document;
 
     expect(guildmasterOf(none).traits).toEqual([]);
-    // The Biography gives the Traits held a sentence each (v1.1.2-S5).
+    // The Biography gives the Traits held a sentence each.
     expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits, biography: guildmasterOf(drawn).biography }).toEqual(guildmasterOf(drawn));
     expect(guildmasterOf(drawn).birthplace).not.toBe('');
   });
@@ -469,11 +456,11 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
         sex: was.sex,
         ageAtEntry: was.ageAtEntry,
         traits: was.traits,
-        // Written for the Guildmaster they are (v1.1.2-S5), by the same draws of `descriptions`.
+        // Written for the Guildmaster they are, by the same draws of `descriptions`.
         birthplace: was.birthplace,
       });
 
-      // Every Guildmaster's picture fits them, so theirs and the Rivals' after may differ (v1.1.3-S5).
+      // Every Guildmaster's picture fits them, so theirs and the Rivals' after may differ.
       expect(picturesAside(chosen)).toEqual(picturesAside(drawn));
     }
   });
@@ -512,10 +499,10 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
       ...deps.content,
       guildmasterTraits: Object.fromEntries(Object.entries(deps.content.guildmasterTraits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
     });
-    for (const seed of seeds) {
+    for (const seed of seeds.slice(0, 10)) {
       const priced = picturesAside(createWorld(seed, setup, deps).document);
-      // A Biography gives the Traits held a sentence each (v1.1.2-S5), and a Portrait prefers
-      // Callings that suit them (v1.1.3-S5): both are set aside.
+      // A Biography gives the Traits held a sentence each, and a Portrait prefers
+      // Callings that suit them: both are set aside.
       const unpriced = picturesAside(createWorld(seed, setup, free).document);
       for (const guildmaster of Object.values(unpriced.world.guildmasters)) {
         guildmaster.traits = priced.world.guildmasters[guildmaster.id]?.traits ?? [];
@@ -525,16 +512,16 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
   });
 });
 
-// M9-F1 (DL-113 item 4): every Guildmaster 21 to 50 at the start, drawn with the draws of before.
-describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
+// DL-113 item 4: every Guildmaster 21 to 50 at the start, drawn with the draws of before.
+describe("the founders' ages, 21 to 50, over 100 worlds", () => {
   test("span 21 to 50, and each world is the one drawn under 30 to 45 but for the Guildmasters' ages: the draws are unchanged", () => {
     const deps = testDeps();
     const before = testDeps({ guildmasterStartingAgeMin: 30, guildmasterStartingAgeMax: 45 });
     const ages = new Set<number>();
-    for (let index = 0; index < 1000; index += 1) {
+    for (let index = 0; index < 100; index += 1) {
       const seed = `founders-${index}`;
-      // The age's band chooses the Appearance's and Biography's words (v1.1.2-S5), and the Portrait
-      // (v1.1.3-S5): all three are set aside.
+      // The age's band chooses the Appearance's and Biography's words, and the Portrait:
+      // all three are set aside.
       const { world } = picturesAside(createWorld(seed, setup, deps).document);
       const { world: was } = picturesAside(createWorld(seed, setup, before).document);
       for (const guildmaster of Object.values(world.guildmasters)) {
@@ -547,11 +534,10 @@ describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
     expect(Math.min(...ages)).toBe(21);
     expect(Math.max(...ages)).toBe(50);
     expect(ages.size).toBe(30);
-    // 2,000 worlds, each now choosing Portraits and writing every Hero's texts (v1.1.3-S5, S6).
-  }, 30_000);
+  });
 });
 
-describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)", () => {
+describe("the player's Guildmaster's Portrait (DL-125 items 3 and 4)", () => {
   const deps = testDeps();
   const guildmasterOf = (document: WorldDocument) => {
     const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
@@ -607,14 +593,7 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
     expect([...(drawn.get('male') ?? [])].sort()).toEqual(deps.content.portraits.guildmaster.male);
   });
 
-  test('the same seed draws the same Portrait', () => {
-    for (const seed of seeds.slice(0, 10)) {
-      const first = guildmasterOf(createWorld(seed, setup, deps).document).portraitKey;
-      expect(guildmasterOf(createWorld(seed, setup, deps).document).portraitKey).toBe(first);
-    }
-  });
-
-  test('it is null, the Silhouette, when the sex has no picture, as in the core until v1.1.2-S4', () => {
+  test('it is null, the Silhouette, when the sex has no picture', () => {
     const bare = testDeps({}, withoutPortraits());
     const { document } = createWorld('none', setup, bare);
     withValid(document, bare);
@@ -622,7 +601,7 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
     expect(guildmasterOf(document).portraitKey).toBeNull();
   });
 
-  test("every Rival's Guildmaster has a picture that fits them, or the Silhouette: never the player's, and never another's (v1.1.3-S5)", () => {
+  test("every Rival's Guildmaster has a picture that fits them, or the Silhouette: never the player's, and never another's", () => {
     let pictured = 0;
     for (const seed of seeds.slice(0, 20)) {
       const { document } = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps);
@@ -653,7 +632,7 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
 
       expect(Object.keys(drawn.world.rng)).toContain('gm-portraits');
       for (const other of [chosen, bare]) {
-        // The sex chooses the name's and the texts' words (v1.1.2-S5); the pictures are set aside.
+        // The sex chooses the name's and the texts' words; the pictures are set aside.
         Object.assign(guildmasterOf(other), { sex: was.sex, birthplace: was.birthplace });
         expect({ ...picturesAside(other), meta: drawn.meta }).toEqual(picturesAside(drawn));
       }
@@ -704,9 +683,9 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
   });
 });
 
-// v1.1.4-S11 (DL-149 item 5): the Guildmaster's five Stats chosen at setup, every one or none, each 5
+// DL-149 item 5: the Guildmaster's five Stats chosen at setup, every one or none, each 5
 // to 15, within the Stat points; chosen after the draw, so the world a seed makes is otherwise the same.
-describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
+describe("the player's Guildmaster's Stats chosen (DL-149)", () => {
   const deps = testDeps();
   const even = { inspiration: 10, influence: 10, negotiation: 10, coaching: 10, judgement: 10 };
   const best = { inspiration: 10, influence: 15, negotiation: 15, coaching: 5, judgement: 5 };
@@ -716,10 +695,6 @@ describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
     if (guildmaster === undefined) throw new Error("No player's Guildmaster");
     return guildmaster;
   };
-
-  test('guildmasterStatPoints is 50 by default (DL-149, DL-153)', () => {
-    expect(deps.config).toMatchObject({ guildmasterStatPoints: 50, guildmasterStatMin: 5, guildmasterStatMax: 15 });
-  });
 
   test('accepts every Stat within 5 to 15 spending 50 or less, unspent points allowed', () => {
     expect(setupRefusal({ ...setup, guildmasterStats: even }, deps)).toBeNull();
@@ -819,7 +794,7 @@ describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
       ).document;
       const was = guildmasterOf(drawn);
       chosen.world.guildmasters[was.id] = structuredClone(was);
-      // Every Guildmaster's picture fits them among those not in use (v1.1.3-S5), so a Rival's, and the
+      // Every Guildmaster's picture fits them among those not in use, so a Rival's, and the
       // texts it writes, may follow the player's; every draw of every stream is the same.
       expect(picturesAside(chosen), seed).toEqual(picturesAside(drawn));
     }

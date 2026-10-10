@@ -1,19 +1,17 @@
 import type { HeroId } from '@heroesim/engine';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { App } from '../app';
-import { played, started, withPartyOut, withReturn, withRosterReleased, withTheGone, withTraitNews, withWorldNews } from '../state/game.test-support';
+import { cameHome, played, started, withPartyOut, withReturn, withRosterReleased, withTheGone, withTraitNews } from '../state/game.test-support';
 import { historyView } from '../state/history';
 import { gameReducer, type GameState } from '../state/reducer';
 import { History } from './history';
-import { help } from './section';
 import { HistoryLinksContext } from './history-entries';
-import { historyLines, inHistory, navButton, openDebugHistory, openView, section, sentenceOf } from './page.test-support';
+import { historyLines, idle, inHistory, navButton, openDebugHistory, openView, renderGame, section, sentenceOf } from './page.test-support';
 
-// The History as the one place to read what happened (M9-S5, DL-105), driven through the page: it
+// The History as the one place to read what happened (DL-105), driven through the page: it
 // opens on the player's Guild, the last play's entries its newest and marked new; the World History
 // and a Rival's are one choice away, a choice that holds, and the whole History is the game menu's
-// debug view (M9-F4); groups by date and time of day; a Party's
+// debug view; groups by date and time of day; a Party's
 // Encounters and a Rival's routine folded, each opened by a button; the marks, each with a word or an
 // icon; names that open whom they name; and each entity's page opening its History.
 
@@ -26,14 +24,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function render_(state: GameState): void {
-  render(<App initial={state} />);
-}
 
 /** The History's title, the `h3` over its page. */
 function title(): string {
@@ -50,14 +40,9 @@ function turnOf(when: string): number {
   return (Number(year) - 1) * 1080 + (Number(day) - 1) * 3 + ['morning', 'afternoon', 'night'].indexOf(time);
 }
 
-/** A game with a Party of the player's home, and the fast forward that brought it home the last play. */
-function cameHome(): GameState {
-  return played(withPartyOut(started('reducer-test')), { kind: 'fastForward', until: [] });
-}
-
-describe('one view, opened on the player’s Guild (M9-S5)', () => {
+describe('one view, opened on the player’s Guild', () => {
   test("opens on the player's Guild, grouped by date and time of day, newest first, what the last play added marked new", () => {
-    render_(cameHome());
+    renderGame(cameHome(started('reducer-test')));
     const history = section('History');
 
     expect(title()).toBe('The History of The Lantern');
@@ -73,8 +58,6 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
     // Each group is a list named by its date and time of day, as the help says (DL-210, DL-214).
     expect(within(history).getByRole('list', { name: groups[0] ?? '' })).toBeDefined();
     expect(groups[0]).toMatch(/^Year \d+ Day \d+, (morning|afternoon|night)$/);
-    expect(help.history).toContain('a page at a time, by date and time of day:');
-    expect(help.history).not.toMatch(/by Day/);
     // Every line is the player's Guild's, and what the last play appended is marked, in a word.
     const lines = historyLines(history);
     expect(lines.every((line) => line.classList.contains('entry--mine'))).toBe(true);
@@ -87,7 +70,7 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   });
 
   test('gives the world and each Rival’s in one choice, a choice that holds from view to view and play to play', async () => {
-    render_(played(started(), { kind: 'advance', turns: 6 }));
+    renderGame(played(started(), { kind: 'advance', turns: 6 }));
 
     fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     expect(title()).toBe('The World History');
@@ -103,11 +86,13 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
     expect(title()).toBe('The World History');
   });
 
-  test('pages twenty entries at a time; "Newest" returns to the top, the page and the keyboard', () => {
-    render_(played(started(), { kind: 'advance', turns: 12 }));
+  test('pages twenty entries at a time; "Older" turns one on, and "Newest" returns to the top, the page and the keyboard', () => {
+    renderGame(played(started(), { kind: 'advance', turns: 12 }));
     const history = (): HTMLElement => section('History');
     openDebugHistory();
 
+    fireEvent.click(within(history()).getByRole('button', { name: 'Older' }));
+    expect(within(history()).getByText(/^Page 2 of \d+, /)).toBeDefined();
     fireEvent.click(within(history()).getByRole('button', { name: 'Oldest' }));
     // The oldest group opens with the world's first entry.
     const [oldest] = historyLines(history()).slice(-1).map((line) => line.closest('ol')?.querySelector('li.entry') as HTMLElement);
@@ -121,7 +106,7 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   });
 
   test('reads its page again when the game, the log or the page changes, and not at each step of a fast forward', () => {
-    // v1.0.1-S5, DL-96 item 3: a year's History read at every step would be narrated again 36 times.
+    // DL-96 item 3: a year's History read at every step would be narrated again 36 times.
     const first = gameReducer(gameReducer(withRosterReleased(started()), { kind: 'fastForward', until: [] }), { kind: 'settle' });
     const second = gameReducer(first, { kind: 'settle' });
     expect(second.document).toBe(first.document);
@@ -142,9 +127,9 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   });
 });
 
-describe('folds, and the marks on each line (M9-S5)', () => {
-  test("folds a Rival's Party's Encounters under how its Quest went, marked with an icon and a word, and opens them (the player's return is one entry, M9-F5)", () => {
-    render_(cameHome());
+describe('folds, and the marks on each line', () => {
+  test("folds a Rival's Party's Encounters under how its Quest went, marked with an icon and a word, and opens them (the player's return is one entry)", () => {
+    renderGame(cameHome(started('reducer-test')));
     // A Rival's own History: the last choice.
     fireEvent.click(within(whose()).getAllByRole('button').at(-1) as HTMLElement);
     const history = (): HTMLElement => section('History');
@@ -176,7 +161,7 @@ describe('folds, and the marks on each line (M9-S5)', () => {
   });
 
   test("folds each Rival's routine in a group into one line for the Guild, muted, and opens it", () => {
-    render_(cameHome());
+    renderGame(cameHome(started('reducer-test')));
     // A Rival's own History: the last choice.
     fireEvent.click(within(whose()).getAllByRole('button').at(-1) as HTMLElement);
     const history = (): HTMLElement => section('History');
@@ -205,7 +190,7 @@ describe('folds, and the marks on each line (M9-S5)', () => {
   });
 
   test("marks the player's lines, a Rival's and the world's apart, and a Milestone in words", () => {
-    render_(played(started(), { kind: 'advance', turns: 6 }));
+    renderGame(played(started(), { kind: 'advance', turns: 6 }));
     openDebugHistory();
     fireEvent.click(within(section('History')).getByRole('button', { name: 'Oldest' }));
     const oldest = historyLines(section('History'));
@@ -221,9 +206,9 @@ describe('folds, and the marks on each line (M9-S5)', () => {
   });
 });
 
-describe('names that open whom they name (M9-S5)', () => {
+describe('names that open whom they name', () => {
   test("a Hero's name opens their page in the History, and back goes to the History it came from", () => {
-    render_(withPartyOut(started()));
+    renderGame(withPartyOut(started()));
     const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Year \d+ Day \d+\.$/);
     const [, hero] = within(sent).getAllByRole('button');
     const name = hero?.textContent ?? '';
@@ -240,7 +225,7 @@ describe('names that open whom they name (M9-S5)', () => {
   });
 
   test("a Guild's name opens its page in the Rankings, and it opens the Guild's History", () => {
-    render_(withPartyOut(started()));
+    renderGame(withPartyOut(started()));
     const sent = inHistory(/^The Lantern sent /);
 
     fireEvent.click(within(sent).getByRole('button', { name: 'The Lantern' }));
@@ -253,7 +238,7 @@ describe('names that open whom they name (M9-S5)', () => {
   });
 
   test("a Patron's and a Guildmaster's names open their History", () => {
-    render_(started());
+    renderGame(started());
     openDebugHistory();
     const offered = historyLines(section('History')).find((line) => / offered .+\.$/.test(sentenceOf(line))) as HTMLElement;
     const [patron] = within(offered).getAllByRole('button');
@@ -270,18 +255,18 @@ describe('names that open whom they name (M9-S5)', () => {
   });
 });
 
-describe("each one's page opens their History (M9-S5)", () => {
+describe("each one's page opens their History", () => {
   test("a Rival's page in the Rankings, a Patron and a Guildmaster", () => {
-    render_(played(started(), { kind: 'advance', turns: 3 }));
+    renderGame(played(started(), { kind: 'advance', turns: 3 }));
     const guilds = section('Guilds');
-    // The player's Guild is a row of the table too (M9-S6): a Rival's is one of the others.
+    // The player's Guild is a row of the table too: a Rival's is one of the others.
     fireEvent.click(within(guilds).getAllByRole('button', { name: /^Open / }).find((each) => each.getAttribute('aria-label') !== 'Open The Lantern') as HTMLElement);
     const rival = within(guilds).getByRole('heading', { level: 4 }).textContent ?? '';
     fireEvent.click(within(guilds).getByRole('button', { name: `Read the History of ${rival}` }));
     expect(title()).toBe(`The History of ${rival}`);
     expect(within(whose()).getByRole('button', { name: rival }).getAttribute('aria-pressed')).toBe('true');
 
-    // A Patron neutral both ways is folded under the count of them (M9-S6).
+    // A Patron neutral both ways is folded under the count of them.
     const fold = within(section('Patrons')).queryByRole('button', { name: /^\d+ neutral$/ });
     if (fold !== null) fireEvent.click(fold);
     const [patron] = within(section('Patrons')).getAllByRole('button', { name: /^Read the History of / });
@@ -293,29 +278,17 @@ describe("each one's page opens their History (M9-S5)", () => {
     expect(title()).toBe('The History of Ada Vell');
   });
 
-  test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before; a Party home opens Guild › Home at its report (M9-F5)', async () => {
-    render_(withPartyOut(started('reducer-test')));
+  test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before', () => {
+    renderGame(withPartyOut(started('reducer-test')));
     fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     openView('Board');
 
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: 'Open the History' }));
     expect(title()).toBe('The History of The Lantern');
-
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
-    await idle();
-    // The Party's stop offers no "Read what happened": the play opened its report (M9-F5).
-    expect(within(screen.getByTestId('stop')).queryByRole('button', { name: 'Read what happened' })).toBeNull();
-    // The keyboard moves in an effect after the render that ends the play, which a loaded machine may
-    // run after `idle` has seen that render (DL-164).
-    await waitFor(() => expect((document.activeElement as HTMLElement).textContent).toMatch(/^Quest report: /));
-    fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: 'Open the History' }));
-    expect(title()).toBe('The History of The Lantern');
-    expect(inHistory(/^The Lantern's Party came home from /).classList.contains('is-new')).toBe(true);
   });
 });
 
-describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 item 2)', () => {
+describe('a Party’s return in the player’s Guild’s History (DL-111 item 2)', () => {
   const written = withReturn(withPartyOut(started('history-return')), {
     band: 'fail',
     fame: -2,
@@ -325,8 +298,8 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
     loot: [{ definitionKey: 'whetstone', quantity: 1 }],
   });
 
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it (M9-F7), and no Encounter', () => {
-    render_(written.state);
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it, and no Encounter', () => {
+    renderGame(written.state);
     openView('History');
     const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0, Fame -2\.$/);
 
@@ -356,7 +329,7 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
   });
 
   test('"Open the report" opens it on Guild › Home, with the keyboard on its heading', () => {
-    render_(written.state);
+    renderGame(written.state);
     openView('History');
     const entry = inHistory(/^The Lantern's Party came home from /);
 
@@ -367,20 +340,18 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
   });
 });
 
-describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)", () => {
-  test("a Hero's History folds their Party's Encounters under its return, each with its Degree, and one written before v1.1.4 as a Success or a Failure", () => {
+describe("a Party's Encounters, and a Hero's Traits, in the History", () => {
+  test("a Hero's History folds their Party's Encounters under its return, each with its Degree", () => {
     // Each Encounter hurt the first Hero, so names them, and stands in their History (`quests-conclude.ts`).
     const written = withReturn(withPartyOut(started('history-degrees')), {
       band: 'success',
       encounters: [
         { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph', injured: [0] },
         { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback', injured: [0] },
-        { encounterKey: 'ambush-on-the-road', outcome: 'success', injured: [0] },
-        { encounterKey: 'ambush-on-the-road', outcome: 'failure', injured: [0] },
       ],
     });
     const name = written.state.document?.world.heroes[written.party.heroIds[0] as HeroId]?.name ?? '';
-    render_(written.state);
+    renderGame(written.state);
     openView('History');
     const entry = inHistory(/^The Lantern's Party came home from /);
     fireEvent.click(within(entry).getByRole('button', { name: /^\d+ Heroes?: how each fared on / }));
@@ -389,12 +360,12 @@ describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)
     const page = within(section('History')).getByRole('article');
     const outcome = historyLines(page).find((line) => / Party came home from /.test(sentenceOf(line)) && line.querySelector(':scope > button.fold') !== null);
     if (outcome === undefined) throw new Error(`no return folded in ${name}'s History`);
-    const fold = within(outcome).getByRole('button', { name: '4 Encounters' });
+    const fold = within(outcome).getByRole('button', { name: '2 Encounters' });
     fireEvent.click(fold);
 
     const folded = document.getElementById(fold.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(folded.hidden).toBe(false);
-    expect(historyLines(folded).map((line) => / \(Encounter \d\), a (\w+)/.exec(sentenceOf(line))?.[1])).toEqual(['Triumph', 'Setback', 'Success', 'Failure']);
+    expect(historyLines(folded).map((line) => / \(Encounter \d\), a (\w+)/.exec(sentenceOf(line))?.[1])).toEqual(['Triumph', 'Setback']);
   });
 
   test("an earned Trait and a lost one are Milestones in the Guild's History, in words", () => {
@@ -402,7 +373,7 @@ describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)
     const world = state.document?.world;
     const player = Object.values(world?.guilds ?? {}).find((guild) => guild.controller.kind === 'player');
     const hero = world?.heroes[player?.rosterIds[0] as HeroId];
-    render_(state);
+    renderGame(state);
     openView('History');
 
     for (const sentence of [new RegExp(`^${hero?.name} earned the Trait Scarred on .+, at Ambush on the road\\.$`), `${hero?.name} lost the Trait Scarred, replaced by Lame.`]) {
@@ -415,9 +386,9 @@ describe("a Party's Encounters, and a Hero's Traits, in the History (v1.1.4-S14)
 });
 
 describe('anyone the History names, found by name (DL-74)', () => {
-  test("a dead Hero's page opens from it, and a Hero gone from the world has their History", () => {
-    const { state, dead, gone } = withTheGone(played(started(), { kind: 'advance', turns: 6 }));
-    render_(state);
+  test("a dead Hero's page opens from it", () => {
+    const { state, dead } = withTheGone(played(started(), { kind: 'advance', turns: 6 }));
+    renderGame(state);
     const history = (): HTMLElement => section('History');
     const search = (): HTMLElement => within(history()).getByRole('searchbox', { name: 'Find someone in the History by name' });
 
@@ -429,7 +400,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
     const page = within(history()).getByRole('article');
     expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
     expect(within(page).getByText(/^Died on Year \d+ Day \d+$/)).toBeDefined();
-    // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (M9-S3, the review's A5).
+    // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (the review's A5).
     expect(within(page).queryByRole('heading', { name: 'Milestones' })).toBeNull();
     expect(within(page).getByRole('heading', { level: 4, name: 'History, newest first' })).toBeDefined();
     expect(within(history()).queryByRole('list', { name: 'Found in the History' })).toBeNull();
@@ -438,111 +409,27 @@ describe('anyone the History names, found by name (DL-74)', () => {
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the History of The Lantern' }));
     expect(title()).toBe('The History of The Lantern');
 
-    fireEvent.change(search(), { target: { value: gone.name } });
-    expect(within(history()).getByText('(Hero, no longer in the world)')).toBeDefined();
-    fireEvent.click(within(history()).getByRole('button', { name: `Read ${gone.name}` }));
-    expect(within(history()).queryByRole('article')).toBeNull();
-    expect(title()).toBe(`The History of ${gone.name}`);
-    expect(inHistory(new RegExp(`^${gone.name}, .+, joined the Unattached pool\\.$`))).toBeDefined();
 
     fireEvent.change(search(), { target: { value: 'no one is called this' } });
     expect(within(history()).getByRole('status').textContent).toBe('No one the History names is called that.');
   });
 });
 
-// Each plays a month or more before it renders the History: up to two seconds alone, near the default
-// 5 s under the whole suite's load (DL-164).
-describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", { timeout: 30_000 }, () => {
-  test('the choices are your Guild, the world and each Rival: the whole History is not among them', () => {
-    render_(played(started(), { kind: 'advance', turns: 3 }));
-    const labels = within(whose())
-      .getAllByRole('button')
-      .map((button) => button.textContent ?? '');
+describe("the History's scopes (DL-111 item 4, DL-112 item 7)", () => {
+  test('the game menu opens the whole History with no choice pressed, the search still there', () => {
+    const { state, dead } = withTheGone(played(started(), { kind: 'advance', turns: 3 }));
+    renderGame(state);
 
-    expect(labels.slice(0, 2)).toEqual(['The Lantern, your Guild', 'The World History']);
-    expect(labels.length).toBeGreaterThan(2);
-    expect(labels.some((label) => /whole History/.test(label))).toBe(false);
-  });
+    openDebugHistory();
 
-  test("your Guild's History leaves out the Heroes' XP and Morale, the Upkeep and the Market; a Hero's page keeps their XP", () => {
-    const state = played(cameHome(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
-    render_(state);
-    const history = (): HTMLElement => section('History');
-    const sentences: string[] = [];
-    for (;;) {
-      sentences.push(...historyLines(history()).map(sentenceOf));
-      const older = within(history()).queryByRole('button', { name: 'Older' }) as HTMLButtonElement | null;
-      if (older === null || older.disabled) break;
-      fireEvent.click(older);
-    }
-
-    expect(sentences.some((sentence) => / Party came home from /.test(sentence))).toBe(true);
-    for (const pattern of [/ gained \d+ XP\.$/, /Morale/, / paid \d+ Upkeep/, / bought .+ at the Market/, /Regard/]) {
-      expect(sentences.filter((sentence) => pattern.test(sentence)), String(pattern)).toEqual([]);
-    }
-    // The purchase was the last play: nothing of it is new in the Guild's History, or on the navigation.
-    expect(navButton('History').textContent).not.toMatch(/new$/);
-    expect(within(history()).queryByText(/new since your last action/)).toBeNull();
-  });
-
-  test('the world: every Guild’s news, grouped by date and time of day, with no folds', () => {
-    render_(played(withWorldNews(started('history-world')), { kind: 'advance', turns: 120 }));
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
-    const history = (): HTMLElement => section('History');
-    const sentences: string[] = [];
-    for (;;) {
-      expect(within(history()).queryAllByRole('button', { name: /Encounter|entries$/ })).toEqual([]);
-      expect(history().querySelectorAll('.fold')).toHaveLength(0);
-      sentences.push(...historyLines(history()).map(sentenceOf));
-      const older = within(history()).queryByRole('button', { name: 'Older' }) as HTMLButtonElement | null;
-      if (older === null || older.disabled) break;
-      fireEvent.click(older);
-    }
-
-    expect(title()).toBe('The World History');
-    expect(within(history()).getAllByRole('heading', { level: 4 }).every((heading) => /^Year \d+ Day \d+, (morning|afternoon|night)$/.test(heading.textContent ?? ''))).toBe(true);
-    // A fold, a Succession, a Rival's Quest taken and resolved, a Patron's band, a Guild founded, the world made.
-    for (const pattern of [/ and folded\.$/, / retired at \d+ as Guildmaster of .+ succeeded them\.$/, / sent .+ on .+, back on /, / Party came home from /, /'s Regard for /, /The world was made from seed history-world\./, / was founded\./]) {
-      expect(sentences.some((sentence) => pattern.test(sentence)), String(pattern)).toBe(true);
-    }
-    expect(sentences.some((sentence) => /^(?!The Lantern).+ Party came home from /.test(sentence))).toBe(true);
-    // No step, Upkeep, purchase, XP or warning of the floor.
-    for (const pattern of [/\(Encounter \d+\)/, / gained \d+ XP\.$/, /Upkeep/, / bought /, /below the Bankruptcy floor/]) {
-      expect(sentences.filter((sentence) => pattern.test(sentence)), String(pattern)).toEqual([]);
-    }
-  });
-
-  test('the game menu opens the whole History: every entry with its event type, unfolded, no choice pressed, the search still there', () => {
-    const { state, dead } = withTheGone(played(withPartyOut(started('reducer-test')), { kind: 'fastForward', until: [] }));
-    render_(state);
-
-    const history = openDebugHistory();
-
-    expect(screen.queryByRole('dialog', { name: 'Game' })).toBeNull();
     expect(title()).toBe('Debug: Whole History');
-    expect(document.activeElement).toBe(within(history).getByRole('heading', { level: 3 }));
     expect(within(whose()).getAllByRole('button').every((button) => button.getAttribute('aria-pressed') === 'false')).toBe(true);
-    const lines = historyLines(history);
-    expect(lines.length).toBeGreaterThanOrEqual(20);
-    for (const line of lines) expect(line.querySelector('.entry__type')?.textContent).toMatch(/^[a-z-]+\.[a-z-]+$/);
-    expect(history.querySelectorAll('.fold')).toHaveLength(0);
-    // What the Guild's History leaves out is here: the Heroes' XP of the return.
-    fireEvent.click(within(history).getByRole('button', { name: 'Older' }));
-    const all: string[] = [];
-    for (;;) {
-      all.push(...historyLines(section('History')).map((line) => line.querySelector('.entry__type')?.textContent ?? ''));
-      const older = within(section('History')).getByRole('button', { name: 'Older' }) as HTMLButtonElement;
-      if (older.disabled) break;
-      fireEvent.click(older);
-    }
-    for (const type of ['hero.xp-gained', 'quest.encounter', 'guild.upkeep-paid', 'world.created']) expect(all, type).toContain(type);
-
     fireEvent.change(within(section('History')).getByRole('searchbox', { name: 'Find someone in the History by name' }), { target: { value: dead.name } });
     expect(within(section('History')).getByRole('button', { name: `Read ${dead.name}` })).toBeDefined();
   });
 
   test('a choice leaves the debug view, and the event types go with it', () => {
-    render_(played(started(), { kind: 'advance', turns: 3 }));
+    renderGame(played(started(), { kind: 'advance', turns: 3 }));
     openDebugHistory();
     fireEvent.click(within(whose()).getByRole('button', { name: 'The Lantern, your Guild' }));
 

@@ -7,17 +7,11 @@
 // Negotiation), whether a Hero signs its `signingRefusal`, and the offers its `offersTo`.
 
 import {
-  ageOf,
-  guildmasterOf,
   holdings,
   itemDefinition,
   marketStock,
   offersTo,
-  playerGuild,
   sellPrice,
-  signingFee,
-  signingRefusal,
-  unattachedHeroes,
   type Hero,
   type HeroId,
   type ItemDefinition,
@@ -29,11 +23,12 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { itemEffectWords, kindOf, nameIn, nightOfTurn } from '@heroesim/words';
+import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
 import { content } from '../content';
 import { kindFacet, type Facets } from './facets';
-import { classMarkOf, type ClassMarked, rowOf, transferCostWords } from './names';
-import { calendarFor, playDeps } from './reducer';
+import { classMarkOf, type ClassMarked, transferCostWords } from './names';
+import { readingOf } from './reading';
+import { calendarFor } from './reducer';
 import { defaultHeroOrder } from './selectors';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
@@ -109,9 +104,8 @@ export interface MarketView {
  */
 export function marketView(document: WorldDocument): MarketView {
   const { world } = document;
-  const deps = playDeps(document);
+  const { deps, guild } = readingOf(document);
   const stock = marketStock(world, deps);
-  const guild = playerGuild(world);
   const forSale = stock.map(({ definition, quantity, price }) => ({
     definitionKey: definition.key,
     name: definition.name,
@@ -190,37 +184,30 @@ export interface PoolView {
  */
 export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): PoolView {
   const { world } = document;
-  const deps = playDeps(document);
-  const guild = playerGuild(world);
-  const buyer = guild === undefined ? undefined : guildmasterOf(guild, world);
-  const heroes = unattachedHeroes(world);
-  const rows = heroes.map((hero) => {
-    const refusal = guild === undefined ? null : signingRefusal(guild, hero, deps.config);
-    return {
-      heroId: hero.id,
-      name: hero.name,
-      sex: hero.sex,
-      portraitKey: hero.portraitKey,
-      ...classMarkOf(content, hero.classKey),
-      level: hero.level,
-      age: ageOf(hero, world.turn, deps.config),
-      morale: hero.morale,
-      background: nameIn(content.backgrounds, hero.backgroundKey),
-      fee: signingFee(hero, deps, buyer),
-      signs: guild === undefined ? null : refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`,
-      willSign: guild === undefined ? null : refusal === null,
-    };
-  });
+  const reading = readingOf(document);
+  // The pool's readings (`poolReading`, DL-241), each with its Class's mark.
+  const rows = poolReading(reading).map((row): PoolRow => ({
+    heroId: row.id,
+    name: row.name,
+    sex: row.sex,
+    portraitKey: row.portraitKey,
+    ...classMarkOf(reading.content, row.classKey),
+    level: row.level,
+    age: row.age,
+    morale: row.morale,
+    background: row.background,
+    fee: row.fee,
+    signs: row.signs === null ? null : capitalised(signsWords(row.signs)),
+    willSign: row.signs === null ? null : row.signs.willSign,
+  }));
   // A stable sort: a fee's ties keep the pool's own order; a Class's are the Roster's default order, which begins with the Class.
   if (order === 'class') {
     const byDefault = defaultHeroOrder(document);
-    const heroOf = new Map(heroes.map((hero) => [hero.id, hero]));
-    rows.sort((a, b) => byDefault(heroOf.get(a.heroId) as Hero, heroOf.get(b.heroId) as Hero));
+    const heroOf = (heroId: HeroId): Hero => world.heroes[heroId] as Hero;
+    rows.sort((a, b) => byDefault(heroOf(a.heroId), heroOf(b.heroId)));
   }
   if (order === 'fee') rows.sort((a, b) => a.fee - b.fee);
-  const note =
-    guild === undefined ? null : `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`;
-  return { rows, note };
+  return { rows, note: poolNote(reading) };
 }
 
 // ── Transfer Offers ──────────────────────────────────────────────────────────────────────────
@@ -247,7 +234,7 @@ export interface OfferRow {
  */
 export function offersView(document: WorldDocument): { guildName: string; offers: OfferRow[] } | null {
   const { world } = document;
-  const guild = playerGuild(world);
+  const { guild } = readingOf(document);
   if (guild === undefined) return null;
   const calendar = calendarFor(document);
   return {

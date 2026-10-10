@@ -1,8 +1,8 @@
-import { loadContent } from '@heroesim/content/node';
-import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, type Guild, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
 import { expectChosenAsNone, picturesAside } from './guildmaster-chosen.test-support.js';
+import { content, coreDeps as deps, tickingClock } from './harness.test-support.js';
 import { playGame } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -10,31 +10,14 @@ import { seedNames } from './seeds.js';
 // Ordinary tests, run by `npm test`: the engine against the real content, and the creation sweep
 // on a handful of seeds. The full sweep is create.harness.test.ts, behind HEROESIM_HARNESS.
 
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-
-/** A clock that advances one millisecond a read, so timings are known. */
-function tickingClock(): () => number {
-  let t = 0;
-  return () => (t += 1);
-}
-
-describe('createWorld with the core content', () => {
-  // M1-S6's first acceptance box: the engine's own test (create.test.ts) uses its fixture
-  // content; this one uses the content the game ships.
-  test.each(seedNames(5))('returns a document the validator accepts, with no warning (%s)', (seed) => {
-    const { document } = createWorld(seed, harnessSetup, deps);
-    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
-  });
-});
-
-// M9-F1 (DL-113 item 6): the sweep's player's Guildmaster is 30, so that every sweep game can run
+// DL-113 item 6: the sweep's player's Guildmaster is 30, so that every sweep game can run
 // its twenty years; any age up to 41 plays the same, since age decides nothing but Retirement.
 describe("the harness's player's Guildmaster, 30", () => {
   test('harnessSetup gives the age 30, and every game played starts with the Guildmaster at 30', () => {
     expect(harnessSetup.guildmasterAge).toBe(30);
     for (const seed of seedNames(3)) {
-      const { world } = playGame(seed, deps, { years: 30 / deps.config.turnsPerYear }).document;
+      // One Turn: the game's world is created with harnessSetup before its first.
+      const { world } = playGame(seed, deps, { years: 1 / deps.config.turnsPerYear }).document;
       const player = playerGuild(world) as Guild;
       expect(world.guildmasters[player.guildmasterId]?.ageAtEntry, seed).toBe(30);
     }
@@ -49,28 +32,28 @@ describe("the harness's player's Guildmaster, 30", () => {
       const player = playerGuild(drawn.world) as Guild;
       const guildmaster = drawn.world.guildmasters[player.guildmasterId];
       if (guildmaster !== undefined) guildmaster.ageAtEntry = 30;
-      // The age's band chooses the Appearance's and the Biography's words, by the same draws (v1.1.2-S5),
+      // The age's band chooses the Appearance's and the Biography's words, by the same draws,
       // and the Portrait, one draw a Guildmaster, among pictures no living Guildmaster has, so the
-      // player's may change the Rivals' (v1.1.3-S5): every Guildmaster's three are set aside.
+      // player's may change the Rivals': every Guildmaster's three are set aside.
       expect(picturesAside(aged), seed).toEqual(picturesAside(drawn));
     }
   });
 });
 
-// v1.1.4-S11 (DL-149): "Choose myself" sets every attribute of the player's Guildmaster, and what is
+// DL-149: "Choose myself" sets every attribute of the player's Guildmaster, and what is
 // chosen replaces what is drawn after the draw, so the world a seed makes is otherwise the one "Choose
 // for me" makes: the creation hashes, but for the player's Guildmaster, are equal. Over 60 seeds: every
 // age, both sexes and both choices of Traits, the thirty settings the seeds go round, each twice; the
 // 1,000 of S11 are create.harness.test.ts's (DL-164). Half a second alone, several under the suite's load.
-describe('every Guildmaster attribute chosen, against none (v1.1.4-S11)', () => {
+describe('every Guildmaster attribute chosen, against none', () => {
   test('makes the same Rivals, Heroes, Patrons, Board and Market, and every stream where it was, over 60 seeds', { timeout: 30_000 }, () => {
     const { rivalPictureMoved } = expectChosenAsNone(seedNames(60), deps);
-    // A Rival's picture fits them among those not in use (v1.1.3-S5), so the player's may move one.
+    // A Rival's picture fits them among those not in use, so the player's may move one.
     expect(rivalPictureMoved).toBeGreaterThan(0);
   });
 });
 
-// M5-S5 (DL-52): content names a template's Loot table and config says from which difficulty a
+// DL-52: content names a template's Loot table and config says from which difficulty a
 // Quest carries it. Content validation cannot read config, so their agreement is held here, where
 // both are loaded: the core names a table for exactly the templates the default threshold admits.
 describe('the core content and the default Loot threshold', () => {

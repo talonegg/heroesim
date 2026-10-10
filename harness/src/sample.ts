@@ -13,7 +13,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, serialise, type EngineDeps, type WorldDocument } from '@heroesim/engine';
-import { countGame } from './counters.js';
+import { endingOf } from './counters.js';
 import { defaultYears, playGame } from './play.js';
 import { seedNames } from './seeds.js';
 
@@ -65,7 +65,7 @@ export function writeSample(
     seed: chosen.seed,
     tried,
     turn: chosen.document.world.turn,
-    ending: countGame(chosen.document, deps).ending,
+    ending: endingOf(chosen.document),
     historyEntries: chosen.document.history.entries.length,
     bytes: Buffer.byteLength(text, 'utf8'),
   };

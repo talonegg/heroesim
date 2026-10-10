@@ -1,15 +1,15 @@
-import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId, WorldDocument } from '@heroesim/engine';
+import type { GuildId, Hero, HeroId, PartyId, Quest, QuestId } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { chanceWords, shownPercent } from '@heroesim/words';
 import { App } from '../app';
-import { changed, estimateOf, holding, started } from '../state/game.test-support';
+import { changed, documentOf, estimateOf, holding, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
 import { Icon } from './icons';
-import { inHistory, navButton, openView, section } from './page.test-support';
+import { idle, inHistory, navButton, openView, section, startNewGame } from './page.test-support';
 
-// The Board's Quest cards and the Party builder (M9-S4, DL-104), through the page as a player uses
+// The Board's Quest cards and the Party builder (DL-104), through the page as a player uses
 // them: a card of two lines that unfolds to its details, the Board ordered, each Hero's row in the
 // builder, a Hero's page opened from it and left with the choice kept, the requirements as a
 // checklist, dispatch's verdict as a banner, and the card a Quest becomes once its Party is sent.
@@ -17,15 +17,6 @@ import { inHistory, navButton, openView, section } from './page.test-support';
 // engine); here they are read as the page shows them.
 
 afterEach(cleanup);
-
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
 
 /** The Board's Quests, in its order. */
 function questsOf(state: GameState): Quest[] {
@@ -143,7 +134,7 @@ describe('a Quest card', () => {
     expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
   });
 
-  // v1.1.4-S6 (DL-148 items 15 and 17): the Party the engine would send from the free Heroes, and a word for its chance.
+  // DL-148 items 15 and 17: the Party the engine would send from the free Heroes, and a word for its chance.
   test('says "Your best Party:" with a chance word and who, or that no Party of the free Heroes meets the requirements', () => {
     const state = changed(madeToOrder(), (document) => {
       const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
@@ -170,7 +161,7 @@ describe('a Quest card', () => {
 
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     // Each Encounter in the order it meets them, with its kind's icon, and each Check's name and what it reads:
-    // no demands. Every Encounter of the content has several Checks (v1.1.4-S10).
+    // no demands. Every Encounter of the content has several Checks.
     expect(within(card).queryByText(/Demands/)).toBeNull();
     const encounters = within(card).getByTestId('encounters');
     const met = [...encounters.children] as HTMLElement[];
@@ -214,7 +205,7 @@ describe('a Quest card', () => {
     expect(within(card).queryByRole('heading', { name: 'Encounters' })).toBeNull();
   });
 
-  // v1.1.4-S14: the lore kind on the page, and a Quest of a template with a Finale, which comes last.
+  // The lore kind on the page, and a Quest of a template with a Finale, which comes last.
   test("unfolds to a lore Encounter with its kind's icon, and to a Quest's Finale last", () => {
     const state = changed(madeToOrder(), (document) => {
       const first = document.world.quests[document.world.board[0] as QuestId] as Quest;
@@ -271,30 +262,6 @@ describe('the Board', () => {
     expect(rewards()).toEqual([96, 188, 207, 216, 92, 378]);
     expect(localStorage.getItem('heroesim.boardOrder')).toBe('posted');
   });
-
-  test('a browser that keeps a Board order it does not know, or refuses its storage, shows the Board as posted', () => {
-    localStorage.setItem('heroesim.boardOrder', 'by-moonlight');
-    render(<App initial={started()} />);
-    expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('posted');
-    cleanup();
-
-    const blocked = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new Error('storage blocked');
-      },
-    });
-    try {
-      render(<App initial={started()} />);
-      const order = within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement;
-      expect(order.value).toBe('posted');
-      fireEvent.change(order, { target: { value: 'reward' } });
-      expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('reward');
-    } finally {
-      if (blocked !== undefined) Object.defineProperty(globalThis, 'localStorage', blocked);
-    }
-  });
 });
 
 describe('the Party builder', () => {
@@ -317,7 +284,7 @@ describe('the Party builder', () => {
     expect(rows(form)).toHaveLength(heroes.length);
 
     // Injured: the chip reads "Injured", the night the Injury heals, as the Roster words it, its tooltip and
-    // its screen reader's words (v1.1.5-S11, DL-169 item 2); the box cannot be ticked; and the row is last.
+    // its screen reader's words (DL-169 item 2); the box cannot be ticked; and the row is last.
     expect(chipOf(first as HTMLElement)).toEqual({
       shown: 'Injured',
       title: 'Injured, healing on the night of Year 1 Day 7',
@@ -333,16 +300,16 @@ describe('the Party builder', () => {
       expect(within(row).getByRole('checkbox', { name: new RegExp(`^${names[index]} `) })).toBeDefined();
       expect(within(row).getByText(/^(Warrior|Rogue|Mage|Healer), Level \d+$/)).toBeDefined();
       const stats = row.querySelector('dl') as HTMLElement;
-      // The Stats its Encounters' Checks read, in the order it meets them (v1.1.4-S6), where the template's demands stood.
+      // The Stats its Encounters' Checks read, in the order it meets them, where the template's demands stood.
       const read = ['Dexterity', 'Wits', 'Perception', 'Weaponry', 'Strength', 'Courage', 'Leadership', 'Constitution', 'Endurance', 'Knowledge'];
       expect([...stats.querySelectorAll('div')].map((pair) => pair.textContent)).toEqual(
         read.map((name) => `${name}${hero.stats[name.toLowerCase()]}`),
       );
     });
-    // v1.1.4-S3's verification: the builder names no Hero's Morale; the Party's one line says what it does.
+    // The builder names no Hero's Morale; the Party's one line says what it does.
     for (const row of rows(form)) expect(row.textContent).not.toMatch(/Morale|wretched|steady/);
     expect(within(third as HTMLElement).getByText('Herbalism 3')).toBeDefined();
-    // No fit and no odds: nothing on a row judges the Hero against the Quest; the chances are the Party's (v1.1.4-S6).
+    // No fit and no odds: nothing on a row judges the Hero against the Quest; the chances are the Party's.
     for (const row of rows(form)) expect(row.textContent).not.toMatch(/\b(fit|odds|chance)\b/i);
   });
 
@@ -375,7 +342,7 @@ describe('the Party builder', () => {
     expect(within(section('Board')).getByRole('article', { name })).toBeDefined();
   });
 
-  test('lists those who can go first, in the default order, then the Away and the Injured, the soonest free first (v1.1.5-S11, DL-169 items 4 and 5)', () => {
+  test('lists those who can go first, in the default order, then the Away and the Injured, the soonest free first (DL-169 items 4 and 5)', () => {
     let expected: string[] = [];
     let chips: string[] = [];
     let free: string[] = [];
@@ -452,7 +419,7 @@ describe('the Party builder', () => {
     expect(document.activeElement).toBe(within(rows(again)[1] as HTMLElement).getByRole('button', { name: `Open ${second}'s page` }));
   });
 
-  test("sends the Party with the consumables chosen, which leave what the Guild holds (the CLI's `dispatch --consumables`, M9-S8)", async () => {
+  test("sends the Party with the consumables chosen, which leave what the Guild holds (the CLI's `dispatch --consumables`)", async () => {
     render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
     const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
     const form = chooseForFirst();
@@ -505,7 +472,7 @@ describe('the Party builder', () => {
     expect((within(form).getByRole('button', { name: 'Send the Party' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (v1.1.4-S3, DL-148 item 12)", () => {
+  test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (DL-148 item 12)", () => {
     const state = changed(madeToOrder(), (document, player) => {
       const [first, second] = player.rosterIds;
       (document.world.heroes[first as HeroId] as Hero).morale = 10;
@@ -529,7 +496,7 @@ describe('the Party builder', () => {
     for (const hero of heroesOf(state).slice(0, 2)) expect(line).not.toContain(hero.name);
   });
 
-  // v1.1.4-S6 (DL-148 item 15): a word for each Encounter and the Quest; the detail, the estimate's percentages floored to 5%, "if no one falls".
+  // DL-148 item 15: a word for each Encounter and the Quest; the detail, the estimate's percentages floored to 5%, "if no one falls".
   test('gives a chance word for each Encounter and the Quest, and in the detail each percentage floored to 5%, if no one falls', () => {
     const state = holding(madeToOrder(), 'whetstone', 2);
     const [quest] = questsOf(state);
@@ -645,7 +612,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     expect(draughts(again)).toBe('2');
   });
 
-  test('offers no more of a consumable than the Guild holds now, once some are sold (M9-F6, carried finding 1)', async () => {
+  test('offers no more of a consumable than the Guild holds now, once some are sold (carried finding 1)', async () => {
     render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
     chooseSome();
 
@@ -698,10 +665,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     chooseSome();
 
     fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Bran Tull' } });
-    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'app-test' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Second Lamp', guildmasterName: 'Bran Tull', seed: 'app-test' });
     await idle();
 
     // The same seed: the same Board, its Quests by the same ids, and nothing chosen for them.

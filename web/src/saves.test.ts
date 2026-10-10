@@ -12,10 +12,10 @@ import {
 } from './saves';
 import { memoryStore } from './saves.test-support';
 import { saveText } from './state/game-file';
-import { played, started } from './state/game.test-support';
+import { documentOf, played, started } from './state/game.test-support';
 import { initialGameState } from './state/reducer';
 
-// Saves kept in the browser (M7-S4, DL-67): the game's save text, the CLI's canonical JSON,
+// Saves kept in the browser (DL-67): the game's save text, the CLI's canonical JSON,
 // compressed with gzip into a Blob in IndexedDB, and read back, exported and imported as that text.
 // Node has no IndexedDB, so the saves are tested here over a store that stands in for it, their
 // IndexedDB adapter over a stand-in for the browser's factory whose transactions commit when the test
@@ -25,21 +25,22 @@ import { initialGameState } from './state/reducer';
 const savedAt = '2026-09-27T10:00:00.000Z';
 const now = (): Date => new Date(savedAt);
 
-function documentOf(state: { document: WorldDocument | null }): WorldDocument {
-  if (state.document === null) throw new Error('no game in hand');
-  return state.document;
-}
+/** The game `aGame` gives, built at its first use: the tests only save it, never play it on (ADR-0008). */
+let built: WorldDocument | undefined;
 
 /** A game some Turns in, its names beyond ASCII, so its UTF-8 bytes are not its characters. */
 function aGame(): WorldDocument {
-  const state = played(initialGameState, {
-    kind: 'newGame',
-    seed: 'saves-test',
-    guildName: 'Ælfwine’s Lantern ☾',
-    guildmasterName: 'Zoë Ó Briain',
-    createdAt: '2026-09-27T09:00:00.000Z',
-  });
-  return documentOf(played(state, { kind: 'advance', turns: 12 }));
+  if (built === undefined) {
+    const state = played(initialGameState, {
+      kind: 'newGame',
+      seed: 'saves-test',
+      guildName: 'Ælfwine’s Lantern ☾',
+      guildmasterName: 'Zoë Ó Briain',
+      createdAt: '2026-09-27T09:00:00.000Z',
+    });
+    built = documentOf(played(state, { kind: 'advance', turns: 12 }));
+  }
+  return built;
 }
 
 function kept() {
@@ -447,7 +448,6 @@ describe('the failures in words', () => {
 
     const sentences = Object.values(failures).map(savesFailureSentence);
 
-    for (const sentence of sentences) expect(sentence).toMatch(/^[A-Z].+\.$/);
     expect(sentences).toEqual([
       'This browser will not keep saves for this page, as in a private window or with site data blocked (this browser has no IndexedDB). The game plays on; export it to keep it.',
       'A save needs a name.',

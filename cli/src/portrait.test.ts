@@ -1,12 +1,9 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createWorld, defaultConfig, deserialise, playerGuild, type ContentSet, type PortraitAppearance, type WorldDocument } from '@heroesim/engine';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { exitCodes, main } from './main.js';
+import { createWorld, defaultConfig, playerGuild, type ContentSet, type PortraitAppearance, type WorldDocument } from '@heroesim/engine';
+import { describe, expect, test, vi } from 'vitest';
+import { exitCodes, playground, type Run } from './play.test-support.js';
 
-// `new --portrait` and `show guildmaster` over content with pictures (v1.1.2-S3, DL-125 item 3): the
-// core with a third Guildmaster picture, a young man's, beside its two (v1.1.3-S5, so that a man of
+// `new --portrait` and `show guildmaster` over content with pictures (DL-125 item 3): the
+// core with a third Guildmaster picture, a young man's, beside its two (DL-141, so that a man of
 // either band has one that fits); `main.test.ts` holds the refusal the core itself gives.
 
 const pictures: ContentSet['portraits']['guildmaster'] = { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] };
@@ -29,32 +26,11 @@ const { loadContent } = await import('@heroesim/content/node');
 const content = loadContent();
 const clock = new Date('2026-09-30T09:30:00.000Z');
 
-let dir: string;
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-cli-portrait-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
+const { play: playAt, document: saved } = playground('heroesim-cli-portrait-', content);
 
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => clock,
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-function saved(): WorldDocument {
-  const loaded = deserialise(readFileSync(join(dir, '.saves', 'current.json'), 'utf8'), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
+/** A command line, on the day these tests were written. */
+function play(argv: string[]): Run {
+  return playAt(argv, { now: () => clock });
 }
 
 function playerGuildmaster(document: WorldDocument) {
@@ -62,7 +38,7 @@ function playerGuildmaster(document: WorldDocument) {
   return guild === undefined ? undefined : document.world.guildmasters[guild.guildmasterId];
 }
 
-describe('new --portrait (v1.1.2-S3)', () => {
+describe('new --portrait', () => {
   const newGame = (...more: string[]) => play(['new', '--seed', 'portrait', '--guild', 'The Test', '--master', 'Ada', ...more]);
 
   test('keeps the Portrait given, and show guildmaster names it after the sex', () => {
@@ -79,7 +55,7 @@ describe('new --portrait (v1.1.2-S3)', () => {
     expect(playerGuildmaster(saved())).toMatchObject({ sex: 'female', portraitKey: 'gm-female-01' });
   });
 
-  test("with --portrait and no --age, draws the age within the picture's (v1.1.3-S5, DL-134 item 7)", () => {
+  test("with --portrait and no --age, draws the age within the picture's (DL-134 item 7)", () => {
     // The core's gm-male-01 looks 45 to 55, held to the starting ages' 50.
     expect(newGame('--portrait', 'gm-male-01').code).toBe(exitCodes.ok);
     const age = playerGuildmaster(saved())?.ageAtEntry ?? 0;
@@ -107,13 +83,13 @@ describe('new --portrait (v1.1.2-S3)', () => {
     const other = newGame('--sex', 'female', '--portrait', 'gm-male-01');
     expect(other.code).toBe(exitCodes.usage);
     expect(other.err).toContain(
-      "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female: choose a Portrait of that sex, or leave out --sex.",
+      "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female: choose a Portrait of that Sex, or leave out --sex.",
     );
 
     const unknown = newGame('--portrait', 'gm-male-09');
     expect(unknown.code).toBe(exitCodes.usage);
     expect(unknown.err).toContain(
-      'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
+      'No Guildmaster Portrait is called "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
     );
     expect(play(['show']).code).toBe(exitCodes.refused);
   });

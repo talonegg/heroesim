@@ -278,7 +278,8 @@ A run's files may be laid out any way: `apply` takes their value, not their text
 
 ## Tests
 
-`npm test` runs them with the rest.
+`npm test` runs them with the rest, but for `owner.test.ts`, after the other projects' tests and on
+a few workers, since they start Chromium and git (DL-234).
 
 - **`chromium.test.ts`** converts and fingerprints the committed pictures, re-encoded and cropped.
 - **`write-rows.test.ts`** takes uploads into a scratch copy of the repository, made a git
@@ -288,7 +289,9 @@ A run's files may be laid out any way: `apply` takes their value, not their text
   unchanged, and adds a sentence, a Feature, a row and a key.
 - **`corpus.test.ts`** counts the corpus as shipped and in a scratch copy, with a run's files in
   place of the content's, and diffs a run written through the command line.
-- **`owner.test.ts`** reads the owner's 40, from `HEROESIM_OWNER_PICTURES` or
-  `..\heroesim-inbox\guildmaster\`, and is skipped where they are absent, as in CI.
+- **`owner.test.ts`** reads the owner's 40 from the folder `HEROESIM_OWNER_PICTURES` names, and runs
+  only when it is set: `npm test` and CI skip it (DL-234). Set, a folder without the 40 fails it.
+  On the owner's machine the folder is `..\heroesim-inbox\guildmaster\`; run it alone, the variable
+  set, with `npx vitest run --project portraits owner`.
 - **Chromium.** The Chromium tests are skipped where it is not installed. CI installs it before
   `npm test`.

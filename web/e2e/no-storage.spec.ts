@@ -1,12 +1,12 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
 import { closeGameMenu, expectNoHorizontalOverflow, playTurns, region, startGame, thisGame } from './support';
 
-// Where the browser keeps nothing for the page (M7-S4, DL-67; the epic's §3 risk): `saves.ts`
+// Where the browser keeps nothing for the page (DL-67; the epic's §3 risk): `saves.ts`
 // reports the typed failure `unavailable`, the page says so, and the game plays on without saving.
 // Once where Chromium itself refuses IndexedDB, a sandboxed frame, whose origin is opaque; and twice
 // with the refusals other browsers give stood in for before the page loads: a private window whose
 // database will not open (Firefox's), and a browser with no IndexedDB at all. What a game has to
-// say of its saves is in the game menu (M9-S3, DL-103).
+// say of its saves is in the game menu (DL-103).
 
 const unavailable = /^This browser will not keep saves for this page, as in a private window or with site data blocked \(.+\)\. The game plays on; export it to keep it\.$/;
 

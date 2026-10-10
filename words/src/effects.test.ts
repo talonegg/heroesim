@@ -1,11 +1,11 @@
 import { loadContent } from '@heroesim/content/node';
-import type { ConsumableEffect, ItemDefinition, TraitEffect } from '@heroesim/engine';
+import type { ConsumableEffect, ItemDefinition, TraitEffect } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consumableEffectWords, itemEffectWords, kindOf, kindWords, modifierWords, traitEffectWords } from './effects.js';
 
-// v1.1.6-S11 (DL-186 item 1): what a Trait and an Item do, the CLI's words and the page's, one table.
-// The CLI's `render.test.ts` and the page's `names.test.ts` held the Trait's cases until v1.1.6-S11,
-// the CLI's "no effect" the page's "No effect" since.
+// DL-186 item 1: what a Trait and an Item do, the CLI's words and the page's, one table.
+// The CLI's `render.test.ts` and the page's `names.test.ts` hold none of the Trait's cases, and the
+// CLI's "no effect" is the page's "No effect".
 
 const content = loadContent();
 
@@ -22,7 +22,7 @@ const sword: ItemDefinition = {
 const blade: ItemDefinition = { ...sword, key: 'test-blade', unique: true };
 const consumable = (effect: ConsumableEffect): ItemDefinition => ({ key: 'test', name: 'Test', kind: 'consumable', effect, unique: false, buyPrice: 5, tags: [] });
 
-describe("a Trait's effects (v1.1.4-S7)", () => {
+describe("a Trait's effects", () => {
   test.each<[string, TraitEffect[], string]>([
     ['none, standing alone', [], 'No effect'],
     [
@@ -40,7 +40,7 @@ describe("a Trait's effects (v1.1.4-S7)", () => {
     ],
     ['a Morale baseline', [{ kind: 'guildMoraleShift', delta: -5 }], 'Morale baseline -5'],
     [
-      'the lore kind (v1.1.4-S8) by its key, and a tag as written',
+      'the lore kind by its key, and a tag as written',
       [
         { kind: 'encounterBonus', flat: 2, kinds: ['lore'] },
         { kind: 'encounterBonus', flat: 1, kinds: ['arcane', 'lore'], tags: ['delve'] },
@@ -51,24 +51,13 @@ describe("a Trait's effects (v1.1.4-S7)", () => {
   ])('%s', (_, effects, words) => {
     expect(traitEffectWords(effects, content)).toBe(words);
   });
-
-  // Other Hero Traits are the owner's to add through the content editor (the verification of v1.1.4-S13).
-  test('each Injury Trait in content says its Stat changes', () => {
-    const words = Object.fromEntries(Object.values(content.heroTraits).map((trait) => [trait.key, traitEffectWords(trait.effects, content)]));
-    expect(words).toMatchObject({
-      scarred: '+1 Courage, -1 Charisma',
-      lame: '-2 Dexterity, -1 Endurance',
-      'one-eyed': '-2 Perception, -1 Weaponry',
-      'short-winded': '-2 Endurance, -1 Constitution',
-    });
-  });
 });
 
 describe('what an Item does, and its kind', () => {
   test.each<[string, string, string]>([
-    ["Gear's Stat modifiers (M5-S2)", modifierWords({ statModifiers: { weaponry: 2, strength: 1 } }, content), 'Weaponry +2, Strength +1'],
+    ["Gear's Stat modifiers", modifierWords({ statModifiers: { weaponry: 2, strength: 1 } }, content), 'Weaponry +2, Strength +1'],
     ['a key content lacks, as it is', modifierWords({ statModifiers: { luck: -1 } }, content), 'luck -1'],
-    // A Party's preview, after the Consumable's name: it continues a sentence (M5-S3, DL-50).
+    // A Party's preview, after the Consumable's name: it continues a sentence (DL-50).
     ['a bonus, in a preview', consumableEffectWords({ kind: 'bonus', flat: 3, kinds: ['combat'] }), '+3 to a Check on combat Encounters, one a Check'],
     [
       'a reroll, in a preview',

@@ -4,8 +4,8 @@
 // none of it (M9-S3, DL-103; the review's C9).
 
 import { content } from '../content';
-import type { GameAction, GameState } from '../state/reducer';
-import { refusedSave, rejectionSentence } from '../state/rejections';
+import { refusedSave, type GameAction, type GameState } from '../state/reducer';
+import { rejectionSentence } from '../state/namer';
 import { Icon } from './icons';
 
 export function Refusal({ state, play }: { state: GameState; play: (action: GameAction) => void }) {

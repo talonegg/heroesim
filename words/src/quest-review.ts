@@ -14,9 +14,9 @@
 //
 // A page, not a rule: it reads content and the calibration, and draws and changes nothing.
 
+import { describeQuery, type QuestBand } from '@heroesim/engine';
 import {
   degrees,
-  describeQuery,
   encounterKinds,
   type Consequence,
   type ContentSet,
@@ -24,10 +24,9 @@ import {
   type Encounter,
   type EncounterKind,
   type PassFormula,
-  type QuestBand,
   type SetQuery,
   type StatKey,
-} from '@heroesim/engine';
+} from '@heroesim/engine/content';
 import { modifierWords, traitEffectWords } from './effects.js';
 import { capitalised, listed, nameIn } from './names.js';
 import { queryWords } from './query.js';

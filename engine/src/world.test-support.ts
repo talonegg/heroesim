@@ -1,14 +1,15 @@
 // The one set of fixtures the engine's tests share (DL-22): a small content set, the deps and
 // empty worlds the generator tests draw into, a builder of valid World State documents with every
 // table in use, and `withValid`, which every engine test wraps a document in to assert that the
-// validator accepts it (M1-S7).
+// validator accepts it.
 //
 // Vitest runs only `*.test.ts`, so this file is not a test, and ESLint holds it to the engine's
 // source rules (DL-16): no Node, no clock, no platform randomness. The real content cannot be
 // loaded here, since the engine's tests import nothing from @heroesim/content (ADR-0007); this
 // content set mirrors its keys. It is not exported from the package (DL-20). The harness checks
-// the engine against the real content (M1-S10).
+// the engine against the real content.
 
+import type { advance } from './advance.js';
 import { configVersion, defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   AppearancePhrases,
@@ -54,6 +55,7 @@ import {
   type GuildmasterId,
   type Hero,
   type HeroId,
+  type History,
   type Holder,
   type ItemId,
   type Meta,
@@ -70,10 +72,12 @@ import {
   type World,
   type WorldDocument,
 } from './document.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import { append } from './history.js';
 import { capability, check, type CheckResult } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { createStreams, streamNames } from './rng.js';
+import type { StopReason } from './stops.js';
 import { validate } from './validate.js';
 
 // ── Content ──────────────────────────────────────────────────────────────────────────────────
@@ -117,7 +121,7 @@ function heroClass(key: string, leading: string, gated: string): [string, Class]
   return [key, { key, name: title(key), leadingStats, gatedSkills: gated.split(' '), growth }];
 }
 
-/** Patrons' names, each of `sex` (v1.1.2-S3). */
+/** Patrons' names, each of `sex`. */
 function patronNames(sex: Sex, ...names: string[]): PatronName[] {
   return names.map((name) => ({ name, sex }));
 }
@@ -133,7 +137,7 @@ interface Named {
 }
 
 /**
- * Each test template's Encounter kinds and count range (M4-S1), as the core's: kinds a template of
+ * Each test template's Encounter kinds and count range, as the core's: kinds a template of
  * its tags would meet, and counts that rise with its difficulty, 2 to 5 (INPUTS 6.1).
  */
 const templateEncounters: Readonly<Record<string, [EncounterKind[], number, number]>> = {
@@ -152,7 +156,7 @@ const templateEncounters: Readonly<Record<string, [EncounterKind[], number, numb
 };
 
 /**
- * Each test template's Loot table (M5-S5, DL-52), as the core's were before the M5 close's balance
+ * Each test template's Loot table (DL-52), as the core's were before the M5 close's balance
  * pass (DL-62): the six whose `difficultyMin` is above a `lootDifficultyThreshold` of 25, which the
  * tests that rely on it pin (the default is 35 since DL-62), `lesser-loot` below 45 and
  * `greater-loot` from it; the rest none.
@@ -220,7 +224,7 @@ export type CheckAggregate = 'best' | 'sum';
 
 /**
  * A test's Check built from weighted demands, as content's old form of an Encounter loaded into one
- * until it was retired (v1.1.4-S1 to DL-192): keyed and named `key` and `name`, its score the weighted
+ * until it was retired (DL-192): keyed and named `key` and `name`, its score the weighted
  * `aggregate` of each demanded Stat over the Party, added up in the order of `demands`, with
  * `skillKeys` its Skills.
  */
@@ -238,7 +242,7 @@ export function demandsCheck(
 
 /**
  * A test's Synergy requirement built from counts of Classes and a list of Skills, as content's old form
- * loaded into conditions until it was retired (v1.1.4-S1 to DL-192): at least `n` of each Class named,
+ * loaded into conditions until it was retired (DL-192): at least `n` of each Class named,
  * then each Skill held at a rating of 1 or more.
  */
 export function classSkillRequires(requires: { classes?: Record<string, number>; skills?: readonly string[] }): SynergyRequires {
@@ -253,7 +257,7 @@ export function classSkillRequires(requires: { classes?: Record<string, number>;
 }
 
 /**
- * An Encounter (M4-S1) from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
+ * An Encounter from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
  * space-separated list (or none), difficulty factor and consequences, its one Check built from the
  * demands (`demandsCheck`).
  */
@@ -279,7 +283,7 @@ function encounter(
   ];
 }
 
-/** A Synergy (M4-S3) from the Classes and Skills it requires (`classSkillRequires`), its bonus and, when it has them, its kinds. */
+/** A Synergy from the Classes and Skills it requires (`classSkillRequires`), its bonus and, when it has them, its kinds. */
 function synergy(
   key: string,
   requires: Parameters<typeof classSkillRequires>[0],
@@ -290,15 +294,15 @@ function synergy(
 }
 
 /**
- * A Guildmaster Trait with its one effect (M4-S5), as its list of effects (v1.1.4-S7), its cost and
- * what it excludes (M9-S2), keyed by `key` and named after it.
+ * A Guildmaster Trait with its one effect, as its list of effects, its cost and
+ * what it excludes, keyed by `key` and named after it.
  */
 function guildmasterTrait(key: string, effect: GuildmasterTraitEffect, cost: number, excludes: string[] = []): Record<string, GuildmasterTrait> {
   return { [key]: { key, name: title(key), cost, excludes, effects: [effect] } };
 }
 
 /**
- * A gear definition (M5-S1) from its slot, its Stat modifiers as `stat:delta` pairs in a
+ * A gear definition from its slot, its Stat modifiers as `stat:delta` pairs in a
  * space-separated list, its price (`null` for Loot only) and its tags; unique when `unique`.
  */
 function gear(
@@ -313,12 +317,12 @@ function gear(
   return [key, { key, name: title(key), kind: 'gear', unique, slot, statModifiers, buyPrice, tags }];
 }
 
-/** A common consumable definition (M5-S1) from its effect, its price and its tags. */
+/** A common consumable definition from its effect, its price and its tags. */
 function consumable(key: string, effect: ConsumableEffect, buyPrice: number, tags: string[]): [string, ItemDefinition] {
   return [key, { key, name: title(key), kind: 'consumable', unique: false, effect, buyPrice, tags }];
 }
 
-/** A Loot table (M5-S5) from its entries, each `definition:weight:min-max` in a space-separated list. */
+/** A Loot table from its entries, each `definition:weight:min-max` in a space-separated list. */
 function lootTable(key: string, entries: string): [string, LootTable] {
   const parsed = entries.split(' ').map((written): LootEntry => {
     const [definitionKey = '', weight = '', range = ''] = written.split(':');
@@ -335,7 +339,7 @@ function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], l
 
 /**
  * The Hall Improvements of the core (INPUTS 7.3): three grades of each facility, at 200, 500 and
- * 1,000 Wealth, keyed `infirmary-1`, `training-yard-2` and so on (M3-S6).
+ * 1,000 Wealth, keyed `infirmary-1`, `training-yard-2` and so on.
  */
 function improvements(): Record<string, Improvement> {
   const costs = [200, 500, 1000];
@@ -350,7 +354,7 @@ function improvements(): Record<string, Improvement> {
   );
 }
 
-/** A Disposition row by its weights, in the order the content type lists them (M6-S1). */
+/** A Disposition row by its weights, in the order the content type lists them. */
 function disposition(
   key: string,
   questRiskAppetite: number,
@@ -380,11 +384,11 @@ export function deepFreeze<T>(value: T): T {
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
- * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the core's four
- * Dispositions and their weights (M2-S9, M6-S1), the core's nine Hall Improvements (M3-S6), the core's twelve
- * Encounter keys, two or more of each kind (M4-S1), the core's six Synergies (M4-S3), the
- * core's twenty Item definitions (M5-S1), so that fixture Items raise no warning, and the core's two
- * Loot tables, named by the six templates above the default Loot threshold (M5-S5).
+ * two to a Sphere, with simpler demands, four Injury types, the core's four
+ * Dispositions and their weights, the core's nine Hall Improvements, the core's twelve
+ * Encounter keys, two or more of each kind, the core's six Synergies, the
+ * core's twenty Item definitions, so that fixture Items raise no warning, and the core's two
+ * Loot tables, named by the six templates above the default Loot threshold.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -408,8 +412,8 @@ export const testContent: ContentSet = deepFreeze({
     ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
     ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
   ),
-  // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties;
-  // with the core's costs and exclusions (M9-S2, DL-100 item 3).
+  // The core's six Guildmaster Traits and their effects (DL-43): three buffs, three penalties;
+  // with the core's costs and exclusions (DL-100 item 3).
   guildmasterTraits: {
     ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }, 1),
     ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }, 2, ['miser']),
@@ -418,7 +422,7 @@ export const testContent: ContentSet = deepFreeze({
     ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }, -2, ['thrifty', 'miser']),
     ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }, -1),
   },
-  // The core's four Hero Traits, each an Injury's, with no effect yet (v1.1.4-S7).
+  // The core's four Hero Traits, each an Injury's, with no effect yet.
   heroTraits: keyed({ excludes: [] as string[], effects: [] as HeroTraitEffect[] }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   backgrounds: {
     ...keyed({ owner: 'hero' as const, station: 'common' }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
@@ -435,7 +439,7 @@ export const testContent: ContentSet = deepFreeze({
       ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
       ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
     ],
-    // The core's first fourteen, each with its sex (v1.1.2-S3, DL-125 item 5).
+    // The core's first fourteen, each with its sex (DL-125 item 5).
     patron: [
       ...patronNames('male', 'Aldous Fairweather', 'Berengar Holt'),
       ...patronNames('female', 'Cecily Ashdown'),
@@ -476,16 +480,16 @@ export const testContent: ContentSet = deepFreeze({
     questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
       'lockpicking stealth', { skillKey: 'lockpicking' }),
   ]),
-  // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
+  // key, Days to heal, the Trait it leaves: some leave a Hero Trait, some none.
   injuries: Object.fromEntries([
     injuryType('bruised-ribs', [5, 8], null),
     injuryType('broken-arm', [15, 25], null),
     injuryType('deep-cut', [6, 12], 'scarred'),
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
-  // The four Dispositions (INPUTS 7.5) with the weights M6-S1 gave the core (DL-56; reckless's
-  // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
-  // gearThreshold, transferAppetite; then v1.1.4-S6's partyMargin, the core's (DL-157). The M6 close
+  // The four Dispositions (INPUTS 7.5) with the weights the core has (DL-56; reckless's
+  // gearThreshold retuned by DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
+  // gearThreshold, transferAppetite; then partyMargin, the core's (DL-157). The M6 close
   // retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
   // measured, as a fixture of the one rule.
   dispositions: {
@@ -495,7 +499,7 @@ export const testContent: ContentSet = deepFreeze({
     ...disposition('steady', 0, 60, 3, 3, 0.25, 0.05),
   },
   improvements: improvements(),
-  // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
+  // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure:
   // the core's twelve keys, simpler demands, and harm only on a failure.
   encounters: Object.fromEntries([
     encounter('ambush-on-the-road', 'combat', 'sum', 'weaponry:0.5 strength:0.5', 'swordcraft tactics', 0.3,
@@ -523,7 +527,7 @@ export const testContent: ContentSet = deepFreeze({
     encounter('the-trapped-passage', 'stealth', 'best', 'dexterity:0.5 perception:0.5', 'trapcraft lockpicking', 0.18,
       [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }]),
   ]),
-  // The core's six (M4-S3, DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
+  // The core's six (DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
   synergies: Object.fromEntries([
     synergy('sword-and-salve', { classes: { warrior: 1, healer: 1 } }, { flat: 2 }, ['combat', 'travel']),
     synergy('shadow-and-spell', { classes: { rogue: 1, mage: 1 } }, { factor: 1.1 }, ['stealth', 'arcane']),
@@ -532,7 +536,7 @@ export const testContent: ContentSet = deepFreeze({
     synergy('wards-and-blessings', { skills: ['warding', 'benediction'] }, { flat: 3 }, ['arcane', 'combat']),
     synergy('scouting-ahead', { skills: ['tactics', 'stealth'] }, { flat: 2 }, ['travel', 'stealth']),
   ]),
-  // The core's twenty (M5-S1, DL-48): nine common gear, three a slot at three grades; six common
+  // The core's twenty (DL-48): nine common gear, three a slot at three grades; six common
   // consumables, two of each effect; five unique gear, Loot only.
   items: Object.fromEntries([
     gear('short-sword', 'weapon', 'weaponry:1', 40, ['plain']),
@@ -556,7 +560,7 @@ export const testContent: ContentSet = deepFreeze({
     gear('lantern-of-stannary', 'trinket', 'perception:3 wits:2', null, ['relic'], true),
     gear('abbots-reliquary', 'trinket', 'spirit:3 willpower:2 resistance:1', null, ['relic', 'holy'], true),
   ]),
-  // The core's two (M5-S5, DL-52), by difficulty band: each entry `definition:weight:quantity range`.
+  // The core's two (DL-52), by difficulty band: each entry `definition:weight:quantity range`.
   lootTables: Object.fromEntries([
     lootTable(
       'lesser-loot',
@@ -571,15 +575,15 @@ export const testContent: ContentSet = deepFreeze({
         'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
     ),
   ]),
-  // Pictures of the test's own (v1.1.2-S3): two and three for the Guildmaster, so a Portrait is chosen
+  // Pictures of the test's own: two and three for the Guildmaster, so a Portrait is chosen
   // among each sex's, and one Hero's, which is no Guildmaster's.
   portraits: {
     guildmaster: { female: ['gm-female-01', 'gm-female-02'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
     hero: { female: ['hero-female-01'], male: [] },
     patron: { female: [], male: [] },
   },
-  // What a picture shows (v1.1.2-S4, its fields v1.1.3-S1's): every picture has its row (v1.1.3-S5),
-  // and a Guildmaster with one takes its narrative for their Appearance (v1.1.2-S5).
+  // What a picture shows: every picture has its row,
+  // and a Guildmaster with one takes its narrative for their Appearance.
   portraitAppearances: {
     features: {
       beard: { maleOnly: true, shows: [] },
@@ -605,7 +609,7 @@ export const testContent: ContentSet = deepFreeze({
         narrative: 'A braided head in a picture.',
         hooks: [],
       },
-      // Rows for the rest (v1.1.3-S5), so that every picture fits someone: each sex has a young and
+      // Rows for the rest, so that every picture fits someone: each sex has a young and
       // an older picture, and a man's from 28 to 40 reaches both bands.
       'gm-female-02': {
         apparentAge: [38, 50],
@@ -645,7 +649,7 @@ export const testContent: ContentSet = deepFreeze({
       },
     },
   },
-  // What the descriptive Attributes are written from (v1.1.2-S5): two age bands, a phrase or two a
+  // What the descriptive Attributes are written from: two age bands, a phrase or two a
   // slot, and Biography sentences for two of the three Guild Backgrounds and two of the six Traits.
   descriptions: {
     ageBands: [
@@ -657,7 +661,7 @@ export const testContent: ContentSet = deepFreeze({
       male: { he: 'he', him: 'him', his: 'his', He: 'He', His: 'His' },
     },
     birthplaces: ['Saltcote', 'Hob\'s Ferry', 'Crane Marsh'],
-    // The vocabulary a picture is read in (v1.1.3-S1): no rule reads it; a Portrait is chosen by it (v1.1.3-S5).
+    // The vocabulary a picture is read in: no rule reads it; a Portrait is chosen by it.
     stations: ['common', 'gentry'],
     tempers: ['stern', 'composed'],
     callings: {
@@ -682,12 +686,12 @@ export const testContent: ContentSet = deepFreeze({
       traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
       closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
       successors: ['{He} took the chair.'],
-      // By a picture's Station, Calling and Temper (v1.1.3-S1): the Biography with a picture (v1.1.3-S5).
+      // By a picture's Station, Calling and Temper: the Biography with a picture.
       stationOrigins: { common: ['{He} was born common in {birthplace}.'] },
       callingCareers: { soldier: { young: ['{He} carried a pike.'] } },
       temperClosings: { stern: ['{He} is stern.'] },
     },
-    // A Hero's (v1.1.3-S1): no rule reads them yet.
+    // A Hero's: no rule reads them yet.
     heroBiography: {
       backgrounds: { 'farm-born': ['{He} grew up on a farm.'] },
       classes: { warrior: { young: ['{He} fought young.'], older: ['{He} fought long.'] } },
@@ -710,7 +714,7 @@ function descriptionPhrases(band: string, sex: Sex): Omit<AppearancePhrases, 'fa
   };
 }
 
-/** `content` (the test content by default) with no pictures of any role or sex, as the core's until v1.1.2-S4. */
+/** `content` (the test content by default) with no pictures of any role or sex. */
 export function withoutPortraits(content: ContentSet = testContent): ContentSet {
   const none = () => ({ female: [], male: [] });
   return deepFreeze({ ...content, portraits: { guildmaster: none(), hero: none(), patron: none() } });
@@ -742,14 +746,14 @@ export const plannedStreams = [
   'hero-descriptions',
 ] as const;
 
-/** `encounter`'s one Check (v1.1.4-S1): an Encounter has one until v1.1.4-S2. */
+/** `encounter`'s one Check: an Encounter has one or several (DL-148). */
 export function onlyCheck(encounter: Pick<Encounter, 'key' | 'checks'>): EncounterCheck {
   const [only] = encounter.checks;
   if (only === undefined) throw new RangeError(`Encounter ${encounter.key} has no Check`);
   return only;
 }
 
-/** `encounter` with `difficultyFactor` on every Check (v1.1.4-S1). */
+/** `encounter` with `difficultyFactor` on every Check. */
 export function withFactor(encounter: Encounter, difficultyFactor: number): Encounter {
   return { ...encounter, checks: encounter.checks.map((it) => ({ ...it, difficultyFactor })) };
 }
@@ -779,7 +783,7 @@ export function testDeps(overrides: Partial<GameConfig> = {}, content: ContentSe
 /**
  * `content` (the test content by default) with `fields` set on every Encounter, frozen: for a test
  * that must say what every Check does or what every outcome costs, whichever Encounters a Quest is
- * drawn with (M4-S2). `difficultyFactor` is set on every Check (v1.1.4-S1). `consequences` replaces
+ * drawn with. `difficultyFactor` is set on every Check. `consequences` replaces
  * both lists; `success` or `failure` replaces one.
  */
 export function withEncounters(
@@ -808,7 +812,7 @@ export function withEncounters(
 
 /**
  * `content` (the test content by default) with `weights` set on every Disposition, frozen: for a
- * test that must say what every Rival does whichever Disposition it was dealt (M6-S1, DL-56), as
+ * test that must say what every Rival does whichever Disposition it was dealt (DL-56), as
  * a test once pinned `recruitWealthMultiple` and `buildWealthMultiple` in the config.
  */
 export function withDispositions(
@@ -825,7 +829,7 @@ export function withDispositions(
  * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
  * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
  * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
- * did; `gearThreshold` from M6-S4, DL-58).
+ * did; `gearThreshold` from DL-58).
  */
 export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 } as const;
 
@@ -835,7 +839,7 @@ export const harmlessContent: ContentSet = withEncounters({ success: [], failure
 /**
  * Every failed Check kills one Hero and then injures one of the living with `broken-arm`, each
  * certainly, so a Party of two or more sent through one failed Encounter loses one Hero and brings
- * one home hurt; a success costs nothing (M4-S2). For tests of harm, which make the Check fail.
+ * one home hurt; a success costs nothing. For tests of harm, which make the Check fail.
  */
 export const certainHarmContent: ContentSet = withEncounters({
   success: [],
@@ -935,9 +939,9 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   world.turn = fixtureTurn;
   const next = <Table extends TableName>(table: Table) => makeId(table, world.counters[table]++);
   const entries: Entry[] = [];
-  const log = (turn: number, type: EventType, participants: EntityId[], milestone = false): void => {
+  const log = (turn: number, type: EventType, participants: EntityId[], milestone = false, payload: object = {}): void => {
     const labels = Object.fromEntries(participants.map((id) => [id, `Name of ${id}`]));
-    entries.push({ turn, type, participants, labels, milestone, payload: {} });
+    entries.push({ turn, type, participants, labels, milestone, payload });
   };
   log(0, 'world.created', []);
 
@@ -1015,12 +1019,12 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       birthplace: '',
       appearance: '',
       biography: '',
-      // The player's a picture of his sex (v1.1.2-S3), the Rivals' the Silhouette.
+      // The player's a picture of his sex, the Rivals' the Silhouette.
       portraitKey: g === 0 ? 'gm-male-01' : null,
       retiredOnTurn: null,
       regard: {},
     };
-    log(0, 'guild.founded', [id, guildmasterId], true);
+    log(0, 'guild.founded', [id, guildmasterId], true, { guildId: id, guildmasterId, wealth: guild.wealth });
     log(0, 'guildmaster.generated', [guildmasterId, id]);
     for (let r = 0; r < rosterSize; r += 1) guild.rosterIds.push(hero(id).id);
   }
@@ -1062,7 +1066,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     fameEffect: 2,
     durationTurns: 9,
     skillKeys: ['swordcraft'],
-    encounterKeys: [],
+    encounterKeys: ['hold-the-line'],
     requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },
     lootTableKey: null,
   });
@@ -1169,10 +1173,52 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
 // ── withValid ────────────────────────────────────────────────────────────────────────────────
 
 /**
+ * How far into each History a check has read: the number of its entries when `withValid` last
+ * accepted a document holding it. A History is shared by reference from one Turn's document to the
+ * next (ADR-0008), so the next check of a test game reads only the entries appended since
+ * (`historyFrom`, DL-34), and a game of n Turns is checked in time linear in n, not quadratic
+ * (DL-234).
+ */
+const checkedTo = new WeakMap<History, number>();
+
+/**
+ * The last document of each History checked from part of its entries in the running test, its deps
+ * and where that check began; `null` until the engine's test setup installs the check at each test's
+ * end, and `withValid` reads every History whole until it does.
+ */
+let checkedInPart: Map<History, { document: WorldDocument; deps: EngineDeps; from: number }> | null = null;
+
+/** What a validation of `document` refuses, a line each. */
+function refusals(document: WorldDocument, deps: EngineDeps, historyFrom = 0): string[] {
+  const result = validate(document, deps, { historyFrom });
+  return result.ok ? [] : result.failures.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
+}
+
+/**
+ * The check at a test's end (DL-234): each History `withValid` read in part during the test, its last
+ * document read whole. What it refuses that the check from where the last one began does not is a
+ * fault in an older entry, or in a list or counter only older entries name, which `historyFrom` does
+ * not see (validate.ts); it throws, naming each. `engine/src/test-setup.ts` runs it after every engine
+ * test, and calling it first installs it: until then `withValid` reads every History whole.
+ */
+export function checkWhatHistoryFromHid(): void {
+  const checked = [...(checkedInPart ?? new Map()).values()];
+  checkedInPart = new Map();
+  const hidden = checked.flatMap(({ document, deps, from }) => {
+    const seen = new Set(refusals(document, deps, Math.min(from, document.history.entries.length)));
+    return refusals(document, deps).filter((line) => !seen.has(line));
+  });
+  if (hidden.length > 0) throw new Error(`The validator refuses, read whole, what withValid read only from where it last left the History:\n${hidden.join('\n')}`);
+}
+
+/**
  * Returns `document` when the validator accepts it under `deps.content`, and throws, listing
  * every failure, when it refuses. A warning throws too unless `allowWarnings` is set: a document
  * the engine makes from content should hold only that content's keys. Wrap every document an
  * engine test makes or changes: `const document = withValid(advance(...).document, deps)`.
+ *
+ * A History it has read before is read from where it left it, and whole at the test's end
+ * (`checkWhatHistoryFromHid`, DL-234); the World State is read in full each time.
  *
  * Takes `deps` rather than a bare `ContentSet` (DL-23), so that a test already holding the deps
  * it built a document with can pass them straight on.
@@ -1182,14 +1228,69 @@ export function withValid<Document extends WorldDocument>(
   deps: EngineDeps,
   { allowWarnings = false }: { allowWarnings?: boolean } = {},
 ): Document {
-  const result = validate(document, deps);
+  const history = document.history as History | undefined;
+  const entries = Array.isArray(history?.entries) ? history.entries.length : undefined;
+  const known = history === undefined ? undefined : checkedTo.get(history);
+  const from = checkedInPart !== null && entries !== undefined && known !== undefined && known <= entries ? known : 0;
+  const result = validate(document, deps, { historyFrom: from });
   if (!result.ok) {
     const lines = result.failures.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
     throw new Error(`The validator refuses the document:\n${lines.join('\n')}`);
+  }
+  if (history !== undefined && entries !== undefined) {
+    checkedTo.set(history, entries);
+    if (from > 0) checkedInPart?.set(history, { document, deps, from });
+    else checkedInPart?.delete(history);
   }
   if (!allowWarnings && result.warnings.length > 0) {
     const lines = result.warnings.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
     throw new Error(`The validator warns about the document:\n${lines.join('\n')}`);
   }
   return document;
+}
+
+// ── Helpers the engine's tests repeat ────────────────────────────────────────────────────────
+
+/** The setup most tests create a world from. */
+export const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+
+/** The events of `type` among `events`. */
+export const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
+  events.filter((event): event is EngineEventOf<Type> => event.type === type);
+
+/** What a `playWith` function returns: the document, every event of every Turn played and what the last Turn reported. */
+export interface Played {
+  document: WorldDocument;
+  events: TurnEvent[];
+  stoppedBecause: StopReason | null;
+}
+
+/**
+ * A `playTo` over the engine's `step` (`advance`, passed in so that a test file's mocks of the engine's
+ * modules still take effect): it advances a document to Turn `turn`, returning the last document and the
+ * events of every Turn played. `validate` is `'each'` to hold every document to the validator (the default)
+ * or `'last'` for the one it stops at; `stopAtEnd` stops when the game ends.
+ */
+export const playWith =
+  (step: typeof advance, { validate = 'each', stopAtEnd = false }: { validate?: 'each' | 'last'; stopAtEnd?: boolean } = {}) =>
+  (document: WorldDocument, turn: number, deps: EngineDeps): Played => {
+    let current = document;
+    let stoppedBecause: StopReason | null = null;
+    const events: TurnEvent[] = [];
+    while (current.world.turn < turn && !(stopAtEnd && current.world.ended !== null)) {
+      const result = step(current, deps);
+      current = validate === 'each' ? withValid(result.document, deps) : result.document;
+      stoppedBecause = result.stoppedBecause;
+      events.push(...result.events);
+    }
+    return { document: validate === 'each' ? current : withValid(current, deps), events, stoppedBecause };
+  };
+
+/**
+ * The planned streams that stand wrongly between `before` and `after`: one in `moved` that stands still, and
+ * one not in `moved` that moved. A test asserts it is empty (ADR-0009).
+ */
+export function streamsOutOfPlace(before: object, after: object, moved: readonly string[]): string[] {
+  const rng = (world: object): Record<string, unknown> => world as Record<string, unknown>;
+  return plannedStreams.filter((name) => (JSON.stringify(rng(before)[name]) !== JSON.stringify(rng(after)[name])) !== moved.includes(name));
 }

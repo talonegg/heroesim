@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
-import { loadContent } from '@heroesim/content/node';
+import { gzip, gzipSync } from 'node:zlib';
 import {
   applyAction,
   createWorld,
   defaultConfig,
+  deserialise,
   dispositionOf,
   playerGuild,
   serialise,
@@ -17,28 +17,33 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { append } from '@heroesim/engine/testing';
-import { describe, expect, test, vi } from 'vitest';
-import { emptyObservations, regardSnapshot } from './counters.js';
+import { beforeAll, describe, expect, test, vi } from 'vitest';
+import { gatherers } from './counter.js';
+import { regardSnapshot, savedLength, type GameObservations } from './counters.js';
 import { harnessSetup } from './creation.js';
-import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, runConfig } from './play.js';
+import { gameCounters } from './game-counters.js';
+import { content, coreDeps as deps, observerOf, twentyDays as years } from './harness.test-support.js';
+import { playerTransferred, playGame, readAdvance, recordGame, runConfig, seenInPlay, type PlayedGame, type PlayObserver } from './play.js';
+import { playReport } from './play-report.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { machine } from './report.js';
 import { summarise } from './stats.js';
-import { playReport } from './sweep.js';
 
-// The engine's `serialise`, watched as it is, to count the saves a game writes (v1.1.5-S1).
+// The engine's `serialise`, watched as it is, to count the saves a game writes, and its
+// `deserialise`, to see when a save is loaded beside its gzip (DL-239).
 vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof import('@heroesim/engine')>();
-  return { ...engine, serialise: vi.fn(engine.serialise) };
+  return { ...engine, serialise: vi.fn(engine.serialise), deserialise: vi.fn(engine.deserialise) };
+});
+
+// zlib, watched as it is, to see which way a save is gzipped (DL-239).
+vi.mock('node:zlib', async (importOriginal) => {
+  const zlib = await importOriginal<typeof import('node:zlib')>();
+  return { ...zlib, gzip: vi.fn(zlib.gzip), gzipSync: vi.fn(zlib.gzipSync) };
 });
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
-// sweep is play.harness.test.ts, behind HEROESIM_HARNESS (M2-S12, DL-34).
-
-const content = loadContent();
-const deps: EngineDeps = { config: { ...defaultConfig }, content };
-/** Twenty Days: long enough for Parties to leave and come home, and short for `npm test`. */
-const years = 60 / deps.config.turnsPerYear;
+// sweep is play.harness.test.ts, behind HEROESIM_HARNESS (DL-34).
 
 /**
  * Rivals that deal whenever they can (DL-71): rich from the start, every Disposition's
@@ -55,7 +60,32 @@ const dealing: EngineDeps = {
   },
 };
 
-// v1.1.6-S7 (DL-193): a run's config is checked, every setting, before any game; and a game plays
+/**
+ * The game of seed `play-a` over twenty Days, played once each way and then only read (ADR-0008):
+ * validated after every advance; bare, with no observer and no validation; watched by every counter's
+ * observer and the loop's sight; and recorded, as a sweep keeps it.
+ */
+let game: PlayedGame;
+let bare: PlayedGame;
+let watched: PlayedGame;
+let recorded: Awaited<ReturnType<typeof recordGame>>;
+const seen = seenInPlay();
+const watchers = gatherers(gameCounters);
+beforeAll(async () => {
+  game = playGame('play-a', deps, { years, validate: true });
+  bare = playGame('play-a', deps, { years });
+  watched = playGame('play-a', deps, { years, observers: [seen, ...watchers.map(([, gatherer]) => gatherer)] });
+  recorded = await recordGame('play-a', deps, { years });
+}, 60_000);
+
+/** What the watched game's observer of the counter `key` gathered. */
+function gatheredBy<K extends keyof GameObservations>(key: K): GameObservations[K] {
+  const gatherer = watchers.find(([counter]) => counter === key)?.[1];
+  if (gatherer === undefined) throw new Error(`No counter ${key} is observed`);
+  return gatherer.value() as GameObservations[K];
+}
+
+// DL-193: a run's config is checked, every setting, before any game; and a game plays
 // under the deps the engine's `playDeps` gives it, as a front end's does.
 describe('runConfig', () => {
   test("is the defaults with HEROESIM_CONFIG's values over them", () => {
@@ -74,8 +104,6 @@ describe('runConfig', () => {
 });
 
 describe('playGame', () => {
-  const game = playGame('play-a', deps, { years, validate: true });
-
   test('plays to the last Turn under the policy, the rules accepting its every action', () => {
     expect(game.turnsPlayed).toBe(60);
     expect(game.document.world.turn).toBe(60);
@@ -92,10 +120,10 @@ describe('playGame', () => {
 
   test("counts every Hero generated, at the creation and in play, the pool's that the History does not record among them (DL-211)", () => {
     // Every Hero's id is taken from the world's counter, which starts at 1.
-    const generated = game.document.world.counters.heroes - 1;
-    const recorded = game.document.history.byType['hero.generated']?.length ?? 0;
-    expect(recorded).toBeLessThan(generated - deps.config.unattachedPoolSize);
-    expect(game.observations.heroes.generated).toBe(generated);
+    const generated = watched.document.world.counters.heroes - 1;
+    const told = watched.document.history.byType['hero.generated']?.length ?? 0;
+    expect(told).toBeLessThan(generated - deps.config.unattachedPoolSize);
+    expect(gatheredBy('heroes').generated).toBe(generated);
   });
 
   test('validates after every advance and the whole document at the end, and the validator accepts it', () => {
@@ -120,80 +148,99 @@ describe('playGame', () => {
     expect(ended.invalid).toBeNull();
   });
 
-  test('plays a seed alike twice: the two games serialise byte for byte the same', () => {
-    const again = playGame('play-a', deps, { years });
-    expect(serialise(again.document)).toBe(serialise(game.document));
+  // The replay plays bare, with no observer (DL-189, DL-239): its game is the same, and so is a game
+  // every counter's observer and the loop's sight watched, and validation; another seed's differs.
+  test('plays a seed alike every time: bare, validated and watched by every observer, the games serialise byte for byte the same', () => {
+    expect(serialise(bare.document)).toBe(serialise(game.document));
+    expect(serialise(watched.document)).toBe(serialise(game.document));
+    expect(bare.advanceMs).toHaveLength(game.advanceMs.length);
+    expect(seen.afternoons.questDifficulty.size).toBeGreaterThan(0);
     expect(serialise(playGame('play-c', deps, { years }).document)).not.toBe(serialise(game.document));
   });
 
-  // v1.1.6-S3 (DL-189): the replay plays bare, and its game is the same.
-  test('bare, plays the same game with nothing observed', () => {
-    const bare = playGame('play-a', deps, { years, bare: true });
-    expect(serialise(bare.document)).toBe(serialise(game.document));
-    expect(bare.advanceMs).toHaveLength(game.advanceMs.length);
-    expect(bare.observations).toEqual(emptyObservations());
-    expect(bare.rivalQuestDifficulty.size).toBe(0);
-  });
-
   test('without validation, validates nothing', () => {
-    const unchecked = playGame('play-a', deps, { years });
-    expect(unchecked.validateMs).toEqual([]);
-    expect(unchecked.wholeValidateMs).toBeNull();
+    expect(bare.validateMs).toEqual([]);
+    expect(bare.wholeValidateMs).toBeNull();
   });
 });
 
 describe('playGame observes the World State (M3, DL-40)', () => {
   test('each morning before the policy acts, and as each year begins, the last year of a full game included', () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 30 } };
-    const game = playGame('play-a', shortYears, { years: 2 });
+    const observers = { fameGate: observerOf('fameGate'), rosters: observerOf('rosters'), regard: observerOf('regardAtCountedYear') };
+    const game = playGame('play-a', shortYears, { years: 2, observers: Object.values(observers) });
     expect(game.turnsPlayed).toBe(60);
     expect(game.document.world.ended).toBeNull();
 
-    const { fameGate, rosters } = game.observations;
+    const fameGate = observers.fameGate.value();
+    const rosters = observers.rosters.value();
     expect(fameGate.player.guildDays).toBe(20);
     expect(rosters).toHaveLength(3);
     expect(rosters[0]?.player).toMatchObject({ heroes: 4, levels: 4 });
     const guild = playerGuild(game.document.world) as Guild;
     const levels = guild.rosterIds.reduce((sum, id) => sum + (game.document.world.heroes[id]?.level ?? 0), 0);
     expect(rosters[2]?.player).toMatchObject({ heroes: guild.rosterIds.length, levels });
-    expect(game.observations.regardAtCountedYear).toBeNull();
+    expect(observers.regard.value()).toBeNull();
+  });
+
+  test('none of a world that ended as its year ended: the census counts the years a game was in play (DL-239)', () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 30 } };
+    const rosters = observerOf('rosters');
+    const { document } = createWorld('play-a', harnessSetup, shortYears);
+    rosters.created?.({ document, deps: shortYears, events: [] });
+    const yearEnd = (ended: WorldDocument['world']['ended']): WorldDocument => ({ ...document, world: { ...document.world, turn: 30, ended } });
+    const moment = { deps: shortYears, now: () => 0, worldLength: () => 0 };
+    rosters.yearEnded?.({ ...moment, document: yearEnd({ turn: 30, reason: 'bankruptcy' }) });
+    expect(rosters.value()).toHaveLength(1);
+    rosters.yearEnded?.({ ...moment, document: yearEnd(null) });
+    expect(rosters.value()).toHaveLength(2);
   });
 
   test("the player's Guild's Regard after 10 years, from the world as the last Turn left it (M4, DL-55)", () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 12 } };
-    const game = playGame('play-a', shortYears, { years: 10 });
+    const rosters = observerOf('rosters');
+    const regard = observerOf('regardAtCountedYear');
+    const game = playGame('play-a', shortYears, { years: 10, observers: [rosters, regard] });
     expect(game.document.world.turn).toBe(120);
-    expect(game.observations.rosters).toHaveLength(11);
-    expect(game.observations.regardAtCountedYear).toEqual(regardSnapshot(game.document.world, shortYears.config));
+    expect(rosters.value()).toHaveLength(11);
+    expect(regard.value()).toEqual(regardSnapshot(game.document.world, shortYears.config));
     const pairs = (n: number): number => (n * (n - 1)) / 2;
-    const counted = Object.values(game.observations.regardAtCountedYear?.relationships ?? {}).reduce((a, b) => a + b, 0);
+    const counted = Object.values(regard.value()?.relationships ?? {}).reduce((a, b) => a + b, 0);
     expect(counted).toBe(pairs((playerGuild(game.document.world) as Guild).rosterIds.length));
   });
 
-  // v1.1.5-S1 (DL-174): writing a 20-year game's save at every year's end took a sixth of its time
+  // DL-174: writing a 20-year game's save at every year's end took a sixth of its time
   // and most of its memory. Each year's is counted; the last year's is gzipped from the save
   // `recordGame` writes once the game stops, the same document.
-  test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, () => {
+  test("the save as each year ends: every year's length as its text's, counted, and the last year's gzipped once the game stops", { timeout: 30_000 }, async () => {
     const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
     const lengths: number[] = [];
     const worldLengths: number[] = [];
+    const saves = observerOf('saves');
+    const worlds = observerOf('worlds');
     const watched = playGame('play-a', shortYears, {
       years: 3,
-      afterAdvance: (_before, after) => {
-        if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
-        lengths.push(serialise(after).length);
-        worldLengths.push(JSON.stringify(after.world).length);
-      },
+      observers: [
+        saves,
+        worlds,
+        {
+          advanced: ({ after }) => {
+            if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
+            lengths.push(serialise(after).length);
+            worldLengths.push(JSON.stringify(after.world).length);
+          },
+        },
+      ],
     });
-    expect(watched.observations.saves.map((save) => save.length)).toEqual(lengths);
-    expect(watched.observations.saves.map((save) => save.gzipped)).toEqual([null, null, null]);
-    // v1.1.6-S17 (DL-203): the World State beside the save as each year ends.
-    expect(watched.observations.worlds.map((world) => world.characters)).toEqual(worldLengths);
-    expect(watched.observations.worlds.every((world) => world.copyMs >= 0)).toBe(true);
+    expect(saves.value().map((save) => save.length)).toEqual(lengths);
+    expect(saves.value().map((save) => save.gzipped)).toEqual([null, null, null]);
+    // The World State beside the save as each year ends (DL-203).
+    expect(worlds.value().map((world) => world.characters)).toEqual(worldLengths);
+    expect(worlds.value().every((world) => world.copyMs >= 0)).toBe(true);
 
     // The save and the loaded save, written again: two texts, and none while the game is played.
     vi.mocked(serialise).mockClear();
-    const { record } = recordGame('play-a', shortYears, { years: 3 });
+    const { record } = await recordGame('play-a', shortYears, { years: 3 });
     expect(vi.mocked(serialise)).toHaveBeenCalledTimes(2);
     const gzipped = gzipSync(serialise(watched.document)).length;
     expect(record.observations.saves.map((save) => save.length)).toEqual(lengths);
@@ -201,22 +248,106 @@ describe('playGame observes the World State (M3, DL-40)', () => {
     expect(record.measures.gzipped).toBe(gzipped);
 
     // A game stopped short of a year's end gzips no year's save.
-    const short = recordGame('play-a', shortYears, { years: 2.5 }).record;
+    const short = (await recordGame('play-a', shortYears, { years: 2.5 })).record;
     expect(short.observations.saves.map((save) => save.gzipped)).toEqual([null, null]);
     expect(short.measures.gzipped).toBeNull();
   });
 });
 
+// DL-239: the play loop's moments, told to each observer in play order.
+describe('the moments a game announces (DL-239)', () => {
+  test("to each observer in play order: created, each Turn's choices and actions, its advance and a year's end, and the end", () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 6 } };
+    const heard: string[][] = [[], []];
+    let chosen = 0;
+    const choose = (document: WorldDocument, given: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction[] => {
+      const actions = automaticPolicy(document, given, policy);
+      chosen += actions.length;
+      return actions;
+    };
+    const listening = (into: string[]): PlayObserver => ({
+      created: ({ document, events }) => into.push(`created ${document.world.turn} ${events.length > 0}`),
+      beforeChoices: ({ document }) => into.push(`choices ${document.world.turn}`),
+      actionApplied: ({ before, result }) => into.push(`action ${before.world.turn} ${result.ok}`),
+      advanced: ({ before, after, from }) => {
+        into.push(`advanced ${before.world.turn} ${after.world.turn}`);
+        // The advance's entries are those from `from` on, of the Turn it played; the ones before, of the Turns before.
+        const { entries } = after.history;
+        expect(entries.slice(from).every((entry) => entry.turn === after.world.turn)).toBe(true);
+        expect(entries.slice(0, from).every((entry) => entry.turn <= before.world.turn)).toBe(true);
+      },
+      yearEnded: ({ document, worldLength }) => into.push(`year ${document.world.turn} ${worldLength() === savedLength(document.world)}`),
+      ended: ({ document }) => into.push(`ended ${document.world.turn}`),
+    });
+    const game = playGame('play-a', shortYears, { years: 2, choose, observers: heard.map(listening) });
+
+    const [first, second] = heard as [string[], string[]];
+    expect(second).toEqual(first);
+    expect(first[0]).toBe('created 0 true');
+    expect(first.at(-1)).toBe(`ended ${game.document.world.turn}`);
+    expect(first.filter((moment) => moment.startsWith('action')).every((moment) => moment.endsWith(' true'))).toBe(true);
+    expect(first.filter((moment) => moment.startsWith('action'))).toHaveLength(chosen);
+    // Each Turn: the choices, its actions, then its advance; a year's end after its last Turn's advance.
+    const turns = first.slice(1, -1);
+    for (let turn = 0; turn < game.turnsPlayed; turn += 1) {
+      const choices = turns.indexOf(`choices ${turn}`);
+      const advanced = turns.indexOf(`advanced ${turn} ${turn + 1}`);
+      expect(choices).toBeGreaterThanOrEqual(0);
+      expect(advanced).toBeGreaterThan(choices);
+      expect(turns.slice(choices + 1, advanced).every((moment) => moment === `action ${turn} true`)).toBe(true);
+      const year = (turn + 1) % shortYears.config.turnsPerYear === 0;
+      expect(turns[advanced + 1] === `year ${turn + 1} true`, `turn ${turn}`).toBe(year);
+    }
+    expect(game.turnsPlayed).toBe(12);
+    expect(turns.filter((moment) => moment.startsWith('year'))).toEqual(['year 6 true', 'year 12 true']);
+  });
+});
+
+// DL-238: the History's length counted as it grows, held to the walk of the whole document.
+describe("playGame counts the save's length as the History grows", () => {
+  test.each(['saves-a', 'saves-b', 'saves-c'])(
+    "matched against the walk of the whole document and the save's text, every year of a game (%s)",
+    { timeout: 30_000 },
+    (seed) => {
+      const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 24 } };
+      const walked: number[] = [];
+      const written: number[] = [];
+      const worlds: number[] = [];
+      const saves = observerOf('saves');
+      const sized = observerOf('worlds');
+      playGame(seed, shortYears, {
+        years: 4,
+        observers: [
+          saves,
+          sized,
+          {
+            advanced: ({ after }) => {
+              if (after.world.turn % shortYears.config.turnsPerYear !== 0) return;
+              walked.push(savedLength(after));
+              written.push(serialise(after).length);
+              worlds.push(savedLength(after.world));
+            },
+          },
+        ],
+      });
+
+      expect(walked).toHaveLength(4);
+      expect(saves.value().map((save) => save.length)).toEqual(walked);
+      expect(walked).toEqual(written);
+      expect(sized.value().map((world) => world.characters)).toEqual(worlds);
+    },
+  );
+});
+
 describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () => {
   test('one for every Quest the policy took, read from the Quest as it was taken, which the counters join to its resolution', () => {
-    const game = playGame('play-a', deps, { years });
-    const { history } = game.document;
-    const guild = playerGuild(game.document.world) as Guild;
+    const { history } = watched.document;
+    const guild = playerGuild(watched.document.world) as Guild;
     const payloads = (type: 'quest.taken' | 'quest.resolved') =>
       (history.byType[type] ?? []).map((position) => history.entries[position]?.payload as { questId: string; guildId: string; templateKey?: string });
     const taken = payloads('quest.taken').filter((payload) => payload.guildId === guild.id);
     expect(taken.length).toBeGreaterThan(0);
-    expect([...game.playerQuestDifficulty.keys()].sort()).toEqual(taken.map((payload) => payload.questId).sort());
+    expect([...seen.playerQuestDifficulty.keys()].sort()).toEqual(taken.map((payload) => payload.questId).sort());
 
     // Each difficulty lies in its template's range; the template is named by the Quest's quest.offered.
     const offered = new Map(
@@ -225,18 +356,18 @@ describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () =
         return [payload.questId, payload.templateKey];
       }),
     );
-    for (const [questId, difficulty] of game.playerQuestDifficulty) {
+    for (const [questId, difficulty] of seen.playerQuestDifficulty) {
       const template = content.questTemplates[offered.get(questId) ?? ''];
       expect(template, questId).toBeDefined();
       expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
       expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
     }
 
-    const { record } = recordGame('play-a', deps, { years });
+    const { record } = recorded;
     const resolved = payloads('quest.resolved').filter((payload) => payload.guildId === guild.id).length;
     const byBand = record.counters.playerQuestsByDifficulty ?? [];
     expect(byBand.reduce((sum, tally) => sum + tally.quests, 0)).toBe(resolved);
-    const sum = [...game.playerQuestDifficulty]
+    const sum = [...seen.playerQuestDifficulty]
       .filter(([questId]) => payloads('quest.resolved').some((payload) => payload.questId === questId))
       .reduce((total, [, difficulty]) => total + difficulty, 0);
     expect(byBand.reduce((total, tally) => total + tally.difficulty, 0)).toBe(sum);
@@ -245,8 +376,7 @@ describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () =
 
 describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
   test("the difficulty of every Quest a Rival took, as the afternoon found it, which the counters give each Disposition", () => {
-    const game = playGame('play-a', deps, { years });
-    const { history, world } = game.document;
+    const { history, world } = watched.document;
     const offered = new Map(
       (history.byType['quest.offered'] ?? []).map((position) => {
         const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
@@ -257,19 +387,18 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
       .map((position) => history.entries[position]?.payload as { questId: string; guildId: GuildId })
       .filter((payload) => dispositionOf(world.guilds[payload.guildId] as Guild) !== null);
     expect(rivalTaken.length).toBeGreaterThan(0);
-    expect([...game.rivalQuestDifficulty.keys()].sort()).toEqual(rivalTaken.map((payload) => payload.questId).sort());
-    for (const [questId, difficulty] of game.rivalQuestDifficulty) {
+    expect([...seen.afternoons.questDifficulty.keys()].sort()).toEqual(rivalTaken.map((payload) => payload.questId).sort());
+    for (const [questId, difficulty] of seen.afternoons.questDifficulty) {
       const template = content.questTemplates[offered.get(questId) ?? ''];
       expect(template, questId).toBeDefined();
       expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
       expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
     }
 
-    const { record } = recordGame('play-a', deps, { years });
-    const tallies = Object.values(record.counters.dispositions);
+    const tallies = Object.values(recorded.record.counters.dispositions);
     expect(tallies.reduce((sum, tally) => sum + tally.questsWithDifficulty, 0)).toBe(rivalTaken.length);
     expect(tallies.reduce((sum, tally) => sum + tally.questsTaken, 0)).toBe(rivalTaken.length);
-    expect(tallies.reduce((sum, tally) => sum + tally.difficulty, 0)).toBe([...game.rivalQuestDifficulty.values()].reduce((a, b) => a + b, 0));
+    expect(tallies.reduce((sum, tally) => sum + tally.difficulty, 0)).toBe([...seen.afternoons.questDifficulty.values()].reduce((a, b) => a + b, 0));
   });
 
   test('readAdvance: of the Transfers an afternoon made, those whose seller was in debt as it began, and none on a night', () => {
@@ -278,7 +407,7 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     const [debtor, sound] = Object.values(before.world.guilds).filter((guild) => dispositionOf(guild) !== null);
     if (debtor === undefined || sound === undefined) throw new Error('Fewer than two Rivals');
     debtor.belowFloorSince = 0;
-    const mark = markHistory(before);
+    const mark = before.history.entries.length;
     const after = { ...before, world: structuredClone(before.world) };
     after.world.turn = before.world.turn + 1;
     expect(timeOfDay(after.world.turn)).toBe('afternoon');
@@ -303,7 +432,7 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     readAdvance(before, mark, after, difficulties, sellerInDebt);
     expect([...sellerInDebt]).toEqual([fromDebtor]);
     // Read again from after them, nothing more.
-    readAdvance(before, markHistory(before), after, difficulties, sellerInDebt);
+    readAdvance(before, before.history.entries.length, after, difficulties, sellerInDebt);
     expect([...sellerInDebt]).toEqual([fromDebtor]);
 
     // On a night, whatever the debt, none: the Generator's Transfers are not the afternoon's.
@@ -323,7 +452,7 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     const sellerInDebt = new Set<number>();
 
     // The first afternoon: the seller, out of debt, sells.
-    const first = markHistory(before);
+    const first = before.history.entries.length;
     const heroId = seller.rosterIds[0] as HeroId;
     const position = before.history.entries.length;
     append(before.history, {
@@ -339,15 +468,16 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
 
     // A night puts the seller in debt; the next afternoon makes no Transfer, and the first sale is not read again.
     seller.belowFloorSince = 2;
-    readAdvance(before, markHistory(before), afternoon(4), new Map(), sellerInDebt);
+    readAdvance(before, before.history.entries.length, afternoon(4), new Map(), sellerInDebt);
     expect(sellerInDebt.has(position)).toBe(false);
     expect(sellerInDebt.size).toBe(0);
   });
 
-  test('recordGame gives the counters the Transfers whose seller was in debt, which they count apart', () => {
+  test('recordGame gives the counters the Transfers whose seller was in debt, which they count apart', async () => {
     // Every Guild below the floor from the first night, and none bankrupt within the game.
     const inDebt: EngineDeps = { ...dealing, config: { ...dealing.config, bankruptcyFloor: 1e9, bankruptcyGraceDays: 10_000 } };
-    const game = playGame('play-a', inDebt, { years });
+    const seen = seenInPlay();
+    const game = playGame('play-a', inDebt, { years, observers: [seen] });
     const { history, world } = game.document;
     const rivalToRival = (position: number): boolean => {
       const payload = history.entries[position]?.payload as { fromGuildId: GuildId; toGuildId: GuildId };
@@ -356,24 +486,23 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     const afternoons = (history.byType['hero.transferred'] ?? []).filter(
       (position) => rivalToRival(position) && timeOfDay(history.entries[position]?.turn ?? 0) === 'afternoon',
     );
-    const sold = [...game.sellerInDebt].filter(rivalToRival);
+    const sold = [...seen.afternoons.sellerInDebt].filter(rivalToRival);
     expect(sold.length).toBeGreaterThan(0);
     expect(afternoons.length).toBeGreaterThan(sold.length);
 
-    const { record } = recordGame('play-a', inDebt, { years });
+    const { record } = await recordGame('play-a', inDebt, { years });
     expect(record.counters.rivalTransfers['afternoon-seller-in-debt'].transfers).toBe(sold.length);
     expect(record.counters.rivalTransfers.afternoon.transfers).toBe(afternoons.length - sold.length);
   });
 });
 
-describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
+describe('the harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
   test('holds under the automatic policy', () => {
-    const game = playGame('play-a', deps, { years });
-    expect(game.assertion).toBeNull();
-    expect(playerTransferred(game.document)).toBeNull();
+    expect(bare.assertion).toBeNull();
+    expect(playerTransferred(bare.document)).toBeNull();
   });
 
-  test("fires on a Transfer into the player's Guild, stopping the game as a validator refusal does, and the report lists it", () => {
+  test("fires on a Transfer into the player's Guild, stopping the game as a validator refusal does, and the report lists it", async () => {
     // A player's choices that take a Rival's Hero in on the first Turn, then play as the policy does.
     // Each try is on a copy: an accepted action appends to the History it shares (ADR-0008).
     const takeOne = (document: WorldDocument, given: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction[] => {
@@ -396,7 +525,7 @@ describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the pla
     expect(game.turnsPlayed).toBe(1);
     expect(playerTransferred(game.document, 1)).toBeNull();
 
-    const { record } = recordGame('play-a', deps, { years, choose: takeOne });
+    const { record } = await recordGame('play-a', deps, { years, choose: takeOne });
     expect(record.assertion).toEqual(game.assertion);
     expect(record.counters.transfers.in.transfers).toBe(1);
     const sweep = {
@@ -405,6 +534,7 @@ describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the pla
       validated: false,
       policy: defaultPolicyConfig,
       workers: 1,
+      counters: gameCounters,
       games: [record],
       advance: summarise([1]),
       validation: summarise([]),
@@ -457,9 +587,29 @@ describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the pla
   });
 });
 
-describe('recordGame and measureDocument', () => {
-  test('reduce a game to its counters and the measures of its last document, which loads back', () => {
-    const { record, advanceMs } = recordGame('play-a', deps, { years });
+describe("recordGame's measures", () => {
+  test("gzip the last year's save in zlib's thread pool, not on the game's thread (DL-239)", async () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
+    vi.mocked(gzip).mockClear();
+    vi.mocked(gzipSync).mockClear();
+    const { record } = await recordGame('play-a', shortYears, { years: 1 });
+    expect(vi.mocked(gzip)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(gzipSync)).not.toHaveBeenCalled();
+    expect(record.measures.gzipped).toBeGreaterThan(0);
+    expect(record.observations.saves.at(-1)?.gzipped).toBe(record.measures.gzipped);
+  });
+
+  test("gzip the save once it is loaded, so zlib's copy of its text is not held while the load builds the document (DL-239)", async () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 21 } };
+    vi.mocked(gzip).mockClear();
+    vi.mocked(deserialise).mockClear();
+    await recordGame('play-a', shortYears, { years: 1 });
+    expect(vi.mocked(deserialise)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(gzip).mock.invocationCallOrder[0]).toBeGreaterThan(vi.mocked(deserialise).mock.invocationCallOrder[0] as number);
+  });
+
+  test('reduce a game to its counters and the measures of its last document, which loads back', async () => {
+    const { record, advanceMs } = recorded;
     expect(advanceMs).toHaveLength(60);
     expect(record).toMatchObject({ seed: 'play-a', turnsPlayed: 60, ranFullLength: true, refusals: [], invalid: null });
     expect(record.counters.ending).toBeNull();
@@ -469,21 +619,17 @@ describe('recordGame and measureDocument', () => {
     expect(record.observations.rosters).toHaveLength(1);
     expect(record.measures.roundTrips).toBe(true);
 
-    const { document } = playGame('play-a', deps, { years });
-    const measures = measureDocument(document, deps);
-    expect(measures.historyEntries).toBe(document.history.entries.length);
-    expect(measures.serialisedLength).toBe(serialise(document).length);
-    expect(measures.serialisedLength).toBe(record.measures.serialisedLength);
+    const { document } = bare;
+    expect(record.measures.historyEntries).toBe(document.history.entries.length);
+    expect(record.measures.serialisedLength).toBe(serialise(document).length);
   });
 
-  test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (M8-S1, DL-76)", () => {
-    const { record } = recordGame('play-a', deps, { years });
-    const { document } = playGame('play-a', deps, { years });
+  test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (DL-76)", async () => {
+    const { record } = recorded;
+    const { document } = bare;
+    const fingerprint = createHash('sha256').update(serialise(document)).digest('hex');
 
-    const { fingerprint } = measureDocument(document, deps);
-
-    expect(fingerprint).toBe(createHash('sha256').update(serialise(document)).digest('hex'));
     expect(record.measures.fingerprint).toBe(fingerprint);
-    expect(recordGame('play-b', deps, { years }).record.measures.fingerprint).not.toBe(fingerprint);
+    expect((await recordGame('play-b', deps, { years })).record.measures.fingerprint).not.toBe(fingerprint);
   });
 });

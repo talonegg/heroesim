@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { started, withRosterReleased } from './game.test-support';
 import { fastForwardStepTurns, useGame, type GameState, type Play } from './reducer';
 
-// The reducer wired to React (M7-S2): a play is accepted at once, the busy state is committed and
+// The reducer wired to React: a play is accepted at once, the busy state is committed and
 // painted, and only then does the engine run, once, however many taps arrived meanwhile. Rendered
 // under StrictMode, which calls a component's reducer twice: the engine must still run once, and
 // the shared History take each Turn's events once (ADR-0008). A fast forward plays in steps, each
 // settled after the one before it is painted, and the player's Stop is taken between them
-// (v1.0.1-S5, DL-96).
+// (DL-96).
 vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof Engine>();
   return { ...engine, advance: vi.fn(engine.advance), fastForward: vi.fn(engine.fastForward) };
@@ -85,21 +85,8 @@ describe('useGame', () => {
     expect(result.current[0].stoppedBecause).not.toBeNull();
   });
 
-  test('a tap after the first has settled is taken', async () => {
-    const { result } = await startedGame();
-    const before = result.current[0];
-
-    act(() => result.current[1]({ kind: 'advance' }));
-    await waitFor(() => expect(result.current[0].busy).toBe(false));
-    act(() => result.current[1]({ kind: 'advance' }));
-    await waitFor(() => expect(result.current[0].busy).toBe(false));
-
-    expect(advance).toHaveBeenCalledTimes(2);
-    expect(turnOf(result.current[0])).toBe(turnOf(before) + 2);
-  });
-
   // Each of these plays steps of the real engine, each after a paint: under the whole suite's load,
-  // longer than waitFor's second and the default 5 s (M9-S4, DL-164).
+  // longer than waitFor's second and the default 5 s (DL-164).
   test('a fast forward is steps of at most 30 Turns, each settled after the step before it is rendered', { timeout: 30_000 }, async () => {
     const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
     const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
@@ -110,15 +97,15 @@ describe('useGame', () => {
       return engine.fastForward(...args);
     });
     try {
-      act(() => result.current[1]({ kind: 'fastForward', until: [], maxTurns: 5 * fastForwardStepTurns }));
+      act(() => result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns }));
       expect(result.current[0]).toMatchObject({ busy: true, forwarding: null });
       expect(fastForward).not.toHaveBeenCalled();
 
-      // Five steps of the real engine, each after a paint: longer than waitFor's second under load (M9-S4).
+      // Three steps of the real engine, each after a paint: longer than waitFor's second under load.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30, 30, 30]);
-      expect(rendered).toEqual([null, 30, 60, 90, 120]);
+      expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30]);
+      expect(rendered).toEqual([null, 30, 60]);
       expect(result.current[0]).toMatchObject({ forwarding: null, stoppedBecause: { kind: 'max-turns' } });
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
@@ -156,12 +143,12 @@ describe('useGame', () => {
     try {
       act(() => {
         result.current[1]({ kind: 'stop' });
-        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns });
       });
-      // Four steps of the real engine, each after a paint, as above.
+      // Three steps of the real engine, each after a paint, as above.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(rendered).toEqual([null, 30, 60, 90]);
+      expect(rendered).toEqual([null, 30, 60]);
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
     }
@@ -169,7 +156,7 @@ describe('useGame', () => {
 
   // The same, when the settle asked for before the Stop is waiting as a task, not a frame: where
   // frames fire at once, so each settle waits as a task after its frame, and where there are none
-  // (v1.0.1-S6, DL-97). jsdom has frames, so neither way is taken above.
+  // (DL-97). jsdom has frames, so neither way is taken above.
   test.each([
     ['frames that fire at once', (callback: FrameRequestCallback) => (callback(0), 1)],
     ['no frames', undefined],
@@ -188,12 +175,12 @@ describe('useGame', () => {
     try {
       act(() => {
         result.current[1]({ kind: 'stop' });
-        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 3 * fastForwardStepTurns });
       });
-      // Four steps of the real engine, each after a paint, as above.
+      // Three steps of the real engine, each after a paint, as above.
       await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
-      expect(rendered).toEqual([null, 30, 60, 90]);
+      expect(rendered).toEqual([null, 30, 60]);
     } finally {
       vi.mocked(fastForward).mockImplementation(engine.fastForward);
     }

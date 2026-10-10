@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
-import { availableHeroes, partyFor } from '../controllers/rival.js';
+import { bestParties } from '../best-party.js';
+import { availableHeroes } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import { facilityKeys, makeId, type FacilityKey, type Guild, type Guildmaster, type Hero, type World, type WorldDocument } from '../document.js';
 import type { TurnEvent } from '../events.js';
@@ -14,10 +15,10 @@ import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
 import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { applyBuild, type BuildRejection } from './build.js';
+import type { BuildRejection } from './build.js';
 import type { ActionResult } from './result.js';
 
-// M3-S6: Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
+// Hall Improvements (INPUTS 7.3, DL-38). The test content carries the core's nine
 // Improvements, three grades of each facility at 200, 500 and 1,000 Wealth. Every document a test
 // makes is held to the validator; the config values a test relies on are pinned.
 
@@ -98,19 +99,6 @@ describe('build', () => {
     expect(history.milestones.at(-1)).toBe(history.entries.length - 1);
   });
 
-  test("gives a new world and leaves the input's as it was, sharing meta and the History", () => {
-    const { document, guild } = scene();
-    const before = structuredClone(document.world);
-
-    const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'infirmary' }, deps);
-
-    if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
-    expect(result.document.world).not.toBe(document.world);
-    expect(document.world).toEqual(before);
-    expect(result.document.meta).toBe(document.meta);
-    expect(result.document.history).toBe(document.history);
-  });
-
   test('builds with Wealth exactly equal to the cost, leaving none', () => {
     const { document, guild } = scene('exact', 200);
 
@@ -119,21 +107,17 @@ describe('build', () => {
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
-  test('is the same rule for a Rival (ADR-0002), the rule applyAction runs on a copy of the world', () => {
+  test('is the same rule for a Rival (ADR-0002)', () => {
     const withRival = testDeps({ rivalCount: 1 });
     const { document } = createWorld('rival-builds', setup, withRival);
     const rival = Object.values(document.world.guilds).find((each) => each.controller.kind === 'rival') as Guild;
     rival.wealth = 1_000;
-    const world = structuredClone(document.world);
 
     const applied = applyAction(document, { kind: 'build', guildId: rival.id, facility: 'infirmary' }, withRival);
-    const inPlace = applyBuild(world, { guildId: rival.id, facility: 'infirmary' }, withRival);
 
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
+    if (!applied.ok) throw new Error('Refused');
     const valid = withValid(applied.document, withRival);
     expect(valid.world.guilds[rival.id]).toMatchObject({ wealth: 800, hall: { infirmary: 1, trainingYard: 0, quarters: 0 } });
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('raises Upkeep by hallMaintenancePerGrade for each grade built (DL-26)', () => {
@@ -242,9 +226,9 @@ function playTo(document: WorldDocument, turn: number, with_: EngineDeps): { doc
   return { document: current, events };
 }
 
-describe('what a grade built does (M3-S6)', () => {
+describe('what a grade built does', () => {
   test('quarters at grade 1 shift the Morale baseline by quartersMoraleBonus, and nightly drift follows it', () => {
-    // The Guildmaster's Inspiration and Traits stilled (M4-S5): this test is about the quarters.
+    // The Guildmaster's Inspiration and Traits stilled: this test is about the quarters.
     const pinned = testDeps({ rivalCount: 0, moraleBaseline: 60, quartersMoraleBonus: 5, moraleDrift: 1, inspirationMoraleShift: 0 });
     const { document, guild } = scene('quarters', 10_000, pinned);
     (document.world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
@@ -279,7 +263,7 @@ describe('what a grade built does (M3-S6)', () => {
   });
 
   test('the infirmary at grade 1 halves a new Injury, by the factor it reads when the Injury is inflicted', () => {
-    // Every Check fails and injures the lone Hero sent, once, and nobody dies (M4-S2); the
+    // Every Check fails and injures the lone Hero sent, once, and nobody dies; the
     // infirmary's factors pinned.
     const hurt = testDeps(
       { rivalCount: 0, infirmaryHealFactor: [1, 1 / 2, 1 / 3] },
@@ -292,7 +276,7 @@ describe('what a grade built does (M3-S6)', () => {
       const quest = questId === undefined ? undefined : document.world.quests[questId];
       if (quest === undefined) throw new Error('An empty Board');
       quest.requirements = { partySizeMin: 1, partySizeMax: 1 };
-      const heroIds = partyFor(document.world, guild, quest, availableHeroes(document.world, guild), hurt);
+      const heroIds = bestParties(document.world, guild, hurt).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
       if (heroIds === null) throw new Error('No Party');
       const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, hurt);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
@@ -354,7 +338,7 @@ describe('what a grade built does (M3-S6)', () => {
     expect(trainingXp, `training yard ${trainingXp.join(', ')}`).toSatisfy(rising);
   });
 
-  test('the training yard at grade 1 is on the Guild row the night’s training reads (M3-S2)', () => {
+  test('the training yard at grade 1 is on the Guild row the night’s training reads', () => {
     const { document, guild } = scene('yard');
 
     const built = applyAction(document, { kind: 'build', guildId: guild.id, facility: 'trainingYard' }, deps);

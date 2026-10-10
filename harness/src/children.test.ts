@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { runShardJobs } from './children.js';
 import type { ShardJob } from './shard.js';
 
-// v1.1.4-S14: the children a run shares its jobs among, played by a stand-in for shard.ts that
+// The children a run shares its jobs among, played by a stand-in for shard.ts that
 // plays no game: it writes its pid where the job says, then fails, sleeps or writes its result.
 
 /** The stand-in child: a job of `fail` fails once `waitFor` pids are written, a job of `sleep` writes its result after that many ms. */
@@ -58,7 +58,7 @@ afterEach(() => {
   }
 });
 
-describe('runShardJobs (v1.1.4-S14)', () => {
+describe('runShardJobs', () => {
   test("returns the stand-in's results in the jobs' order", async () => {
     const { module, pids } = workspace();
     const jobs = ['a', 'b', 'c'].map((name, at) => ({ name, sleep: 30 * (3 - at), pids }) as unknown as ShardJob);

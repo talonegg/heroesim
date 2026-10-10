@@ -10,8 +10,8 @@
 // (DL-29 item 4, DL-36 item 5), each then moved by the consequences. The outcome names the
 // Synergies that added to any Check (M4-S3, DL-45), once for the Quest.
 //
-// Every draw is from the `quests` stream, except the sequence of a Quest generated before M4, which
-// is drawn from `encounters` (`sequenceFor`). The draws are one for each Check, in the order the
+// Every draw is from the `quests` stream, except the sequence of a Quest whose Encounters content no
+// longer defines (data-model rule 5), which is drawn from `encounters` (`sequenceFor`). The draws are one for each Check, in the order the
 // Encounter lists them, whether or not the formula is already decided (DL-148 item 7), then for
 // each of its Degree's consequences in order: an Injury three per `count` (whether it lands, on
 // whom, its Days), a Death two (whether, on whom); taken whether or not they land, so tuning a

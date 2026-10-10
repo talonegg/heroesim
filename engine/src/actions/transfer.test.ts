@@ -21,7 +21,7 @@ import { testDeps, withDispositions, withValid } from '../world.test-support.js'
 import { applyAction, type Action } from './action.js';
 import type { ActionResult, Rejection } from './result.js';
 
-// M6-S2: Transfers in both directions, the Morale they cost, the Guildmasters' Regard they raise, and
+// Transfers in both directions, the Morale they cost, the Guildmasters' Regard they raise, and
 // the Transfer Offers a Guild that answers for itself receives (R28, INPUTS 7.6, pre-M0 review D5,
 // DL-57). Every document a test makes is held to the validator; the numbers the tests rely on are
 // pinned here, and Negotiation is stilled unless a test is about it.
@@ -129,7 +129,7 @@ function listPrice(hero: Hero, config: GameConfig, content: EngineDeps['content'
 
 // ── The acceptance boxes ─────────────────────────────────────────────────────────────────────
 
-describe('a Transfer out (M6-S2)', () => {
+describe('a Transfer out', () => {
   // The story's first box.
   test("a Transfer out of a close Hero lowers the Morale of their friends and no one else's", () => {
     const document = created('friends');
@@ -272,7 +272,7 @@ describe('a Transfer out (M6-S2)', () => {
   });
 });
 
-describe('a Transfer in (M6-S2)', () => {
+describe('a Transfer in', () => {
   // The story's second box, the other way round.
   test("takes a Rival's Hero for transferFee, paid to the Rival: the document valid, the Wealth across Guilds unchanged", () => {
     const document = created('in');
@@ -424,10 +424,12 @@ describe('a Transfer in (M6-S2)', () => {
 });
 
 describe('a Hero just transferred is held on their new Roster for transferLockDays (DL-60)', () => {
-  /** Rivals who neither deal, hire, build nor buy while Days pass: the lock is the only thing that changes. */
-  const still = testDeps(pins, withDispositions({ transferAppetite: 0, recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }));
-
   test('taken in, they are not sent back, sold on or offered for until the morning of the Day the lock runs out', () => {
+    // A lock of 2 Days: the Day boundary it is held to is the one of any length, and few Turns reach it.
+    const short = { ...pins, transferLockDays: 2 };
+    const locking = testDeps(short, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 }));
+    /** Rivals who neither deal, hire, build nor buy while Days pass: the lock is the only thing that changes. */
+    const still = testDeps(short, withDispositions({ transferAppetite: 0, recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }));
     let document = created('lock');
     const guild = player(document.world);
     guild.wealth = 10_000;
@@ -435,31 +437,31 @@ describe('a Hero just transferred is held on their new Roster for transferLockDa
     rival.wealth = 10_000;
     other.wealth = 10_000;
     const [hero] = rosterOf(document.world, rival) as [Hero];
-    document = accepted(applyAction(document, { kind: 'transferIn', guildId: guild.id, heroId: hero.id }, deps)).document;
+    document = accepted(applyAction(document, { kind: 'transferIn', guildId: guild.id, heroId: hero.id }, locking)).document;
     expect(heroOf(document.world, hero.id).transferredOnTurn).toBe(0);
-    // Transferred on Day 0: held through Day 29, free from the morning of Day 30, Turn 90.
-    const lock = { heroId: hero.id, transferredOnTurn: 0, untilTurn: 90 };
-    const back = (at: WorldDocument) => applyAction(at, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, deps);
+    // Transferred on Day 0: held through Day 1, free from the morning of Day 2, Turn 6.
+    const lock = { heroId: hero.id, transferredOnTurn: 0, untilTurn: 6 };
+    const back = (at: WorldDocument) => applyAction(at, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, locking);
 
     expect(refused(document, () => back(document))).toEqual({ action: 'transferOut', reason: 'recently-transferred', ...lock });
-    expect(refused(document, () => applyAction(document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: other.id }, deps))).toEqual({
+    expect(refused(document, () => applyAction(document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: other.id }, locking))).toEqual({
       action: 'transferOut',
       reason: 'recently-transferred',
       ...lock,
     });
-    expect(refused(document, () => applyAction(document, { kind: 'offerTransfer', guildId: other.id, heroId: hero.id }, deps))).toEqual({
+    expect(refused(document, () => applyAction(document, { kind: 'offerTransfer', guildId: other.id, heroId: hero.id }, locking))).toEqual({
       action: 'offerTransfer',
       reason: 'recently-transferred',
       ...lock,
     });
     // Held before the Rival is asked: one with no appetite at all still hears of the lock first.
-    const noAppetite = testDeps(pins, withDispositions({ transferAppetite: 0, recruitThreshold: 0 }));
+    const noAppetite = testDeps(short, withDispositions({ transferAppetite: 0, recruitThreshold: 0 }));
     expect(refused(document, () => applyAction(document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, noAppetite))).toMatchObject({
       reason: 'recently-transferred',
     });
 
-    while (document.world.turn < 89) document = withValid(advance(document, still).document, still);
-    expect(refused(document, () => back(document))).toMatchObject({ reason: 'recently-transferred', untilTurn: 90 });
+    while (document.world.turn < 5) document = withValid(advance(document, still).document, still);
+    expect(refused(document, () => back(document))).toMatchObject({ reason: 'recently-transferred', untilTurn: 6 });
     document = withValid(advance(document, still).document, still);
     const { events } = accepted(back(document));
     expect(ofType(events, 'hero.transferred').map((event) => [event.payload.heroId, event.payload.toGuildId])).toEqual([[hero.id, rival.id]]);
@@ -518,7 +520,7 @@ describe('transferFee (INPUTS 7.6, DL-43, DL-57)', () => {
   });
 });
 
-describe("the fee every action charges is at the paying Guildmaster's Negotiation (M6-S2, DL-43, DL-57)", () => {
+describe("the fee every action charges is at the paying Guildmaster's Negotiation (DL-43, DL-57)", () => {
   test("transferIn, transferOut and offerTransfer each price the Hero at the Negotiation of the Guild that pays: not the one paid, not the list price", () => {
     const negotiating = testDeps({ ...pins, negotiationRange: 0.1 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 }));
     const document = created('negotiated', negotiating);

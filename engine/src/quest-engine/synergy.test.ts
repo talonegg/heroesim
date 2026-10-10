@@ -25,7 +25,7 @@ import { resolveQuest } from './resolve.js';
 import { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './synergy.js';
 import { applyAction } from '../actions/action.js';
 
-// M4-S3: Synergies (R26, INPUTS 6.4, DL-45), matched on the Party's Classes and Skills and added to
+// Synergies (R26, INPUTS 6.4, DL-45), matched on the Party's Classes and Skills and added to
 // the Check on the Encounter kinds each names. The test content carries the core's six, built from
 // counts of Classes and lists of Skills (`classSkillRequires`) as content's old form loaded until
 // DL-192; a test that needs others writes them. The config values a Check relies on are pinned, and
@@ -98,7 +98,7 @@ describe('synergiesFor', () => {
     expect(synergiesFor(as(world, heroes), { synergies: {} })).toEqual([]);
   });
 
-  // v1.1.4-S1: a requirement written as a Query reads what the old form could not, every condition holding.
+  // A requirement written as a Query reads what the old form could not, every condition holding.
   test('a requirement written as Queries holds only when every condition does: here a Warrior of Strength 12 or more, and two Heroes at least', () => {
     const { world, heroes } = partyOf('queries', 'warrior', 'mage');
     const [warrior, mage] = heroes as [Hero, Hero];
@@ -123,7 +123,7 @@ describe('synergiesFor', () => {
 });
 
 describe('the Synergy term of the capability', () => {
-  // M4-S3's first box.
+  // The first acceptance box.
   test("a Party matching a Synergy's requirement scores the bonus; one member short scores none", () => {
     const { world, heroes } = partyOf('scores', 'warrior', 'warrior', 'warrior', 'healer', 'rogue');
     const [w1, w2, w3, healer, rogue] = heroes as [Hero, Hero, Hero, Hero, Hero];
@@ -144,7 +144,7 @@ describe('the Synergy term of the capability', () => {
     expect(check([w1, w2], combat, { difficulty: 17 }, world, deps)).toMatchObject({ roll: 16, outcome: 'failure' });
   });
 
-  // M4-S3's second box.
+  // The second acceptance box.
   test('a Synergy restricted to kinds applies only to those Encounters, and one naming none to every kind', () => {
     const { world, heroes } = partyOf('kinds', 'warrior', 'warrior', 'warrior', 'healer', 'rogue', 'mage');
     const [w1, w2, w3, healer, rogue, mage] = heroes as [Hero, Hero, Hero, Hero, Hero, Hero];

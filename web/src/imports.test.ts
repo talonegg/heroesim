@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
 // Nothing in `web/` computes a rule (ADR-0007, principle 12), and no component calls the engine:
-// components dispatch plays and read state (M7-S2). So only `state/`, where the reducer calls the
+// components dispatch plays and read state. So only `state/`, where the reducer calls the
 // engine, and `content.ts`, which parses the bundled content, import anything but types from
 // `@heroesim/engine`. Every other file under `web/src`, tests included, takes its types alone.
 // Checked here rather than by ESLint, as v1 did (feature/poc, E8-S2): the line is the page's own.

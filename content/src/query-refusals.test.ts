@@ -1,9 +1,9 @@
-import type { ContentSet, Encounter } from '@heroesim/engine';
+import type { ContentSet, Encounter } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { ContentError, validateContent } from './index.js';
 import { loadContent } from './node.js';
 
-// v1.1.6-S10 (DL-196): every refusal content gives for a Query, word for word. Written against the
+// DL-196: every refusal content gives for a Query, word for word. Written against the
 // checker as it stood in `validate.ts` before the engine took it over (`queryProblems`), and passing
 // there, so that the words an author reads are the same after: each type at a node of another, each
 // operator's number of arguments, each key, number and list an argument names, Sex outside a filter,
@@ -758,6 +758,7 @@ describe('a Query, held in memory', () => {
     ]],
     // Accepted.
     ['a Stat less a number', 'score', ['sum', 'party', ['-', ['stat', 'strength'], 2]], []],
+    ['a Stat less a Level', 'score', ['sum', 'party', ['-', ['stat', 'strength'], ['level']]], []],
     ['a sum less a count of Heroes filtered by a Stat', 'score', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]], []],
     ['a sum less the best Hero\'s Skill', 'score', ['-', ['sum', 'party', ['stat', 'strength']], ['of', ['best', 'party', ['stat', 'wits']], ['skill', 'tactics']]], []],
     ['a filter on a Stat subtracted', 'score', ['count', ['where', 'party', ['>=', ['-', 10, ['stat', 'wits']], 1]]], []],

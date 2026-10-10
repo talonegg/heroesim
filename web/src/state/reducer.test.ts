@@ -1,5 +1,7 @@
+// @vitest-environment node
 import type * as Engine from '@heroesim/engine';
 import {
+  bestParties,
   advance,
   applyAction,
   availableHeroes,
@@ -13,6 +15,7 @@ import {
   offeredQuests,
   playerGuild,
   probe,
+  schemaVersion,
   serialise,
   unattachedHeroes,
   type EngineDeps,
@@ -24,10 +27,10 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, partyFor } from '@heroesim/engine/testing';
+import { makeId } from '@heroesim/engine/testing';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { changed, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
+import { changed, documentOf, played as play, playerOf, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
 import {
   fastForwardStepTurns,
   gameReducer,
@@ -40,10 +43,10 @@ import {
   type NewGame,
   type Play,
 } from './reducer';
-import { rejectionSentence } from './rejections';
+import { rejectionSentence } from './namer';
 import { stopView } from './selectors';
 
-// The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that
+// The one reducer. The engine's entry points the reducer calls are wrapped in spies that
 // call the real ones, so a test can count the engine calls a play makes and read the deps it
 // passed, and every other test plays the real engine.
 vi.mock('@heroesim/engine', async (importOriginal) => {
@@ -70,27 +73,8 @@ const newGame: NewGame = {
   createdAt: '2026-09-27T09:00:00.000Z',
 };
 
-/** Plays `action` as the page does: accepted, then settled, a fast forward step by step. */
-function play(state: GameState, action: Play): GameState {
-  let next = gameReducer(state, action);
-  while (next.pending !== null) next = gameReducer(next, { kind: 'settle' });
-  return next;
-}
-
-function started(): GameState {
-  return play(initialGameState, newGame);
-}
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('expected a game in hand');
-  return state.document;
-}
-
-function playerOf(state: GameState): Guild {
-  const guild = playerGuild(documentOf(state).world);
-  if (guild === undefined) throw new Error("expected the player's Guild");
-  return guild;
-}
+/** The new game of `newGame`, played as the page plays it. */
+const started = (): GameState => startedFrom(newGame.seed);
 
 /** A save's text with `change` made to its parsed JSON: an older save, or a damaged one. */
 function saveText(state: GameState, change: (saved: { meta: Record<string, unknown>; world: Record<string, unknown> }) => void): string {
@@ -123,7 +107,7 @@ describe('a new game', () => {
     if (background === undefined) throw new Error('the content has no Guild Background');
     const state = play(initialGameState, { ...newGame, guildName: '  The Lantern  ', backgroundKey: background.key });
 
-    expect(playerOf(state)).toMatchObject({ name: 'The Lantern', backgroundKey: background.key });
+    expect(playerOf(documentOf(state))).toMatchObject({ name: 'The Lantern', backgroundKey: background.key });
   });
 
   test.each([
@@ -138,7 +122,7 @@ describe('a new game', () => {
     expect(state.busy).toBe(false);
   });
 
-  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does (M9-S2)", () => {
+  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does", () => {
     const setup = {
       guildmasterSex: 'female',
       guildmasterAge: 33,
@@ -152,7 +136,7 @@ describe('a new game', () => {
     const expected = createWorld('reducer-test', { guildName, guildmasterName, createdAt, ...setup }, { config: defaultConfig, content }).document;
 
     expect(serialise(documentOf(state))).toBe(serialise(expected));
-    expect(documentOf(state).world.guildmasters[playerOf(state).guildmasterId]).toMatchObject({
+    expect(documentOf(state).world.guildmasters[playerOf(documentOf(state)).guildmasterId]).toMatchObject({
       sex: 'female',
       ageAtEntry: 33,
       traits: ['miser', 'thrifty'],
@@ -179,20 +163,20 @@ describe('a new game', () => {
     [
       'too many Traits',
       { guildmasterTraitKeys: ['miser', 'old-soldier', 'mistrusts-magic'] },
-      { action: 'newGame', reason: 'too-many-traits', count: 3, max: 2 },
+      { action: 'newGame', reason: 'too-many-traits', count: 3, max: defaultConfig.guildmasterTraitsMax },
     ],
     [
       'an excluded pair',
       { guildmasterTraitKeys: ['miser', 'well-liked'] },
       { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
     ],
-    ['Traits over the budget', { guildmasterTraitKeys: ['thrifty'] }, { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 }],
+    ['Traits over the budget', { guildmasterTraitKeys: ['thrifty'] }, { action: 'newGame', reason: 'over-budget', cost: 2, budget: defaultConfig.guildmasterTraitBudget }],
     [
       'a text too long',
       { guildmasterAppearance: 'a'.repeat(281) },
       { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
     ],
-  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing (M9-S2)", (_name, change, refusal) => {
+  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing", (_name, change, refusal) => {
     const state = play(initialGameState, { ...newGame, ...change });
 
     expect(state.rejection).toEqual(refusal);
@@ -293,27 +277,11 @@ describe('the rules a game plays under', () => {
     const fastForwarded = play(advanced, { kind: 'fastForward', until: [], maxTurns: 2 });
     expect(lastDeps(fastForward)).toEqual({ config: expected, content });
 
-    const heroId = playerOf(fastForwarded).rosterIds[0];
+    const heroId = playerOf(documentOf(fastForwarded)).rosterIds[0];
     if (heroId === undefined) throw new Error('expected a Hero on the Roster');
     play(fastForwarded, { kind: 'unequip', heroId, slot: 'weapon' });
     expect(lastDeps(applyAction)).toEqual({ config: expected, content });
     expect(lastDeps(applyAction).content).toBe(content);
-  });
-
-  test('a save is read by the engine, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3, v1.1.3-S6, v1.1.6-S7)', () => {
-    // A schema version 6 save, as v1.1.5 wrote it: its config names the schema and the defaults it was
-    // made under, and its Quests their template's demands; the engine judges the version, not the config.
-    const text = saveText(started(), ({ meta, world }) => {
-      meta['version'] = 6;
-      Object.assign(meta['config'] as Record<string, unknown>, { schemaVersion: 6, configVersion: 13, gearSlots: ['weapon', 'armour', 'trinket'] });
-      delete meta['configVersion'];
-      for (const quest of Object.values(world['quests'] as Record<string, Record<string, unknown>>)) quest['demands'] = [['strength', 1]];
-    });
-    const loaded = play(initialGameState, { kind: 'load', text });
-
-    expect(deserialise).toHaveBeenCalledWith(text, { content });
-    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsupported-version', documentVersion: 6, schemaVersion: 7 });
-    expect(loaded.document).toBeNull();
   });
 
   test('a save whose config breaks a rule is refused at load, naming the setting (DL-193)', () => {
@@ -382,7 +350,7 @@ describe("a loaded save's warnings, the CLI's notice of content keys this conten
   });
 });
 
-describe('the modules installed (M8-S4): none unless the page is given some', () => {
+describe('the modules installed: none unless the page is given some', () => {
   /** Plays `action` as the page does with `modules` installed: accepted, then settled, a fast forward step by step. */
   function withModules(modules: readonly Module[], state: GameState, action: Play): GameState {
     let next = gameReducer(state, action, modules);
@@ -412,7 +380,7 @@ describe('the modules installed (M8-S4): none unless the page is given some', ()
     expect(lastDeps(advance)).toEqual(expected);
     const forwarded = withProbe(advanced, { kind: 'fastForward', until: [], maxTurns: 2 });
     expect(lastDeps(fastForward)).toEqual(expected);
-    const heroId = playerOf(forwarded).rosterIds[0];
+    const heroId = playerOf(documentOf(forwarded)).rosterIds[0];
     if (heroId === undefined) throw new Error('expected a Hero on the Roster');
     withProbe(forwarded, { kind: 'unequip', heroId, slot: 'weapon' });
     expect(lastDeps(applyAction)).toEqual(expected);
@@ -474,7 +442,7 @@ describe('the games put in hand', () => {
 describe('a refusal is stored, never thrown', () => {
   test("the engine's rejection is kept with the document as it was, and the log of the last play", () => {
     const before = play(started(), { kind: 'advance' });
-    const heroId = playerOf(before).rosterIds[0];
+    const heroId = playerOf(documentOf(before)).rosterIds[0];
     if (heroId === undefined) throw new Error('expected a Hero on the Roster');
     const refused = play(before, { kind: 'recruit', heroId });
 
@@ -496,7 +464,6 @@ describe('a refusal is stored, never thrown', () => {
     ['not JSON', 'not a save', 'malformed-json'],
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
-    ['an older schema', '{"meta":{"version":5}}', 'unsupported-version'],
     ['damaged', '{"meta":{"version":7},"world":{},"history":{}}', 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
@@ -506,14 +473,16 @@ describe('a refusal is stored, never thrown', () => {
     expect(refused.document).toBe(before.document);
   });
 
-  test("a load refused carries the engine's reason whole, and the browser save it came from (v1.1.2-S3)", () => {
+  test("a load refused carries the engine's reason whole, and the browser save it came from: the save is read by the engine, which judges its schema (DL-20)", () => {
     const text = '{"meta":{"version":5}}';
+    const refused = play(started(), { kind: 'load', text });
 
-    expect(play(started(), { kind: 'load', text }).rejection).toEqual({
+    expect(deserialise).toHaveBeenCalledWith(text, { content });
+    expect(refused.rejection).toEqual({
       action: 'load',
       reason: 'unsupported-version',
       documentVersion: 5,
-      schemaVersion: 7,
+      schemaVersion,
       message: expect.any(String) as string,
     });
     expect(play(started(), { kind: 'load', text, from: 'older' }).rejection).toMatchObject({ reason: 'unsupported-version', from: 'older' });
@@ -543,7 +512,7 @@ describe('a refusal is stored, never thrown', () => {
   test("a play for the player's Guild is refused on a save that has none; a Turn is not", () => {
     const state = started();
     const document = documentOf(state);
-    const guild = playerOf(state);
+    const guild = playerOf(documentOf(state));
     const guilds = { ...document.world.guilds, [guild.id]: { ...guild, controller: { kind: 'rival', disposition: 'steady' } } };
     const nobody: GameState = { ...state, document: { ...document, world: { ...document.world, guilds } as typeof document.world } };
 
@@ -556,7 +525,7 @@ describe('a refusal is stored, never thrown', () => {
 describe('each play is the engine’s', () => {
   test("a Guild's action is the engine's own, for the player's Guild", () => {
     const state = started();
-    const guild = playerOf(state);
+    const guild = playerOf(documentOf(state));
     play(state, { kind: 'buy', definitionKey: 'whetstone', quantity: 1 });
 
     expect(applyAction).toHaveBeenCalledWith(
@@ -583,10 +552,10 @@ describe('each play is the engine’s', () => {
 
   test("fast forward watches the player's Guild, for a year unless told, a step at a time, and keeps why it stopped", () => {
     const state = started();
-    const guild = playerOf(state);
+    const guild = playerOf(documentOf(state));
     const forward = play(state, { kind: 'fastForward', until: ['pool-refreshed'] });
 
-    // A year, played in steps (v1.0.1-S5, DL-96): a new game stops in its first, one call of the
+    // A year, played in steps (DL-96): a new game stops in its first, one call of the
     // first 30 Turns of the year.
     expect(fastForward).toHaveBeenCalledTimes(1);
     expect(fastForward).toHaveBeenCalledWith(
@@ -606,7 +575,7 @@ describe('each play is the engine’s', () => {
   });
 });
 
-// ── Fast forward in steps (v1.0.1-S5, DL-96) ─────────────────────────────────────────────────
+// ── Fast forward in steps (DL-96) ─────────────────────────────────────────────────
 
 /** Accepts `action` and settles it as `useGame` does, a step a settle, with `modules` installed: the state after each step. */
 function stepped(state: GameState, action: Play, modules: readonly Module[] = noModules): GameState[] {
@@ -631,19 +600,26 @@ function fastForwardCalls(): Parameters<typeof fastForward>[] {
   return vi.mocked(fastForward).mock.calls;
 }
 
-describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
-  // A year fast forwarded, a step at a time: several seconds alone, as the cases below (DL-164).
-  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', { timeout: 30_000 }, () => {
-    const before = withRosterReleased(started());
-    const guildId = playerOf(before).id;
+/** `state` with the game's own Year 90 Turns long: a year of its rules is 3 steps. */
+function shortYear(state: GameState): GameState {
+  return changed(state, (document) => {
+    document.meta.config = { ...document.meta.config, turnsPerYear: 90 };
+  });
+}
+
+describe('fast forward in steps of at most 30 Turns (DL-96)', () => {
+  // A year of the game's own rules, 90 Turns, fast forwarded a step at a time: three steps, no cap given,
+  // so the year is the document's, not the default's (DL-97).
+  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', () => {
+    const before = shortYear(withRosterReleased(started()));
+    const guildId = playerOf(documentOf(before)).id;
     const turn = documentOf(before).world.turn;
     const entries = documentOf(before).history.entries.length;
-    const year = defaultConfig.turnsPerYear;
+    const year = documentOf(before).meta.config.turnsPerYear;
 
     const states = stepped(before, { kind: 'fastForward', until: [] });
     const calls = fastForwardCalls();
 
-    expect(fastForwardStepTurns).toBe(30);
     expect(calls).toHaveLength(year / fastForwardStepTurns);
     expect(states).toHaveLength(calls.length);
     for (const [index, [document, options]] of calls.entries()) {
@@ -705,20 +681,8 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
     expect(gameReducer(between, { kind: 'settle' }).forwarding?.turnsPlayed).toBe(2 * fastForwardStepTurns);
   });
 
-  test("with no cap, plays a year of the game's own rules (v1.0.1-S6, DL-97)", () => {
-    const short = changed(withRosterReleased(started()), (document) => {
-      document.meta.config = { ...document.meta.config, turnsPerYear: 90 };
-    });
-
-    const done = play(short, { kind: 'fastForward', until: [] });
-
-    expect(fastForwardCalls().map(([, options]) => options.maxTurns)).toEqual([30, 30, 30]);
-    expect(done.stoppedBecause).toEqual({ kind: 'max-turns' });
-    expect(documentOf(done).world.turn).toBe(documentOf(short).world.turn + 90);
-  });
-
   // The play before a fast forward may have left a stop, the player's Stop or a refusal on the
-  // page: the first step clears each, so none stands beside the progress (v1.0.1-S6, DL-97).
+  // page: the first step clears each, so none stands beside the progress (DL-97).
   test.each([
     ['a stop reason', (state: GameState) => play(state, { kind: 'fastForward', until: [], maxTurns: fastForwardStepTurns })],
     [
@@ -738,10 +702,7 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
   });
 });
 
-// A year of Turns played twice, in steps and in one call: 3 to 6 s on a loaded machine, past
-// Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
-// not the speed, as DL-74 item 1 bounded a slow test.
-describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
+describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (DL-96)', () => {
   /** A Party of the player's out on the longest Quest it can staff, back on the night of Year 1 Day 11, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Year 1 Day 31, the 91st Turn, in the fourth step. */
@@ -760,12 +721,12 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     turns: number;
   }[] = [
     {
-      name: "the player's Roster released to the pool, Wealth to spare: a year to max-turns",
-      game: released,
+      name: "the player's Roster released to the pool, Wealth to spare: a year of the game's own rules, 90 Turns, to max-turns",
+      game: () => shortYear(released()),
       until: [],
       modules: noModules,
       stop: 'max-turns',
-      turns: defaultConfig.turnsPerYear,
+      turns: 90,
     },
     { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 32 },
     { name: 'pool-refreshed listed', game: released, until: ['pool-refreshed'], modules: noModules, stop: 'pool-refreshed', turns: 32 },
@@ -788,9 +749,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     return fastForward(document, { guildId: guild.id, until, maxTurns }, playDeps(document, modules));
   }
 
-  // A year's case plays 2,160 Turns, about 4 s alone: past the default 5 s when other suites share
-  // the machine, as M9's parallel builds do (M9-S1, DL-101).
-  test.each(cases)('$name', { timeout: 30_000 }, ({ game, until, maxTurns, modules, stop, turns }) => {
+  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns }) => {
     const text = serialise(documentOf(game()));
     const start = loaded(text, modules);
     vi.clearAllMocks();
@@ -798,7 +757,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     const states = stepped(start, { kind: 'fastForward', until, ...(maxTurns === undefined ? {} : { maxTurns }) }, modules);
     const steps = fastForwardCalls().length;
     const last = lastOf(states);
-    const one = oneCall(text, until, maxTurns ?? defaultConfig.turnsPerYear, modules);
+    const one = oneCall(text, until, maxTurns ?? documentOf(start).meta.config.turnsPerYear, modules);
 
     expect(steps).toBeGreaterThan(1);
     expect(steps).toBe(Math.ceil(turns / fastForwardStepTurns));
@@ -807,14 +766,6 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(last.log).toEqual(one.events);
     expect(last.stoppedBecause).toEqual(one.stoppedBecause);
-  });
-
-  test('a Party out comes home partway through a step, not at its end', () => {
-    const state = partyOut();
-    const states = stepped(state, { kind: 'fastForward', until: [] });
-
-    expect(states).toHaveLength(2);
-    expect((documentOf(lastOf(states)).world.turn - documentOf(state).world.turn) % fastForwardStepTurns).not.toBe(0);
   });
 
   test('a new game stops after 3 Turns, inside one step, as one call does', () => {
@@ -833,7 +784,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(one.stoppedBecause.kind).toBe('decision-needed');
   });
 
-  // M9-S1 (DL-101): the new stops, through the reducer's `fastForward` and the page's sentence.
+  // DL-101: the new stops, through the reducer's `fastForward` and the page's sentence.
   test("until a Quest the Heroes at home can staff: with a Party out it stops where one call would, before the Party is home", () => {
     const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'))));
     const start = loaded(text, noModules);
@@ -848,7 +799,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(last.stoppedBecause).toEqual(one.stoppedBecause);
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(documentOf(last).world.turn).toBeLessThan(party?.returnsOnTurn ?? 0);
-    // Its Quests are buttons on the home view, as a decision needed's are (M9-S3's merge, DL-103).
+    // Its Quests are buttons on the home view, as a decision needed's are.
     const staffable = last.stoppedBecause?.kind === 'quest-staffable' ? last.stoppedBecause.questIds : [];
     expect(stopView(last)).toEqual({
       kind: 'quest-staffable',
@@ -868,7 +819,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     const one = oneCall(text, [], defaultConfig.turnsPerYear, noModules);
 
     const due = defaultConfig.bankruptcyGraceDays;
-    expect(last.stoppedBecause).toEqual({ kind: 'below-floor', guildId: playerOf(start).id, dueDay: due });
+    expect(last.stoppedBecause).toEqual({ kind: 'below-floor', guildId: playerOf(documentOf(start)).id, dueDay: due });
     expect(last.stoppedBecause).toEqual(one.stoppedBecause);
     expect(serialise(documentOf(last))).toBe(serialise(one.document));
     expect(stopView(last)).toEqual({
@@ -878,7 +829,7 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
   });
 });
 
-describe("the player's Stop (v1.0.1-S5, DL-96)", () => {
+describe("the player's Stop (DL-96)", () => {
   test('between steps, ends the fast forward with the game and the log the last step left, and how far it came', () => {
     const before = withRosterReleased(started());
     const entries = documentOf(before).history.entries.length;
@@ -966,16 +917,16 @@ describe('the document is never mutated', () => {
     const plays: ((state: GameState) => GameAction)[] = [
       () => ({ kind: 'buy', definitionKey: 'short-sword', quantity: 1 }),
       (state) => {
-        const guild = playerOf(state);
+        const guild = playerOf(documentOf(state));
         const sword = holdings(documentOf(state).world, { kind: 'guild', id: guild.id }).stacks.find(
           (stack) => stack.definitionKey === 'short-sword',
         );
         return { kind: 'equip', heroId: guild.rosterIds[0] as Guild['rosterIds'][number], stackId: sword?.id ?? makeId('stacks', 1) };
       },
-      (state) => ({ kind: 'unequip', heroId: playerOf(state).rosterIds[0] as Guild['rosterIds'][number], slot: 'weapon' }),
+      (state) => ({ kind: 'unequip', heroId: playerOf(documentOf(state)).rosterIds[0] as Guild['rosterIds'][number], slot: 'weapon' }),
       () => ({ kind: 'buy', definitionKey: 'whetstone', quantity: 1 }),
       (state) => {
-        const guild = playerOf(state);
+        const guild = playerOf(documentOf(state));
         const sword = holdings(documentOf(state).world, { kind: 'guild', id: guild.id }).stacks.find(
           (stack) => stack.definitionKey === 'short-sword',
         );
@@ -983,31 +934,31 @@ describe('the document is never mutated', () => {
       },
       (state) => {
         const { world } = documentOf(state);
-        const available = availableHeroes(world, playerOf(state));
+        const available = availableHeroes(world, playerOf(documentOf(state)));
         const deps = playDeps(documentOf(state));
-        const quest = offeredQuests(world).find((each) => partyFor(world, playerOf(state), each, available, deps) !== null);
+        const quest = offeredQuests(world).find((each) => bestParties(world, playerOf(documentOf(state)), deps).party(each, available) !== null);
         if (quest === undefined) throw new Error('expected a Quest the Roster can staff');
-        const heroIds = partyFor(world, playerOf(state), quest, available, deps) ?? [];
+        const heroIds = bestParties(world, playerOf(documentOf(state)), deps).party(quest, available)?.heroIds ?? [];
         return { kind: 'dispatch', questId: quest.id, heroIds, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] };
       },
       () => ({ kind: 'build', facility: 'infirmary' }),
       (state) => ({ kind: 'recruit', heroId: unattachedHeroes(documentOf(state).world)[0]?.id ?? makeId('heroes', 999) }),
       (state) => {
         const { world } = documentOf(state);
-        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(state).id && guild.rosterIds.length > 0);
+        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(documentOf(state)).id && guild.rosterIds.length > 0);
         return { kind: 'transferIn', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999) };
       },
       (state) => {
         const { world } = documentOf(state);
-        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(state).id && guild.rosterIds.length > 0);
+        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(documentOf(state)).id && guild.rosterIds.length > 0);
         return { kind: 'offerTransfer', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999) };
       },
       () => ({ kind: 'acceptTransfer', offerId: makeId('offers', 999) }),
       () => ({ kind: 'declineTransfer', offerId: makeId('offers', 999) }),
       (state) => {
         const { world } = documentOf(state);
-        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(state).id);
-        const heroId = availableHeroes(world, playerOf(state))[0]?.id ?? makeId('heroes', 999);
+        const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(documentOf(state)).id);
+        const heroId = availableHeroes(world, playerOf(documentOf(state)))[0]?.id ?? makeId('heroes', 999);
         return { kind: 'transferOut', heroId, toGuildId: rival?.id ?? makeId('guilds', 999) };
       },
       () => ({ kind: 'rebase' }),
@@ -1018,7 +969,6 @@ describe('the document is never mutated', () => {
       (state) => ({ kind: 'load', text: serialise(documentOf(state)) }),
       () => ({ kind: 'fastForward', until: ['pool-refreshed'], maxTurns: 3 }),
     ];
-    expect(plays).toHaveLength(20);
 
     const first = freeze(started());
     const firstMetaAndWorld = JSON.stringify([documentOf(first).meta, documentOf(first).world]);

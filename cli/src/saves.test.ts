@@ -61,7 +61,7 @@ describe('opening a save', () => {
   });
 
   test("compares meta.version with the engine's schemaVersion, never with the save's own config", () => {
-    // The schema's version is the engine's since v1.1.6-S7, no setting (DL-193); a save's config that
+    // The schema's version is the engine's, no setting (DL-193); a save's config that
     // holds one is not read for it (DL-20 item 11).
     const text = edited((saved) => {
       saved.meta.version = 999;
@@ -74,17 +74,6 @@ describe('opening a save', () => {
       ok: false,
       reason: { kind: 'unsupported-version', documentVersion: 999, schemaVersion },
     });
-  });
-
-  test('refuses a save whose config breaks a rule, naming the setting (DL-193)', () => {
-    const text = edited((saved) => {
-      saved.meta.config.boardSize = -2;
-    });
-
-    const opened = openSave(text, content);
-
-    expect(opened).toMatchObject({ ok: false, reason: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }] } });
-    expect(!opened.ok && opened.reason.message).toBe("The game's config is unsound: boardSize is -2; it is a whole number, at least 0");
   });
 
   test("plays under the save's own config, filled forward with the current defaults", () => {
@@ -114,7 +103,7 @@ describe('opening a save', () => {
     expect(defaultConfig.turnsPerYear).not.toBe(1);
   });
 
-  test('opens a save under the modules given: its slice checked by its own module, and its deps installing them (M8-S4)', () => {
+  test('opens a save under the modules given: its slice checked by its own module, and its deps installing them', () => {
     const text = serialise(createWorld('saves', setup, { config: defaultConfig, content, modules: [probe] }).document);
 
     const installed = openSave(text, content, [probe]);

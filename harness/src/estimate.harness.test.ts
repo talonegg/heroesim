@@ -5,17 +5,17 @@ import { estimateChecks, estimateProbe, estimateReport, widest } from './estimat
 import { machine, print, reportPath, writeReport } from './report.js';
 import { runSettings } from './settings.js';
 
-// v1.1.4-S5's estimate probe (DL-156), collected only by the harness-run project and run only when
+// The estimate probe (DL-156), collected only by the harness-run project and run only when
 // HEROESIM_PROBE names it (`npm run harness -- estimate`), in place of the milestone's creation and
 // play runs: HEROESIM_SAMPLES Parties and Quests (200 by default), drawn from the core content and
 // `defaultConfig` with no one falling, each resolved for HEROESIM_SEEDS seeds (20,000 by default);
 // each Encounter's chance of each Degree and of Success or better, and the Quest's of each band and of
-// success, held within 2 points of the resolver's rate (the epic's S5). v1.1.5-S7 (DL-173, DL-168
+// success, held within 2 points of the resolver's rate (DL-156). DL-173 (with DL-168
 // item 7) measures the same samples, seeds and estimate again with Morale's consequences left in,
 // Injuries and Deaths still taken out. Held within `estimateMoraleTolerance`, 3 points, are the Quest's
 // chances only, its bands and success (the owner's answer of 2026-10-04, DL-173); each Encounter's gaps
 // there are written to the report, "reported, not held", and do not fail. Both limits are the Gate's
-// (`harness/gate.json`, v1.1.6-S2). The report, both measures, is written to
+// (`harness/gate.json`, DL-186 item 13). The report, both measures, is written to
 // harness/reports/<name>-<date>.md, the name HEROESIM_MILESTONE gives or `estimate`, so that
 // a story's run need not overwrite an earlier one's.
 

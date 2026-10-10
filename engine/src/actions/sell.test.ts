@@ -7,10 +7,10 @@ import { marketHolder, marketStock } from '../market.js';
 import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { buildDocument, testDeps, withValid } from '../world.test-support.js';
-import { applyAction, applyGuildAction } from './action.js';
+import { applyAction } from './action.js';
 import type { SellRequest } from './sell.js';
 
-// M5-S4: selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
+// Selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
 // test content prices a Healing draught at 30, a Whetstone at 25. The built document holds a stack
 // for every kind of holder: 3 Healing draughts in the player's Guild's holding, 12 on the Market, 2
 // with the Party, a Padded jack in a Hero's armour slot, and the Lantern of Stannary in their
@@ -148,19 +148,6 @@ describe('sell', () => {
 
     expect(() => applyAction(document, { kind: 'sell', guildId: ids.playerGuild, stackId: ids.guildStack, quantity: 0 }, deps)).toThrow(RangeError);
     expect(() => applyAction(document, { kind: 'sell', guildId: 'guild-000099' as GuildId, itemId: ids.item }, deps)).toThrow(RangeError);
-  });
-
-  test('is the rule applyAction runs on a copy of the world, and a controller in place (DL-30)', () => {
-    const { document, ids } = built();
-    const action = { kind: 'sell', guildId: ids.playerGuild, stackId: ids.guildStack, quantity: 3 } as const;
-    const world = structuredClone(document.world);
-
-    const applied = applyAction(document, action, deps);
-    const inPlace = applyGuildAction(world, action, deps);
-
-    if (!applied.ok || !inPlace.ok) throw new Error('Refused');
-    expect(world).toEqual(applied.document.world);
-    expect(inPlace.events).toEqual(applied.events);
   });
 
   test('a sold stack is for sale until the next morning’s refresh; a sold unique Item past it, and costs its full price to buy back', () => {

@@ -31,7 +31,9 @@ const byNameOnly =
 // register of a Trait's uses, `@heroesim/content/uses` (v1.1.4-S12), and its write module,
 // `@heroesim/content/write` (v1.1.6-S4), are the tools' alone (the tools' block below).
 // content/src/imports.test.ts proves each. The engine's test entry, `@heroesim/engine/testing`, has
-// its own rule, `engineTesting`, so that a production import of it reads that rule's words.
+// its own rule, `engineTesting`, so that a production import of it reads that rule's words. The
+// engine's content entry, `@heroesim/engine/content` (DL-243), is content's, the words' and the
+// tools': a front end and the harness take the engine by its main entry.
 function noSubpath({ node }) {
   return {
     regex: node ? '^@heroesim/(?!content/node$|engine/testing$)[^/]+/' : '^@heroesim/(?!engine/testing$)[^/]+/',
@@ -100,16 +102,19 @@ const engineTests = {
 };
 
 /**
- * content: the engine's types and values, by name, and Node built-ins only in its Node entry. The
- * engine imports nothing back, so the graph stays acyclic (pre-M0 review A3 as refined by DL-186
- * item 6; ADR-0007).
+ * content: the engine's types and values, by its content entry, `@heroesim/engine/content` (DL-243),
+ * and Node built-ins only in its Node entry; its tests may take the engine's main entry and its test
+ * entry too (DL-248). The engine imports nothing back, so the graph stays acyclic (pre-M0 review A3
+ * as refined by DL-186 item 6; ADR-0007).
  */
-function contentImports({ node }) {
+function contentImports({ node, tests = false }) {
   return {
     patterns: [
       {
-        regex: '^@heroesim/(?!engine$)',
-        message: 'Content imports no package but the engine, and that by name (approach §5).',
+        regex: tests ? '^@heroesim/(?!(engine|engine/content|engine/testing)$)' : '^@heroesim/(?!engine/content$)',
+        message:
+          "Content imports no package but the engine's content entry, `@heroesim/engine/content`, and that by " +
+          'name (approach §5, DL-243).',
       },
       relativeInto('content', byNameOnly),
       ...(node ? [] : [nodeBuiltin]),
@@ -119,8 +124,8 @@ function contentImports({ node }) {
 
 /**
  * words, `@heroesim/words` (v1.1.6-S11, DL-186 item 1): the words the CLI, the page and the tools
- * share, which run in a browser. Its source takes the engine's types and values by name and nothing
- * else of ours, never content, a front end or the harness; no Node built-in; no React, which is the
+ * share, which run in a browser. Its source takes the engine's types and values by name, content's by
+ * the engine's content entry (DL-243), and nothing else of ours, never content, a front end or the harness; no Node built-in; no React, which is the
  * page's alone. Its tests run on Node and word content's own rows: they may take content, its Node
  * entry and the engine's test entry, and Node built-ins.
  */
@@ -129,13 +134,13 @@ function wordsImports({ tests = false } = {}) {
     patterns: [
       tests
         ? {
-            regex: '^@heroesim/(?!(engine|engine/testing|content|content/node)$)',
+            regex: '^@heroesim/(?!(engine|engine/content|engine/testing|content|content/node)$)',
             message: "The words' tests import the engine and content by name, never a front end or the harness (DL-186 item 1).",
           }
         : {
-            regex: '^@heroesim/(?!engine$)',
+            regex: '^@heroesim/(?!(engine|engine/content)$)',
             message:
-              'The words import no package but the engine, and that by name: never content, a front end, ' +
+              "The words import no package but the engine, by its name or its content entry: never content, a front end, " +
               "the harness or the engine's test entry (DL-186 item 1).",
           },
       relativeInto('words', byNameOnly),
@@ -319,7 +324,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['engine/**/*.test.ts'],
+    files: ['engine/**/*.test.ts', 'engine/src/test-setup.ts'],
     rules: {
       'no-restricted-syntax': ['error', ...readsOfTheClock],
       'no-restricted-globals': ['error', noOutput],
@@ -332,8 +337,12 @@ export default defineConfig(
     rules: restrictImports(contentImports({ node: false })),
   },
   {
-    files: ['content/src/node.ts', 'content/src/write/**/*.ts', 'content/**/*.test.ts'],
+    files: ['content/src/node.ts', 'content/src/write/**/*.ts'],
     rules: restrictImports(contentImports({ node: true })),
+  },
+  {
+    files: ['content/**/*.test.ts', 'content/**/*.test-support.ts'],
+    rules: restrictImports(contentImports({ node: true, tests: true })),
   },
 
   // The words' source reaches Node by no other road either: no dynamic `import()`, which the import
@@ -400,17 +409,18 @@ export default defineConfig(
   // The portrait tool (v1.1.3-S2) and the content editor (v1.1.4-S12): Node packages outside the game,
   // which take content's checks by name, content's Node entry among them, and import neither front end
   // nor the harness. Only a tool takes the register of a Trait's uses, `@heroesim/content/uses`, and
-  // content's write module, `@heroesim/content/write` (v1.1.6-S4), which the game never imports.
+  // content's write module, `@heroesim/content/write` (v1.1.6-S4), which the game never imports; a tool
+  // takes content's vocabulary from the engine's content entry, `@heroesim/engine/content` (DL-243).
   {
     files: ['tools/**/*.ts'],
     rules: restrictImports({
       patterns: [
         {
-          regex: '^@heroesim/(?!content/(node|uses|write)$)[^/]+/',
+          regex: '^@heroesim/(?!content/(node|uses|write)$|engine/content$)[^/]+/',
           message:
             "Import a package by its name only; its entry is all it exports, but for content's Node entry, " +
             'its register of uses and its write module, `@heroesim/content/node`, `@heroesim/content/uses` ' +
-            'and `@heroesim/content/write` (approach §5).',
+            "and `@heroesim/content/write`, and the engine's content entry, `@heroesim/engine/content` (approach §5).",
         },
         {
           group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],

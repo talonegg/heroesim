@@ -1,9 +1,9 @@
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
 
-// What the browser specs share (M7-S4, DL-67): the overflow check M7-S3 left to M7-S4, and the
+// What the browser specs share (DL-67): the overflow check DL-66 left to it, and the
 // page's own controls for starting a game and playing Turns.
 //
-// The page is views in a shell (M9-S3, DL-103): a region is on the page only while its view is
+// The page is views in a shell (DL-103): a region is on the page only while its view is
 // open, so a spec opens the view first, through the navigation, as a player would. A region of the
 // game menu is found by opening it.
 //
@@ -12,13 +12,13 @@ import { expect, type FrameLocator, type Locator, type Page } from '@playwright/
 // the History are under "More". The Guildmaster's button is named by the Guildmaster's name, and
 // described as "Guildmaster". The Guild's parts, Home and Hall, are tabs under its heading, each
 // part the panel its tab names. `dispatchAParty` sends a Party through the Party builder, for the
-// journey and for the fast forward that stops at its return (M9-F5).
+// journey and for the fast forward that stops at its return (DL-118).
 
 type Scope = Page | FrameLocator;
 
 /**
  * The page is no wider than the viewport: no horizontal scroll at 360px, 820px or 1280px (M7 §0,
- * the M7-S3 box proved here; M9-S3's three widths). A wide table scrolls inside its own box, which
+ * the box DL-66 proved here; DL-103's three widths). A wide table scrolls inside its own box, which
  * this does not count.
  */
 export async function expectNoHorizontalOverflow(page: Page, when: string): Promise<void> {
@@ -35,8 +35,8 @@ export async function expectNoHorizontalOverflow(page: Page, when: string): Prom
  * holds it. What the page hides, and the file input behind its button, are not counted. A name in
  * a line of the History is a target in a sentence, whose size the sentence's line sets (WCAG 2.5.5
  * and 2.5.8 except such a target): it is held to 24px high, WCAG 2.5.8's least, and not to 44px
- * (M9-S5, DL-105); so is a name in a Quest report's lines, which are the History's words (M9-F5), and
- * one in the Treasury's ledger or the Stores' "Carried by", which are sentences too (M9-F6).
+ * (DL-105); so is a name in a Quest report's lines, which are the History's words (DL-118), and
+ * one in the Treasury's ledger or the Stores' "Carried by", which are sentences too (DL-112).
  */
 export async function expectTargets(page: Page, when: string): Promise<void> {
   const small = await page.evaluate(() => {
@@ -47,7 +47,7 @@ export async function expectTargets(page: Page, when: string): Promise<void> {
       if (element.closest('.visually-hidden') !== null || element.classList.contains('visually-hidden')) continue;
       const box = element.getBoundingClientRect();
       if (box.width === 0 && box.height === 0) continue;
-      // A box or a radio button is pressed by the label that holds it (the Guildmaster's Traits, M9-S7).
+      // A box or a radio button is pressed by the label that holds it (the Guildmaster's Traits, DL-107).
       const target = element.matches('input[type="checkbox"], input[type="radio"]') ? (element.closest('label') ?? element) : element;
       const { width, height } = target.getBoundingClientRect();
       if (element.matches('.entry button.name, .report button.name, .ledger-table button.name, .stores button.name')) {
@@ -74,7 +74,7 @@ export function statusBar(scope: Scope): Locator {
 /** Each view, by its heading, which is the name the navigation gives it but the Guildmaster's. */
 export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
 
-/** Every view in the navigation's order (M9-F2). */
+/** Every view in the navigation's order (DL-115). */
 export const viewNames: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
 /** The Guild's parts, each a tab under its heading (DL-115; Stores and Treasury, DL-116). */
@@ -87,7 +87,7 @@ export const guildPartNames: readonly GuildPartName[] = ['Home', 'Hall', 'Stores
  * The navigation's button for `view`, where it is shown: in the bar or the rail, or in "More" once
  * it is open. Its name is the view's, then any count: Chromium puts a space before the count's
  * comma, as the label is a block of its own. The Guildmaster's is named by the Guildmaster's name,
- * so it is found as the one button with a description, which is "Guildmaster" (M9-F2).
+ * so it is found as the one button with a description, which is "Guildmaster" (DL-115).
  */
 export function navItem(scope: Scope, view: ViewName): Locator {
   const nav = scope.getByRole('navigation', { name: 'Views' });
@@ -106,7 +106,7 @@ export async function openView(scope: Scope, view: ViewName): Promise<Locator> {
   return shown;
 }
 
-/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel (M9-F2). */
+/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel (DL-115). */
 export async function guildPart(scope: Scope, part: GuildPartName): Promise<Locator> {
   const guild = await openView(scope, 'Guild');
   await guild.getByRole('tab', { name: part, exact: true }).click();
@@ -137,7 +137,7 @@ export async function part(scope: Scope, name: string): Promise<Locator> {
 
 /**
  * The History view, opened, on the History `whose` names: the player's Guild's, where it opens,
- * unless another is given (M9-S5, DL-105).
+ * unless another is given (DL-105).
  */
 export async function history(scope: Scope, whose?: string): Promise<Locator> {
   const shown = await openView(scope, 'History');
@@ -146,7 +146,7 @@ export async function history(scope: Scope, whose?: string): Promise<Locator> {
 }
 
 /**
- * The whole History, opened from the game menu's "Debug: Whole History" (M9-F4, DL-117): the
+ * The whole History, opened from the game menu's "Debug: Whole History" (DL-117): the
  * History view on every entry, unfolded, each with its event type.
  */
 export async function debugHistory(scope: Scope): Promise<Locator> {
@@ -201,7 +201,7 @@ export async function rosterList(scope: Scope): Promise<Locator> {
 }
 
 /**
- * "Your Guildmaster" in the new-game form, opened, on one of its two ways (v1.1.4-S11, DL-149): "Choose
+ * "Your Guildmaster" in the new-game form, opened, on one of its two ways (DL-149): "Choose
  * myself" unless `way` says "Choose for me", which the form opens on.
  */
 export async function guildmasterSetup(page: Page, way: 'Choose for me' | 'Choose myself' = 'Choose myself'): Promise<Locator> {
@@ -215,7 +215,7 @@ export async function guildmasterSetup(page: Page, way: 'Choose for me' | 'Choos
 }
 
 /**
- * With "Choose myself", the sex, the age and a picture chosen (v1.1.4-S11), which "Start the game" waits
+ * With "Choose myself", the sex, the age and a picture chosen (DL-149), which "Start the game" waits
  * for: `Female Portrait 1` unless another is named.
  */
 export async function chooseGuildmaster(
@@ -234,7 +234,7 @@ export function traitBox(scope: Locator, name: string): Locator {
 
 /**
  * Starts a game through the new-game form, and waits for its status bar. What was set under "Your
- * Guildmaster" before it is kept (M9-S7).
+ * Guildmaster" before it is kept (DL-107).
  */
 export async function startGame(page: Page, { guild, master, seed }: { guild: string; master: string; seed: string }): Promise<void> {
   const form = region(page, 'A new game');
@@ -262,7 +262,7 @@ export function escaped(text: string): string {
 
 /**
  * Sends a Party on the first Quest on the Board that dispatch would send one to, through the Party
- * builder (M9-S4, DL-104); its name. Each Hero's row says what they bring; the first one chosen has
+ * builder (DL-104); its name. Each Hero's row says what they bring; the first one chosen has
  * their page opened in place, and "Back to the Party" finds the choice as it was. Once sent, the
  * Quest's card is the Party out card, naming who went and the night they return.
  */
@@ -277,7 +277,7 @@ export async function dispatchAParty(page: Page): Promise<string> {
     const form = quest.getByRole('form');
     const verdict = form.getByRole('status');
     const rows = form.getByTestId('party-row');
-    // Each row: who, their Class and Level, and no Hero's Morale (v1.1.4-S3, DL-148 item 12).
+    // Each row: who, their Class and Level, and no Hero's Morale (DL-148 item 12).
     await expect(rows.first()).toContainText(/(Warrior|Rogue|Mage|Healer), Level \d+/);
     await expect(rows.first()).not.toContainText(/Morale/);
     // Choose Heroes one at a time until dispatch would send them, or none are left.

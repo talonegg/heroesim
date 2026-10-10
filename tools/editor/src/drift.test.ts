@@ -1,34 +1,24 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { drift } from './drift.js';
 import { readContentFiles } from './content-files.js';
 import { readsIn, scannedEffectKinds, scannedFiles } from './reads.js';
-import { root, scratchRepository } from './test-support.js';
+import { root, scratch } from './test-support.js';
 import { traitsKind } from './traits-kind.js';
 
-// The drift test (v1.1.4-S12, DL-150 item 14): the engine and the content's checks read a Trait only
+// The drift test (DL-150 item 14): the engine and the content's checks read a Trait only
 // where the register lists, and the register lists no place that reads none. It runs on this
 // repository in CI; a planted read in a scratch copy proves it fails.
 
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository({ engine: true });
-  scratches.push(remove);
-  return dir;
-}
-
 describe('the drift test', () => {
-  test('finds every read of a Trait in engine/src and content/src/validate.ts listed by the register', () => {
+  test('finds every read of a Trait in engine/src and the content checks listed by the register', () => {
     const report = drift(root);
     expect(report.problems).toEqual([]);
     expect(report.reads).toBeGreaterThan(50);
   });
 
-  test("reads every effect kind of the engine's, as the editor's forms offer them (v1.1.4-S14)", () => {
+  test("reads every effect kind of the engine's, as the editor's forms offer them", () => {
     // The forms are keyed by the engine's unions, so a kind added there is a form here, and a read here.
     const offered = traitsKind.forms(readContentFiles(root).values).flatMap((form) => form.effects.map((effect) => effect.kind));
     expect([...scannedEffectKinds].sort()).toEqual(offered.sort());
@@ -37,14 +27,16 @@ describe('the drift test', () => {
   test('reads the engine and the content checks, tests left out', () => {
     const files = scannedFiles(root);
     expect(files).toContain('content/src/validate.ts');
+    // The content kinds hold the checks (DL-243).
+    expect(files).toContain('content/src/kinds/traits.ts');
     expect(files).toContain('engine/src/traits.ts');
     expect(files).toContain('engine/src/quest-engine/resolve.ts');
     expect(files.filter((file) => /\.test\.ts$|test-support/.test(file))).toEqual([]);
-    expect(files.filter((file) => file.startsWith('content/') && file !== 'content/src/validate.ts')).toEqual([]);
+    expect(files.filter((file) => file.startsWith('content/') && file !== 'content/src/validate.ts' && !file.startsWith('content/src/kinds/'))).toEqual([]);
   });
 
   test('fails on a read planted in a new file, naming its file, line and declaration', () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     writeFileSync(path.join(dir, 'engine', 'src', 'planted.ts'), "// A rule that reads a Trait.\nexport function planted(hero: { traits: string[] }): boolean {\n  return hero.traits.includes('brave');\n}\n");
 
     const report = drift(dir);
@@ -53,7 +45,7 @@ describe('the drift test', () => {
   });
 
   test('fails on a read planted beside the listed ones in a file the register knows', () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     const file = path.join(dir, 'engine', 'src', 'morale.ts');
     writeFileSync(file, `${readFileSync(file, 'utf8')}\nexport const isBonus = (effect: { kind: string }): boolean => effect.kind === 'encounterBonus';\n`);
 
@@ -61,7 +53,7 @@ describe('the drift test', () => {
   });
 
   test('fails when a listed declaration reads no Trait, or one it runs through is gone', () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     const file = path.join(dir, 'engine', 'src', 'traits.ts');
     writeFileSync(file, readFileSync(file, 'utf8').replace(/export function excludeEachOther/, 'export function excludeEachOtherRenamed'));
     const events = path.join(dir, 'engine', 'src', 'events.ts');
@@ -75,7 +67,7 @@ describe('the drift test', () => {
     ]);
   });
 
-  // The verification of v1.1.4-S12: a rule may read a Trait through a helper, or name a kind or an
+  // The verification (DL-150 item 14): a rule may read a Trait through a helper, or name a kind or an
   // event in a way the first scanner missed. Each form, planted in a new file, is drift.
   test.each([
     ['a helper called', "import { traitOf } from '../traits.js';\nexport function planted(c: never, k: string): unknown {\n  return traitOf(c, k);\n}\n", 'planted traitOf()'],
@@ -91,14 +83,14 @@ describe('the drift test', () => {
     ['an event named by a template', "export const planted = (what: string): string =>\n  `hero.trait-${what}`;\n", 'planted `hero.trait-${…}`'],
     ['an event named by its prefix', "export const planted = (type: string): boolean =>\n  type.startsWith('hero.trait-');\n", "planted 'hero.trait-'"],
   ])('fails on %s', (_name, text, reads) => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     writeFileSync(path.join(dir, 'engine', 'src', 'quest-engine', 'planted.ts'), text);
 
     expect(drift(dir).unlisted.map((read) => `${read.file} ${read.name} ${read.reads}`)).toEqual([`engine/src/quest-engine/planted.ts ${reads}`]);
   });
 
   test("reads a file named as boundary.test.ts's probes, except where that test writes them", () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     const probe = 'boundary-probe-0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d.ts';
     const text = 'export const planted = (c: { heroTraits: object }): object => c.heroTraits;\n';
     writeFileSync(path.join(dir, 'engine', 'src', probe), text);

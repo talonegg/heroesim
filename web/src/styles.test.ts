@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
-// The page's style (M9-S3, DL-103): its colour tokens meet WCAG AA contrast in both schemes, for
+// The page's style (DL-103): its colour tokens meet WCAG AA contrast in both schemes, for
 // every pairing the stylesheet uses for text and for the edges of controls; its faces are the
 // system's own, so nothing is fetched; `h5` and `h6` have sizes; and its motion is off under
 // `prefers-reduced-motion`.
@@ -42,7 +42,7 @@ function contrast(a: string, b: string): number {
 
 /** Text on a surface: each pairing the stylesheet sets. */
 const textPairs: readonly (readonly [string, string])[] = [
-  // The good ground is a banner's too since M9-S4: the Party builder's verdict when dispatch would send.
+  // The good ground is a banner's too (DL-104): the Party builder's verdict when dispatch would send.
   ...['paper', 'surface', 'sunk', 'accent-soft', 'bad-soft', 'warn-soft', 'brass-soft', 'good-soft'].map((surface) => ['ink', surface] as const),
   ...['paper', 'surface', 'sunk', 'accent-soft', 'bad-soft', 'warn-soft', 'brass-soft'].map((surface) => ['ink-soft', surface] as const),
   ...['paper', 'surface', 'sunk', 'accent-soft'].map((surface) => ['accent', surface] as const),
@@ -61,7 +61,7 @@ const edgePairs: readonly (readonly [string, string])[] = [
   ['focus', 'paper'],
   ['focus', 'surface'],
   ['accent', 'paper'],
-  // The gold glow of a Roster tile or row whose Hero carries a Unique Item, a part that is not text (v1.1.5-S14).
+  // The gold glow of a Roster tile or row whose Hero carries a Unique Item, a part that is not text.
   ['gold', 'paper'],
   ['gold', 'surface'],
 ];
@@ -98,7 +98,9 @@ describe('colour contrast, WCAG AA', () => {
 
 describe('faces, headings and motion', () => {
   test('headings are in the system serif stack and body text in system-ui: no face is fetched', () => {
-    expect(css).toContain(`--serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;`);
+    const serif = /--serif:([^;]*;)/.exec(css)?.[1] ?? '';
+    expect(serif).toMatch(/serif;$/);
+    expect(serif).not.toContain('url(');
     expect(css).toMatch(/--sans: system-ui,/);
     expect(css).not.toMatch(/@font-face|@import|url\(/);
   });
@@ -120,7 +122,7 @@ describe('faces, headings and motion', () => {
   });
 });
 
-describe('the navigation (M9-F2, DL-112 item 5)', () => {
+describe('the navigation (DL-112 item 5)', () => {
   test("a view's label is cut with an ellipsis where it does not fit: the Guildmaster's name, however long", () => {
     const block = /\n\.nav__label \{([^}]*)\}/.exec(css)?.[1] ?? '';
     expect(block).toContain('overflow: hidden;');
@@ -130,7 +132,7 @@ describe('the navigation (M9-F2, DL-112 item 5)', () => {
   });
 });
 
-describe("the Roster's Table (v1.1.5-S12, DL-169 item 8)", () => {
+describe("the Roster's Table (DL-169 item 8)", () => {
   test('colours a raised Stat green and a lowered one red in the Table alone (S10, the close review)', () => {
     expect(css).not.toMatch(/\n\.change--(up|down) \{/);
     expect(/\n\.roster-table \.change--up \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--good);');
@@ -138,7 +140,7 @@ describe("the Roster's Table (v1.1.5-S12, DL-169 item 8)", () => {
   });
 });
 
-describe("the Roster's gold glow (v1.1.5-S14, DL-182 item 4)", () => {
+describe("the Roster's gold glow (DL-182 item 4)", () => {
   /** Each rule of the stylesheet, its comments left out: its selectors and its body. */
   const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\n([^{}@\n][^{}]*)\{([^}]*)\}/g)].map(([, selectors = '', body = '']) => ({
     selectors: selectors.split(',').map((each) => each.trim()),

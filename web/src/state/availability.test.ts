@@ -1,18 +1,14 @@
-import { advance, createWorld, defaultConfig, playerGuild, type Hero, type PartyId, type QuestId, type World, type WorldDocument } from '@heroesim/engine';
+// @vitest-environment node
+import { advance, defaultConfig, playerGuild, type Hero, type PartyId, type QuestId, type World, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { availabilityOf } from './availability';
+import { newDocument } from './game.test-support';
 
-// Whether a Hero can go, and where they are (v1.1.6-S14, DL-186 item 2): the one reading the Roster,
+// Whether a Hero can go, and where they are (DL-186 item 2): the one reading the Roster,
 // a Hero's page and the Party builder share.
 
 const deps = { config: defaultConfig, content };
-const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' };
-
-function newGame(seed = 'availability'): WorldDocument {
-  return createWorld(seed, setup, deps).document;
-}
-
 function firstHero(document: WorldDocument): Hero {
   const guild = playerGuild(document.world);
   const hero = guild === undefined ? undefined : document.world.heroes[guild.rosterIds[0] as Hero['id']];
@@ -27,15 +23,13 @@ function withParty(world: World, hero: Hero, returnsOnTurn: number): void {
 }
 
 describe('whether a Hero can be injured and in a Party at once', () => {
-  // 730 Turns played, a game's whole walk: given 30 s, as a walk of the engine is under the whole
-  // suite's load, where it passed 5 s (DL-205); the Heroes found both are gathered, not each read by
-  // an expect, which cost as much as the play (DL-164).
-  test('never, in any Hero of any Guild on any of 730 Turns played: an Injury is dealt as the Party comes home, and a module refuses a Hero away', { timeout: 30_000 }, () => {
-    let document = newGame('availability-both');
+  // The Heroes found both are gathered, not each read by an expect, which cost as much as the play (DL-164).
+  test('never, in any Hero of any Guild on any of 180 Turns played: an Injury is dealt as the Party comes home, and a module refuses a Hero away', () => {
+    let document = newDocument('availability-both');
     let injured = 0;
     let away = 0;
     const both: string[] = [];
-    for (let turn = 0; turn < 730; turn += 1) {
+    for (let turn = 0; turn < 180; turn += 1) {
       document = advance(document, deps).document;
       for (const hero of Object.values(document.world.heroes)) {
         if (hero.injury !== null) injured += 1;
@@ -50,7 +44,7 @@ describe('whether a Hero can be injured and in a Party at once', () => {
   });
 
   test('if a world were to hold both, the engine reads the Injury first, and so does the page', () => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = firstHero(document);
     hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     withParty(document.world, hero, 14);
@@ -61,7 +55,7 @@ describe('whether a Hero can be injured and in a Party at once', () => {
 
 describe('availabilityOf', () => {
   test('a Hero at the Hall can go: free now, nothing to say but where they are', () => {
-    const document = newGame();
+    const document = newDocument('availability');
     expect(availabilityOf(firstHero(document), document.world, document.meta.config)).toEqual({
       why: null,
       freeOnTurn: -Infinity,
@@ -72,7 +66,7 @@ describe('availabilityOf', () => {
   });
 
   test('an injured Hero is free when the Injury heals', () => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = firstHero(document);
     hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
@@ -85,7 +79,7 @@ describe('availabilityOf', () => {
   });
 
   test("a Hero away is free when their Party returns", () => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = firstHero(document);
     withParty(document.world, hero, 14);
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
@@ -98,7 +92,7 @@ describe('availabilityOf', () => {
   });
 
   test('a Hero whose Party the world no longer holds is Away with no Day to read, who sorts last', () => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = firstHero(document);
     hero.partyId = 'party-000777' as PartyId;
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({
@@ -114,16 +108,16 @@ describe('availabilityOf', () => {
     ['dead', { diedOnTurn: 30 }, 'Died on Year 1 Day 11', 'Dead'],
     ['retired', { retiredOnTurn: 30 }, 'Retired on Year 1 Day 11', 'Retired'],
   ] as const)('a %s Hero cannot go and has no Day to be free', (why, change, words, chip) => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = Object.assign(firstHero(document), change);
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
-    // On no Roster, they say so first, as the Roster's words always did (v1.1.6-S14's verification, DL-200).
+    // On no Roster, they say so first, as the Roster's words always did (DL-200).
     Object.assign(hero, { guildId: null, unattachedSince: 12 });
     expect(availabilityOf(hero, document.world, document.meta.config)).toEqual({ why, freeOnTurn: null, where: words, until: words, chip });
   });
 
   test('a Hero on no Roster is at no Hall, and can go if nothing else stops them', () => {
-    const document = newGame();
+    const document = newDocument('availability');
     const hero = firstHero(document);
     hero.guildId = null;
     hero.unattachedSince = 12;

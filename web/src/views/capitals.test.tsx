@@ -6,9 +6,9 @@ import { content } from '../content';
 import { cameHome, carrying, carryingUnique, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
-import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
+import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, views, type GuildPartName } from './page.test-support';
 
-// The page's words (v1.1.2-S1, DL-125 item 9, DL-128): every standalone text begins with a capital,
+// The page's words (DL-125 item 9, DL-128): every standalone text begins with a capital,
 // as `docs/agents/ui-text.md` writes the rule. Each view and the Guild's four parts are drawn over a
 // seeded game with something in every part, and opened as a player opens them: a Hero's page of each
 // kind, a Rival Guild's page, each History, the Party builder, the game menu, the other ways to Fast
@@ -117,7 +117,7 @@ class Reader {
 
 /** Opens and reads each view, and each of the Guild's parts. */
 function readEveryView(reader: Reader): void {
-  for (const view of ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'] as const satisfies readonly ViewName[]) {
+  for (const view of views) {
     openView(view);
     reader.read(view);
   }
@@ -129,12 +129,12 @@ function readEveryView(reader: Reader): void {
 
 /**
  * A game with something in every part: a Rival folded and another's Guildmaster succeeded; six
- * Turns played; a Hero dead, one retired and one gone from the pool; one injured and one with no
+ * Turns played; a Hero dead and one retired; one injured and one with no
  * Skill; a Guildmaster with no Trait; a Party out; a Unique Item and a Consumable held; older rules,
  * which the game menu offers to adopt; and a Transfer Offer, which stopped the last play.
  */
 function busyGame(): { state: GameState; gone: Named[] } {
-  const { state: played6, dead, retired, gone } = withTheGone(played(withWorldNews(started('capitals')), { kind: 'advance', turns: 6 }));
+  const { state: played6, dead, retired } = withTheGone(played(withWorldNews(started('capitals')), { kind: 'advance', turns: 6 }));
   const changed6 = changed(played6, (document, player) => {
     const [first, second] = player.rosterIds.flatMap((heroId) => document.world.heroes[heroId] ?? []);
     if (first === undefined || second === undefined) throw new Error('expected two Heroes on the Roster');
@@ -145,12 +145,12 @@ function busyGame(): { state: GameState; gone: Named[] } {
     guildmaster.traits = [];
   });
   // One Hero of the pool signed after the Party left, so one is at the Hall.
-  // v1.1.4-S7: a Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
+  // A Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
   const out = withPartyOut(withTraitNews(changed6));
   const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
   if (signing === undefined) throw new Error('no Hero in the pool who signs');
   const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });
-  // v1.1.5-S12: an Item a Hero carries, on their tile and in the Roster's Table; v1.1.5-S14: a Unique Item
+  // An Item a Hero carries, on their tile and in the Roster's Table (DL-171); a Unique Item
   // carried, its picture on their tile and the gold glow on their tile and their row.
   const carried = carryingUnique(carrying(recruited, 'arming-sword', 'weapon'), 'lantern-of-stannary', 'trinket');
   const offered = withOlderRules(withOffer(holding(holdingUnique(carried, 'barrow-kings-blade'), 'whetstone', 2)));
@@ -159,7 +159,7 @@ function busyGame(): { state: GameState; gone: Named[] } {
   const offerIds = Object.keys(document.world.offers) as OfferId[];
   const player = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'player');
   if (player === undefined) throw new Error("no player's Guild");
-  return { state: { ...offered, stoppedBecause: { kind: 'transfer-offer', guildId: player.id, offerIds } }, gone: [dead, retired, gone] };
+  return { state: { ...offered, stoppedBecause: { kind: 'transfer-offer', guildId: player.id, offerIds } }, gone: [dead, retired] };
 }
 
 describe('every standalone text begins with a capital (DL-125 item 9)', { timeout: 30_000 }, () => {
@@ -183,14 +183,14 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     fireEvent.click(within(within(pooled as HTMLElement).getByRole('rowheader')).getByRole('button'));
     reader.read('A Hero’s page in the pool');
     fireEvent.click(screen.getByRole('button', { name: 'Back to the pool' }));
-    // The Roster's Table, its Columns panel open, and the "Sort by" dropdown and its direction (v1.1.5-S12).
+    // The Roster's Table, its Columns panel open, and the "Sort by" dropdown and its direction.
     const roster = section('Roster');
     fireEvent.click(within(within(roster).getByRole('radiogroup', { name: 'Show the Roster as' })).getByRole('radio', { name: 'Table' }));
     fireEvent.click(within(roster).getByRole('button', { name: 'Columns' }));
     expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' })).toBeDefined();
     expect(within(roster).getByRole('group', { name: 'Columns' })).toBeDefined();
     expect(within(roster).getByRole('combobox', { name: 'Sort by' })).toBeDefined();
-    // A Hero carrying a Unique Item, their row glowing (v1.1.5-S14).
+    // A Hero carrying a Unique Item, their row glowing.
     expect(within(roster).getByRole('table', { name: 'Heroes on the Roster' }).querySelector('tr.carries-unique')).not.toBeNull();
     reader.read('The Roster’s Table and its Columns');
     fireEvent.change(within(roster).getByRole('combobox', { name: 'Sort by' }), { target: { value: 'free' } });
@@ -217,10 +217,10 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     // The tiles' Traits and Items among what was read.
     expect(within(rosterList()).getAllByTitle('Trait').length).toBeGreaterThan(0);
     expect(within(rosterList()).getByText('Arming sword')).toBeDefined();
-    // And a Unique Item's picture on a glowing tile (v1.1.5-S14).
+    // And a Unique Item's picture on a glowing tile.
     expect(rosterList().querySelector('.carries-unique [data-testid="item-picture"]')).not.toBeNull();
     expect(within(rosterList()).getByText('The Lantern of Stannary')).toBeDefined();
-    // The Roster filtered (v1.1.7-S7, DL-213): its chips and the "Showing" line, then no Hero matching.
+    // The Roster filtered (DL-213): its chips and the "Showing" line, then no Hero matching.
     const availability = within(section('Roster')).getByRole('group', { name: 'Where' });
     fireEvent.click(within(availability).getByRole('button', { name: /^Injured \d+$/ }));
     expect(within(section('Roster')).getByTestId('roster-shown').textContent).toMatch(/^Showing \d+ of \d+ Heroes\.$/);
@@ -241,14 +241,14 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [choose] = within(board).getAllByRole('button', { name: 'Choose a Party' });
     fireEvent.click(choose as HTMLElement);
     reader.read('The Party builder');
-    // Its short chips among what was read, the injured Hero's and the Party out's (v1.1.5-S11).
+    // Its short chips among what was read, the injured Hero's and the Party out's.
     expect(within(board).getAllByText('Injured').length).toBeGreaterThan(0);
     expect(within(board).getAllByText('Away').length).toBeGreaterThan(0);
-    // With a Hero chosen, its Morale line too (v1.1.4-S3).
+    // With a Hero chosen, its Morale line too.
     const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
     fireEvent.click(pick as HTMLElement);
     expect(within(board).getByTestId('party-morale')).toBeDefined();
-    // And its chances, a word each, with the numbers in the detail, opened (v1.1.4-S6).
+    // And its chances, a word each, with the numbers in the detail, opened.
     expect(within(board).getAllByTestId('best-party').length).toBeGreaterThan(0);
     expect(within(board).getAllByTestId('encounters').length).toBeGreaterThan(0);
     expect(within(board).getByTestId('chances')).toBeDefined();
@@ -269,7 +269,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
       reader.read(`The History of ${choice.textContent ?? ''}`);
     }
 
-    // The pages of a Hero dead, retired and gone from the world, found in the History.
+    // The pages of a Hero dead and one retired, found in the History.
     for (const hero of gone) {
       fireEvent.change(within(section('History')).getByRole('searchbox', { name: 'Find someone in the History by name' }), { target: { value: hero.name } });
       fireEvent.click(within(section('History')).getByRole('button', { name: `Read ${hero.name}` }));
@@ -305,7 +305,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const reader = new Reader([]);
     for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
     reader.read('The new-game form');
-    // v1.1.4-S11: "Choose myself", before a sex is chosen and after, with its Stats, a point left unspent,
+    // "Choose myself" (DL-153), before a sex is chosen and after, with its Stats, a point left unspent,
     // and what it still needs beside "Start the game".
     fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
     fireEvent.change(screen.getByLabelText('Guildmaster’s name'), { target: { value: 'Ada Vell' } });
@@ -322,7 +322,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(reader.failures).toEqual([]);
   });
 
-  // v1.1.3-S7: the setup grid, and a note beside a Portrait chosen; since v1.1.4-S11 with "Choose myself".
+  // The setup grid, and a note beside a Portrait chosen, with "Choose myself" (DL-153).
   test('in the setup grid, with a note beside a Portrait chosen', () => {
     render(<App />);
     const reader = new Reader([]);
@@ -346,8 +346,8 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(reader.failures).toEqual([]);
   });
 
-  // v1.1.3-S8: with a Trait chosen that a Calling clashes with, the note of a Calling, each picture of
-  // both sexes chosen in turn (since v1.1.4-S11, each sex chosen in its field).
+  // With a Trait chosen that a Calling clashes with, the note of a Calling, each picture of
+  // both sexes chosen in turn (each sex chosen in its field, DL-153).
   test('in the setup grid, each sex chosen, and a Calling that clashes with a Trait chosen', () => {
     const clashing = Object.values(content.descriptions.callings).find((calling) => calling.clashes.length > 0);
     const traitName = content.guildmasterTraits[clashing?.clashes[0] ?? '']?.name;

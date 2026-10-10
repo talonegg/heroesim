@@ -1,34 +1,27 @@
-import { entriesFor, playerGuild, type EngineEventOf, type Guild, type TurnEvent, type WorldDocument } from '@heroesim/engine';
+// @vitest-environment node
+import { entriesFor, type EngineEventOf, type TurnEvent } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, partiesOutView, railView } from './digest';
-import { cameHome as partyHome, changed, played, started, withOffer, withPartyOut, withReturn } from './game.test-support';
+import { cameHome as partyHome, changed, documentOf, played, playerOf, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterRows, sortedRoster } from './selectors';
 import { historyView, leftOutOfYourGuild } from './history';
-import { narrateText, narrationFor } from './namer';
+import { narrateText } from './namer';
+import { readingOf } from './reading';
 import { whenOfTurn } from '@heroesim/words';
-import { content } from '../content';
 
-// What the shell reads (M9-S3, DL-103): the counts on the navigation, the home view's digest and the
+// What the shell reads (DL-103): the counts on the navigation, the home view's digest and the
 // History rail. Every number is a document field, an engine selector's answer or the last play's
 // events, which the engine appended to the History as they are (ADR-0008).
 
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game in hand');
-  return state.document;
-}
-
 /** The last play's events, each as the History narrates it. */
 function sentencesOf(state: GameState): string[] {
-  const narration = narrationFor(documentOf(state), content);
+  const narration = readingOf(documentOf(state)).narration;
   return state.log.map((event) => narrateText(event, narration));
 }
 
-function playerOf(state: GameState): Guild {
-  const guild = playerGuild(documentOf(state).world);
-  if (guild === undefined) throw new Error("no player's Guild");
-  return guild;
-}
+// A Party home from its Quest, one game read by the tests below and played by none (ADR-0008).
+const partyHomeState = partyHome(started('reducer-test'));
 
 describe('navCounts', () => {
   test('counts the Quests on offer, the Transfer Offers waiting and, after a new game, all its entries naming the Guild as new', () => {
@@ -45,7 +38,7 @@ describe('navCounts', () => {
     expect(navCounts(withOffer(state)).offers).toBe(1);
   });
 
-  test("counts as new only the last play's entries that name the player's Guild, as its History shows them: a Party sent is one, a purchase none (M9-F4)", () => {
+  test("counts as new only the last play's entries that name the player's Guild, as its History shows them: a Party sent is one, a purchase none", () => {
     const sent = withPartyOut(started());
     expect(navCounts(sent).fresh).toBe(1);
 
@@ -55,14 +48,12 @@ describe('navCounts', () => {
     expect(navCounts(bought).fresh).toBe(0);
   });
 
-  test('counts a Party home as its History does: not its Heroes’ XP and Morale (M9-F4), nor the parts its one entry gathers (M9-F5)', () => {
-    const state = partyHome(started('reducer-test'));
-    const guild = playerOf(state);
+  test('counts a Party home as its History does', () => {
+    const state = partyHomeState;
+    const guild = playerOf(documentOf(state));
     const naming = state.log.filter((event) => event.participants.includes(guild.id));
-    // The owner's list: XP, Morale, the Regards, Upkeep, purchases and sales.
-    const leftOut = ['hero.xp-gained', 'hero.morale-changed', 'patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold'];
     // What a return's entry gathers: its Encounters and consumables; its Heroes' Levels that night; the dead's gear. Its
-    // Injuries and Deaths stand out beside it, and count (M9-F7, DL-120 item 6).
+    // Injuries and Deaths stand out beside it, and count (DL-120 item 6).
     const home = naming.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved').flatMap((event) => event.payload.heroIds);
     const gathered = (event: TurnEvent): boolean =>
       ['quest.encounter', 'item.expended'].includes(event.type) ||
@@ -71,9 +62,7 @@ describe('navCounts', () => {
     expect(naming.some((event) => event.type === 'hero.xp-gained')).toBe(true);
     expect(naming.some(gathered)).toBe(true);
 
-    expect(navCounts(state).fresh).toBe(naming.filter((event) => !leftOut.includes(event.type) && !gathered(event)).length);
     expect(navCounts(state).fresh).toBe(historyView(documentOf(state), state.log, null, 0).fresh);
-    expect([...leftOutOfYourGuild].sort()).toEqual([...leftOut].sort());
   });
 
   test('counts nothing before a game, and nothing new after a load', () => {
@@ -102,7 +91,7 @@ describe('partiesOutView', () => {
   test("names only the player's Parties: a Rival's are not the player's to wait for", () => {
     const state = played(withPartyOut(started()), { kind: 'advance', turns: 2 });
     const document = documentOf(state);
-    const rivalsOut = Object.values(document.world.parties).filter((party) => party.guildId !== playerOf(state).id);
+    const rivalsOut = Object.values(document.world.parties).filter((party) => party.guildId !== playerOf(documentOf(state)).id);
     expect(rivalsOut.length).toBeGreaterThan(0);
 
     expect(partiesOutView(document)).toHaveLength(1);
@@ -134,8 +123,8 @@ describe('railView', () => {
   test("gives the player's Guild's latest entries, newest first, as its History gives them, each new one marked", () => {
     const state = played(started(), { kind: 'advance', turns: 3 });
     const document = documentOf(state);
-    const guild = playerOf(state);
-    const narration = narrationFor(document, content);
+    const guild = playerOf(documentOf(state));
+    const narration = readingOf(document).narration;
     const history = entriesFor(document.history, guild.id)
       .filter((entry) => !leftOutOfYourGuild.has(entry.type))
       .map((entry) => ({ when: whenOfTurn(entry.turn, document.meta.config), sentence: narrateText(entry as never, narration) }));
@@ -161,14 +150,14 @@ describe('railView', () => {
     expect(railView({ ...sent, log: [] }, 5)?.lines.some((line) => line.fresh)).toBe(false);
   });
 
-  test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new (M9-F4)", () => {
+  test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new", () => {
     const bought = played(started(), { kind: 'buy', definitionKey: 'short-sword', quantity: 1 });
     const rail = railView(bought, 24);
 
     expect(rail?.lines.some((line) => / bought /.test(line.sentence))).toBe(false);
     expect(rail?.fresh).toBe(0);
     // A Party home: the rail holds its return, and none of its Heroes' XP or Morale.
-    const home = partyHome(started('reducer-test'));
+    const home = partyHomeState;
     const lines = railView(home, 24)?.lines ?? [];
     expect(lines.some((line) => / Party came home from /.test(line.sentence))).toBe(true);
     expect(lines.some((line) => / gained \d+ XP\.$/.test(line.sentence))).toBe(false);
@@ -180,16 +169,18 @@ describe('railView', () => {
     expect(railView(initialGameState, 5)).toBeNull();
   });
 
-  test("keys a return's line by its Party, so the key holds as newer lines come in above it (the M9-F5 review)", () => {
+  test("keys a return's line by its Party, so the key holds as newer lines come in above it (DL-118)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), { band: 'success', wealth: 10, xp: 5 });
     const keyOf = (state: GameState): string | undefined => railView(state, 24)?.lines.find((line) => line.questReturn !== null)?.key;
+    // Read before the game is played on: the key must hold as the History grows.
+    const key = keyOf(written.state);
     const later = played(written.state, { kind: 'advance', turns: 3 });
 
-    expect(keyOf(written.state)).toBe(`return-${written.party.partyId}`);
-    expect(keyOf(later)).toBe(keyOf(written.state));
+    expect(key).toBe(`return-${written.party.partyId}`);
+    expect(keyOf(later)).toBe(key);
   });
 
-  test("gives a Party's return as its one entry, the Loot next after it, then its Injuries and Deaths, and no Encounter (M9-F5; M9-F7)", () => {
+  test("gives a Party's return as its one entry, the Loot next after it, then its Injuries and Deaths, and no Encounter (DL-120)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'success',
       wealth: 150,

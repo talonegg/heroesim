@@ -1,4 +1,4 @@
-# Heroesim v2 — design principles
+# Heroesim — design principles
 
 Each principle names what goes wrong without it. When two principles conflict, the earlier one
 wins. Established 2026-09-24; see [`requirements.md`](./requirements.md) for what they apply to.
@@ -78,11 +78,12 @@ tuned against those counters, not against a feeling from one playthrough.
 
 ## 10. A rhythm the player can learn
 
-Three Turns a Day with fixed duties: Board and Market in the morning, Quests every Turn,
-healing, Morale and ageing at night, and Random Events at night once that module exists. The
-engine stops fast forward when a decision is needed.
+Three Turns a Day with fixed duties: the Board and the Market in the morning, the Rivals in the
+afternoon, and at night the Quests whose Parties return, healing, Morale and ageing, and Random
+Events once that Module exists ([R3](./requirements.md)). The engine stops Fast forward when a
+decision is needed.
 
-*Without it:* fast forward is unsafe, and the player cannot plan.
+*Without it:* Fast forward is unsafe, and the player cannot plan.
 
 ## 11. Nothing significant is forgotten
 

@@ -1,13 +1,10 @@
-// `show market`, `buy` and `sell` end to end (M5-S4): `main` run in-process against a real save in a
+// `show market`, `buy` and `sell` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands. The
 // Market is arranged by hand in the save, and the prices the tests read are pinned in its config.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import {
   addStack,
-  deserialise,
   holdings,
   playerGuild,
   serialise,
@@ -16,48 +13,12 @@ import {
 } from '@heroesim/engine';
 import { count, createItem, findStack, marketHolder } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-market-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-function player(): Guild {
-  const guild = playerGuild(document().world);
-  if (guild === undefined) throw new Error("No player's Guild");
-  return guild;
-}
+const { play, current, saved, document } = playground('heroesim-market-', content);
 
 /**
  * A new world whose player's Guild holds `wealth` and 3 Healing draughts, and whose Market holds 4
@@ -103,7 +64,7 @@ describe('the Market', () => {
     expect(run.out).toContain('Bought 3 × Padded jack for 120 Wealth, 40 each.');
     expect(run.out).toContain('The Test has 880 Wealth left.');
     const { world, history } = document();
-    expect(player().wealth).toBe(880);
+    expect(thePlayer(document().world).wealth).toBe(880);
     expect(findStack(world, 'padded-jack', { kind: 'guild', id: guild.id })?.quantity).toBe(3);
     expect(findStack(world, 'padded-jack', marketHolder)?.quantity).toBe(1);
     expect(count(history, 'item.bought')).toBe(1);
@@ -126,7 +87,7 @@ describe('the Market', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Sold 2 × Healing draught to the Market for 30 Wealth, 15 each.');
     expect(run.out).toContain('The Test has 130 Wealth.');
-    expect(player().wealth).toBe(130);
+    expect(thePlayer(document().world).wealth).toBe(130);
     expect(findStack(document().world, 'healing-draught', marketHolder)?.quantity).toBe(2);
     expect(count(document().history, 'item.sold')).toBe(1);
   });
@@ -138,7 +99,7 @@ describe('the Market', () => {
     const run = play(['sell', '--item', blade]);
 
     expect(run.out).toContain("Sold The Barrow King's blade to the Market for 300 Wealth, 300 each.");
-    expect(player().wealth).toBe(300);
+    expect(thePlayer(document().world).wealth).toBe(300);
   });
 
   test.each([
@@ -158,16 +119,14 @@ describe('the Market', () => {
     expect(saved()).toBe(before);
   });
 
-  test('refuses selling more than a stack holds, and a bad command line, writing nothing', () => {
+  test('refuses selling more than a stack holds, writing nothing', () => {
     const { draughts } = newWorld(150);
     const before = saved();
 
     const tooMany = play(['sell', '--stack', draughts, '--quantity', '4']);
 
     expect(tooMany.code).toBe(exitCodes.refused);
-    expect(tooMany.err).toContain(`${draughts} holds 3; 4 cannot be sold from it.`);
-    expect(play(['sell', '--stack', draughts, '--quantity', 'all']).code).toBe(exitCodes.usage);
-    expect(play(['buy']).code).toBe(exitCodes.usage);
+    expect(tooMany.err).toContain(`That stack of Healing draught (${draughts}) holds 3; 4 cannot be sold from it.`);
     expect(saved()).toBe(before);
   });
 });

@@ -4,7 +4,7 @@ import {
   advance,
   applyAction,
   availableHeroes,
-  bestParty,
+  bestParties,
   compareByCodeUnit,
   createWorld,
   defaultConfig,
@@ -24,13 +24,13 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, marketHolder, partyFor } from '@heroesim/engine/testing';
+import { makeId, marketHolder } from '@heroesim/engine/testing';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
-// The chance the policy reads of a Quest's Party, `bestParty`'s estimate, set by a test when it
-// sets `chances.of` (v1.1.5-S2): the Party is still the engine's, and only its chance of success is
+// The chance the policy reads of a Quest's Party, the Best Party's estimate, set by a test when it
+// sets `chances.of`: the Party is still the engine's, and only its chance of success is
 // answered, from the Quest and the Party, as the estimate's is. Unset, or answering `undefined`, it is
 // the real estimate, as in every other test.
 const chances = vi.hoisted(() => ({ of: null as ((quest: Quest, heroIds: readonly HeroId[]) => number | undefined) | null }));
@@ -38,18 +38,24 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
   const real = await importOriginal<typeof import('@heroesim/engine')>();
   return {
     ...real,
-    bestParty: (...args: Parameters<typeof real.bestParty>): ReturnType<typeof real.bestParty> => {
-      const found = real.bestParty(...args);
-      const success = found === null || found.estimate === null ? undefined : chances.of?.(args[2], found.heroIds);
-      return found === null || found.estimate === null || success === undefined ? found : { ...found, estimate: { ...found.estimate, success } };
+    bestParties: (...args: Parameters<typeof real.bestParties>): ReturnType<typeof real.bestParties> => {
+      const opened = real.bestParties(...args);
+      return {
+        ...opened,
+        party: (quest, heroes) => {
+          const found = opened.party(quest, heroes);
+          const success = found === null || found.estimate === null ? undefined : chances.of?.(quest as Quest, found.heroIds);
+          return found === null || found.estimate === null || success === undefined ? found : { ...found, estimate: { ...found.estimate, success } };
+        },
+      };
     },
   };
 });
 
-// M2-S12: the harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
+// The harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
 // Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
 // Market is empty (`marketSize: 0`) unless a test stocks it, so that the armour and consumables it
-// would buy (M5-S4, DL-62) stay out of the tests of building and recruiting.
+// would buy (DL-62) stay out of the tests of building and recruiting.
 
 const content = loadContent();
 const deps: EngineDeps = {
@@ -77,7 +83,7 @@ function openBoard(quests: Quest[], min = 2): void {
   });
 }
 
-/** The player's margin at 1 (v1.1.4-S6): `partyFor` sends the fewest Heroes each Quest allows, so four Heroes make two Parties. */
+/** The player's margin at 1: the Best Party is the fewest Heroes each Quest allows, so four Heroes make two Parties. */
 const fewest: EngineDeps = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
 
 const dispatches = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'dispatch');
@@ -85,7 +91,7 @@ const recruits = (actions: GuildAction[]) => actions.filter((action) => action.k
 const builds = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'build');
 
 /**
- * The policy with building out of reach: from M3-S6 its one purchase a Turn is the infirmary's next
+ * The policy with building out of reach: its one purchase a Turn is the infirmary's next
  * grade whenever Wealth is three times its cost, which the recruiting tests' Wealth is.
  */
 const noBuilding: PolicyConfig = { ...defaultPolicyConfig, buildWealthMultiple: Number.POSITIVE_INFINITY };
@@ -106,9 +112,9 @@ function alike(quests: Quest[]): void {
   }
 }
 
-/** The chance of success the policy reads of `quest`'s Party from `heroes`: `bestParty`'s estimate's, held to at most 1 as `partyFor` holds it. */
+/** The chance of success the policy reads of `quest`'s Party from `heroes`: the Best Party's estimate's, held to at most 1 as the Best Party holds it. */
 function chanceOf(document: WorldDocument, guild: Guild, quest: Quest, heroes: readonly Hero[], given: EngineDeps = deps): number {
-  const found = bestParty(document.world, guild, quest, heroes, given);
+  const found = bestParties(document.world, guild, given).party(quest, heroes);
   if (found === null) throw new Error(`No Party for ${quest.id}`);
   return Math.min(1, found.estimate?.success ?? 0);
 }
@@ -157,7 +163,7 @@ describe('automaticPolicy', () => {
     expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id }]);
   });
 
-  test('sends the Party the engine’s staffing rule names, by the chance estimate (v1.1.4-S6), of equal chances to the highest reward first', () => {
+  test('sends the Party the engine’s staffing rule names, by the chance estimate, of equal chances to the highest reward first', () => {
     const { document, guild, quests } = scene();
     openBoard(quests);
     alike(quests);
@@ -165,12 +171,12 @@ describe('automaticPolicy', () => {
 
     const [first] = automaticPolicy(document, deps);
 
-    const party = partyFor(document.world, guild, best, availableHeroes(document.world, guild), deps);
+    const party = bestParties(document.world, guild, deps).party(best, availableHeroes(document.world, guild))?.heroIds ?? null;
     expect(party?.length).toBeGreaterThanOrEqual(2);
     expect(first).toEqual({ kind: 'dispatch', guildId: guild.id, questId: best.id, heroIds: party });
     // At the player's margin of 1, the fewest the Quest allows.
     const [fewer] = automaticPolicy(document, fewest);
-    expect(fewer).toMatchObject({ questId: best.id, heroIds: partyFor(document.world, guild, best, availableHeroes(document.world, guild), fewest) });
+    expect(fewer).toMatchObject({ questId: best.id, heroIds: bestParties(document.world, guild, fewest).party(best, availableHeroes(document.world, guild))?.heroIds });
     expect(fewer?.kind === 'dispatch' && fewer.heroIds).toHaveLength(2);
   });
 
@@ -203,7 +209,7 @@ describe('automaticPolicy', () => {
     expect(sent.flatMap((action) => action.heroIds)).not.toContain(hurt);
   });
 
-  describe('chooses its Quests by their chance (v1.1.5-S2, DL-168 item 2)', () => {
+  describe('chooses its Quests by their chance (DL-168 item 2)', () => {
     /**
      * The Board opened and its Quests alike at `base`, the first's difficulty, then the first eased to
      * half of it and the rest made half as hard again: the first the likeliest and the lowest reward.
@@ -267,7 +273,7 @@ describe('automaticPolicy', () => {
       hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
       const heroes = availableHeroes(document.world, guild);
       expect(heroes).toHaveLength(3);
-      expect(bestParty(document.world, guild, easy, heroes, fewest)).toBeNull();
+      expect(bestParties(document.world, guild, fewest).party(easy, heroes)).toBeNull();
       expect(chanceOf(document, guild, next, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, quests.at(-1) as Quest, heroes, fewest));
 
       const sent = dispatches(automaticPolicy(document, fewest));
@@ -285,10 +291,10 @@ describe('automaticPolicy', () => {
       document.world.board = [a.id, b.id, c.id];
       const heroes = availableHeroes(document.world, guild);
       expect(heroes).toHaveLength(4);
-      const firstParty = partyFor(document.world, guild, a, heroes, fewest) ?? [];
+      const firstParty = bestParties(document.world, guild, fewest).party(a, heroes)?.heroIds ?? [];
       const shares = (heroIds: readonly HeroId[]) => heroIds.some((heroId) => firstParty.includes(heroId));
       // `b`'s Party from every Hero shares one with `a`'s, so that from the Heroes `a` leaves it is another Party.
-      expect(shares(partyFor(document.world, guild, b, heroes, fewest) ?? [])).toBe(true);
+      expect(shares(bestParties(document.world, guild, fewest).party(b, heroes)?.heroIds ?? [])).toBe(true);
       // `a` the likeliest; `b` next with a Hero `a` takes, and the least likely without; `c` between.
       // By reward the policy would send `c` then `b`; by the chances read once, `a` then `b`.
       chances.of = (quest, heroIds) => (quest.id === a.id ? 0.9 : quest.id === b.id ? (shares(heroIds) ? 0.8 : 0.1) : 0.5);
@@ -298,12 +304,12 @@ describe('automaticPolicy', () => {
       expect(sent.map((action) => action.questId)).toEqual([a.id, c.id]);
       const [first, second] = sent;
       if (first === undefined || second === undefined) throw new Error('Too few Parties');
-      expect(first.heroIds).toEqual(partyFor(document.world, guild, a, heroes, fewest));
-      expect(second.heroIds).toEqual(partyFor(document.world, guild, c, without(heroes, first.heroIds), fewest));
+      expect(first.heroIds).toEqual(bestParties(document.world, guild, fewest).party(a, heroes)?.heroIds ?? null);
+      expect(second.heroIds).toEqual(bestParties(document.world, guild, fewest).party(c, without(heroes, first.heroIds))?.heroIds ?? null);
       expect(second.heroIds.some((heroId) => first.heroIds.includes(heroId))).toBe(false);
     });
 
-    test('holds a chance to at most 1, as `partyFor` does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
+    test('holds a chance to at most 1, as the Best Party does: one above it by a sum’s rounding ties with a certain one, and the reward decides', () => {
       const { document, quests } = scene();
       openBoard(quests);
       const [low] = quests;
@@ -319,8 +325,9 @@ describe('automaticPolicy', () => {
       openBoard(quests);
       const top = quests.at(-1) as Quest;
       const next = quests.at(-2) as Quest;
-      top.encounterKeys = [];
-      expect(bestParty(document.world, guild, top, availableHeroes(document.world, guild), fewest)?.estimate).toBeNull();
+      // Its Encounters are none the content in use defines (data-model rule 5).
+      top.encounterKeys = ['no-such-encounter'];
+      expect(bestParties(document.world, guild, fewest).party(top, availableHeroes(document.world, guild))?.estimate).toBeNull();
       // Every other Quest unlikely, but likelier than none.
       chances.of = () => 0.05;
 
@@ -370,17 +377,15 @@ describe('automaticPolicy', () => {
     test('only when Wealth is strictly above the threshold and covers the fee', () => {
       const at = recruiting(0);
       at.guild.wealth = at.threshold;
-      expect(defaultPolicyConfig.recruitWealthMultiple).toBe(3);
-      expect(at.threshold).toBe(60);
       expect(automaticPolicy(at.document, deps, noBuilding)).toEqual([]);
 
-      const above = recruiting(61);
+      const above = recruiting(at.threshold + 1);
       const fees = unattachedHeroes(above.document.world).map((hero) => signingFee(hero, deps));
-      expect(Math.min(...fees)).toBeGreaterThan(61);
+      expect(Math.min(...fees)).toBeGreaterThan(at.threshold + 1);
       expect(automaticPolicy(above.document, deps, noBuilding)).toEqual([]);
     });
 
-    test("passing over a Hero who would refuse the Guild's Fame for the cheapest who would sign, by the engine's own test (M3-S5)", () => {
+    test("passing over a Hero who would refuse the Guild's Fame for the cheapest who would sign, by the engine's own test", () => {
       const gated: EngineDeps = { ...deps, config: { ...deps.config, fameRequiredPerLevel: 10 } };
       const { document, guild } = recruiting(10_000);
       guild.fame = 0;
@@ -406,8 +411,7 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, gated, noBuilding)).toEqual([]);
     });
 
-    test('only while the Roster is below the limit, 8 unless the policy says otherwise', () => {
-      expect(defaultPolicyConfig.rosterLimit).toBe(8);
+    test('only while the Roster is below the limit the policy sets', () => {
       const { document, guild } = recruiting(10_000);
       expect(guild.rosterIds).toHaveLength(4);
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 5 })).toHaveLength(1);
@@ -415,7 +419,7 @@ describe('automaticPolicy', () => {
     });
   });
 
-  describe('builds (M3-S6)', () => {
+  describe('builds', () => {
     /** The player's Guild with `wealth`, its infirmary at `grade`, and an empty Board. */
     function building(wealth: number, grade = 0) {
       const { document, guild } = scene();
@@ -426,16 +430,16 @@ describe('automaticPolicy', () => {
     }
 
     test("the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
-      expect(defaultPolicyConfig.buildWealthMultiple).toBe(3);
-      const at = building(3 * 200);
+      const multiple = defaultPolicyConfig.buildWealthMultiple;
+      const at = building(multiple * 200);
       expect(automaticPolicy(at.document, deps).map((action) => action.kind)).toEqual(['recruit']);
 
-      const above = building(3 * 200 + 1);
+      const above = building(multiple * 200 + 1);
       expect(automaticPolicy(above.document, deps)).toEqual([{ kind: 'build', guildId: above.guild.id, facility: 'infirmary' }]);
 
-      const second = building(3 * 500 + 1, 1);
+      const second = building(multiple * 500 + 1, 1);
       expect(automaticPolicy(second.document, deps)).toEqual([{ kind: 'build', guildId: second.guild.id, facility: 'infirmary' }]);
-      expect(automaticPolicy(building(3 * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
+      expect(automaticPolicy(building(multiple * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
     });
 
     test('nothing past the top grade, and no other facility: then it recruits', () => {
@@ -443,7 +447,7 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);
     });
 
-    test('reads its own multiple, not a Rival’s Disposition’s (M6-S1 moved the game’s into the rows, DL-56)', () => {
+    test('reads its own multiple, not a Rival’s Disposition’s (the game’s is in the rows, DL-56)', () => {
       const { document, guild } = building(1_000);
       expect(automaticPolicy(document, deps, { ...defaultPolicyConfig, buildWealthMultiple: 5 })).not.toContainEqual(
         expect.objectContaining({ kind: 'build' }),
@@ -454,7 +458,7 @@ describe('automaticPolicy', () => {
     });
   });
 
-  test('equips the gear its Guild holds first, by the engine’s gearChoices, before sending anyone away (M5-S2, DL-49)', () => {
+  test('equips the gear its Guild holds first, by the engine’s gearChoices, before sending anyone away (DL-49)', () => {
     const scened = scene('policy-gear');
     const { guild, quests } = scened;
     let { document } = scened;
@@ -478,7 +482,7 @@ describe('automaticPolicy', () => {
     expect(holdings(document.world, vault)).toEqual({ items: [], stacks: [] });
   });
 
-  describe('buys armour (M5-S4)', () => {
+  describe('buys armour', () => {
     /**
      * The player's Guild with `wealth`, its infirmary at the top grade so that it builds nothing, an
      * empty Board, and a Market holding two of each common armour and nothing else.
@@ -497,12 +501,12 @@ describe('automaticPolicy', () => {
     const buying = (guildId: string, definitionKey: string) => ({ kind: 'buy', guildId, definitionKey, quantity: 1 });
 
     test('one piece, the dearest armour on the Market whose price Wealth is above three times, in place of a recruit', () => {
-      expect(defaultPolicyConfig.buyWealthMultiple).toBe(3);
-      const rich = shopping(3 * 300 + 1);
+      const multiple = defaultPolicyConfig.buyWealthMultiple;
+      const rich = shopping(multiple * 300 + 1);
       expect(automaticPolicy(rich.document, deps)).toEqual([buying(rich.guild.id, 'plate-harness')]);
-      const at = shopping(3 * 300);
+      const at = shopping(multiple * 300);
       expect(automaticPolicy(at.document, deps)).toEqual([buying(at.guild.id, 'mail-shirt')]);
-      const poor = shopping(3 * 40);
+      const poor = shopping(multiple * 40);
       expect(automaticPolicy(poor.document, deps)).not.toContainEqual(expect.objectContaining({ kind: 'buy' }));
     });
 
@@ -524,7 +528,7 @@ describe('automaticPolicy', () => {
       guild.hall.infirmary = 3;
 
       // Armour held for all but one Hero, then worn by that one: then it recruits. The armour held
-      // is put on first, by gearChoices (M5-S2, DL-54), and the purchase is for the Hero left bare.
+      // is put on first, by gearChoices (DL-54), and the purchase is for the Hero left bare.
       const [first, ...rest] = guild.rosterIds;
       addStack(document.world, 'padded-jack', rest.length, { kind: 'guild', id: guild.id });
       const held = gearChoices(document.world, guild, deps);
@@ -538,7 +542,7 @@ describe('automaticPolicy', () => {
     });
 
     test('the armour it buys is worn: its first choice the next Turn puts it on a bare Hero (DL-54)', () => {
-      const { document, guild } = shopping(3 * 300 + 1);
+      const { document, guild } = shopping(defaultPolicyConfig.buyWealthMultiple * 300 + 1);
       const [first] = guild.rosterIds;
       if (first === undefined) throw new Error('An empty Roster');
       let current = document;
@@ -576,7 +580,7 @@ describe('automaticPolicy', () => {
     });
   });
 
-  test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (M6-S2, the M6 risk table)', () => {
+  test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (DL-57)', () => {
     const { document, guild, quests } = scene('policy-offers');
     openBoard(quests);
     let current = document;
@@ -613,7 +617,7 @@ describe('automaticPolicy', () => {
       const { guild, quests } = scened;
       let { document } = scened;
       openBoard(quests);
-      // Two Quests the likeliest, in this order (their chances set, v1.1.5-S2): a fight on the road, then a quiet word.
+      // Two Quests the likeliest, in this order (their chances set, DL-168): a fight on the road, then a quiet word.
       const [second, first] = quests.slice(-2);
       if (first === undefined || second === undefined) throw new Error('Fewer than two Quests');
       first.encounterKeys = ['ambush-on-the-road', 'the-long-march'];
@@ -678,7 +682,7 @@ describe('automaticPolicy', () => {
     }
 
     test('buys, when nothing else is bought, the consumable it has fewest of, as many as it lacks and the Market has', () => {
-      expect(defaultPolicyConfig.consumableStock).toBe(2);
+      const stock = defaultPolicyConfig.consumableStock;
       const { document, guild, policy } = stocking(10_000, [
         ['whetstone', 5],
         ['healing-draught', 1],
@@ -687,11 +691,11 @@ describe('automaticPolicy', () => {
       const vault = { kind: 'guild', id: guild.id } as const;
       addStack(document.world, 'healing-draught', 1, vault);
       addStack(document.world, 'physicians-kit', 1, vault);
-      // Fewest held: whetstone, none; two lacking, and the Market has five.
-      expect(automaticPolicy(document, deps, policy)).toEqual([{ kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: 2 }]);
+      // Fewest held: whetstone, none; the stock lacking, and the Market has five.
+      expect(automaticPolicy(document, deps, policy)).toEqual([{ kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: stock }]);
 
-      // With two whetstones held, the healing draught and the physician's kit each lack one: the lower key.
-      addStack(document.world, 'whetstone', 2, vault);
+      // With the stock of whetstones held, the healing draught and the physician's kit each lack one: the lower key.
+      addStack(document.world, 'whetstone', stock, vault);
       const [action] = automaticPolicy(document, deps, policy);
       expect(action).toEqual({ kind: 'buy', guildId: guild.id, definitionKey: 'healing-draught', quantity: 1 });
       const result = action === undefined ? null : applyAction(document, action, deps);
@@ -719,9 +723,8 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps, unreserved)).toEqual([]);
       guild.wealth = 151;
       expect(automaticPolicy(document, deps, unreserved)).toHaveLength(1);
-      // And, once paid, leave more than twenty Upkeeps, the policy's reserve for consumables.
-      expect(defaultPolicyConfig.consumableReserveUpkeeps).toBe(20);
-      const reserve = 20 * upkeep(guild, document.world, deps.config, deps.content);
+      // And, once paid, leave more than the policy's reserve of Upkeeps for consumables.
+      const reserve = defaultPolicyConfig.consumableReserveUpkeeps * upkeep(guild, document.world, deps.config, deps.content);
       expect(reserve + 50).toBeGreaterThan(3 * 50); // so the reserve, not the multiple, is the bar
       guild.wealth = reserve + 50;
       expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([]);

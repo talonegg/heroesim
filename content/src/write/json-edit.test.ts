@@ -5,7 +5,7 @@ import { editJson } from './json-edit.js';
 import { formatJson } from './json-format.js';
 import { contentDir } from '../node.js';
 
-// `editJson` (v1.1.3-S3): the tool changes a content file where its value changes, and keeps the
+// `editJson`: the tool changes a content file where its value changes, and keeps the
 // file's own layout everywhere else, so that `git diff` after `apply` or `write-rows` shows only
 // the rows, terms and sentences that changed.
 
@@ -78,7 +78,7 @@ describe('editJson()', () => {
     const text = content('portrait-appearances.json');
     const value = JSON.parse(text) as Appearances;
     const narrative = `${'A long, lined face. '.repeat(6)}The eyes are grey.`;
-    // A key the content does not hold: since v1.1.3-S4 it holds gm-male-01..20.
+    // A key the content does not hold: the content holds gm-male-01..20.
     value.portraits['gm-male-21'] = {
       apparentAge: [34, 44],
       station: 'trade',
@@ -111,14 +111,14 @@ describe('editJson()', () => {
   test("lists a new key on its role's one line", () => {
     const text = content('portraits.json');
     const value = JSON.parse(text) as Record<string, Record<string, string[]>>;
-    // Since v1.1.3-S4 the Guildmasters' lists are too long for a line, and opened out; the Heroes' are on one.
+    // The Guildmasters' lists are too long for a line, and opened out; the Heroes' are on one.
     value.hero?.male?.push('hero-male-01');
     const lines = text.split('\n');
     const at = lines.findIndex((line) => line.includes('"hero"'));
     expect(editJson(text, value).split('\n')).toEqual([...lines.slice(0, at), (lines[at] ?? '').replace('"male": []', '"male": ["hero-male-01"]'), ...lines.slice(at + 1)]);
   });
 
-  test("with keepLines, keeps a row on its one line however long, and adds one beside it on one line (the content editor's, v1.1.4-S12)", () => {
+  test("with keepLines, keeps a row on its one line however long, and adds one beside it on one line (the content editor's)", () => {
     const text = content('hero-traits.json');
     const value = JSON.parse(text) as Record<string, { excludes: string[] }>;
     value.scarred?.excludes.push('brave');

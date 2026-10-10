@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { defaultConfig } from '../config.js';
 import { degrees, type Degree, type PassFormula } from '../content-types.js';
 import { degreeOf, passDegree, passOf, succeeded } from './degree.js';
 
-// v1.1.4-S2: Degrees (DL-148 items 7 and 8). A Check's from its roll against its target; an
+// Degrees (DL-148 items 7 and 8). A Check's from its roll against its target; an
 // Encounter's from its Checks' by its pass formula.
 
 /** Every list of `n` Degrees, the first Check's varying slowest. */
@@ -37,9 +36,7 @@ describe('degreeOf', () => {
     }
   });
 
-  // The Triumph at 1.25 until v1.1.4-S10's balance pass, then 1.35 (DL-166).
-  test('reads checkDegrees, whose defaults are 1.35, 1 and 0.75', () => {
-    expect(defaultConfig.checkDegrees).toEqual({ triumph: 1.35, success: 1, setback: 0.75 });
+  test('reads checkDegrees', () => {
     const strict = { checkDegrees: { triumph: 2, success: 1.1, setback: 1 } };
     expect([150, 105, 100].map((roll) => degreeOf(roll, 100, strict))).toEqual(['success', 'setback', 'setback']);
     expect(degreeOf(99, 100, strict)).toBe('failure');
@@ -51,7 +48,7 @@ describe('degreeOf', () => {
 });
 
 describe('passDegree', () => {
-  // v1.1.4-S2's first box.
+  // The first acceptance box.
   test('`(a and b) or c` takes the Degree its formula says for each of the 64 combinations of three Checks\' Degrees', () => {
     const pass: PassFormula = ['or', ['and', 'a', 'b'], 'c'];
     const all = combinations(3);

@@ -4,8 +4,7 @@
 // `unavailability`, what `dispatch` refuses by, and the rest is how the page says it.
 
 import { unavailability, type Hero, type Unavailability, type World } from '@heroesim/engine';
-import { atHallWords, capitalised, dateOfTurn, nightOfTurn, unavailableChipWords, type Calendar } from '@heroesim/words';
-import { rowOf } from './names';
+import { atHallWords, capitalised, dateOfTurn, nightOfTurn, rowOf, unavailableChipWords, type Calendar } from '@heroesim/words';
 
 export interface Availability {
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */

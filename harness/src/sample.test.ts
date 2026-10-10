@@ -1,16 +1,17 @@
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, deserialise, type EngineDeps } from '@heroesim/engine';
+import { dirname, join, resolve } from 'node:path';
+import { deserialise, type EngineDeps } from '@heroesim/engine';
 import { afterEach, expect, test } from 'vitest';
+import { coreDeps } from './harness.test-support.js';
 import { playGame } from './play.js';
-import { samplePath, sampleSeeds, writeSample } from './sample.js';
+import { samplePath, writeSample } from './sample.js';
 
 // `npm run harness:sample` (pre-M0 review E8, DL-34), on short games written to a temporary
 // directory.
 
-const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
+const deps = coreDeps;
 /**
  * Every game ends within its first Days: below the floor from the start, with a Day's grace. The floor
  * stands above the starting Wealth, which is no debt (DL-210), as far as a start at -1,000 stood below 0.
@@ -29,9 +30,10 @@ function tempPath(): string {
   return join(dir, 'nested', 'sample.json');
 }
 
-test('writes to harness/samples/twenty-years.json, which Git ignores, trying seeds from seed-0001', () => {
-  expect(samplePath.replaceAll('\\', '/')).toMatch(/\/harness\/samples\/twenty-years\.json$/);
-  expect(sampleSeeds[0]).toBe('seed-0001');
+test('Git ignores the sample file it writes', () => {
+  const repositoryRoot = resolve(dirname(samplePath), '..', '..');
+  const checked = spawnSync('git', ['check-ignore', '-q', samplePath], { cwd: repositoryRoot });
+  expect(checked.status).toBe(0);
 });
 
 test('writes the first game that runs its full length, as a save that loads back', () => {

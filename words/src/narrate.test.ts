@@ -1,6 +1,9 @@
 import { loadContent } from '@heroesim/content/node';
 import {
   milestoneTypes,
+  type CheckRoll,
+  type Encounter,
+  type EncounterCheck,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -19,7 +22,7 @@ import { describe, expect, test } from 'vitest';
 import type { Calendar } from './calendar.js';
 import { crossed, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
-// v1.1.6-S12 (DL-186 item 1): the narration, one sentence for each event type, its names as slots.
+// DL-186 item 1: the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
 // holds, `<hero:hero-000007|Brenna Ashcombe>`, so the table pins the words and the slots apart from
 // either front end's names for them; `cli/src/namer.test.ts` and `web/src/state/namer.test.ts` hold
@@ -65,7 +68,7 @@ const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'world.created': event('world.created', [], { seed: 'demo' }),
-  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never }),
+  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never, wealth: 500 }),
   'guildmaster.generated': event('guildmaster.generated', [guildmasterId, guildId], { guildmasterId: guildmasterId as never, guildId }),
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
@@ -96,6 +99,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     target: 18,
     margin: -3.5,
     outcome: 'failure',
+    degree: 'failure',
+    decidedBy: 'steel',
+    checks: [{ key: 'steel', capability: 15, roll: 14.5, target: 18, margin: -3.5, degree: 'failure' }],
     injured: [heroId],
     died: [otherHeroId],
   }),
@@ -124,7 +130,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.injured': event('hero.injured', [heroId, questId], { heroId, questId, typeKey: 'deep-cut', healsOnTurn: 41 }),
   'hero.died': event('hero.died', [heroId, questId], { heroId, questId }),
   'hero.xp-gained': event('hero.xp-gained', [heroId], { heroId, questId, amount: 30 }),
-  'hero.morale-changed': event('hero.morale-changed', [heroId], { heroId, cause: 'roster-death', before: 45, after: 35, bandBefore: 'steady', bandAfter: 'low' }),
+  'hero.morale-changed': event('hero.morale-changed', [heroId], { heroId, cause: 'roster-death', questId, before: 45, after: 35, bandBefore: 'steady', bandAfter: 'low' }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
   'hero.trait-gained': event('hero.trait-gained', [heroId, questId], { heroId, traitKey: 'scarred', questId, encounterIndex: 1, encounterKey: 'ambush-on-the-road' }),
   'hero.trait-lost': event('hero.trait-lost', [heroId], { heroId, traitKey: 'lame', replacedBy: 'scarred' }),
@@ -155,6 +161,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     entityId: heroId,
     cause: 'quest-success',
+    questId,
     before: 3.5,
     after: 4.5,
     bandBefore: 'neutral',
@@ -228,6 +235,9 @@ const shown: Namer<string> = (slot: Slot): string => {
       return `<parties:${slot.form}:${slot.ids.join(', ')}>`;
     case 'command':
       return `<command:${slot.command}>`;
+    case 'date':
+    case 'entry':
+      return `<${slot.kind}:unexpected>`;
   }
 };
 
@@ -245,6 +255,9 @@ const aldred = `<hero:${otherHeroId}|Aldred Barrowby>`;
 const maud = `<name:${patronId}|Lady Maud>`;
 const osric = `<name:${guildmasterId}|Osric Vane>`;
 const barrow = `<quest:${questId}|${named(content.questTemplates, 'clear-the-barrow')}>`;
+const caravan = named(content.questTemplates, 'guard-the-caravan');
+const draught = named(content.items, 'healing-draught');
+const shirt = named(content.items, 'mail-shirt');
 
 /** Every event type's sentence: its words, and each slot where it stands. */
 const sentences: { [Type in EngineEventType]: string } = {
@@ -262,7 +275,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'quest.offered': `${maud} offered ${barrow}.`,
   'quest.expired': `${maud}'s ${barrow} expired untaken.`,
   'quest.taken': `${kestrel} sent <party:${partyId} with ${brenna}, ${aldred}> on <quest:${questId}>, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
-  'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure: ${brenna} was injured and ${aldred} was killed.`,
+  'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure, decided by ${content.encounters['ambush-on-the-road']?.checks[0]?.name}: ${brenna} was injured and ${aldred} was killed.`,
   'quest.resolved': `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${named(content.questTemplates, 'guard-the-caravan')}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}.`,
   'quest.loot': `${kestrel} found Loot on <quest:${questId}>: ${named(content.items, 'barrow-kings-blade')}<ids:item-000006>.`,
   'hero.injured': `${brenna} was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
@@ -281,7 +294,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 500 Wealth: its quarters are now grade 2.`,
   'hero.levelled': `${brenna} reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
   'patron.regard-changed': `${maud}'s Regard for ${kestrel} fell from neutral to cool when an Offer of theirs went untaken.`,
-  // A Hero a Guildmaster's Regard is for is a Hero slot (v1.1.7-S3, DL-209); a Patron or a Guildmaster a name.
+  // A Hero a Guildmaster's Regard is for is a Hero slot (DL-209); a Patron or a Guildmaster a name.
   'guildmaster.regard-changed': `${osric}'s Regard for ${brenna} rose from neutral to warm.`,
   'hero.regard-changed': `${brenna}'s Regard for ${aldred} rose from warm to close through a Module.`,
   'item.expended': `${kestrel}'s <party:${partyId}> used one ${named(content.items, 'healing-draught')} on ${brenna}: their Injury heals 1 Day sooner.`,
@@ -350,16 +363,86 @@ describe('the variations of a sentence', () => {
     ['a consumable that bonused a Check', varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
     ['a consumable that tried an Encounter again', varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never), /used one .+ to try Encounter 1 again\.$/],
     ['gear with neither id', varied('item.equipped', { stackId: null }), /<ids:> in /],
+    // Each branch of a word table the samples leave out, word for word (DL-231 item 4: `words` holds
+    // the narration's sentences; the front ends hold one sentence end to end each).
+    ['a Quest that failed', varied('quest.resolved', { band: 'fail', wealthDelta: 0, fameDelta: -2, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and failed: Wealth 0, Fame -2.`],
+    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded: Wealth +120, Fame +3.`],
+    ['an Injury healed 5 Days sooner', varied('item.expended', { days: 5 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna}: their Injury heals 5 Days sooner.`],
+    ["a Patron's Regard after a Quest of theirs failed", varied('patron.regard-changed', { cause: 'quest-failure', questId } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool after a Quest of theirs failed.`],
+    ["a Patron's Regard through a Module", varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool through a Module.`],
+    ["a Hero's Regard after a Quest together", varied('hero.regard-changed', { cause: 'shared-quest', questId } as never), `${brenna}'s Regard for ${aldred} rose from warm to close after a Quest together.`],
+    ["a Hero's Regard as time passed apart", varied('hero.regard-changed', { cause: 'decay' } as never), `${brenna}'s Regard for ${aldred} rose from warm to close as time passed apart.`],
+    ['gear back from a Hero who died', varied('item.returned', { cause: 'died' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who died.`],
+    ['gear back from a Hero who retired', varied('item.returned', { cause: 'retired' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who retired.`],
+    ['gear back from a Hero who was transferred', varied('item.returned', { cause: 'transferred' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who was transferred.`],
+    ['an Offer that expired unanswered', varied('guild.transfer-offer-expired', { cause: 'expired' }), `${wardens}'s Offer for ${brenna}<ids:${offerId}> expired unanswered.`],
+    ['an Offer that lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), `${wardens}'s Offer for ${brenna}<ids:${offerId}> lapsed as a Guild folded.`],
+    ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), `${kestrel} lost its Guildmaster to Retirement and folded.`],
+    ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), `${kestrel} went bankrupt and folded.`],
+    ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
+    ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`],
+    ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
+    // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
+    ['a Bankruptcy floor of 50', varied('guild.below-floor', { wealth: 40, floor: 50, dueDay: 13 }), `${kestrel}'s Wealth, 40, fell below the Bankruptcy floor of 50: Bankruptcy on the night of Year 1 Day 14 unless it is back to 50 or more on a night by then.`],
+    ['one common Item sold, by its name alone', varied('item.sold', { cause: 'sale', definitionKey: 'healing-draught', quantity: 1, unitPrice: 15, proceeds: 15, itemIds: [] }), `${kestrel} sold ${draught}<ids:> at the Market for 15 Wealth.`],
+    // Data-model rule 9: a Level gained says never the points Potential took, even when it took them all.
+    ['a Level gained whose every point Potential took', varied('hero.levelled', { level: 20, statDeltas: {}, pointsLost: 3 }), `${brenna} reached Level 20.`],
   ] as const)('%s', (_name, event, sentence) => {
-    expect(said(event as EngineEventOf<EngineEventType>)).toMatch(sentence);
+    if (typeof sentence === 'string') expect(said(event as EngineEventOf<EngineEventType>)).toBe(sentence);
+    else expect(said(event as EngineEventOf<EngineEventType>)).toMatch(sentence);
+  });
+
+  test("an Encounter's Degree, and the Check that decided it by content's name: of several, one named as its Encounter, one renamed", () => {
+    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
+    const [front] = ambush.checks as [EncounterCheck];
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const payload = {
+      ...samples['quest.encounter'].payload,
+      degree: 'setback' as const,
+      decidedBy: 'nerve',
+      checks: [
+        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
+        { key: 'nerve', ...roll, degree: 'setback' as const },
+      ],
+    };
+    const withChecks = (checks: EncounterCheck[], pass?: Encounter['pass']): typeof content => ({ ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks, ...(pass === undefined ? {} : { pass }) } } });
+    const line = (event: EngineEventOf<'quest.encounter'>, rows: typeof content): string => sentenceText(narrate(event, rows, calendar), shown);
+    const several = withChecks([front, { ...front, key: 'nerve', name: 'Nerve' }], ['and', front.key, 'nerve']);
+
+    expect(line({ ...samples['quest.encounter'], payload }, several)).toBe(`<party:${partyId} of ${kestrel}> failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: ${brenna} was injured and ${aldred} was killed.`);
+    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], died: [], checks: payload.checks.slice(0, 1) };
+    expect(line({ ...samples['quest.encounter'], payload: one }, withChecks([{ ...front, name: ambush.name }]))).toBe(`<party:${partyId} of ${kestrel}> came through ${ambush.name} (Encounter 2), a Triumph.`);
+    expect(line({ ...samples['quest.encounter'], payload: one }, withChecks([{ ...front, name: 'Steel' }]))).toBe(`<party:${partyId} of ${kestrel}> came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);
+  });
+
+  test("form's sentence: once, for the Party, naming no one, when form decided the Encounter either way, and none when it moved a Check that did not decide it", () => {
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
+    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
+    const line = (payload: EngineEventOf<'quest.encounter'>['payload']): Sentence => narrate({ ...samples['quest.encounter'], payload }, content, calendar);
+    const plain = sentenceText(line(base), shown);
+    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], died: [], checks: [{ ...front, degree: 'success' as const }] };
+    const raised = line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] });
+
+    expect(sentenceText(raised, shown)).toBe(`<party:${partyId} of ${kestrel}> came through ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Success, decided by front. Their high spirits carried them through.`);
+    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
+    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
+    expect(sentenceText(line({ ...base, checks: [other, front] }), shown)).toBe(plain);
+    expect(plain).not.toMatch(/spirits/);
+    // The form sentence is words alone: no slot follows where it begins.
+    const at = raised.findIndex((part) => part.kind === 'text' && part.text.includes('high spirits'));
+    expect(at).toBeGreaterThan(0);
+    expect(raised.slice(at + 1)).toEqual([]);
   });
 
   test("a module's own event, by its Module, its type and whom it concerns, a Hero as a Hero", () => {
-    const moduleEvent = (type: string, participants: string[]): ModuleEvent =>
-      ({ type, turn: 9, participants, labels: Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]]))), milestone: false, payload: {} }) as unknown as ModuleEvent;
+    const moduleEvent = (type: string, participants: string[], payload: unknown = {}): ModuleEvent =>
+      ({ type, turn: 9, participants, labels: Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]]))), milestone: false, payload }) as unknown as ModuleEvent;
 
     expect(sentenceText(narrate(moduleEvent('probe.fired', [heroId, patronId, guildId]), content, calendar), shown)).toBe(`The probe Module recorded probe.fired for ${brenna}, ${maud} and ${kestrel}.`);
     expect(sentenceText(narrate(moduleEvent('weather.storm-broke', []), content, calendar), shown)).toBe('The weather Module recorded weather.storm-broke.');
+    // A payload of any shape: the sentence reads none of it.
+    expect(sentenceText(narrate(moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), content, calendar), shown)).toBe(`The ledger Module recorded ledger.balanced for ${kestrel}.`);
     expect(sentenceText(narrate(moduleEvent('mystery', ['hero-000099', 'not-an-id']), content, calendar), shown)).toBe('A Module recorded mystery for <hero:hero-000099> and <name:not-an-id>.');
     const parts = narrate(moduleEvent('mystery', ['not-an-id']), content, calendar);
     expect(parts.find((part) => part.kind === 'name')).toMatchObject({ table: null, id: 'not-an-id', label: undefined });
@@ -392,7 +475,7 @@ describe('the words beside the sentences', () => {
   });
 });
 
-describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S3, DL-209, DL-206 item 13)", () => {
+describe("a Guildmaster's Regard names whom it is for by what they are (DL-209, DL-206 item 13)", () => {
   const regard = samples['guildmaster.regard-changed'];
   const forwhom = (entityId: string): string => sentenceText(narrate({ ...regard, labels: { ...regard.labels, [entityId]: labels[entityId] as string }, payload: { ...regard.payload, entityId: entityId as never } }, content, calendar), shown);
 
@@ -406,7 +489,7 @@ describe("a Guildmaster's Regard names whom it is for by what they are (v1.1.7-S
   });
 });
 
-describe('why a fast forward stopped, nine sentences (v1.1.7-S3, DL-209, DL-206 item 2)', () => {
+describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', () => {
   const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
   const world = {
     guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },

@@ -2,40 +2,22 @@
 // one facility by a grade for the next grade's cost in content. What the command does to an open
 // save and what it prints; `main.ts` opens the save, and writes it back only when this succeeds.
 //
-// The CLI holds no rule: the engine's `build` decides, and a refusal is its typed rejection put
-// into words here (ADR-0003).
+// The CLI holds no rule: the engine's `build` decides, and a refusal is its typed rejection in the
+// refusals' words (ADR-0003, DL-240).
 
 import {
   applyAction,
   nextImprovement,
   playerGuild,
   upkeep,
-  type BuildRejection,
   type EngineDeps,
   type GuildImproved,
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
 import { facilityIs, facilityNames, nameIn } from '@heroesim/words';
+import { refusalLine } from '../namer.js';
 import type { CommandOutcome } from './outcome.js';
-
-/** The engine's rejection in words. */
-function explain(rejection: BuildRejection, guildName: string): string {
-  switch (rejection.reason) {
-    case 'guild-folded':
-      return `${guildName} has folded and builds nothing.`;
-    case 'max-grade':
-      return (
-        `${guildName}'s ${facilityNames[rejection.facility]} ${facilityIs[rejection.facility]} at grade ${rejection.grade}, ` +
-        'the highest there is.'
-      );
-    case 'insufficient-wealth':
-      return (
-        `The next grade of ${guildName}'s ${facilityNames[rejection.facility]} costs ${rejection.cost} Wealth; ` +
-        `${guildName} has ${rejection.wealth}.`
-      );
-  }
-}
 
 /**
  * Builds the next grade of the named facility for the player's Guild under the save's own deps,
@@ -47,11 +29,12 @@ export function buildImprovement(
   document: WorldDocument,
   deps: EngineDeps,
 ): CommandOutcome {
+  const setting = { world: document.world, content: deps.content, calendar: deps.config };
   const guild = playerGuild(document.world);
-  if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
+  if (guild === undefined) return { ok: false, problem: refusalLine({ action: 'build', reason: 'no-player-guild' }, setting) };
 
   const result = applyAction(document, { kind: 'build', guildId: guild.id, facility: command.facility }, deps);
-  if (!result.ok) return { ok: false, problem: explain(result.rejection, guild.name) };
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
 
   const { world } = result.document;
   const built = world.guilds[guild.id];

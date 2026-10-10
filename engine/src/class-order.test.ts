@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { classComparator } from './class-order.js';
 import { testContent } from './world.test-support.js';
 
-// The Classes' order, as content declares it (v1.1.6-S14, DL-186 item 24).
+// The Classes' order, as content declares it (DL-186 item 24).
 
 describe('classComparator', () => {
   test("orders Class keys by the content's declared order, not by name or by the table's keys", () => {

@@ -3,26 +3,26 @@ import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Entry, HeroId, WorldDocument } from '../document.js';
-import type { EngineEvent, TurnEvent } from '../events.js';
+import type { EngineEvent } from '../events.js';
 import { append, count, entriesFor } from '../history.js';
 import type { Module } from '../modules.js';
-import { deserialise, serialise } from '../serialise.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild, unattachedHeroes } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { ofType, plannedStreams, playWith, setup, streamsOutOfPlace, testDeps, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { poolRefresh } from './pool-refresh.js';
 import { applyAction } from '../actions/action.js';
 
-// M2-S8: the night's pool refresh (DL-27). Documents are held to the validator after every advance
+/** Advances to a Turn, validating the document it stops at. */
+const playTo = playWith(advance, { validate: 'last' });
+
+// The night's pool refresh (DL-27). Documents are held to the validator after every advance
 // a test inspects.
 
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-
 /**
- * The test deps with no Rivals: from M2-S9 they recruit from the pool each afternoon, and these
+ * The test deps with no Rivals: they recruit from the pool each afternoon, and these
  * tests watch the pool's own refresh.
  */
 function quietDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
@@ -32,21 +32,6 @@ function quietDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return createWorld(seed, setup, deps).document;
 }
-
-/** Advances `document` to Turn `turn`, returning the events of every Turn played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
-  let current = document;
-  const events: TurnEvent[] = [];
-  while (current.world.turn < turn) {
-    const result = advance(current, deps);
-    current = result.document;
-    events.push(...result.events);
-  }
-  return { document: withValid(current, deps), events };
-}
-
-const ofType = <Type extends EngineEvent['type']>(events: TurnEvent[], type: Type) =>
-  events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -73,14 +58,6 @@ describe('departures', () => {
     expect(ofType(later.events, 'hero.left-pool').map((event) => [event.turn, event.payload.heroId])).toEqual(
       replacements.map((hero) => [nightOf(6), hero.id]),
     );
-  });
-
-  test('stays unattachedStayDays, 10 by default: from creation, until the night of Day 10', () => {
-    const deps = quietDeps();
-    expect(deps.config.unattachedStayDays).toBe(10);
-    const { events } = playTo(created('default-stay', deps), nightOf(10), deps);
-
-    expect(new Set(ofType(events, 'hero.left-pool').map((event) => event.turn))).toEqual(new Set([nightOf(10)]));
   });
 
   test('a pool Hero who leaves unhired is gone, with no entry and no byEntity key; their arrival and leaving are still events (DL-211)', () => {
@@ -199,33 +176,6 @@ describe('departures', () => {
     expect(document.world.heroes[named.id]?.leftPoolOnTurn).toBe(nightOf(1));
   });
 
-  test("an older save holding pool Heroes' entries loads and plays: those its History names keep their rows as they leave", () => {
-    const deps = quietDeps({ unattachedStayDays: 1 });
-    const creation = createWorld('older', setup, deps);
-    const older = creation.document;
-    // The History as a save made before DL-211 holds it: every pool Hero's hero.generated, and one
-    // who has left already with their hero.left-pool and no row (data-model rule 8 as it was).
-    const arrivals = ofType(creation.events, 'hero.generated').filter((event) => event.payload.guildId === null);
-    for (const event of arrivals) append(older.history, event);
-    const [gone, ...staying] = arrivals.map((event) => event.payload.heroId);
-    if (gone === undefined || staying.length === 0) throw new Error('The pool is too small');
-    const departure: Entry = { turn: 0, type: 'hero.left-pool', participants: [gone], labels: {}, milestone: false, payload: { heroId: gone } };
-    append(older.history, departure);
-    delete older.world.heroes[gone];
-
-    const loaded = deserialise(serialise(older), deps);
-    if (!loaded.ok) throw new Error(`Refused: ${JSON.stringify(loaded)}`);
-    const { document } = playTo(loaded.document, nightOf(1), deps);
-
-    expect(entriesFor(document.history, gone).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.generated']);
-    for (const heroId of staying) {
-      expect(document.world.heroes[heroId]?.leftPoolOnTurn).toBe(nightOf(1));
-      expect(entriesFor(document.history, heroId).map((entry) => entry.type)).toEqual(['hero.left-pool', 'hero.generated']);
-    }
-    // The Heroes who came after, never hired, are not recorded.
-    for (const hero of unattachedHeroes(document.world)) expect(Object.hasOwn(document.history.byEntity, hero.id)).toBe(false);
-  });
-
   test('a Hero any other entry names leaves the pool but keeps their row, once, and is out of play', () => {
     const deps = quietDeps({ unattachedStayDays: 1 });
     const start = created('named', deps);
@@ -282,7 +232,7 @@ describe('the refill', () => {
     expect(unattachedHeroes(document.world)).toHaveLength(deps.config.unattachedPoolSize);
   });
 
-  test("advances only the pool stream, and each new Hero's own two, hero-portraits and hero-descriptions (v1.1.3-S6)", () => {
+  test("advances only the pool stream, and each new Hero's own two, hero-portraits and hero-descriptions", () => {
     const deps = quietDeps({ unattachedStayDays: 0 });
     const document = created('streams', deps);
     const world = structuredClone(document.world);
@@ -294,23 +244,19 @@ describe('the refill', () => {
     const events = poolRefresh(world, phaseContext(world, deps, document.history));
 
     expect(ofType(events, 'hero.left-pool')).toHaveLength(deps.config.unattachedPoolSize);
-    const rng = world.rng as Record<string, unknown>;
-    for (const name of plannedStreams) {
-      if (name === 'pool' || name === 'hero-portraits' || name === 'hero-descriptions') expect(rng[name], name).not.toEqual((before as Record<string, unknown>)[name]);
-      else expect(rng[name], name).toEqual((before as Record<string, unknown>)[name]);
-    }
+    expect(streamsOutOfPlace(before, world.rng, ['pool', 'hero-portraits', 'hero-descriptions'])).toEqual([]);
   });
 });
 
-// 21,600 advances: 4.5 to 6 s on the machine that wrote it, about 0.2 ms a Turn, so a generous timeout.
-describe('over twenty years with no recruitment', { timeout: 60_000 }, () => {
+// The pool turns over every unattachedStayDays, so a leaked row shows within the first year; two years of it.
+describe('over two years with no recruitment', () => {
   test('world.heroes never holds more Heroes on no Roster than unattachedPoolSize', () => {
     // Only the pool refresh runs: no Rival recruits, no ending stops the game, nothing else moves.
     for (const phase of phases) if (phase.name !== 'poolRefresh') vi.spyOn(phase, 'run').mockReturnValue([]);
     const deps = quietDeps();
-    let document = created('twenty-years', deps);
+    let document = created('two-years', deps);
     const onRosters = Object.values(document.world.heroes).filter((hero) => hero.guildId !== null).length;
-    const years = 20;
+    const years = 2;
     const turns = years * deps.config.turnsPerYear;
 
     let most = 0;

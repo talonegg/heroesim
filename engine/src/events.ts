@@ -6,7 +6,6 @@
 import type { MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
-  Degree,
   EncounterKey,
   ImprovementKey,
   InjuryTypeKey,
@@ -49,10 +48,9 @@ export type WorldCreated = Entry<'world.created', { seed: string }>;
 /**
  * A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster.
  * `wealth` is the Guild's founding Wealth (DL-120 item 4, DL-121), for every Guild founded, the
- * player's, the founding Rivals' and each replacement's; optional, as `questId` is, since an older save's
- * foundings have none.
+ * player's, the founding Rivals' and each replacement's; required, as the validator holds it (DL-246).
  */
-export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId; wealth?: number }>;
+export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId; wealth: number }>;
 
 /** A Guildmaster was generated for a Guild; names both. */
 export type GuildmasterGenerated = Entry<
@@ -196,21 +194,12 @@ export type QuestTaken = Entry<
  * the roll, the target it had to reach, the margin between them (the roll less
  * `checkDegrees.success` times the target, the same at its default of 1), the outcome, and whom its
  * consequences injured or killed. Also its Degree (DL-152), the Check that decided it, whose roll,
- * target, margin and outcome those are, and each of its Checks rolled; an entry written before
- * DL-152 has none of the three, and reads as its outcome, a Success or a Failure (`encounterDegree`).
- * One per Encounter reached, in sequence order (`index` from 0), all before the Quest's
- * `quest.resolved`. Names the Quest, the Party and the Guild.
+ * target, margin and outcome those are, and each of its Checks rolled: the three are required, and
+ * the validator refuses an entry without any of them (DL-247). One per Encounter reached, in
+ * sequence order (`index` from 0), all before the Quest's `quest.resolved`. Names the Quest, the
+ * Party and the Guild.
  */
-export type QuestEncounter = Entry<
-  'quest.encounter',
-  Omit<EncounterResult, 'degree' | 'decidedBy' | 'checks'> &
-    Partial<Pick<EncounterResult, 'degree' | 'decidedBy' | 'checks'>> & { questId: QuestId; partyId: PartyId; guildId: GuildId }
->;
-
-/** The Degree a `quest.encounter` entry records (v1.1.4-S2), or, for one written before, its outcome's. */
-export function encounterDegree(payload: Pick<QuestEncounter['payload'], 'degree' | 'outcome'>): Degree {
-  return payload.degree ?? (payload.outcome === 'success' ? 'success' : 'failure');
-}
+export type QuestEncounter = Entry<'quest.encounter', EncounterResult & { questId: QuestId; partyId: PartyId; guildId: GuildId }>;
 
 /**
  * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
@@ -306,25 +295,56 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer' | 'module';
 
 /**
+ * The causes a Quest's return makes, for each type that names the Quest on them (DL-112 item 2):
+ * an entry of one of these causes carries `questId`, and one of any other cause carries none. The
+ * validator refuses an entry of a Quest's cause without it (DL-246).
+ */
+export const questCauses = {
+  'hero.morale-changed': ['encounters', 'strong-success', 'roster-death'],
+  'patron.regard-changed': ['quest-success', 'quest-failure'],
+  'guildmaster.regard-changed': ['quest-success', 'quest-failure'],
+  'hero.regard-changed': ['shared-quest'],
+} as const;
+
+/** `cause`, and `questId` with it when it is one of `QuestCause`, a Quest's: required then, and absent otherwise. */
+export type NamingTheQuest<Cause extends string, QuestCause extends Cause> =
+  | { cause: QuestCause; questId: QuestId }
+  | { cause: Exclude<Cause, QuestCause>; questId?: never };
+
+/**
+ * `cause`, with `questId` when the cause is one of `causes`, a Quest's, as a payload's fields: what
+ * an entry's writer spreads into it. Throws when a Quest's cause comes without its Quest, or another
+ * with one: a programming error.
+ */
+export function namingTheQuest<Cause extends string, QuestCause extends Cause>(
+  causes: readonly QuestCause[],
+  cause: Cause,
+  questId: QuestId | undefined,
+): NamingTheQuest<Cause, QuestCause> {
+  const ofAQuest = (causes as readonly string[]).includes(cause);
+  if (ofAQuest !== (questId !== undefined)) {
+    throw new RangeError(`A change caused by ${cause} ${ofAQuest ? 'names the Quest' : 'names no Quest'}, but ${String(questId)} was given`);
+  }
+  return (questId === undefined ? { cause } : { cause, questId }) as NamingTheQuest<Cause, QuestCause>;
+}
+
+/**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
  * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero. `moduleId`
  * names the module whose effect moved it, for the `module` cause alone. `questId` names the Quest
- * whose return caused it, for `encounters`, `strong-success` and `roster-death`, and the Quest is a
- * participant (DL-112 item 2); an entry written before DL-114 has none.
+ * whose return caused it, for `encounters`, `strong-success` and `roster-death` (`questCauses`), and
+ * the Quest is a participant (DL-112 item 2).
  */
 export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
   {
     heroId: HeroId;
-    cause: MoraleCause;
-    /** The Quest whose return caused it, for a Quest's causes (M9-F1, DL-112 item 2). */
-    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: MoraleBand;
     bandAfter: MoraleBand;
     moduleId?: ModuleId;
-  }
+  } & NamingTheQuest<MoraleCause, (typeof questCauses)['hero.morale-changed'][number]>
 >;
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
@@ -427,16 +447,13 @@ export type PatronRegardChanged = Entry<
   {
     patronId: PatronId;
     guildId: GuildId;
-    cause: PatronRegardCause;
-    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
-    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
     /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
     moduleId?: ModuleId;
-  }
+  } & NamingTheQuest<PatronRegardCause, (typeof questCauses)['patron.regard-changed'][number]>
 >;
 
 /**
@@ -458,16 +475,13 @@ export type GuildmasterRegardChanged = Entry<
     guildmasterId: GuildmasterId;
     guildId: GuildId;
     entityId: EntityId;
-    cause: GuildmasterRegardCause;
-    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
-    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
     /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
     moduleId?: ModuleId;
-  }
+  } & NamingTheQuest<GuildmasterRegardCause, (typeof questCauses)['guildmaster.regard-changed'][number]>
 >;
 
 // ── Regard between Heroes (M4-S4, data-model rule 10, DL-46) ────────────────────────────────
@@ -492,16 +506,13 @@ export type HeroRegardChanged = Entry<
   {
     heroId: HeroId;
     entityId: EntityId;
-    cause: HeroRegardCause;
-    /** The Quest shared, for `shared-quest` (M9-F1, DL-112 item 2). */
-    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
     /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
     moduleId?: ModuleId;
-  }
+  } & NamingTheQuest<HeroRegardCause, (typeof questCauses)['hero.regard-changed'][number]>
 >;
 
 // ── Items (M5) ───────────────────────────────────────────────────────────────────────────────

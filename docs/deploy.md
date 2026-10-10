@@ -17,8 +17,8 @@ One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, 
 **A release is a merged pull request** (DL-122, DL-124). `main` is production: only a release
 branch's pull request moves it, and each merge releases.
 1. Work lands on a dev branch, the line's `v#.#-dev` or a patch's own `v1.1.N-dev`, and the line's
-   `v#.#-release` is moved to it. `check` runs on every push to either: lint, typecheck, the tests at Node 22 and at `.node-version`, and the
-   browser specs in Chromium at three widths.
+   `v#.#-release` is moved to it. `check` runs on every push to either: lint, typecheck and the
+   tests on `.node-version`, the floor (DL-235), and the browser specs in Chromium at three widths.
 2. A push that leaves the release branch ahead of `main` makes CI open the branch's pull request
    to `main`, or update the open one (`release-pr.yml`). The pull request names the tag its merge
    will release.
@@ -26,10 +26,16 @@ branch's pull request moves it, and each merge releases.
    line's next patch, `v#.#.0` for a line's first (`web/scripts/release.mjs`), and runs the
    deploy (`deploy.yml`):
    - it refuses a tag not on `main`, or older than the newest release;
-   - it runs the checks and the browser specs again;
+   - it runs the lint and the typecheck;
+   - it runs `npm test` and the browser specs again unless the tag's tree has passed them already
+     (DL-235). `web/scripts/tested.mjs` skips them only when the tag is a merge whose tree is its
+     second parent's, the release branch's tip, and GitHub records a push run of `check` that
+     passed on that tip. Anything uncertain runs them: a deploy run by hand, no second parent,
+     another tree, GitHub's record unread, or no run of `check` that passed. The run's summary
+     says which, and why;
    - it reads that Pages's production branch is `main`, so that no upload is a preview;
-   - it runs `npm run deploy` from its clean checkout of the tag, which fails if Pages took the
-     upload as anything but production;
+   - it runs `npm run deploy` from its clean checkout of the tag, which builds the page and its
+     bundle gate every time, and fails if Pages took the upload as anything but production;
    - it runs `npm run e2e:live -w web` on both addresses;
    - it publishes the record as the tag's GitHub Release.
 

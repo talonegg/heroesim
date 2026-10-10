@@ -13,7 +13,7 @@ import {
 import { createStreams, next } from './rng.js';
 import { testContent } from './world.test-support.js';
 
-// v1.1.3-S5 (DL-134 item 5, DL-135 items 3 and 4): the Portrait chosen to fit a person already drawn,
+// DL-134 item 5, DL-135 items 3 and 4: the Portrait chosen to fit a person already drawn,
 // at its seam. Each test builds the pictures it needs, and holds the choice to exactly one draw of the
 // stream whatever the list, so that the pictures content holds never move a later draw.
 

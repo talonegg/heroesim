@@ -1,35 +1,26 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { contentChecks, editJson, readContentVersion, Undone } from '@heroesim/content/write';
-import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, launchChromium, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { run } from './cli.js';
 import { DraftError } from './errors.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
-import { git, noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
+import { git, noisePng, readJson, root, scratch, status, upload, writeJson } from './test-support.js';
 import { writeRows } from './write-rows.js';
 
-// `write-rows` and `apply` (v1.1.3-S2): each one transaction on a scratch copy of the repository,
+// `write-rows` and `apply`: each one transaction on a scratch copy of the repository,
 // made a git repository so that `git status` shows what each left behind.
 
 const committedMale = picturePaths(root, 'guildmaster', 'male', 'gm-male-01').picture;
 const committedFemale = picturePaths(root, 'guildmaster', 'female', 'gm-female-01').picture;
 
-const scratches: (() => void)[] = [];
-afterEach(() => {
-  for (const remove of scratches.splice(0)) remove();
-});
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
-  scratches.push(remove);
-  return dir;
-}
 
 /**
  * A scratch copy held back to the owner's two pictures of v1.1.2, gm-female-01 and gm-male-01, and
- * committed: since v1.1.3-S4 the game holds gm-female-01..20 and gm-male-01..20, and these tests
+ * committed: the game holds gm-female-01..20 and gm-male-01..20, and these tests
  * take gm-male-02 or gm-female-02 as the next key. Each file keeps its layout, `portraits.json` the
  * one of v1.1.2, a role's lists on one line.
  */
@@ -154,7 +145,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
     expect(intake.pictures.map((each) => each.key)).toEqual(['gm-male-02']);
     expect(intake.contentVersion).toEqual({ from: before, to: before + 1 });
     expect(readContentVersion(dir)).toBe(before + 1);
-    // Raised through its file, a line of the changelog saying why (v1.1.6-S4, DL-186 item 14).
+    // Raised through its file, a line of the changelog saying why (DL-186 item 14).
     expect(readJson<{ changelog: string[] }>(dir, 'content/version.json').changelog.at(-1)).toBe(
       `${before + 1} from the portrait tool's intake 2026-10-02 (\`docs/portraits/intake/2026-10-02.md\`).`,
     );
@@ -183,7 +174,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
     // Each content file keeps its layout: the key joins its role's line, and the row is added below
     // the last, whose closing brace alone gains a comma (a row copied from the one above may show as
     // its lines added whole, the comma sliding with them). A field on a line each, and the hooks, which
-    // gm-male-01's row has since v1.1.3-S4, opened out a sentence to a line.
+    // gm-male-01's row has, opened out a sentence to a line.
     const hooks = Array.isArray(row.hooks) ? row.hooks.length + 1 : 0;
     const rowLines = Object.keys(row).length + 2 + hooks;
     const changed = numstat(dir);
@@ -353,7 +344,7 @@ describe('write-run and apply', () => {
     delete files.portraitAppearances.portraits['gm-female-01'];
   };
 
-  test("write-run refuses a run that apply would undo for the tool's check, writing nothing (v1.1.3-S8)", async () => {
+  test("write-run refuses a run that apply would undo for the tool's check, writing nothing", async () => {
     const dir = scratch();
     const before = status(dir);
     const refused = writeRun(dir, runDraft(dir, dropFemale01), { date: '2026-10-02' });
@@ -362,7 +353,7 @@ describe('write-run and apply', () => {
     expect(status(dir)).toBe(before);
   });
 
-  test("apply takes a run that differs from the content only in a row's order of fields as no change, as diff does (v1.1.3-S8)", async () => {
+  test("apply takes a run that differs from the content only in a row's order of fields as no change, as diff does", async () => {
     const dir = scratch();
     const written = await writeRun(
       dir,
@@ -379,7 +370,7 @@ describe('write-run and apply', () => {
 
   test('apply of a run that breaks a check is undone, leaving the tree as it was', async () => {
     const dir = scratch();
-    // Written whole, then edited on disk, since write-run refuses such a run (v1.1.3-S8).
+    // Written whole, then edited on disk, since write-run refuses such a run.
     const written = await writeRun(dir, runDraft(dir, () => undefined), { date: '2026-10-02' });
     const broken = runDraft(dir, dropFemale01);
     for (const [name, value] of [['portraits.json', broken.portraits], ['portrait-appearances.json', broken.portraitAppearances]] as const) {

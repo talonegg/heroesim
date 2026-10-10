@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
 
-// v1.1.6-S11 (DL-186 item 1): why a Hero cannot go, the CLI's words and the page's, one table. The
-// CLI's `equip` said "their gear" until v1.1.6-S11; Gear is a glossary term (docs/agents/ui-text.md).
+// DL-186 item 1: why a Hero cannot go, the CLI's words and the page's, one table. The
+// CLI's `equip` says "their Gear" (DL-197); Gear is a glossary term (docs/agents/ui-text.md).
 
 describe('why a Hero cannot go', () => {
   test.each([

@@ -1,35 +1,24 @@
+// @vitest-environment node
 import {
+  bestParties,
   addStack,
   availableHeroes,
   holdings,
   offeredQuests,
-  playerGuild,
   sellPrice,
-  type Guild,
   type HeroId,
   type HolderQuery,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createItem, partyFor } from '@heroesim/engine/testing';
+import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
-import { changed, holding, played, started } from './game.test-support';
+import { changed, documentOf, holding, played, playerOf, started } from './game.test-support';
 import { playDeps, type GameState } from './reducer';
 import { faceted } from './facets';
 import { storesView, type StoresRow } from './stores';
 
-// The Stores (M9-F3, DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): everything the Guild owns,
+// The Stores (DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): everything the Guild owns,
 // wherever it is, read from the engine's `holdings` and `carriedGear`; read only.
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game');
-  return state.document;
-}
-
-function playerOf(document: WorldDocument): Guild {
-  const guild = playerGuild(document.world);
-  if (guild === undefined) throw new Error("no player's Guild");
-  return guild;
-}
 
 /**
  * The Lantern with three whetstones, one of which goes with a Party it sends, so the stack is held in
@@ -42,7 +31,7 @@ function stocked(): { state: GameState; away: HeroId; home: HeroId } {
   const guild = playerOf(document);
   const available = availableHeroes(document.world, guild);
   const sent = offeredQuests(document.world).flatMap((quest) => {
-    const heroIds = partyFor(document.world, guild, quest, available, playDeps(document));
+    const heroIds = bestParties(document.world, guild, playDeps(document)).party(quest, available)?.heroIds ?? null;
     return heroIds === null || heroIds.length === guild.rosterIds.length ? [] : [{ quest, heroIds }];
   })[0];
   if (sent === undefined) throw new Error('no Quest a part of the Roster can staff');
@@ -73,9 +62,12 @@ function engineHas(document: WorldDocument, holder: HolderQuery): { definitionKe
   ];
 }
 
-describe('storesView (M9-F3)', () => {
+describe('storesView', () => {
+  // One stocked game for the tests below, which read it and play none of it on (ADR-0008).
+  const stock = stocked();
+
   test("matches the engine's holdings for every holder: the Holding, each Hero on the Roster, and each Party away", () => {
-    const { state } = stocked();
+    const { state } = stock;
     const document = documentOf(state);
     const guild = playerOf(document);
     const view = storesView(document);
@@ -104,7 +96,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('a stack held in two places is a row in each: two whetstones held, one with the Party', () => {
-    const view = storesView(documentOf(stocked().state));
+    const view = storesView(documentOf(stock.state));
     const whetstones = view?.rows.filter((row) => row.definitionKey === 'whetstone');
     expect(whetstones?.map((row) => [row.where, row.quantity])).toEqual([
       ['held', 2],
@@ -115,7 +107,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('an Item on a Hero away names the Hero, away on the Quest, and a unique Item is a row of one', () => {
-    const { state, away, home } = stocked();
+    const { state, away, home } = stock;
     const document = documentOf(state);
     const view = storesView(document);
     const jack = view?.rows.find((row) => row.definitionKey === 'padded-jack');
@@ -133,7 +125,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('gives what a held Item sells for, as the Market prices it, and nothing for one carried or away', () => {
-    const document = documentOf(stocked().state);
+    const document = documentOf(stock.state);
     const deps = playDeps(document);
     for (const row of storesView(document)?.rows ?? []) {
       expect(row.sellsFor).toBe(row.where === 'held' ? sellPrice(row.definitionKey, deps) : null);
@@ -141,7 +133,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('filters by kinds and by places, several of each, and counts each option against the other filter (DL-206 items 26 to 29)', () => {
-    const view = storesView(documentOf(stocked().state));
+    const view = storesView(documentOf(stock.state));
     if (view === null) throw new Error('no view');
     const shown = (choices: Parameters<typeof faceted<StoresRow, 'kind' | 'where'>>[2]) => faceted(view.rows, view.facets, choices);
     const keys = (rows: readonly StoresRow[]) => rows.map((row) => row.definitionKey).sort();
@@ -187,7 +179,7 @@ describe('storesView (M9-F3)', () => {
   });
 
   test('says in a sentence how much the Guild owns, and when it owns nothing', () => {
-    expect(storesView(documentOf(stocked().state))?.summary).toBe('The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its Parties.');
+    expect(storesView(documentOf(stock.state))?.summary).toBe('The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its Parties.');
     const bare = changed(started('stores-bare'), (document) => {
       document.world.items = {};
       document.world.stacks = {};

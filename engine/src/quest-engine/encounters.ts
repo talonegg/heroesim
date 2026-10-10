@@ -6,8 +6,9 @@
 // Every draw is from the `encounters` stream (ADR-0009, pre-M0 review D7), which is new
 // in M4, so the Board a seed produces is what it was before: the Quest Generator draws the Board
 // from `board` exactly as it did, and the sequence beside it from `encounters`. The sequence is
-// drawn when a Quest is generated and stored on its row as `encounterKeys`. A Quest generated
-// before M4 has none; it draws its sequence the same way when it resolves (`sequenceFor`).
+// drawn when a Quest is generated and stored on its row as `encounterKeys`, one or more (DL-248). A
+// Quest whose Encounters content no longer defines draws its sequence the same way when it resolves
+// (`sequenceFor`, data-model rule 5).
 //
 // v1.1.4-S8 (DL-148 items 22 and 23): the Encounter of a kind is drawn by `weightedPick`, each weighted
 // `encounterTagWeight` to the power of the tags it shares with the template, still one draw, which at
@@ -133,11 +134,10 @@ export function storedSequence(quest: Pick<Quest, 'encounterKeys'>, content: Pic
 
 /**
  * The Encounters `quest` is resolved through, in order (M4-S2). A Quest's own `encounterKeys`, drawn
- * when it was generated; for a Quest with none, generated before M4 (DL-42), a sequence drawn now
- * from the `encounters` stream as the Quest Generator would have drawn it, by its template's kinds
- * and count at its difficulty, or, for a template content no longer defines, one Encounter drawn
- * among all of content's (data-model rule 5). A stored key content no longer defines is left out,
- * and a Quest left with none draws its sequence now, as one generated before M4 does.
+ * when it was generated, each key content no longer defines left out (data-model rule 5); a Quest
+ * left with none draws its sequence now from the `encounters` stream, as the Quest Generator would
+ * have drawn it, by its template's kinds and count at its difficulty, or, for a template content no
+ * longer defines, one Encounter drawn among all of content's.
  *
  * Throws on a programming error: a world without the `encounters` stream, when it must draw, or
  * content with no Encounter at all.

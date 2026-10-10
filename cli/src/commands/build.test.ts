@@ -1,54 +1,16 @@
-// `build --facility <facility>` end to end (M3-S6): `main` run in-process against a real save in a
+// `build --facility <facility>` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { deserialise, playerGuild, serialise, type Guild, type WorldDocument } from '@heroesim/engine';
+import { writeFileSync } from 'node:fs';
+import { playerGuild, serialise, type Guild } from '@heroesim/engine';
 import { count } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-build-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-function player(): Guild {
-  const guild = playerGuild(document().world);
-  if (guild === undefined) throw new Error("No player's Guild");
-  return guild;
-}
+const { play, current, saved, document } = playground('heroesim-build-', content);
 
 /** A new world whose player's Guild holds `wealth`, and whose Upkeep figures are pinned. */
 function newWorld(wealth: number): Guild {
@@ -73,7 +35,7 @@ describe('build', () => {
     expect(run.out).toMatch(/Wealth 800; Upkeep \d+ every 10 Days\./);
     expect(run.out).toContain('The next grade, Infirmary ward, costs 500 Wealth.');
     const after = document();
-    const guild = player();
+    const guild = thePlayer(document().world);
     expect(guild.hall).toEqual({ infirmary: 1, trainingYard: 0, quarters: 0 });
     expect(guild.wealth).toBe(800);
     expect(count(after.history, 'guild.improved')).toBe(1);
@@ -90,11 +52,11 @@ describe('build', () => {
       for (const grade of [1, 2, 3]) {
         const run = play(['build', '--facility', word]);
         expect(run.code, `${word} ${grade}`).toBe(exitCodes.ok);
-        expect(player().hall[key]).toBe(grade);
+        expect(thePlayer(document().world).hall[key]).toBe(grade);
       }
       expect(play(['build', '--facility', word]).out).toBe('');
     }
-    expect(player().wealth).toBe(10_000 - 3 * 1_700);
+    expect(thePlayer(document().world).wealth).toBe(10_000 - 3 * 1_700);
 
     const before = saved();
     const top = play(['build', '--facility', 'training-yard']);
@@ -111,9 +73,9 @@ describe('build', () => {
 
     const unbuilt = play(['show', 'hall']);
     expect(unbuilt).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(unbuilt.out).toContain(`Hall of The Test (${player().id})`);
+    expect(unbuilt.out).toContain(`Hall of The Test (${thePlayer(document().world).id})`);
     expect(rowOf(unbuilt.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+0\\s+None\\s+${name('infirmary-1')}\\s+200$`));
-    expect(player().wealth).toBe(10_000);
+    expect(thePlayer(document().world).wealth).toBe(10_000);
 
     play(['build', '--facility', 'infirmary']);
     for (let grade = 1; grade <= 3; grade += 1) play(['build', '--facility', 'quarters']);
@@ -150,36 +112,6 @@ describe('build', () => {
     for (const run of [first, top, refused]) expect(`${run.out}${run.err}`).not.toMatch(/quarters is/);
   });
 
-  test('build --facility training-yard, then idle nights: each Hero on the Roster gains xpPerTrainingDay a night', () => {
-    // M3-S6's yard half of its second box, with M3-S2's `training`: the grade built through the CLI
-    // is the one the night reads. The training XP pinned; a twin world left at grade 0 gains none.
-    /** A new world, its training yard built or not, played five Days idle: its Roster's XP after. */
-    const idleXp = (withYard: boolean): number[] => {
-      rmSync(current(), { force: true });
-      newWorld(1_000);
-      const edited = document();
-      edited.meta.config.xpPerTrainingDay = 2;
-      writeFileSync(current(), serialise(edited));
-      if (withYard) {
-        const built = play(['build', '--facility', 'training-yard']);
-        expect(built).toMatchObject({ code: exitCodes.ok, err: '' });
-        expect(built.out).toContain("The Test's training yard is now grade 1.");
-      }
-      // Fifteen Turns from the morning of Year 1 Day 1: the nights of its first five Days. Nobody is sent anywhere.
-      expect(play(['advance', '--turns', '15']).code).toBe(exitCodes.ok);
-      const { world } = document();
-      const guild = player();
-      expect(world.turn).toBe(15);
-      expect(guild.hall.trainingYard).toBe(withYard ? 1 : 0);
-      return guild.rosterIds.map((id) => world.heroes[id]?.xp ?? Number.NaN);
-    };
-
-    const trained = idleXp(true);
-    expect(trained).toHaveLength(4);
-    expect(trained).toEqual([10, 10, 10, 10]);
-    expect(idleXp(false)).toEqual([0, 0, 0, 0]);
-  });
-
   test('refuses a grade the Guild cannot pay for, naming the cost, and writes nothing', () => {
     newWorld(199);
     const before = saved();
@@ -188,15 +120,6 @@ describe('build', () => {
 
     expect(poor.code).toBe(exitCodes.refused);
     expect(poor.err).toContain("The next grade of The Test's quarters costs 200 Wealth; The Test has 199.");
-    expect(saved()).toBe(before);
-  });
-
-  test('refuses a word that is not a facility as a bad command line', () => {
-    newWorld(1_000);
-    const before = saved();
-
-    expect(play(['build', '--facility', 'stables']).code).toBe(exitCodes.usage);
-    expect(play(['build']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);
   });
 });

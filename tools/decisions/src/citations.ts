@@ -32,10 +32,13 @@ export function unknownCitations(files: readonly { file: string; text: string }[
   return files.flatMap(({ file, text }) => citationsIn(text, file)).filter((cited) => !known.has(cited.number));
 }
 
-/** The repository's files as git lists them: tracked, or new and not ignored, with `/`. */
+/**
+ * The repository's files as git lists them: tracked, or new and not ignored, with `/`. The probe
+ * files engine/src/boundary.test.ts writes and deletes while other tests run are left out (DL-236).
+ */
 function listed(root: string): string[] {
   const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
-  return [...new Set(files.split('\0').filter(Boolean))];
+  return [...new Set(files.split('\0').filter((file) => file !== '' && !/(^|\/)boundary-probe-/.test(file)))];
 }
 
 /** Every path in the repository as git lists it, with the folders that hold its files and the root, `.`. */
@@ -47,6 +50,17 @@ export function repositoryPaths(root: string): Set<string> {
   return paths;
 }
 
+/** Whether `file` is of the kinds `extensions` names, by extension or, for a dotfile such as `.gitignore`, by name. */
+function ofKind(file: string, kinds: ReadonlySet<string>): boolean {
+  return kinds.has(path.extname(file)) || kinds.has(path.posix.basename(file));
+}
+
+/** Those of `files` of the kinds `extensions` names, as `repositoryFiles` chooses them. */
+export function ofKinds<T extends { file: string }>(files: readonly T[], extensions: Iterable<string>): T[] {
+  const kinds = new Set(extensions);
+  return files.filter(({ file }) => ofKind(file, kinds));
+}
+
 /**
  * The repository's files of the kinds `extensions` names, by extension or, for a dotfile such as
  * `.gitignore`, by name, as git lists them: tracked, or new and not ignored.
@@ -54,7 +68,7 @@ export function repositoryPaths(root: string): Set<string> {
 export function repositoryFiles(root: string, extensions: Iterable<string>): { file: string; text: string }[] {
   const kinds = new Set(extensions);
   return listed(root)
-    .filter((file) => kinds.has(path.extname(file)) || kinds.has(path.posix.basename(file)))
+    .filter((file) => ofKind(file, kinds))
     .filter((file) => existsSync(path.join(root, file)) && statSync(path.join(root, file)).isFile())
     .map((file) => ({ file, text: readFileSync(path.join(root, file), 'utf8') }));
 }
@@ -64,8 +78,8 @@ export function repositoryTexts(root: string): { file: string; text: string }[] 
   return repositoryFiles(root, textExtensions);
 }
 
-/** The citations under `root` that name no entry. */
-export function unknownInRepository(root: string): Citation[] {
+/** The citations under `root` that name no entry: in `texts`, its text files as read, or read now. */
+export function unknownInRepository(root: string, texts: readonly { file: string; text: string }[] = repositoryTexts(root)): Citation[] {
   const known = new Set(readLog(root).entries.map((entry) => entry.number));
-  return unknownCitations(repositoryTexts(root), known);
+  return unknownCitations(texts, known);
 }

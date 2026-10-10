@@ -2,8 +2,8 @@
 // content, and every rule of the engine and check of the content that reads a Trait. The content
 // editor finds a key's uses through it (`tools/editor`), refuses to remove a Trait still used, and,
 // where an entry says how, adds and removes a use (S13's `assign` and `unassign`). The drift test
-// holds the engine entries to the code: a read of a Trait in `engine/src/` or `content/src/validate.ts`
-// that no entry lists fails it. `docs/agents/traits-register.md`'s generated part is written from it (`doc.ts`),
+// holds the engine entries to the code: a read of a Trait in `engine/src/`, `content/src/validate.ts`
+// or the content kinds, `content/src/kinds/` (DL-243), that no entry lists fails it. `docs/agents/traits-register.md`'s generated part is written from it (`doc.ts`),
 // and the freshness test holds the two equal.
 //
 // A content entry works on the content as JSON (`json.ts`), as the files are written: a use is a key
@@ -11,7 +11,7 @@
 // (`sources`, which the drift test checks both ways) and those its rule runs through that read none
 // themselves (`through`, which the drift test checks are there).
 
-import { degrees } from '@heroesim/engine';
+import { degrees } from '@heroesim/engine/content';
 import type { ContentFileName } from '../parse.js';
 import {
   at,
@@ -741,20 +741,15 @@ const engineEntries: readonly EngineEntry[] = [
     lists: ['guildmaster', 'hero'],
     effectKinds: ['classStatBonus', 'guildMoraleShift', 'upkeepFactor', 'statModifiers', 'encounterBonus'],
     reads: "Every Trait and every use of one in content (`validateContent`): a key in one list only, exclusions held both ways, each effect's values, and each key a use names defined in its list. The editor checks each pending edit with them.",
+    // Each content kind's rules that read a Trait, and the description of the effect kinds (DL-243).
     sources: [
-      {
-        file: 'content/src/validate.ts',
-        names: [
-          'validateContent',
-          'checkPortraitAppearances',
-          'longestDescriptions',
-          'checkDescriptions',
-          'checkEncounters',
-          'checkConsequence',
-          'checkTraits',
-          'queryKeys',
-        ],
-      },
+      { file: 'content/src/kinds/descriptions.ts', names: ['longestDescriptions', 'descriptionsRules'] },
+      { file: 'content/src/kinds/encounters.ts', names: ['encountersRules', 'checkConsequence'] },
+      { file: 'content/src/kinds/injuries.ts', names: ['injuriesRules'] },
+      { file: 'content/src/kinds/portrait-appearances.ts', names: ['portraitAppearancesRules'] },
+      { file: 'content/src/kinds/rules.ts', names: ['knownOf'] },
+      { file: 'content/src/kinds/trait-effects.ts', names: ['guildmasterTraitEffects', 'heroTraitEffects'] },
+      { file: 'content/src/kinds/traits.ts', names: ['guildmasterTraitsRules', 'heroTraitsRules'] },
       // The Queries' keys, a has-trait's among them, checked by the engine for content (v1.1.6-S10, DL-186 item 6).
       { file: 'engine/src/quest-engine/query/problems.ts', names: ['queryArgument'] },
     ],

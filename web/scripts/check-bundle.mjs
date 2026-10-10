@@ -43,10 +43,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const distDir = path.resolve(process.argv[2] ?? path.join(here, '..', 'dist'));
 
 /**
  * URLs allowed to survive minification. These are strings React carries, not addresses the page
@@ -106,62 +105,87 @@ function contextAround(text, index) {
   return text.slice(Math.max(0, index - 60), index + 60).replace(/\s+/g, ' ');
 }
 
-let files;
-try {
-  files = filesUnder(distDir);
-} catch {
-  console.error(`check-bundle: no build at ${distDir}. Run "vite build" first.`);
-  process.exit(1);
-}
-
-if (files.length === 0) {
-  console.error(`check-bundle: ${distDir} holds no .js, .mjs, .css or .html file.`);
-  process.exit(1);
-}
-
-const complaints = [];
-const tooLarge = [];
-
-for (const file of files) {
-  const source = readFileSync(file, 'utf8');
-  const shown = path.relative(distDir, file);
-
-  const bytes = statSync(file).size;
-  if (SCRIPT_EXTENSIONS.has(path.extname(file)) && bytes > SCRIPT_LIMIT_BYTES) {
-    tooLarge.push(
-      `${shown}: a script of ${(bytes / 1000).toFixed(2)} kB (${bytes.toLocaleString('en-GB')} bytes), over the ${SCRIPT_LIMIT_BYTES / 1000} kB a script may be`,
-    );
+/**
+ * What the gate finds under `distDir`: no build there, a build of no file it reads, or each file's
+ * complaints and each script over the limit, by the file's path under `distDir`.
+ */
+export function scanBundle(distDir) {
+  let files;
+  try {
+    files = filesUnder(distDir);
+  } catch {
+    return { kind: 'missing' };
   }
+  if (files.length === 0) return { kind: 'empty' };
 
-  for (const { name, pattern } of FORBIDDEN) {
-    const hit = pattern.exec(source);
-    if (hit !== null) {
-      complaints.push(`${shown}: contains ${name} — …${contextAround(source, hit.index)}…`);
+  const complaints = [];
+  const tooLarge = [];
+
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8');
+    const shown = path.relative(distDir, file);
+
+    const bytes = statSync(file).size;
+    if (SCRIPT_EXTENSIONS.has(path.extname(file)) && bytes > SCRIPT_LIMIT_BYTES) {
+      tooLarge.push(
+        `${shown}: a script of ${(bytes / 1000).toFixed(2)} kB (${bytes.toLocaleString('en-GB')} bytes), over the ${SCRIPT_LIMIT_BYTES / 1000} kB a script may be`,
+      );
+    }
+
+    for (const { name, pattern } of FORBIDDEN) {
+      const hit = pattern.exec(source);
+      if (hit !== null) {
+        complaints.push(`${shown}: contains ${name} — …${contextAround(source, hit.index)}…`);
+      }
+    }
+
+    for (const hit of source.matchAll(URL_LITERAL)) {
+      const url = hit[0];
+      if (ALLOWED_URLS.some((allowed) => url.startsWith(allowed))) continue;
+      complaints.push(`${shown}: contains the URL ${url} — …${contextAround(source, hit.index)}…`);
     }
   }
+  return { kind: 'scanned', files: files.length, complaints, tooLarge };
+}
 
-  for (const hit of source.matchAll(URL_LITERAL)) {
-    const url = hit[0];
-    if (ALLOWED_URLS.some((allowed) => url.startsWith(allowed))) continue;
-    complaints.push(`${shown}: contains the URL ${url} — …${contextAround(source, hit.index)}…`);
+/**
+ * The gate on `distDir`, as its command line runs it: what it says, through `log` and `warn`, and its
+ * exit code, 0 when the build passes and 1 when it does not. `src/bundle.test.ts` asks it in its own
+ * process of the bundles it writes (DL-247), and runs the command line for the rest.
+ */
+export function checkBundle(distDir, { log = console.log, warn = console.error } = {}) {
+  const scanned = scanBundle(distDir);
+  if (scanned.kind === 'missing') {
+    warn(`check-bundle: no build at ${distDir}. Run "vite build" first.`);
+    return 1;
   }
+  if (scanned.kind === 'empty') {
+    warn(`check-bundle: ${distDir} holds no .js, .mjs, .css or .html file.`);
+    return 1;
+  }
+  const { files, complaints, tooLarge } = scanned;
+
+  if (complaints.length > 0) {
+    warn('check-bundle: the built page could reach outside itself.\n');
+    for (const complaint of complaints) warn(`  ${complaint}`);
+    warn(
+      '\nThe browser never calls anything (principle 12). Remove it, or, if it is an ' +
+        'identifier rather than an address, justify it in ALLOWED_URLS.',
+    );
+    return 1;
+  }
+
+  if (tooLarge.length > 0) {
+    warn('check-bundle: the built page is too large.\n');
+    for (const complaint of tooLarge) warn(`  ${complaint}`);
+    warn('\nKeep the script under its limit (DL-134 item 9): bundle less into it, or decide anew with the owner.');
+    return 1;
+  }
+
+  log(`check-bundle: ${files} built files, no network or filesystem reference, every script within ${SCRIPT_LIMIT_BYTES / 1000} kB.`);
+  return 0;
 }
 
-if (complaints.length > 0) {
-  console.error('check-bundle: the built page could reach outside itself.\n');
-  for (const complaint of complaints) console.error(`  ${complaint}`);
-  console.error(
-    '\nThe browser never calls anything (principle 12). Remove it, or, if it is an ' +
-      'identifier rather than an address, justify it in ALLOWED_URLS.',
-  );
-  process.exit(1);
-}
-
-if (tooLarge.length > 0) {
-  console.error('check-bundle: the built page is too large.\n');
-  for (const complaint of tooLarge) console.error(`  ${complaint}`);
-  console.error('\nKeep the script under its limit (DL-134 item 9): bundle less into it, or decide anew with the owner.');
-  process.exit(1);
-}
-
-console.log(`check-bundle: ${files.length} built files, no network or filesystem reference, every script within ${SCRIPT_LIMIT_BYTES / 1000} kB.`);
+const isMain =
+  import.meta.main ?? (process.argv[1] !== undefined && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url);
+if (isMain) process.exitCode = checkBundle(path.resolve(process.argv[2] ?? path.join(here, '..', 'dist')));

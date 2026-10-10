@@ -48,7 +48,7 @@ describe('emit', () => {
     const founded = emit({
       type: 'guild.founded',
       participants: [ids.rivalGuild],
-      payload: { guildId: ids.rivalGuild, guildmasterId: ids.playerGuildmaster },
+      payload: { guildId: ids.rivalGuild, guildmasterId: ids.playerGuildmaster, wealth: 500 },
     });
     const adopted = emit({ type: 'world.rules-adopted', participants: [], payload: { oldConfigVersion: 1, newConfigVersion: 2 } });
 
@@ -97,7 +97,7 @@ describe('milestoneTypes', () => {
   });
 });
 
-// M5-S5 (DL-52): `quest.loot` is a Milestone when its Item is unique, and only then.
+// DL-52: `quest.loot` is a Milestone when its Item is unique, and only then.
 describe('milestoneWhen', () => {
   test('makes quest.loot a Milestone for a unique Item and not for a common one, through emit', () => {
     const { ids, emit } = fixture();

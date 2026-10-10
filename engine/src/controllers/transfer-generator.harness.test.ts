@@ -8,7 +8,7 @@ import { validate } from '../validate.js';
 import { createWorld } from '../create.js';
 import { deps, newWatch, rivalsInPlay, ruleProblems, setup, stillPlayer, unwatchPhase, watchPhase, type Watch } from './transfer-generator.test-support.js';
 
-// The first of M6-S3's two boxes (DL-59): over 100 seeds × 20 years, Rival-to-Rival Transfers occur,
+// The first of two acceptance boxes (DL-59): over 100 seeds × 20 years, Rival-to-Rival Transfers occur,
 // and the Roster-size distribution across Rivals stays within the range a Rival is generated with
 // (`rivalRosterMin` to `rivalRosterMax`). The second box, that the phase never changes the player's
 // Roster, is `transfer-generator.test.ts`, in `npm test`.
@@ -80,7 +80,7 @@ const median = (values: readonly number[]): number => {
 };
 const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
 
-describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M6-S3)`, () => {
+describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years`, () => {
   let tallies: Tally[] = [];
   beforeAll(() => {
     tallies = seeds.map(sweep);
@@ -103,8 +103,8 @@ describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M
     // below the floor hires back towards it by need (DL-60), so the distribution does not fall below it.
     // Above the range nothing is held: no Guild's Roster is capped, and a Roster grows as far as its
     // Guild's finances support (the owner's answer at v1.1.5's re-close, DL-185). DL-59 read the box as
-    // each year's median and mean within the range; v1.1.4-S6 dropped a year's mean (DL-157), v1.1.5-S13
-    // the median of the four seeds' years (DL-184), and DL-185 every check at the top. With the XP split
+    // each year's median and mean within the range; DL-157 dropped a year's mean, DL-184 took
+    // the median of the four seeds' years, and DL-185 every check at the top. With the XP split
     // (DL-182, DL-184) the Rivals here keep more Heroes: over the box's hundred seeds the mean of every
     // year-end is 9.17 and the largest 33, each year's median reaching 8, the range's top, in years 4 to
     // 7 (S13's verification, DL-184).

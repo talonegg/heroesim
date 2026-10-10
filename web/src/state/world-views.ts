@@ -22,13 +22,11 @@ import {
   guildmasterRegardForGuild,
   nextImprovement,
   patronRegardFor,
-  playerGuild,
   rankingPlaces,
   regardBand,
   regardValue,
   retirementTurn,
   retiresOn,
-  transferFee,
   upkeep,
   yearOf,
   type FacilityKey,
@@ -42,14 +40,14 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, traitEffectWords, type Calendar } from '@heroesim/words';
+import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
-import { classMarkOf, type ClassMarked, controllerWords, placeWords, rowOf } from './names';
-import { playDeps } from './reducer';
+import { classMarkOf, type ClassMarked, controllerWords, placeWords } from './names';
+import { readingOf } from './reading';
 
 /** The Guild named, or the player's when none is. */
 function guildOf(document: WorldDocument, guildId: GuildId | undefined): Guild | undefined {
-  return guildId === undefined ? playerGuild(document.world) : rowOf(document.world.guilds, guildId);
+  return guildId === undefined ? readingOf(document).guild : rowOf(document.world.guilds, guildId);
 }
 
 // ── Every Guild, and the Rankings ───────────────────────────────────────────────────────────
@@ -116,7 +114,7 @@ const guildOrders: Readonly<Record<Exclude<GuildSort, RankingMeasure>, (a: Guild
  */
 export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTable {
   const { world } = document;
-  const { config } = playDeps(document);
+  const { config } = readingOf(document).deps;
   const measure: RankingMeasure = sort === 'wealth' ? 'wealth' : 'fame';
   const places = new Map(rankingPlaces(world, measure).map((ranking) => [ranking.guildId, capitalised(placeWords(ranking))]));
   const rowFor = (guild: Guild): GuildRow => ({
@@ -283,7 +281,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   const guild = guildOf(document, guildId);
   if (guild === undefined) return null;
   const { world } = document;
-  const { config } = playDeps(document);
+  const { config } = readingOf(document).deps;
   const guildmaster = guildmasterOf(guild, world);
   if (guildmaster === undefined) return null;
 
@@ -409,9 +407,8 @@ export interface PatronRow {
  */
 export function patronsView(document: WorldDocument): PatronRow[] {
   const { world } = document;
-  const { config } = playDeps(document);
-  const guild = playerGuild(world);
-  const guildmaster = guild === undefined ? undefined : guildmasterOf(guild, world);
+  const { deps, guild, guildmaster } = readingOf(document);
+  const { config } = deps;
   const posters = world.board.map((questId) => rowOf(world.quests, questId)?.patronId);
   return Object.values(world.patrons).map((patron) => {
     const regard = guild === undefined ? null : regardBand(patronRegardFor(patron, guild.id), config);
@@ -470,9 +467,7 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
   const guild = rowOf(world.guilds, guildId);
   const hall = hallView(document, guildId);
   if (guild === undefined || hall === null) return null;
-  const deps = playDeps(document);
-  const player = playerGuild(world);
-  const buyer = player === undefined ? undefined : guildmasterOf(player, world);
+  const reading = readingOf(document);
   return {
     guildId: guild.id,
     name: guild.name,
@@ -481,25 +476,20 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
     background: nameIn(content.backgrounds, guild.backgroundKey),
     fame: guild.fame,
     wealth: guild.wealth,
-    folded: foldedWords(guild, deps.config),
-    roster: guild.rosterIds.flatMap((heroId) => {
-      const hero = rowOf(world.heroes, heroId);
-      if (hero === undefined) return [];
-      return [
-        {
-          heroId,
-          name: hero.name,
-          sex: hero.sex,
-          portraitKey: hero.portraitKey,
-          ...classMarkOf(content, hero.classKey),
-          level: hero.level,
-          age: ageOf(hero, world.turn, deps.config),
-          morale: hero.morale,
-          background: nameIn(content.backgrounds, hero.backgroundKey),
-          fee: player === undefined || player.id === guild.id ? null : transferFee(hero, buyer, deps),
-        },
-      ];
-    }),
+    folded: foldedWords(guild, reading.deps.config),
+    // Its Roster's readings (`rosterReading`, DL-241), each with its Class's mark.
+    roster: rosterReading(reading, guild).map((row) => ({
+      heroId: row.id,
+      name: row.name,
+      sex: row.sex,
+      portraitKey: row.portraitKey,
+      ...classMarkOf(reading.content, row.classKey),
+      level: row.level,
+      age: row.age,
+      morale: row.morale,
+      background: row.background,
+      fee: row.transferFee,
+    })),
     hall,
     guildmaster: guildmasterView(document, guildId),
   };

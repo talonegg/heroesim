@@ -11,8 +11,8 @@ import { buildDocument, type CheckAggregate, demandsCheck, heroStatKeys, testDep
 import { capability as capabilityOf, check as checkOf } from './check.js';
 import { queryParty } from './query.js';
 
-// M4-S2: the Check (INPUTS 6.2, DL-42). Heroes are generated, then given the Stats and Skills a test
-// needs; the config values a test relies on are pinned. Since v1.1.4-S1 an Encounter's Check scores
+// The Check (INPUTS 6.2, DL-42). Heroes are generated, then given the Stats and Skills a test
+// needs; the config values a test relies on are pinned. An Encounter's Check scores
 // by a Query; these tests build it from weighted demands (`demandsCheck`), as the old form of an
 // Encounter loaded until DL-192, so that they hold that reading.
 
@@ -103,7 +103,7 @@ describe('capability', () => {
 });
 
 describe('check', () => {
-  // M4-S2's first box.
+  // The first acceptance box.
   test("a Party lacking the Encounter's Skills is beaten by one holding them at rating 3 on the same Stats, with variance 0", () => {
     const { world, heroes } = party('beaten', 4);
     const [a, b, c, d] = heroes as [Hero, Hero, Hero, Hero];
@@ -163,7 +163,7 @@ describe('check', () => {
   });
 });
 
-// DL-44 (M4-S2 and M4-S5 merged): the Check reads a Hero's Stats through the one `effectiveStats`
+// DL-44: the Check reads a Hero's Stats through the one `effectiveStats`
 // selector, so a Guildmaster's `classStatBonus` Trait reaches the Check, and so Quest outcomes, for
 // that Guild's Heroes of that Class and no other, every Guild alike (ADR-0002).
 describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, DL-44)', () => {
@@ -227,8 +227,9 @@ describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, D
 });
 
 // M4's third risk: the Guildmaster's rules are Guild-side, never in the Check, nor in the Queries it
-// evaluates (v1.1.4-S1, DL-148 item 5), nor in the form it reads them with (v1.1.4-S3).
-describe.each(['check.ts', 'query.ts', 'form.ts'])('%s', (file) => {
+// evaluates (DL-148 item 5), nor in the form it reads them with, nor in the operators the Queries are
+// evaluated by and their checks (DL-186 item 6), nor in the Party's consumables (DL-50 item 3).
+describe.each(['check.ts', 'query.ts', 'form.ts', 'query/operators.ts', 'query/problems.ts', 'consumables.ts'])('%s', (file) => {
   const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
 
   test('never mentions the Guildmaster', () => {
@@ -255,20 +256,6 @@ describe('query.ts', () => {
       { from: './form.js', names: ['formOf', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
-  });
-});
-
-// v1.1.6-S10 (DL-186 item 6): the operators the Queries are evaluated by, and their checks, are held
-// to the same: they read only the Party's own Heroes, as query.ts does.
-describe.each(['query/operators.ts', 'query/problems.ts'])('%s', (file) => {
-  const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
-
-  test('never mentions the Guildmaster', () => {
-    expect(source.toLowerCase()).not.toContain('guildmaster');
-  });
-
-  test("reads nothing of the Guild's dealings: no Wealth, Fame, Treasury, Upkeep, Patron or Rival", () => {
-    expect(source.toLowerCase()).not.toMatch(/wealth|fame|treasury|upkeep|patron|rival/);
   });
 });
 

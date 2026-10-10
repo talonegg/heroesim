@@ -51,7 +51,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-39 | 2026-09-26 | M2 close: verification, the timing tests, and which harness run a tag carries |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-40 | 2026-09-26 | M3 close: the M3 counters, what they read, and the M3 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-41 | 2026-09-26 | M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70; item 7 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-44 | 2026-09-26 | Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-45 | 2026-09-26 | Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -79,7 +79,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-67 | 2026-09-27 | Saves kept in the browser: gzip in IndexedDB, one path from a save's text to the game, the … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-68 | 2026-09-27 | The deploy, prepared: one command from this machine, wrangler fetched when it runs, and a test that … | in part by DL-122; item 1 in part by DL-88 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-69 | 2026-09-27 | M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-70 | 2026-09-26 | M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-70 | 2026-09-26 | M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that … | item 1 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-71 | 2026-09-27 | M6 close verification corrections: errata to DL-63 and DL-69; tests that kill 32 mutants of the M6 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-72 | 2026-09-27 | Merging the main line (M0 to M6 complete) into M7: both sides kept whole, no version changes |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-73 | 2026-09-27 | The web's views, part 2: the rest of the CLI in the browser, one engine selector for the rules … | item 4 in part by DL-99; item 8 in part by DL-74 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -93,7 +93,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-81 | 2026-09-28 | M8 close: the first build's 1,000 × 20 tagged run, byte identity with `m7-web` read from inside it … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-82 | 2026-09-28 | Random Events and the module contract: the owner's inputs as a blocking INPUTS §8 table, the … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-83 | 2026-09-28 | Balance targets and the economy: target bands for the automatic policy's games with M8 as the … | item 1 in part by DL-181 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-84 | 2026-09-28 | Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-84 | 2026-09-28 | Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed … | item 2 in part by DL-254 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-85 | 2026-09-28 | Game rules and design gaps: Fame left dormant, the Hero asked before a Transfer, a Board that grows … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-86 | 2026-09-28 | Process, harness and documents: v1.0.0 cut at `m8-modules` and new work on `v1.1-dev`, production … | item 2 in part by DL-99 | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
 | DL-87 | 2026-09-28 | Content and vocabulary: content keys settled before Random Events, CONTEXT corrected and completed … |  | [DL-086-098-v1.0](archive/DL-086-098-v1.0.md) |
@@ -224,22 +224,46 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-212 | 2026-10-06 | v1.1.7-S6 built: Class icons; the owner's five rounds of drawings approved, an optional `icon` on a … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-213 | 2026-10-07 | v1.1.7-S7 built: one filter element for the page, several choices to a filter, "All" when none and … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
 | DL-214 | 2026-10-07 | v1.1.7-S8, the close: the close review's findings fixed: a Hero's leaving the pool decided over the … |  | [DL-206-214-v1.1.7](archive/DL-206-214-v1.1.7.md) |
-| DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [decision-log](../decision-log.md) |
-| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger | item 4 in part by DL-228 | [decision-log](../decision-log.md) |
-| DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [decision-log](../decision-log.md) |
-| DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [decision-log](../decision-log.md) |
-| DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [decision-log](../decision-log.md) |
-| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived | item 1 in part by DL-228 | [decision-log](../decision-log.md) |
-| DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [decision-log](../decision-log.md) |
-| DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [decision-log](../decision-log.md) |
-| DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [decision-log](../decision-log.md) |
-| DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [decision-log](../decision-log.md) |
-| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing | item 2 in part by DL-229 | [decision-log](../decision-log.md) |
-| DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [decision-log](../decision-log.md) |
-| DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [decision-log](../decision-log.md) |
-| DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [decision-log](../decision-log.md) |
-| DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [decision-log](../decision-log.md) |
-| DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [decision-log](../decision-log.md) |
+| DL-215 | 2026-10-08 | The decision log archived by release, superseded items set apart, and an index made from its … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-216 | 2026-10-08 | The closed epics archived, and `plan.md` §2 the one release ledger | item 4 in part by DL-228 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-217 | 2026-10-08 | `INPUTS-REQUIRED.md` archived once its live parts moved out, and the README an entry page with the … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-218 | 2026-10-08 | A delivery guide in the repository; generated files and applied runs out of the tree; the … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-219 | 2026-10-08 | The lean entry held by a test; story ids out of the comments by a rule and a baseline; the Traits' … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-220 | 2026-10-08 | `plan.md` cut to the delivery of releases; the first build's plan archived | item 1 in part by DL-228 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-221 | 2026-10-08 | The delivery guide accepted; the archives out of a search; ADR-0009 and data-model §7 trimmed | item 2 in part by DL-222; item 3 by DL-222 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-222 | 2026-10-08 | ADR-0009 restated from every decision on streams, its old wording archived |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-223 | 2026-10-08 | The owner's answers to Q3 and Q5: M9's table stays archived; the harness's reports pruned to those … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-224 | 2026-10-08 | The owner's answers to Q6: `origin/HEAD` on `main`, #34 closed, #33 corrected, the agent's memory … |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-225 | 2026-10-09 | v1.1.8-S7 closed: CONTEXT.md's story ids replaced by their entries, and `neutral --expect` passing | item 2 in part by DL-229 | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-226 | 2026-10-09 | v1.1.8-S8 closed: the close's review, its fourteen findings fixed, and the Gate met |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-227 | 2026-10-09 | How to keep the documents lean, and how to archive, written as one guide |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-228 | 2026-10-09 | Delivery tracked by release alone; Random Events the first module but not necessarily next |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-229 | 2026-10-09 | One 50 × 20 baseline on v1.1.8, and the harness's reports cut to those cited live |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-230 | 2026-10-09 | The engine's two twenty-year boxes out of `npm test`, into `npm run harness` |  | [DL-215-230-v1.1.8](archive/DL-215-230-v1.1.8.md) |
+| DL-231 | 2026-10-09 | v1.1.9 planned: the tests and the harness faster and leaner, play and the design unchanged | item 6 in part by DL-235 | [decision-log](../decision-log.md) |
+| DL-232 | 2026-10-09 | v1.1.9 widened to the architecture review's twelve candidates |  | [decision-log](../decision-log.md) |
+| DL-233 | 2026-10-09 | v1.1.9-S1 built: coverage, the measures, the time limits apart, and the baseline |  | [decision-log](../decision-log.md) |
+| DL-234 | 2026-10-09 | v1.1.9-S2 built: the suite's structure |  | [decision-log](../decision-log.md) |
+| DL-235 | 2026-10-09 | v1.1.9-S3 built: CI on Node 26 alone, and a deploy that tests a tree once |  | [decision-log](../decision-log.md) |
+| DL-236 | 2026-10-09 | v1.1.9: three tests that failed under load fixed on the owner's word |  | [decision-log](../decision-log.md) |
+| DL-237 | 2026-10-10 | v1.1.9-S4 built: the Best Party module |  | [decision-log](../decision-log.md) |
+| DL-238 | 2026-10-10 | v1.1.9-S5 built: a Guild's actions on one copy, and the save in one walk |  | [decision-log](../decision-log.md) |
+| DL-239 | 2026-10-10 | v1.1.9-S6 built: the harness's counters declared once, and play observed |  | [decision-log](../decision-log.md) |
+| DL-240 | 2026-10-10 | v1.1.9-S7 built: refusals behind the Namer |  | [decision-log](../decision-log.md) |
+| DL-241 | 2026-10-10 | v1.1.9-S8 built: readings in `words`, and the player's reading |  | [decision-log](../decision-log.md) |
+| DL-242 | 2026-10-10 | v1.1.9-S9 built: the History reader |  | [decision-log](../decision-log.md) |
+| DL-243 | 2026-10-10 | v1.1.9-S10 built: content kinds, effect kinds by their fields, and content's own entry |  | [decision-log](../decision-log.md) |
+| DL-244 | 2026-10-10 | v1.1.9-S11 built: the editor's edit session |  | [decision-log](../decision-log.md) |
+| DL-245 | 2026-10-10 | v1.1.9-S9's fixture: `withReturn` through the engine, on the owner's word |  | [decision-log](../decision-log.md) |
+| DL-246 | 2026-10-10 | v1.1.9-S12 built: the engine's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
+| DL-247 | 2026-10-10 | v1.1.9-S13 built: the page's tests pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
+| DL-248 | 2026-10-10 | v1.1.9-S14 built: the tests of cli, words and content pruned, on the owner's batch |  | [decision-log](../decision-log.md) |
+| DL-249 | 2026-10-10 | v1.1.9-S15 built: the tests of the harness, the tools and the e2e specs pruned, on the owner's … |  | [decision-log](../decision-log.md) |
+| DL-250 | 2026-10-10 | v1.1.9-S16's review: its findings fixed, test first |  | [decision-log](../decision-log.md) |
+| DL-251 | 2026-10-10 | v1.1.9-S16: the coverage of the tools' support files, and `neutral`'s ten processes |  | [decision-log](../decision-log.md) |
+| DL-252 | 2026-10-10 | v1.1.9-S16's close: the Gate, the copy line anchored at this close, and the after-report |  | [decision-log](../decision-log.md) |
+| DL-253 | 2026-10-10 | v1.1.9: approach, data model and requirements say what is true at v1.1.9 |  | [decision-log](../decision-log.md) |
+| DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

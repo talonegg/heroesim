@@ -19,7 +19,7 @@ import { dispositionOf, playerGuild } from '../selectors.js';
 import { validate } from '../validate.js';
 import { testDeps, withEncounters } from '../world.test-support.js';
 
-// M6-S4's two boxes (DL-58), over twenty years of play:
+// The two acceptance boxes (DL-58), over twenty years of play:
 //
 // 1. Rival Hall grades rise over twenty years under `ambitious`, and `miserly` stays at grade 0 the
 //    longest;
@@ -35,7 +35,7 @@ import { testDeps, withEncounters } from '../world.test-support.js';
 // reckless's Rival ten, and the Halls it measured were mostly those of replacements founded with next
 // to nothing. Here every Check asks 0.15, under which the Rivals live off their Quests and fold now
 // and then (about seven a seed), as the core's do. The rules and every other number are the game's;
-// the Dispositions are the test content's rows, M6-S1 to S4's, not the core's as the M6 close retuned
+// the Dispositions are the test content's rows, not the core's as the balance pass retuned
 // them (DL-69 item 8). A seed takes about ten seconds; DL-58 records the sweeps. Four seeds of twenty
 // years are a harness run, `npm run harness -- rivals-build-and-buy`, which `npm test` never plays
 // (DL-230).
@@ -77,7 +77,7 @@ function sweep(seed: string): Tally {
   const document: WorldDocument = createWorld(seed, setup, deps).document;
   const { world } = document;
   // The player takes no Quest, buys nothing and must not run out of Wealth, nor its Guildmaster reach
-  // the age of Retirement, which would end the game (M2-S10): the years are the Rivals'.
+  // the age of Retirement, which would end the game: the years are the Rivals'.
   const player = playerGuild(world) as Guild;
   player.wealth = 1_000_000_000;
   (world.guildmasters[player.guildmasterId] as Guildmaster).ageAtEntry = deps.config.guildmasterStartingAgeMin;
@@ -159,7 +159,7 @@ function firstBuild(tally: Tally, disposition: DispositionKey): number {
   return turns.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...turns);
 }
 
-describe('Rivals build and buy over twenty years (M6-S4)', () => {
+describe('Rivals build and buy over twenty years', () => {
   let tallies: Tally[] = [];
   beforeAll(() => {
     tallies = seeds.map(sweep);
@@ -175,7 +175,7 @@ describe('Rivals build and buy over twenty years (M6-S4)', () => {
         expect(yearEnds, `${tally.seed} ${guildId}`).toEqual([...yearEnds].sort((a, b) => a - b));
         if (disposition !== 'ambitious') continue;
         // An ambitious Rival, at every year's end a year or more after it was founded, has built past the
-        // infirmary's three grades, all a Rival built before M6-S4, to every grade of every facility.
+        // infirmary's three grades, all a Rival built before DL-58, to every grade of every facility.
         const founded = tally.founded.get(guildId) ?? 0;
         const settled = (tally.yearEnds.get(guildId) ?? []).filter((sample) => sample.turn - founded >= deps.config.turnsPerYear);
         for (const sample of settled) expect(sample.total, `${tally.seed} ${guildId} Turn ${sample.turn}`).toBe(wholeHall);

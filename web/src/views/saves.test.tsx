@@ -5,38 +5,25 @@ import { App } from '../app';
 import { browserSaves, createSaves, type Saves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import { saveText } from '../state/game-file';
-import { played, started } from '../state/game.test-support';
-import type { GameState } from '../state/reducer';
-import { section, seedShown } from './page.test-support';
+import { documentOf, played, started } from '../state/game.test-support';
+import { idle, section, seedShown, startNewGame } from './page.test-support';
 
-// Saved in this browser (M7-S4, DL-67), driven through the page's controls: save the game in hand
+// Saved in this browser (DL-67), driven through the page's controls: save the game in hand
 // under a name, list it, load it back in place of a later game or before any game, export it as the
 // file the CLI reads, delete it; and where the browser keeps nothing, say so and play on. The saves
 // are kept here in a map standing in for IndexedDB, which jsdom lacks; Playwright drives IndexedDB.
-// With a game in hand they are in the game menu (M9-S3, DL-103).
+// With a game in hand they are in the game menu (DL-103).
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
-async function idle(): Promise<void> {
-  await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function documentOf(state: GameState): WorldDocument {
-  if (state.document === null) throw new Error('no game in hand');
-  return state.document;
-}
-
-/** `document` as `v1.1.2` saved it, schema 5: no Hero's Portrait, Appearance or Biography (v1.1.3-S6). */
-function olderSave(document: WorldDocument): WorldDocument {
-  const older = structuredClone(document);
-  older.meta.version = 5;
-  for (const hero of Object.values(older.world.heroes)) {
-    for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
-  }
-  return older;
+/** `document` as a save of a schema version this release does not read: the release refuses it by its `meta.version` alone. */
+function ofAnotherVersion(document: WorldDocument): WorldDocument {
+  const other = structuredClone(document);
+  other.meta.version = 5;
+  return other;
 }
 
 function keptInMemory(): { saves: Saves; store: ReturnType<typeof memoryStore> } {
@@ -142,10 +129,10 @@ describe('saved in this browser', () => {
     expect(store.records.size).toBe(0);
   });
 
-  test('a save of an older Heroesim, schema 5 as v1.1.2 wrote it, is refused in words beside it, before a game and with one in hand, and can still be deleted (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7)', async () => {
+  test('a save whose schema version this release does not read is refused in words beside it, before a game and with one in hand, and can still be deleted (DL-125 item 10.2; DL-135 item 7)', async () => {
     const { store, saves } = keptInMemory();
-    await saves.save('older', olderSave(documentOf(started('saved-by-v1.1.2'))));
-    await saves.save('newer', documentOf(started('saved-by-v1.1.3')));
+    await saves.save('older', ofAnotherVersion(documentOf(started('saved-earlier'))));
+    await saves.save('newer', documentOf(started('saved-later')));
     const sentence = 'This game was saved by an older Heroesim and cannot be loaded.';
 
     // Before a game: the sentence beside the save, and once only, no game begun.
@@ -196,9 +183,7 @@ describe('where the browser keeps no saves', () => {
     render(<App saves={browserSaves({})} />);
 
     expect(within(section('A new game')).getByTestId('saves-unavailable').textContent).toMatch(unavailable);
-    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
-    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Ada Vell' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    startNewGame({ guildName: 'The Lantern', guildmasterName: 'Ada Vell' });
     await idle();
 
     expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();

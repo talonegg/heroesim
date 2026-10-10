@@ -13,7 +13,7 @@ import { phaseContext, type PhaseRun } from './phase.js';
 import { activeRosterHeroes } from './roster-walk.js';
 import { training } from './training.js';
 
-// v1.1.6-S8 (DL-186 item 26, SF10): the Roster walk the night phases share, `activeRosterHeroes`.
+// DL-186 item 26, SF10: the Roster walk the night phases share, `activeRosterHeroes`.
 // The order is a draw order: `ageing`, `heroState` and `levelUps` each draw from a stream for each
 // Hero in turn (ADR-0009), so the walk is pinned here, and each phase is held to the order it had
 // before the walk was shared: the Guilds in play by id, each Roster in its own order, the dead, the
@@ -48,7 +48,7 @@ function awkwardWorld(deps: EngineDeps): World {
   return world;
 }
 
-/** The walk as each phase wrote it before v1.1.6-S8: the reference the shared walk is held to. */
+/** The walk as each phase wrote it before the shared walk (DL-186 item 26): the reference the shared walk is held to. */
 function walkBefore(world: World): HeroId[] {
   const order: HeroId[] = [];
   const guildIds = Object.keys(world.guilds).sort();

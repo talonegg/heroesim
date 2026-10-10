@@ -12,7 +12,7 @@
 //   difficulty; each Degree's rate is the mean of their chances, the Encounter's and each Check's.
 // - *Each template.* For each Level, Quests drawn by the Quest Generator (`generateQuest`) for the
 //   template, their Encounters and difficulty as the game draws them, binned by the third of the
-//   template's difficulty range they fall in. For each, the Party `bestParty` names from a Roster of
+//   template's difficulty range they fall in. For each, the Best Party (`bestParties`) of a Roster of
 //   `roster` Heroes of the pool (the Board's "Your best Party", the harness's policy's Party), and
 //   Parties of each size the template allows drawn at random, each meeting its requirements; each
 //   Quest band's rate, and the positive Earned Traits a Quest draws.
@@ -29,7 +29,7 @@
 import { join } from 'node:path';
 import { contentDir, loadDrafts } from '@heroesim/content/node';
 import {
-  bestParty,
+  bestParties,
   chanceToReach,
   createWorld,
   degrees,
@@ -42,7 +42,6 @@ import {
   passOf,
   playerGuild,
   questBands,
-  questEstimator,
   resolveQuest,
   type CheckKey,
   type ContentSet,
@@ -324,18 +323,20 @@ export function calibrateEncounters(pools: readonly Pool[], settings: Calibratio
     }),
   );
   for (const pool of pools) {
+    // One Best Party module a pool, its world unchanged here: each Hero brought home once (DL-237).
+    const best = bestParties(pool.world, pool.guild, deps);
     const draw = drawer(`calibrate-parties-${pool.level}`);
     const partiesBySize = settings.sizes.map((size) => ({ size, parties: Array.from({ length: settings.parties }, () => partyOf(pool.heroes, size, draw)) }));
     const template = pool.world.quests[pool.world.board[0] as Quest['id']] as Quest;
     for (const difficulty of settings.difficulties) {
       for (const [index, encounter] of encounters.entries()) {
         const result = results[index] as EncounterCalibration;
-        const estimate = questEstimator(pool.world, questOf(template, difficulty, [encounter.key]), pool.heroes, deps);
+        const quest = questOf(template, difficulty, [encounter.key]);
         for (const { size, parties } of partiesBySize) {
           const rates = zero();
           const checks = encounter.checks.map(zero);
           for (const party of parties) {
-            const it = (estimate(party) as QuestEstimate).encounters[0];
+            const it = (best.chance(quest, party) as QuestEstimate).encounters[0];
             if (it === undefined) continue;
             addInto(rates, it.degrees, 1 / parties.length);
             it.checks.forEach((check, at) => addInto(checks[at] as DegreeChances, check.degrees, 1 / parties.length));
@@ -421,9 +422,11 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
         const { quest } = generateQuest(world, patron, deps, { templateKey: template.key });
         world.board = world.board.filter((id) => id !== quest.id);
         delete world.quests[quest.id];
+        // Opened once the Quest is drawn, which moved the world (DL-237).
+        const parties = bestParties(world, guild, deps);
         let roster = partyOf(pool.heroes, settings.roster, draw);
         for (let tries = 0; tries < 50 && !meets(quest, roster); tries += 1) roster = partyOf(pool.heroes, settings.roster, draw);
-        const best = meets(quest, roster) ? bestParty(world, guild, quest, roster, deps) : null;
+        const best = meets(quest, roster) ? parties.party(quest, roster) : null;
         if (best === null || best.estimate === null) {
           result.unstaffed += 1;
           continue;
@@ -442,13 +445,12 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
         addInto(row.best.bands, best.estimate.bands, 1);
         row.best.size += best.heroIds.length;
         row.best.traitsDrawn += traitsDrawn(best.estimate, content);
-        const estimate = questEstimator(world, quest, pool.heroes, deps);
         for (const size of settings.sizes) {
           if (size < template.partySizeMin || size > template.partySizeMax) continue;
           const rates = (row.bySize[size] ??= { quests: 0, bands: noBands() });
           for (let p = 0; p < sizeParties; p += 1) {
             const party = partyOf(pool.heroes, size, draw, requiredOf(quest, pool.heroes, draw));
-            const it = estimate(party);
+            const it = parties.chance(quest, party);
             if (it === null) continue;
             rates.quests += 1;
             addInto(rates.bands, it.bands, 1);
@@ -506,12 +508,12 @@ export function spotCheck(pools: readonly Pool[], settings: CalibrationSettings,
       delete world.quests[quest.id];
       let roster = partyOf(pool.heroes, settings.roster, draw);
       for (let tries = 0; tries < 50 && !meets(quest, roster); tries += 1) roster = partyOf(pool.heroes, settings.roster, draw);
-      const best = bestParty(world, guild, quest, roster, safe);
+      const best = bestParties(world, guild, safe).party(quest, roster);
       if (best === null) continue;
       heroes = best.heroIds.map((id) => world.heroes[id] as Hero);
       label = `${template.key} at difficulty ${quest.difficulty}, Level ${pool.level}, ${heroes.length} Heroes`;
     }
-    const estimate = questEstimator(world, quest, heroes, safe)(heroes);
+    const estimate = bestParties(world, guild, safe).chance(quest, heroes);
     if (estimate === null) continue;
     const returns = world.turn + quest.durationTurns;
     const home: World = { ...world, turn: returns, rng: { ...world.rng } };
@@ -645,11 +647,12 @@ export function tunedFactors(pool: Pool, aim: TuningAim, parties: number, deps: 
     return drawn;
   };
   const template = pool.world.quests[pool.world.board[0] as Quest['id']] as Quest;
+  const best = bestParties(pool.world, pool.guild, deps);
   const tuned: Record<string, Record<CheckKey, CheckTuning>> = {};
   for (const encounter of Object.values(content.encounters)) {
     const { difficulty, size } = aimOf(encounter, aim, content);
-    const estimate = questEstimator(pool.world, questOf(template, difficulty, [encounter.key]), pool.heroes, deps);
-    const capabilities = partiesOf(size).map((party) => (estimate(party) as QuestEstimate).encounters[0]?.checks.map((it) => it.capability) ?? []);
+    const quest = questOf(template, difficulty, [encounter.key]);
+    const capabilities = partiesOf(size).map((party) => (best.chance(quest, party) as QuestEstimate).encounters[0]?.checks.map((it) => it.capability) ?? []);
     const tunable = encounter.checks.map((it) => it.raw !== true && it.difficultyFactor > 0);
     // A tunable Check's target at the aim is its factor-at-the-aim times the difficulty, however it is
     // later split between a flat term and a factor; an untunable one keeps its own.
@@ -787,7 +790,7 @@ export function calibrationReport(
 
   lines.push('## The Quest target, as the estimate sees it', '');
   lines.push(
-    `For each template and Level, ${settings.questsPerTemplate} Quests drawn by the Quest Generator, each met by the best Party (\`bestParty\`, the Board's "Your best Party" and the harness's policy's Party) of a Roster of ${settings.roster} Heroes drawn from the Level's pool, redrawn until it can staff the Quest. The target (DL-83 item 4): the player's Quests fail 20 to 30%, and are strong successes at most 50%. These rates assume no one falls; in play, Injuries, Deaths and Morale lower the later Encounters' chances, so failures run higher.`,
+    `For each template and Level, ${settings.questsPerTemplate} Quests drawn by the Quest Generator, each met by the best Party (\`bestParties\`, the Board's "Your best Party" and the harness's policy's Party) of a Roster of ${settings.roster} Heroes drawn from the Level's pool, redrawn until it can staff the Quest. The target (DL-83 item 4): the player's Quests fail 20 to 30%, and are strong successes at most 50%. These rates assume no one falls; in play, Injuries, Deaths and Morale lower the later Encounters' chances, so failures run higher.`,
     '',
   );
   lines.push(

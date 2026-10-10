@@ -63,6 +63,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.1.5` | 2026-10-04 | #54 | `8bca6b9` | DL-168 to DL-185 | [v1.1.5](./planning/archive/v1.1.5-release.md) |
 | `v1.1.6` | 2026-10-06 | #56 | `7fda66e` | DL-186 to DL-205 | [v1.1.6](./planning/archive/v1.1.6-release.md) |
 | `v1.1.7` | 2026-10-07 | #58 | `25f8fa0` | DL-206 to DL-214 | [v1.1.7](./planning/archive/v1.1.7-release.md) |
+| `v1.1.8` | 2026-10-09 | #59 | `10f17aa` | DL-215 to DL-230 | [v1.1.8](./planning/archive/v1.1.8-release.md) |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -71,11 +72,11 @@ A release's close adds its row here and fills its epic's Status line, and nothin
 What comes next, in order. Releases already made are §2's ledger. The record of how this list came
 to its order is in [`planning/archive/`](./planning/archive/README.md).
 
-- **Now: `v1.1.8`, the documentation slimmed**, on `v1.1.8-dev`
-  ([epic](./planning/epics/v1.1.8-release.md)): the documentation audit of 2026-10-08. Built and
-  closed (DL-226); its release waits for the owner.
-- **Next: chosen after `v1.1.8` is released.** The owner assesses then which epic comes next, among
-  Random Events and the lists below (DL-228).
+- **Now: `v1.1.9`, the tests and the harness made faster and leaner, and the code's modules
+  deepened**, on `v1.1.9-dev` ([epic](./planning/epics/v1.1.9-release.md)): planned (DL-231,
+  DL-232) and being built; its
+  Status line says how far.
+- **Next: chosen after `v1.1.9` is released**, among Random Events and the lists below (DL-228).
 - **Random Events** (#12; its groundwork #15 and #17) will be the first real module, but is not
   necessarily the next epic: when it starts is the owner's (DL-214, DL-228). Random Events never
   produce Quests (DL-82).

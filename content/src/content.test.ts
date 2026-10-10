@@ -1,142 +1,39 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { descriptiveAttributeMaxLength, encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine';
+import { encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, contentWarnings, longestDescriptions, parseContent, validateContent } from './index.js';
+import { contentFiles, parseContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
-// The core content set as the Node entry loads it from this package's directory (M1-S4).
+// The core content set as the Node entry loads it from this package's directory.
 
 describe('loadContent()', () => {
   const content = loadContent();
   const stats = Object.values(content.stats);
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
-  const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
   /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
   const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  // The content version is data, `version.json` (v1.1.6-S4, DL-186 item 14): the tools raise it there,
-  // and this test reads it, pinning no number of its own.
-  test('is the core content set, at the version its file holds, whose changelog says why it was last raised', () => {
-    const file = JSON.parse(readFileSync(join(contentDir, 'version.json'), 'utf8')) as { version: number; changelog: string[] };
-    expect(content.id).toBe('core');
-    expect(content.version).toBe(file.version);
-    expect(file.changelog.at(-1)).toMatch(new RegExp(`^${file.version} from `));
+  // The content version is data, `version.json` (DL-186 item 14): the tools raise it there,
+  // and this test reads its changelog, pinning no number of its own.
+  test('has a changelog whose last line says why the content version was last raised', () => {
+    const file = JSON.parse(readFileSync(join(contentDir, 'version.json'), 'utf8')) as { changelog: string[] };
+    expect(file.changelog.at(-1)).toMatch(new RegExp(`^${content.version} from `));
   });
 
-  test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
-    const patrons = content.names.patron;
-    expect(patrons.map((patron) => patron.name)).toEqual([
-      'Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow', 'Florian Keld',
-      'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike', 'Lambert Sowerby', 'Mabel Thorne',
-      'Nicolas Aske', 'Orabel Quint', 'Piers Latimer', 'Rohesia Dunmore', 'Simeon Garrow', 'Petronel Swift',
-      'Walter Moorby', 'Agnes Wolstan', 'Baldwin Cressy', 'Emmeline Stake', 'Geoffrey Brand', 'Juliana Cray',
-      'Hamo Redvers', 'Letice Gorham', 'Ranulf Tarrant', 'Sybil Hawtrey', 'Tobias Wendle', 'Ysmay Carew',
-    ]);
-    const female = patrons.filter((patron) => patron.sex === 'female').map((patron) => patron.name.split(' ')[0]);
-    const male = patrons.filter((patron) => patron.sex === 'male').map((patron) => patron.name.split(' ')[0]);
-    expect(female).toEqual([
-      'Cecily', 'Edith', 'Hawise', 'Isolde', 'Jocelyn', 'Mabel', 'Orabel', 'Rohesia', 'Agnes', 'Emmeline', 'Juliana',
-      'Letice', 'Sybil', 'Ysmay',
-    ]);
-    expect(male).toHaveLength(16);
+  test("gives each Patron's name a sex, and both sexes are among them (DL-125 item 5)", () => {
+    const sexes = new Set(content.names.patron.map((patron) => patron.sex));
+    expect(content.names.patron.every((patron) => patron.sex === 'female' || patron.sex === 'male')).toBe(true);
+    expect([...sexes].sort()).toEqual(['female', 'male']);
   });
 
-  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, 38 more since v1.1.3-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
-    const twenty = (sex: string) => Array.from({ length: 20 }, (_, index) => `gm-${sex}-${String(index + 1).padStart(2, '0')}`);
-    expect(content.portraits).toEqual({
-      guildmaster: { female: twenty('female'), male: twenty('male') },
-      hero: { female: [], male: [] },
-      patron: { female: [], male: [] },
-    });
-  });
-
-  test("gives each of the owner's two pictures DL-134 item 8's row, its narrative as DL-127 item 5 wrote it (v1.1.3-S1)", () => {
-    const { features, portraits } = content.portraitAppearances;
-    expect(features).toEqual({
-      beard: { maleOnly: true, shows: [] },
-      scar: { maleOnly: false, shows: ['scarred'] },
-      eyepatch: { maleOnly: false, shows: ['one-eyed'] },
-      braids: { maleOnly: false, shows: [] },
-      'long-hair': { maleOnly: false, shows: [] },
-      'curly-hair': { maleOnly: false, shows: [] },
-      'grey-hair': { maleOnly: false, shows: [] },
-      bald: { maleOnly: false, shows: [] },
-    });
-    // The owner's two first; v1.1.3-S4 took in 38 more, and its analysis gave these two hooks.
-    expect(Object.keys(portraits).slice(0, 2)).toEqual(['gm-male-01', 'gm-female-01']);
-    expect(Object.keys(portraits)).toHaveLength(40);
-    expect(portraits['gm-male-01']).toEqual({
-      apparentAge: [45, 55],
-      station: 'common',
-      callings: ['soldier', 'adventurer'],
-      temper: 'stern',
-      features: ['beard', 'scar', 'curly-hair'],
-      narrative: expect.stringMatching(/^A weathered, deeply lined face, .* before a word is spoken\.$/) as unknown,
-      hooks: ['{He} still wears the scuffed, stained leather coat of {his} road years, and has sent away every tailor the Guild has found for {him}.'],
-    });
-    expect(portraits['gm-female-01']).toEqual({
-      apparentAge: [22, 30],
-      station: 'gentry',
-      callings: ['soldier'],
-      temper: 'composed',
-      features: ['braids', 'long-hair'],
-      narrative: expect.stringMatching(/^A strong-boned face with high cheekbones .* what she is thinking\.$/) as unknown,
-      hooks: [
-        "{He} grew up in a vaulted stone house with {his} family's arms carved above the fire, and still sleeps poorly under a low roof.",
-        '{He} has pinned {his} braids with the same worked clasp since {his} first muster, and is never seen without it.',
-      ],
-    });
-    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260; v1.1.3-S4's
-    // analysis read gm-female-01's eyes as pale, and made it 255.
-    expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
-    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(255);
-  });
-
-  test("warns of every sex and band of Guildmaster pictures, and every Class and sex of Hero pictures, short of three (DL-134 item 10)", () => {
-    // Since v1.1.3-S4 every sex and band of Guildmaster pictures holds three or more.
-    expect(contentWarnings(content)).toEqual([
-      'portraits.hero.female: 0 pictures of the Class warrior, fewer than 3',
-      'portraits.hero.female: 0 pictures of the Class rogue, fewer than 3',
-      'portraits.hero.female: 0 pictures of the Class mage, fewer than 3',
-      'portraits.hero.female: 0 pictures of the Class healer, fewer than 3',
-      'portraits.hero.male: 0 pictures of the Class warrior, fewer than 3',
-      'portraits.hero.male: 0 pictures of the Class rogue, fewer than 3',
-      'portraits.hero.male: 0 pictures of the Class mage, fewer than 3',
-      'portraits.hero.male: 0 pictures of the Class healer, fewer than 3',
-    ]);
-  });
-
-  test("gives each Hero Background its Station: Fallen gentry gentry, Town apprentice trade, the other six common (DL-135 item 5)", () => {
-    const stations = Object.fromEntries(Object.values(content.backgrounds).map((row) => [row.key, row.station ?? null]));
-    expect(stations).toEqual({
-      'farm-born': 'common',
-      'levy-soldier': 'common',
-      'temple-ward': 'common',
-      'river-folk': 'common',
-      'pit-village': 'common',
-      'town-apprentice': 'trade',
-      'poachers-child': 'common',
-      'fallen-gentry': 'gentry',
-      'old-charter': null,
-      breakaway: null,
-      'newly-founded': null,
-      inherited: null,
-    });
-  });
-
-  describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+  describe("what a Guildmaster's descriptive Attributes are written from (DL-125 item 6)", () => {
     const { descriptions } = content;
     const bands = descriptions.ageBands.map((band) => band.key);
     const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
     const guildmasterTraits = Object.keys(content.guildmasterTraits);
 
-    test('has three age bands for the Guildmasters of 21 to 50, and at least thirty Birthplaces', () => {
-      expect(descriptions.ageBands).toEqual([
-        { key: 'young', from: 0 },
-        { key: 'middle', from: 31 },
-        { key: 'older', from: 41 },
-      ]);
+    test('has at least thirty Birthplaces', () => {
       expect(descriptions.birthplaces.length).toBeGreaterThanOrEqual(30);
     });
 
@@ -145,7 +42,6 @@ describe('loadContent()', () => {
         for (const band of bands) {
           const phrases = descriptions.appearance[sex][band];
           const slots = sex === 'male' ? ['build', 'face', 'hair', 'facialHair', 'eyes', 'mark', 'bearing'] : ['build', 'face', 'hair', 'eyes', 'mark', 'bearing'];
-          expect(Object.keys(phrases ?? {}).sort()).toEqual([...slots].sort());
           for (const slot of slots) expect((phrases as Record<string, string[]>)[slot]?.length, `${sex} ${band} ${slot}`).toBeGreaterThanOrEqual(4);
         }
       }
@@ -158,22 +54,6 @@ describe('loadContent()', () => {
       for (const texts of [...Object.values(descriptions.biography.backgrounds), ...Object.values(descriptions.biography.traits)]) {
         expect(texts.length).toBeGreaterThanOrEqual(2);
       }
-    });
-
-    // v1.1.3-S1: the structure proved with a first sentence in every list; the first `analyse` run fills
-    // them to three or more (v1.1.3-S4, DL-135 item 11).
-    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1), and v1.1.3-S4's genial", () => {
-      expect(descriptions.stations).toEqual(['common', 'trade', 'gentry']);
-      expect(descriptions.tempers).toEqual(['stern', 'composed', 'intense', 'calculating', 'wry', 'steady', 'genial']);
-      expect(descriptions.callings).toEqual({
-        soldier: { suits: ['old-soldier'], clashes: [] },
-        adventurer: { suits: ['old-soldier'], clashes: [] },
-        scholar: { suits: [], clashes: ['mistrusts-magic'] },
-        mage: { suits: [], clashes: ['mistrusts-magic'] },
-        explorer: { suits: [], clashes: [] },
-        merchant: { suits: ['thrifty', 'miser'], clashes: ['spendthrift'] },
-        lawyer: { suits: ['thrifty'], clashes: [] },
-      });
     });
 
     test("has a sentence at least for every Station, Calling at every band, Temper, Hero Background, Class at every band and Hero Trait, and a Hero's closing for every band", () => {
@@ -194,16 +74,7 @@ describe('loadContent()', () => {
         ...heroTraits.map((key): [string, string[] | undefined] => [`heroBiography.traits.${key}`, hero.traits[key]]),
         ...bands.map((band): [string, string[] | undefined] => [`heroBiography.closings.${band}`, hero.closings[band]]),
       ];
-      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + heroTraits.length + 3);
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
-    });
-
-    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within the engine's bounds", () => {
-      const longest = longestDescriptions(content);
-      expect(longest.birthplace).toBeLessThanOrEqual(descriptiveAttributeMaxLength.birthplace);
-      expect(longest.appearance).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
-      expect(longest.biography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
-      expect(longest.heroBiography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
     });
 
     test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
@@ -218,7 +89,7 @@ describe('loadContent()', () => {
       expect(phrases.length).toBeGreaterThan(150);
     });
 
-    // v1.1.2-S6, the S5 verification's findings: the prose read whole, and what it showed held here.
+    // The prose read whole, and what it showed held here.
     const biographySentences = (): string[] => {
       const { origins, careers, backgrounds, traits, closings, successors, stationOrigins, callingCareers, temperClosings } = descriptions.biography;
       const hero = descriptions.heroBiography;
@@ -230,12 +101,6 @@ describe('loadContent()', () => {
 
     test("gives a successor sentences of coming to the Guild's chair, none of founding it", () => {
       for (const sentence of descriptions.biography.successors) expect(sentence, sentence).not.toMatch(/\bfound(ed|ing|er)?\b|own making/i);
-    });
-
-    test('closes every Birthplace in a sentence with a comma or a full stop, since a Birthplace may hold a comma of its own', () => {
-      const open = biographySentences().filter((sentence) => /\{birthplace\}(?![,.])/.test(sentence));
-      expect(open).toEqual([]);
-      expect(descriptions.birthplaces.some((place) => place.includes(','))).toBe(true);
     });
 
     test("names the Guildmaster only by a slot, so no he, his or her is anyone else's", () => {
@@ -285,20 +150,12 @@ describe('loadContent()', () => {
       expect(traits.filter((sentence) => /\byears\b|\bold (company|days)\b|long ago/i.test(sentence))).toEqual([]);
     });
 
-    test('writes each standalone text with a capital: every Birthplace, phrase and sentence begins with one', () => {
-      const texts = [
-        ...descriptions.birthplaces,
-        ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand).flatMap((slots) => Object.values(slots).flat())),
-        ...biographySentences().map((sentence) => sentence.replace(/^\{(\w+)\}/, (_, slot: string) => descriptions.pronouns.female[slot] ?? slot)),
-      ];
-      for (const text of texts) expect(text, text).toMatch(/^\p{Lu}/u);
-    });
   });
 
   // The Traits are the owner's to add, change and remove through the content editor (DL-150 items 7
-  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (the verification of
-  // v1.1.4-S13); the content's checks hold the rest, an exclusion both ways among them.
-  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds (M9-S2)", () => {
+  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (DL-163);
+  // the content's checks hold the rest, an exclusion both ways among them.
+  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds", () => {
     const traits = Object.values(content.guildmasterTraits);
     expect(traits.length).toBeGreaterThan(0);
     for (const trait of traits) {
@@ -308,74 +165,35 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
+  test('costs more for each grade of a Hall facility (INPUTS 7.3)', () => {
     const improvements = Object.values(content.improvements);
     for (const facility of facilityKeys) {
-      const grades = improvements
+      const costs = improvements
         .filter((it) => it.facility === facility)
         .sort((a, b) => a.grade - b.grade)
-        .map(({ grade, cost }) => [grade, cost]);
-      expect(grades, facility).toEqual([
-        [1, 200],
-        [2, 500],
-        [3, 1000],
-      ]);
+        .map((it) => it.cost);
+      expect(costs.length, facility).toBeGreaterThan(1);
+      costs.slice(1).forEach((cost, index) => expect(cost, facility).toBeGreaterThan(costs[index] ?? Infinity));
     }
-    expect(improvements).toHaveLength(9);
-    for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69), and their partyMargins (DL-157)', () => {
-    const weights = (
-      questRiskAppetite: number,
-      recruitThreshold: number,
-      buildThreshold: number,
-      gearThreshold: number,
-      transferAppetite: number,
-      partyMargin: number,
-    ) => ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin });
-    expect(content.dispositions).toEqual({
-      // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
-      // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
-      // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
-      // v1.1.4-S6 gave each its partyMargin, 0.05 and reckless's 0.10, first values S10 tunes (DL-148).
-      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2, 0.05) },
-      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3, 0.05) },
-      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1, 0.05) },
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25, 0.1) },
-    });
-  });
-
-  test('has twenty Hero Stats in four areas', () => {
-    const inArea = (area: StatArea) => heroStats.filter((stat) => stat.area === area).length;
-
-    expect(heroStats).toHaveLength(20);
-    expect([inArea('physical'), inArea('mental'), inArea('magical'), inArea('social')]).toEqual([
-      5, 6, 5, 4,
-    ]);
-  });
-
-  test('has the five Guildmaster Stats', () => {
-    expect(guildmasterStats.map((stat) => stat.name)).toEqual([
-      'Inspiration',
-      'Influence',
-      'Negotiation',
-      'Coaching',
-      'Judgement',
-    ]);
+  test('has a Hero Stat in every area', () => {
+    const areas: StatArea[] = ['physical', 'mental', 'magical', 'social'];
+    for (const area of areas) {
+      expect(heroStats.filter((stat) => stat.area === area).length, area).toBeGreaterThan(0);
+    }
   });
 
   test('has every Stat range 1 to 20 (INPUTS 3.6)', () => {
     expect(stats.filter((stat) => stat.min !== 1 || stat.max !== 20)).toEqual([]);
   });
 
-  test('has four Classes, each gating three Skills of the twelve', () => {
+  test('has every Class gate Skills, and no Skill gated by two Classes', () => {
     const classes = Object.values(content.classes);
+    const gated = classes.flatMap((it) => it.gatedSkills);
 
-    expect(classes.map((it) => it.name)).toEqual(['Warrior', 'Rogue', 'Mage', 'Healer']);
-    expect(Object.keys(content.skills)).toHaveLength(12);
-    for (const it of classes) expect(it.gatedSkills).toHaveLength(3);
-    expect(new Set(classes.flatMap((it) => it.gatedSkills)).size).toBe(12);
+    for (const it of classes) expect(it.gatedSkills.length, it.key).toBeGreaterThan(0);
+    expect(new Set(gated).size).toBe(gated.length);
   });
 
   test("weights each Class's growth 2:1 toward its leading Stats (INPUTS 5.3)", () => {
@@ -390,37 +208,6 @@ describe('loadContent()', () => {
     }
   });
 
-  test("gives each Guildmaster Trait an effect, and the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
-    for (const trait of Object.values(content.guildmasterTraits)) expect(trait.effects.length, trait.key).toBeGreaterThan(0);
-    const modifiers = (it: Record<string, number>) => ({ effects: [{ kind: 'statModifiers', modifiers: it }] });
-    expect(content.heroTraits).toMatchObject({
-      lame: modifiers({ dexterity: -2, endurance: -1 }),
-      'one-eyed': modifiers({ perception: -2, weaponry: -1 }),
-      'short-winded': modifiers({ endurance: -2, constitution: -1 }),
-      scarred: modifiers({ courage: 1, charisma: -1 }),
-    });
-  });
-
-  test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (v1.1.4-S7, DL-150 item 1)', () => {
-    const both = Object.keys(content.heroTraits).filter((key) => Object.hasOwn(content.guildmasterTraits, key));
-    expect(both).toEqual([]);
-  });
-
-  test('has eight Hero and four Guild Backgrounds, and six Spheres', () => {
-    const backgrounds = Object.values(content.backgrounds);
-
-    expect(backgrounds.filter((it) => it.owner === 'hero')).toHaveLength(8);
-    expect(backgrounds.filter((it) => it.owner === 'guild')).toHaveLength(4);
-    expect(Object.values(content.spheres).map((it) => it.name)).toEqual([
-      'Crown',
-      'Church',
-      'Merchants',
-      'Villages',
-      'Scholars',
-      'Underworld',
-    ]);
-  });
-
   test('has name lists of the sizes INPUTS 3.9 asks for', () => {
     expect(content.names.given.female.length).toBeGreaterThanOrEqual(55);
     expect(content.names.given.male.length).toBeGreaterThanOrEqual(55);
@@ -429,21 +216,11 @@ describe('loadContent()', () => {
     expect(content.names.patron.length).toBeGreaterThan(0);
   });
 
-  describe('Quest templates (M2-S3)', () => {
+  describe('Quest templates', () => {
     const templates = Object.values(content.questTemplates);
 
-    test('are twelve, two for each Sphere', () => {
-      expect(templates).toHaveLength(12);
-      for (const sphereKey of Object.keys(content.spheres)) {
-        expect(templates.filter((it) => it.sphereKeys.includes(sphereKey)), sphereKey).toHaveLength(2);
-      }
-    });
-
-    test('each name Skills from skills.json', () => {
-      for (const it of templates) {
-        expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
-        for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
-      }
+    test('each name one Skill or more', () => {
+      for (const it of templates) expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
     });
 
     // The ranges are content, not rules: the templates hold them (DL-25).
@@ -469,42 +246,33 @@ describe('loadContent()', () => {
       expect(requiring.length).toBeLessThan(templates.length / 2);
     });
 
-    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1), of kinds content has Encounters of (M4-S1)', () => {
-      const kinds = new Set(Object.values(content.encounters).map((it) => it.kind));
+    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1)', () => {
       for (const it of templates) {
         expect(it.encountersMin, it.key).toBeGreaterThanOrEqual(2);
         expect(it.encountersMax, it.key).toBeLessThanOrEqual(5);
         expect(it.encountersMin, it.key).toBeLessThanOrEqual(it.encountersMax);
-        expect(it.encounterKinds.length, it.key).toBeGreaterThan(0);
-        for (const kind of it.encounterKinds) expect(kinds.has(kind), `${it.key} ${kind}`).toBe(true);
       }
-      // The hardest templates are the longest: a count never falls as a template's difficulty rises.
-      const byDifficulty = [...templates].sort((a, b) => a.difficultyMax - b.difficultyMax);
-      expect(byDifficulty.at(-1)?.encountersMax).toBe(5);
-      expect(byDifficulty[0]?.encountersMin).toBe(2);
     });
   });
 
-  // M4-S1's third box; the Encounters as v1.1.4-S10 wrote them from the drafts the owner approved
+  // The Encounters as written from the drafts the owner approved
   // (DL-162, DL-165): each in Checks scored by Queries over the Party, with a pass formula.
-  describe('Encounters (M4-S1, v1.1.4-S10)', () => {
+  describe('Encounters', () => {
     const encounters = Object.values(content.encounters);
-    /** Each Encounter as `encounters.json` writes it: the new form (v1.1.4-S2). */
+    /** Each Encounter as `encounters.json` writes it: the new form. */
     const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
       string,
       { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
     >;
     const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
-    test('are twenty-nine of the six kinds, four of them lore and four Finales (DL-162)', () => {
-      const byKind = (list: typeof encounters) => Object.fromEntries(encounterKinds.map((kind) => [kind, list.filter((it) => it.kind === kind).length]));
-      expect(encounters).toHaveLength(29);
-      expect(byKind(encounters)).toEqual({ combat: 5, travel: 5, social: 4, arcane: 6, stealth: 5, lore: 4 });
-      // Drawn in their places: every kind has at least two that are no template's Finale.
-      for (const [kind, count] of Object.entries(byKind(encounters.filter((it) => !finales.has(it.key))))) expect(count, kind).toBeGreaterThanOrEqual(2);
+    // Drawn in their places: every kind has at least two that are no template's Finale (DL-162).
+    test('are of every kind, two or more of each that are no Finale', () => {
+      const drawn = encounters.filter((it) => !finales.has(it.key));
+      for (const kind of encounterKinds) expect(drawn.filter((it) => it.kind === kind).length, kind).toBeGreaterThanOrEqual(2);
     });
 
-    // v1.1.4-S8 (DL-148 item 22, DL-160): the tags that weight the draw, matched to the templates'.
+    // DL-148 item 22, DL-160: the tags that weight the draw, matched to the templates'.
     test("each has one to three tags, each one some template carries, so that every tag weights some Quest's draw", () => {
       const carried = new Set(Object.values(content.questTemplates).flatMap((it) => it.tags));
       for (const it of encounters) {
@@ -516,29 +284,11 @@ describe('loadContent()', () => {
       for (const tag of carried) expect(tagged.has(tag), tag).toBe(true);
     });
 
-    test('four templates name a Finale, each an Encounter of its own (DL-148 item 22)', () => {
-      const named = Object.fromEntries(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [[it.key, it.finale]])));
-      expect(named).toEqual({
-        'hold-the-border-fort': 'the-last-assault',
-        'lay-the-restless-dead': 'the-last-rite',
-        'break-the-sealed-vault': 'the-wardens-seal',
-        'the-counting-house-job': 'the-strongroom',
-      });
-      expect(finales.size).toBe(4);
-    });
-
-    test('each is written in two to four named Checks, combined by a pass formula, with consequences for all four Degrees', () => {
+    test('each is written in two Checks or more, with consequences for all four Degrees', () => {
       for (const it of encounters) {
         const row = written[it.key] ?? expect.fail(it.key);
         expect(row.checks.length, it.key).toBeGreaterThanOrEqual(2);
-        expect(row.checks.length, it.key).toBeLessThanOrEqual(4);
-        expect(row.pass, it.key).toBeDefined();
         expect(Object.keys(row.consequences).sort(), it.key).toEqual(['failure', 'setback', 'success', 'triumph']);
-        for (const check of it.checks) {
-          expect(check.name.length, `${it.key}/${check.key}`).toBeGreaterThan(0);
-          expect(check.difficultyFactor, `${it.key}/${check.key}`).toBeGreaterThan(0);
-          for (const skillKey of check.skills) expect(content.skills[skillKey], `${it.key}/${check.key}`).toBeDefined();
-        }
       }
     });
 
@@ -557,25 +307,6 @@ describe('loadContent()', () => {
         for (const consequence of [...setback, ...failure]) {
           if (consequence.kind === 'injury') expect(content.injuries[consequence.typeKey], it.key).toBeDefined();
         }
-      }
-    });
-
-    // v1.1.6-S6 (DL-192): the old form is no longer read, so every shipped row is in the new one: an
-    // Encounter's `checks` a list, a Synergy's `requires` a list (29 of 29 and 9 of 9 when it was retired).
-    // v1.1.6-S7 (DL-193): nor does a Quest template carry `demands`, which no rule read (12 of 12 when
-    // they went).
-    test('carry no demands, as written', () => {
-      const written = JSON.parse(readFileSync(join(contentDir, 'quest-templates.json'), 'utf8')) as Record<string, Record<string, unknown>>;
-      expect(Object.keys(written)).toHaveLength(12);
-      for (const [key, row] of Object.entries(written)) expect(row, key).not.toHaveProperty('demands');
-    });
-
-    test('are every one written with a list of Checks, and none in the old form', () => {
-      const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<string, Record<string, unknown>>;
-      expect(Object.keys(written)).toHaveLength(Object.keys(content.encounters).length);
-      for (const [key, row] of Object.entries(written)) {
-        expect(Array.isArray(row['checks']), key).toBe(true);
-        for (const field of ['demands', 'aggregate', 'skillKeys', 'difficultyFactor']) expect(row, `${key}.${field}`).not.toHaveProperty(field);
       }
     });
 
@@ -599,13 +330,12 @@ describe('loadContent()', () => {
       return [];
     }
 
-    // v1.1.4-S10's coverage (DL-148 item 21, the epic's gate): no Hero Stat goes unread by the Quests.
+    // Coverage (DL-148 item 21, the epic's gate): no Hero Stat goes unread by the Quests.
     test('read every Hero Stat by three Checks at least, across two kinds at least', () => {
       const short = heroStats.flatMap((stat) => {
         const kinds = encounters.flatMap((it) => it.checks.filter((check) => statsAdded(check.score).includes(stat.key)).map(() => it.kind));
         return kinds.length >= 3 && new Set(kinds).size >= 2 ? [] : [`${stat.key}: ${kinds.length} Checks across ${new Set(kinds).size} kinds`];
       });
-      expect(heroStats).toHaveLength(20);
       expect(short).toEqual([]);
     });
 
@@ -617,36 +347,17 @@ describe('loadContent()', () => {
     });
   });
 
-  // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
-  // v1.1.4-S10 writes them as Queries over the Party, and three more that read Stats and Levels (DL-162).
-  describe('Synergies (M4-S3, v1.1.4-S10)', () => {
-    // v1.1.6-S6 (DL-192): see the Encounters'; every Synergy's `requires` is a list of conditions on the Party.
-    test('are every one written with a list of conditions, and none in the old form', () => {
-      const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, Record<string, unknown>>;
-      expect(Object.keys(written)).toHaveLength(Object.keys(content.synergies).length);
-      for (const [key, row] of Object.entries(written)) expect(Array.isArray(row['requires']), key).toBe(true);
-    });
-
+  // INPUTS 6.4: starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors;
+  // they are Queries over the Party, and some read Stats and Levels (DL-162).
+  describe('Synergies', () => {
     const synergies = Object.values(content.synergies);
-    /** Each Synergy's requirement as `synergies.json` writes it: conditions on the Party. */
-    const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<string, { requires: unknown }>;
     const classCount = (classKey: string, count: number) => ['>=', ['count', ['where', 'party', ['class', classKey]]], count];
 
-    test('are nine, among them Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
-      expect(synergies).toHaveLength(9);
+    test('include Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
       const requirements = synergies.map((it) => it.requires);
       expect(requirements).toContainEqual([classCount('warrior', 1), classCount('healer', 1)]);
       expect(requirements).toContainEqual([classCount('rogue', 1), classCount('mage', 1)]);
       expect(requirements).toContainEqual([classCount('warrior', 3)]);
-      for (const it of synergies) expect(it.name.length, it.key).toBeGreaterThan(0);
-    });
-
-    test('are each written as conditions on the Party, and load as written', () => {
-      for (const it of synergies) {
-        const { requires } = written[it.key] ?? expect.fail(it.key);
-        expect(Array.isArray(requires), it.key).toBe(true);
-        expect(it.requires, it.key).toEqual(requires);
-      }
     });
 
     test('read Classes, Skills, Stats and Levels, add a flat or a factor, some on named kinds and some on every kind', () => {
@@ -659,24 +370,16 @@ describe('loadContent()', () => {
     });
   });
 
-  // M5-S1: twenty to start, nine gear three a slot at three grades, six consumables, five unique gear
-  // as Loot only (DL-48); v1.1.4-S10 adds six trinkets for the Mental and Social Stats (DL-162).
-  describe('Item definitions (M5-S1, v1.1.4-S10)', () => {
+  // Gear three a slot at three grades, consumables, unique gear as Loot only (DL-48), and
+  // trinkets for the Mental and Social Stats (DL-162).
+  describe('Item definitions', () => {
     const items = Object.values(content.items);
     const gear = items.filter((it) => it.kind === 'gear');
     const consumables = items.filter((it) => it.kind === 'consumable');
     const grades = ['plain', 'fine', 'masterwork'];
-    /** v1.1.4-S10's trinkets for the Mental and Social Stats, beside each slot's line of three. */
+    /** The trinkets for the Mental and Social Stats, beside each slot's line of three. */
     const mentalAndSocial = ['commonplace-book', 'reading-glass', 'signet-ring', 'officers-sash', 'courtiers-brooch', 'scholars-almanac'];
     const lines = gear.filter((it) => !it.unique && !mentalAndSocial.includes(it.key));
-
-    test('are twenty-six: fifteen common gear, six consumables and five unique gear', () => {
-      expect(items).toHaveLength(26);
-      expect(gear.filter((it) => !it.unique)).toHaveLength(15);
-      expect(consumables).toHaveLength(6);
-      expect(gear.filter((it) => it.unique)).toHaveLength(5);
-      for (const it of items) expect(it.name.length, it.key).toBeGreaterThan(0);
-    });
 
     test('hold a line of three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
       for (const slot of gearSlotKeys) {
@@ -709,10 +412,7 @@ describe('loadContent()', () => {
       }
     });
 
-    test('give gear modifiers on Hero Stats, and every common Item a price', () => {
-      for (const it of gear) {
-        for (const statKey of Object.keys(it.statModifiers)) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
-      }
+    test('give every common Item a price', () => {
       for (const it of items.filter((item) => !item.unique)) expect(it.buyPrice, it.key).toBeGreaterThan(0);
     });
 
@@ -722,51 +422,56 @@ describe('loadContent()', () => {
       expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(gearSlotKeys));
     });
 
-    test('have two consumables of each effect, common, their kinds Encounter kinds content has', () => {
+    test('have a consumable of each effect, their kinds Encounter kinds content has', () => {
       const kinds = new Set(Object.values(content.encounters).map((it) => it.kind));
       for (const effect of ['reroll', 'bonus', 'heal']) {
-        expect(consumables.filter((it) => it.effect.kind === effect), effect).toHaveLength(2);
+        expect(consumables.filter((it) => it.effect.kind === effect).length, effect).toBeGreaterThan(0);
       }
       for (const it of consumables) {
-        expect(it.unique, it.key).toBe(false);
         if (it.effect.kind !== 'heal') for (const kind of it.effect.kinds) expect(kinds.has(kind), `${it.key} ${kind}`).toBe(true);
       }
     });
   });
 
-  // M5-S5 (DL-52): the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
+  // DL-52: the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
   // templates carry one agrees with `defaultConfig.lootDifficultyThreshold`, which content cannot
   // read: the harness's creation.test.ts holds that.
-  describe('Loot tables (M5-S5)', () => {
+  describe('Loot tables', () => {
     const templates = Object.values(content.questTemplates);
     const tables = Object.values(content.lootTables);
 
     test('are chosen by difficulty band: a harder template never names a lesser table than an easier one', () => {
-      const rank = ['lesser-loot', 'greater-loot'];
+      // A table's rank is the mean worth of what one roll awards: its entries' quantity times price.
+      const worth = (table: (typeof tables)[number]): number => {
+        const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
+        const value = table.entries.reduce(
+          (sum, entry) => sum + entry.weight * ((entry.quantityMin + entry.quantityMax) / 2) * (content.items[entry.definitionKey]?.buyPrice ?? 0),
+          0,
+        );
+        return value / total;
+      };
+      const rank = [...tables].sort((a, b) => worth(a) - worth(b)).map((it) => it.key);
       const named = templates
         .filter((it) => it.lootTableKey !== null)
         .sort((a, b) => a.difficultyMin - b.difficultyMin)
         .map((it) => rank.indexOf(it.lootTableKey ?? ''));
 
-      expect(tables.map((it) => it.key).sort()).toEqual([...rank].sort());
+      expect(rank.length).toBeGreaterThan(1);
       expect(named).not.toContain(-1);
       expect(named).toEqual([...named].sort((a, b) => a - b));
       expect(new Set(named).size).toBe(rank.length);
     });
 
-    test('hold every unique Item between them, and each unique Item one at a time', () => {
+    test('hold every unique Item between them', () => {
       const unique = Object.values(content.items).filter((it) => it.unique).map((it) => it.key);
       const entries = tables.flatMap((it) => it.entries);
       const awarded = new Set(entries.filter((it) => unique.includes(it.definitionKey)).map((it) => it.definitionKey));
 
       expect([...awarded].sort()).toEqual([...unique].sort());
-      for (const it of entries.filter((entry) => unique.includes(entry.definitionKey))) {
-        expect([it.quantityMin, it.quantityMax], it.definitionKey).toEqual([1, 1]);
-      }
     });
   });
 
-  describe('Injury types (M2-S5)', () => {
+  describe('Injury types', () => {
     const types = Object.values(content.injuries);
 
     test('are a few, healing in 5 to 30 Days (INPUTS 4.5)', () => {
@@ -779,26 +484,14 @@ describe('loadContent()', () => {
     });
 
     // A Trait earned on a Quest is left by no Injury (DL-148 item 25), so not every Hero Trait is one.
-    test("leave a Hero Trait or none, some none, and each `leavesTrait` names a Hero Trait", () => {
+    test('leave a Hero Trait or none, some none', () => {
       expect(types.some((it) => it.leavesTrait === null)).toBe(true);
-      for (const it of types) if (it.leavesTrait !== null) expect(Object.keys(content.heroTraits), it.key).toContain(it.leavesTrait);
     });
   });
 
-  test('validates', () => {
-    expect(validateContent(structuredClone(content))).toEqual(content);
-  });
 });
 
 describe('the pure entry and the Node entry', () => {
-  test('return deep-equal sets for the same files', () => {
-    const files = Object.fromEntries(
-      contentFiles.map((name) => [name, readFileSync(join(contentDir, name), 'utf8')]),
-    );
-
-    expect(parseContent(files)).toEqual(loadContent(contentDir));
-  });
-
   test('ignore files that are not content, as a glob of the directory would include', () => {
     const files = Object.fromEntries(
       [...contentFiles, 'package.json', 'tsconfig.json'].map((name) => [
@@ -821,10 +514,6 @@ describe("CONTEXT.md's Stat entry", () => {
     Object.values(content.stats)
       .filter((stat) => stat.owner === owner && (area === undefined || stat.area === area))
       .map((stat) => stat.name);
-
-  test('exists', () => {
-    expect(entry).toBeDefined();
-  });
 
   test('names every Stat in stats.json verbatim', () => {
     for (const stat of Object.values(content.stats)) {

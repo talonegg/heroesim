@@ -27,7 +27,7 @@ import { transferOfferStop } from './stops.js';
 import { dayOf, nightOf, timeOfDay } from './time.js';
 import { deepFreeze, heroStatKeys, testDeps, thriftyRivals, withDispositions, withValid } from './world.test-support.js';
 
-// M6-S2 beyond the actions (actions/transfer.test.ts): Transfer Offers expiring at night and lapsing
+// Transfers beyond the actions (actions/transfer.test.ts, DL-57): Transfer Offers expiring at night and lapsing
 // when their Hero or a Guild goes, the fold withdrawing them, fast forward's `transfer-offer` stop,
 // and the Rivals using the same Transfer rules in `rivalChoices` (DL-57). Every document a test makes
 // is held to the validator; the config the tests rely on is pinned.
@@ -157,7 +157,7 @@ describe('a fold withdraws the Transfer Offers that name the folding Guild (DL-5
     const made = offerFor(world, folding, first, deps);
     const standing = offerFor(world, other, second, deps);
     // An offer the folding Guild is asked, for one of its Heroes (the data model allows one either
-    // way; M6-S2's Rivals only make them).
+    // way; Rivals only make them).
     const [theirs] = folding.rosterIds as [HeroId];
     const asked = takeId(world, 'offers');
     world.offers[asked] = {

@@ -49,7 +49,6 @@ import {
   type BackgroundKey,
   type EngineDeps,
   type TurnEvent,
-  type Ending,
   type GuildAction,
   type GuildId,
   type LoadRefusal,
@@ -57,7 +56,6 @@ import {
   type PortraitKey,
   type RebaseAction,
   type Rejection,
-  type SetupRefusal,
   type Sex,
   type StatValues,
   type StopCondition,
@@ -67,6 +65,7 @@ import {
   type WorldDocument,
   type WorldSetup,
 } from '@heroesim/engine';
+import type { GameEnded as AnyGameEnded, NewGameRejection, NoPlayerGuild as AnyNoPlayerGuild } from '@heroesim/words';
 import { content } from '../content';
 
 // ── Plays ────────────────────────────────────────────────────────────────────────────────────
@@ -174,14 +173,9 @@ export const fastForwardStepTurns = 30;
 
 /**
  * A new game's setup that breaks a rule, checked before `createWorld`, which throws on it: the
- * engine's `SetupRefusal`, by its reason, with what it names (M9-S2, DL-102; the names and the
- * Background, DL-65).
+ * engine's `SetupRefusal`, by its reason, with what it names (DL-102; the refusals' words, DL-240).
  */
-export type NewGameRejection = SetupRefusal extends infer Refusal
-  ? Refusal extends SetupRefusal
-    ? Rejection<'newGame', Refusal['reason']> & Omit<Refusal, 'reason'>
-    : never
-  : never;
+export type { NewGameRejection };
 
 /** The Background asked for is not a Guild Background of the content. */
 export type UnknownBackground = Extract<NewGameRejection, { reason: 'unknown-background' }>;
@@ -201,18 +195,25 @@ export type LoadRejection = LoadRefusal extends infer Refusal
 export type NoGame = Rejection<DocumentPlayKind, 'no-game'>;
 
 /** A play that needs the player's Guild, on a save that has none. */
-export type NoPlayerGuild = Rejection<DocumentPlayKind, 'no-player-guild'>;
+export type NoPlayerGuild = AnyNoPlayerGuild<DocumentPlayKind>;
 
 /** A Turn or an action after the player's game has ended: the world stands (DL-28, DL-53). */
-export interface GameEnded extends Rejection<DocumentPlayKind, 'game-ended'> {
-  ending: Ending;
-}
+export type GameEnded = AnyGameEnded<DocumentPlayKind>;
 
 /** The refusals any play on a game can meet, whichever it is. */
 export type GameRefusal = NoGame | NoPlayerGuild | GameEnded;
 
 /** Every way a play can be refused: the engine's rejections and the front end's own, in their shape. */
 export type PlayRejection = ActionRejection | NewGameRejection | LoadRejection | GameRefusal;
+
+/**
+ * The save of this browser whose load `rejection` refused, by its name: the page says why beside
+ * that save, in the list the player chose it from. `null` for any other refusal, and for a file
+ * loaded from the player's disk.
+ */
+export function refusedSave(rejection: PlayRejection | null): string | null {
+  return rejection !== null && rejection.action === 'load' && 'from' in rejection ? (rejection.from ?? null) : null;
+}
 
 // ── State ────────────────────────────────────────────────────────────────────────────────────
 
@@ -362,15 +363,29 @@ type Outcome =
   | { ok: false; rejection: PlayRejection };
 
 /**
+ * The deps each config plays under, by the config itself: a document's config is never changed in
+ * place, each play keeping its document's or making a new one (`rebase`), so it is filled forward
+ * and checked once (DL-241), and let go with the last document that holds it.
+ */
+const checkedDeps = new WeakMap<object, EngineDeps>();
+
+/**
  * The deps a game plays under, the engine's `playDeps`: its own config, filled forward with the
- * current defaults (D3) and checked, and the modules installed, none unless given (M8-S4). The
- * selectors, which run no hook, give none. A game in hand was loaded, checked by `deserialise`, or
- * made or rebased under `defaultConfig`, so its config is sound; one that is not is a bug, and throws.
+ * current defaults (D3) and checked, once a config (`checkedDeps`), and the modules installed, none
+ * unless given. The selectors, which run no hook, give none. A game in hand was loaded,
+ * checked by `deserialise`, or made or rebased under `defaultConfig`, so its config is sound; one
+ * that is not is a bug, and throws.
  */
 export function playDeps(document: Pick<WorldDocument, 'meta'>, modules: readonly Module[] = noModules): EngineDeps {
-  const played = enginePlayDeps(document, content, modules);
-  if (!played.ok) throw new Error(played.refusal.message);
-  return played.deps;
+  const { config } = document.meta;
+  let deps = checkedDeps.get(config);
+  if (deps === undefined) {
+    const played = enginePlayDeps(document, content);
+    if (!played.ok) throw new Error(played.refusal.message);
+    deps = played.deps;
+    checkedDeps.set(config, deps);
+  }
+  return modules.length === 0 ? deps : { ...deps, modules };
 }
 
 /**

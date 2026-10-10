@@ -8,16 +8,13 @@ import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import {
   addresses,
   deploy,
-  pagesProject,
-  productionBranch,
-  workerConfig,
   wranglerCommands,
   type DeployOptions,
   type Spawn,
   type SpawnResult,
 } from '../scripts/deploy.mjs';
 
-// The deploy (M7-S5, DL-68; v1.0.1-S3, DL-94; INPUTS 7.8 and 7.9). `npm run deploy` is
+// The deploy (DL-68; DL-94; INPUTS 7.8 and 7.9). `npm run deploy` is
 // web/scripts/deploy.mjs: from a clean checkout of a release tag, it builds and gates the page
 // once, then uploads web/dist to the Worker `heroesim` (Cloudflare Workers static assets,
 // web/wrangler.jsonc) and then to the Pages project `heroesims`, from this machine, after a
@@ -28,7 +25,7 @@ import {
 // credential and `.wrangler/` out of the repository. Like the bundle gate (bundle.test.ts) they
 // run on every `npm test`, in CI included. Two need a module mocked, so have files of their own:
 // deploy-import.test.ts, that an import runs nothing, and deploy-root.test.ts, that the guard
-// looks at the filesystem's root (v1.0.1-S6, DL-97).
+// looks at the filesystem's root (DL-97).
 
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const repoDir = path.join(webDir, '..');
@@ -56,11 +53,17 @@ function git(args: string[]): { status: number | null; stdout: string } {
   return { status: child.status, stdout: child.stdout };
 }
 
+/** The list `repositoryFiles` gives, read once for the file: the tests below only read the repository. */
+let listedFiles: string[] | undefined;
+
 /** Every file in the repository and every file one `git add .` from it: tracked, or untracked and not ignored. */
 function repositoryFiles(): string[] {
-  const listed = git(['ls-files', '--cached', '--others', '--exclude-standard', '-z']);
-  expect(listed.status).toBe(0);
-  return [...new Set(listed.stdout.split('\0').filter((file) => file !== ''))];
+  if (listedFiles === undefined) {
+    const listed = git(['ls-files', '--cached', '--others', '--exclude-standard', '-z']);
+    expect(listed.status).toBe(0);
+    listedFiles = [...new Set(listed.stdout.split('\0').filter((file) => file !== ''))];
+  }
+  return listedFiles;
 }
 
 const temporaries: string[] = [];
@@ -119,7 +122,6 @@ describe('the deploy command', () => {
       // a preview that never reaches https://heroesims.pages.dev (v1's DL-30 item 3).
       pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'main'],
     });
-    expect([pagesProject, workerConfig, productionBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'main']);
   });
 
   test('writes the production branch once, as one constant: main, whatever the release line (DL-124)', () => {
@@ -158,20 +160,16 @@ describe("the Worker's configuration", () => {
 
 describe("the page's addresses", () => {
   test("are the Worker's full address, on the owner's subdomain, and the Pages project's", () => {
-    expect(addresses.worker).toMatch(/^https:\/\/heroesim\.[a-z0-9]([a-z0-9-]*[a-z0-9])?\.workers\.dev$/);
     expect(addresses.worker).toBe('https://heroesim.magical-potato.workers.dev');
     expect(addresses.pages).toBe('https://heroesims.pages.dev');
   });
 
-  // The deploy guide, docs/deploy.md, holds what INPUTS 7.8 held, the archived inputs being frozen (DL-217).
-  test('are both in the README and in the deploy guide', () => {
+  // The deploy guide's are the test "the deploy guide names both addresses" (docs/deploy.md, DL-217).
+  test('are both in the README', () => {
     const readme = readText('README.md');
-    const guide = readText('docs/deploy.md');
 
     expect(readme).toContain(addresses.worker);
     expect(readme).toContain(addresses.pages);
-    expect(guide).toContain(addresses.worker);
-    expect(guide).toContain(addresses.pages);
   });
 });
 
@@ -210,13 +208,13 @@ describe('the live check', () => {
     ]);
   });
 
-  test('takes a blank HEROESIM_LIVE_URL for none (v1.0.1-S6, DL-97)', async () => {
+  test('takes a blank HEROESIM_LIVE_URL for none (DL-97)', async () => {
     vi.stubEnv('HEROESIM_LIVE_URL', '   ');
 
     expect((await projects()).map(([name]) => name)).toEqual(['worker-phone', 'worker-desktop', 'pages-phone', 'pages-desktop']);
   });
 
-  test('runs e2e/*.live.ts alone, never the local specs, one of which sets ?modules= (DL-82 item 20; v1.0.1-S6, DL-97)', async () => {
+  test('runs e2e/*.live.ts alone, never the local specs, one of which sets ?modules= (DL-82 item 20; DL-97)', async () => {
     vi.stubEnv('HEROESIM_LIVE_URL', '');
     const { default: config } = await import('../playwright.live.config');
 
@@ -311,7 +309,7 @@ function recordEntries(pages: boolean, checkout: Checkout): object[] {
 /**
  * git answering as the checkout would, npm building, and wrangler writing its record: all
  * pretended. git answers only the three reads the guard makes, each asked whole, so that a test
- * proves what the guard asks as well as what it does with the answer (v1.0.1-S6, DL-97).
+ * proves what the guard asks as well as what it does with the answer (DL-97).
  */
 function fakeSpawn(checkout: Checkout): { spawn: Spawn; calls: Call[] } {
   const calls: Call[] = [];
@@ -388,7 +386,7 @@ describe('the deploy refuses before building', () => {
     ['HEAD carries a milestone tag alone', { tags: 'm8-modules\n' }, 'no release tag (v*)'],
     ['HEAD carries two release tags', { tags: 'v1.0.1\nv1.0.2\n' }, '2 release tags, v1.0.1 and v1.0.2'],
     ['git cannot read the checkout', { gitFails: true }, 'git could not read the checkout'],
-    // Its empty output is no clean tree (v1.0.1-S6, DL-97).
+    // Its empty output is no clean tree (DL-97).
     ['git status alone fails', { statusFails: true }, 'git could not read the checkout'],
   ])('when %s: non-zero, and neither npm nor wrangler runs', (_case, checkout, reason) => {
     const { status, output, builds, wrangler } = run(checkout);
@@ -409,7 +407,7 @@ describe('the deploy refuses before building', () => {
   });
 
   // The redirect `pages deploy` follows is found by the same walk, and `.wrangler/` is ignored by
-  // git, so the clean check never sees it (v1.0.1-S6, DL-97).
+  // git, so the clean check never sees it (DL-97).
   const redirect = path.join('.wrangler', 'deploy', 'config.json');
 
   test.each(['wrangler.json', 'wrangler.jsonc', 'wrangler.toml', redirect])(
@@ -440,7 +438,7 @@ describe('the deploy refuses before building', () => {
   });
 
   test.each(['.env', '.env.local'])(
-    'when a %s sits in web/, which wrangler loads into its environment on every run (v1.0.1-S6, DL-97)',
+    'when a %s sits in web/, which wrangler loads into its environment on every run (DL-97)',
     (name) => {
       const place = machine();
       const file = touch(path.join(place.webDir, name));
@@ -464,7 +462,7 @@ describe('the deploy refuses before building', () => {
 
   // npm keeps a flag given before its own `--` and hands the script only `npm_config_<name>`: from
   // the root, whose deploy is `npm run deploy -w web`, even `npm run deploy -- --dryrun` arrives so
-  // (npm 11.19.1; v1.0.1-S6, DL-97).
+  // (npm 11.19.1; DL-97).
   test.each([
     ['npm_config_dryrun', '--dryrun, or --dryRun'],
     ['npm_config_dry_rn', '--dry-rn'],
@@ -533,7 +531,7 @@ describe('the deploy', () => {
     for (const call of [...builds, ...wrangler]) expect(call.options.stdio).toBe('inherit');
   });
 
-  test('asks git exactly what it reads: status --porcelain, tag --points-at HEAD and rev-parse HEAD (v1.0.1-S6, DL-97)', () => {
+  test('asks git exactly what it reads: status --porcelain, tag --points-at HEAD and rev-parse HEAD (DL-97)', () => {
     // Every tag in the repository, untracked files left out, or HEAD's parent would each let
     // through a checkout the guard exists to refuse, or record the wrong commit.
     const { calls } = run();
@@ -545,7 +543,7 @@ describe('the deploy', () => {
     ]);
   });
 
-  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (v1.0.1-S6, DL-97; DL-124)", () => {
+  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (DL-97; DL-124)", () => {
     // Assembled, so that the credential scan below stays quiet.
     const account = ['CLOUDFLARE', 'ACCOUNT', 'ID'].join('_');
     const token = ['CLOUDFLARE', 'API', 'TOKEN'].join('_');
@@ -578,7 +576,7 @@ describe('the deploy', () => {
     ['the build fails', { build: 2 }, 2, 0],
     ["the Worker's upload fails", { worker: 1 }, 1, 1],
     ['the Pages upload fails', { pages: 7 }, 7, 2],
-    // spawnSync gives a child ended by a signal no status and no error (v1.0.1-S6, DL-97).
+    // spawnSync gives a child ended by a signal no status and no error (DL-97).
     ['the build is ended by a signal', { build: null }, 1, 0],
     ["the Worker's upload is ended by a signal", { worker: null }, 1, 1],
   ])('stops at the first failure: when %s', (_case, checkout, status, uploads) => {
@@ -589,7 +587,7 @@ describe('the deploy', () => {
     expect(result.wrangler).toHaveLength(uploads);
   });
 
-  test("when Pages fails after the Worker took the build, prints the Worker's record for the entry that records the attempt (v1.0.1-S6, DL-97)", () => {
+  test("when Pages fails after the Worker took the build, prints the Worker's record for the entry that records the attempt (DL-97)", () => {
     const { status, output } = run({ pages: 7 });
 
     expect(status).toBe(7);
@@ -609,7 +607,7 @@ describe('the deploy', () => {
     );
   });
 
-  test('reads its record past a line wrangler left unfinished (v1.0.1-S6, DL-97)', () => {
+  test('reads its record past a line wrangler left unfinished (DL-97)', () => {
     const { status, output } = run({ brokenRecordLine: true });
 
     expect(status).toBe(0);
@@ -769,9 +767,10 @@ describe('the repository holds no deploy credential', () => {
     const probes = ['.wrangler/cache/pages.json', 'web/.wrangler/cache/pages.json', 'web/.wrangler/tmp/bundle.js'];
 
     expect(ignored).toContain('.wrangler/');
-    for (const probe of probes) {
-      expect(git(['check-ignore', '--no-index', '--quiet', probe]).status, probe).toBe(0);
-    }
+    // One spawn for the three: git prints each path it ignores.
+    const checked = git(['check-ignore', '--no-index', ...probes]);
+    expect(checked.status).toBe(0);
+    expect(checked.stdout.split(/\r?\n/).filter((line) => line !== '')).toEqual(probes);
   });
 
   test('no file sits under a .wrangler/ directory', () => {
@@ -919,7 +918,6 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
     expect(guard).toContain('git merge-base --is-ancestor HEAD "origin/$branch"');
     expect(guard).toContain('ALLOW_OLDER: ${{ inputs.allow_older == true }}');
     expect(guard).toMatch(/if \[ "\$ALLOW_OLDER" = "true" \]; then\n[^\n]*rollback[^\n]*\n {10}else\n {12}node web\/scripts\/release\.mjs newest "\$tag"/);
-    expect(productionBranch).toBe('main');
   });
 
   test('checks, runs the browser specs, reads Pages, deploys, then reads both addresses live, one run at a time', () => {
@@ -936,6 +934,30 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
     expect(live).toBeGreaterThan(deployed);
     expect(deployJob).toContain('group: deploy-production');
     expect(deployJob).toContain('cancel-in-progress: false');
+  });
+
+  // DL-235: the suite and the specs are skipped only on tested.mjs's `run=false`, and the lint, the
+  // typecheck, the build (inside `npm run deploy`) and the live check always run.
+  test('runs the suite and the specs again unless tested.mjs finds the tree passed check already', () => {
+    const decided = stepWith('node web/scripts/tested.mjs "$EVENT"');
+    const skippable = "if: steps.tested.outputs.run != 'false'";
+
+    expect(steps[decided]).toMatch(/^name: [^\n]+\n {8}id: tested\n/);
+    expect(steps[decided]).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(steps[decided]).toContain('EVENT: ${{ github.event_name }}');
+    expect(decided).toBeGreaterThan(stepWith('The tag is the newest release, on main'));
+    for (const text of ['npm test', 'npm run e2e -w web']) {
+      expect(decided).toBeLessThan(stepWith(text));
+      expect(steps[stepWith(text)]).toContain(skippable);
+    }
+    expect(steps.filter((step) => step.includes(skippable))).toHaveLength(2);
+    // No other step is conditional but the record, written always: the lint, the typecheck, the
+    // build and the live check run whatever tested.mjs said.
+    const conditional = steps.filter((step) => /\n {8}if: /.test(`\n${step}`)).map((step) => step.split('\n')[0]);
+    expect(conditional).toEqual(['run: npm test', 'name: The browser specs', 'name: The record']);
+    expect(steps[stepWith('name: The record')]).toContain('if: always()');
+    expect(deployJob).not.toMatch(/\n {4}if: /);
+    expect(deployJob).toMatch(/\n {4}permissions:\n {6}contents: read\n {6}actions: read\n/);
   });
 
   test('hands the credentials only to the two steps that talk to Cloudflare, from the production environment', () => {
@@ -975,6 +997,8 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(workflow, 'deploy')).toMatch(
       /uses: \.\/\.github\/workflows\/deploy\.yml\n {4}with:\n {6}tag: \$\{\{ needs\.tag\.outputs\.tag \}\}\n {4}secrets: inherit/,
     );
+    // A called workflow's token has no more than its caller grants: the deploy reads check's runs (DL-235).
+    expect(jobOf(workflow, 'deploy')).toMatch(/permissions:\n {6}contents: write\n {6}actions: read\n/);
     expect(secretsIn(workflow)).toEqual([]);
   });
 
@@ -1014,6 +1038,20 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(check, 'e2e')).toContain('npm run e2e -w web');
     expect(check).not.toContain('npm run deploy');
     expect(check).not.toContain('secrets.');
+  });
+
+  // DL-235: the floor is the Node of `.node-version`, so one `check` on it tests the floor.
+  test('check.yml: one check on .node-version, the floor that engines declares', () => {
+    const check = workflowText('check.yml');
+    const major = readText('.node-version').trim().split('.')[0];
+    const lock = JSON.parse(readText('package-lock.json')) as { packages: Record<string, { engines?: { node?: string } }> };
+
+    expect(jobOf(check, 'check')).toContain("node-version-file: '.node-version'");
+    expect(check).not.toContain('matrix');
+    expect(check).not.toMatch(/node-version: /);
+    expect(jobOf(check, 'check')).toContain('run: npm test');
+    expect((readManifest('package.json') as Manifest & { engines?: { node?: string } }).engines?.node).toBe(`>=${major}`);
+    expect(lock.packages['']?.engines?.node).toBe(`>=${major}`);
   });
 
   test('no workflow names a secret but the two Cloudflare credentials', () => {

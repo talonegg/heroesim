@@ -18,20 +18,16 @@
 
 import {
   compareByCodeUnit,
-  encounterDegree,
   encounterForm,
   isId,
   isModuleEvent,
   parseId,
   regardBandNames,
-  type ContentSet,
-  type Degree,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
-  type FacilityKey,
   type FormDecided,
   type GearMove,
   type GearReturnCause,
@@ -49,6 +45,7 @@ import {
   type TurnEvent,
   type World,
 } from '@heroesim/engine';
+import { type ContentSet, type Degree, type FacilityKey } from '@heroesim/engine/content';
 import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
 import { listed, nameIn, signed } from './names.js';
 
@@ -108,12 +105,26 @@ export interface PartiesSlot {
 }
 
 /**
- * What a stop points the player to do next (v1.1.7-S3, DL-209): the CLI's command, which the page
- * leaves out for its button (`nextFor` in `views/stop.tsx`).
+ * What the CLI points the player to (DL-209, DL-240): a command to run, `(show board)`, or the flag a
+ * refusal of `new` asks for, `: --guild <name>`. The page leaves it out: it has a button or a form
+ * for it (`nextFor` in `views/stop.tsx`).
  */
 export interface CommandSlot {
   kind: 'command';
-  command: 'show-board' | 'show-pool' | 'answer-offer';
+  command:
+    | 'show-board'
+    | 'show-pool'
+    | 'answer-offer'
+    | 'show-roster'
+    | 'show-rosters'
+    | 'show-market'
+    | 'show-offers'
+    | 'roster-holds'
+    | 'market-holds'
+    | 'pool-holds'
+    | 'name-guild'
+    | 'name-guildmaster'
+    | 'portrait-sex';
 }
 
 /** The ids a command takes, after what they name, `(stack-000004)`: the CLI's alone. */
@@ -122,8 +133,30 @@ export interface IdsSlot {
   ids: readonly string[];
 }
 
+/**
+ * A date, `Year 1 Day 181`, which the CLI follows with its Turn, `(Turn 540)`, as it does wherever it
+ * shows the Turn beside a date (docs/agents/ui-text.md; DL-240).
+ */
+export interface DateSlot {
+  kind: 'date';
+  turn: number;
+  date: string;
+}
+
+/**
+ * What the player gave a new game's setup, which a refusal of it quotes (DL-240): the CLI says it as
+ * its flag gave it, `--age 51`, `--stats negotiation=16`; the page as the form's value, `51`, `"other"`.
+ * `key` is the Stat a `stats` value is for.
+ */
+export interface EntrySlot {
+  kind: 'entry';
+  field: 'sex' | 'age' | 'stats';
+  value: string | number;
+  key?: string;
+}
+
 /** A slot for a name in a sentence, which a front end's Namer fills. */
-export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot | PartiesSlot | CommandSlot;
+export type Slot = NameSlot | QuestSlot | PartySlot | OfferSlot | IdsSlot | PartiesSlot | CommandSlot | DateSlot | EntrySlot;
 
 /** A piece of a sentence: its words, or a slot. */
 export type Part = { kind: 'text'; text: string } | Slot;
@@ -140,13 +173,14 @@ export function sentenceText(sentence: Sentence, namer: Namer<string>): string {
 }
 
 /** What goes into a sentence: words, a number, a slot or a sentence already made. */
-type Piece = string | number | Slot | Sentence;
+export type Piece = string | number | Slot | Sentence;
 
 /**
  * A sentence from a template, `say\`${called(event, guildId)} was founded.\``: its words as written,
- * and each slot where the template puts it. Neighbouring words join into one piece.
+ * and each slot where the template puts it. Neighbouring words join into one piece. The refusals'
+ * table writes its sentences with it too (`refusals.ts`).
  */
-function say(strings: TemplateStringsArray, ...pieces: readonly Piece[]): Part[] {
+export function say(strings: TemplateStringsArray, ...pieces: readonly Piece[]): Part[] {
   const out: Part[] = [];
   const words = (text: string): void => {
     if (text === '') return;
@@ -197,7 +231,7 @@ function quest(id: QuestId, template?: string): QuestSlot {
   return { kind: 'quest', id, template };
 }
 
-function ids(...each: readonly string[]): IdsSlot {
+export function ids(...each: readonly string[]): IdsSlot {
   return { kind: 'ids', ids: each };
 }
 
@@ -329,20 +363,19 @@ const sentences: Sentences = {
     // The roll and target are the engine's; the sentence says only how it went and what it cost, and
     // which Encounter it was, counted from 1 as a consumable's sentence counts them (item.expended).
     // Its Degree, and the Check that decided it when there are several or it is named otherwise than
-    // its Encounter (v1.1.4-S2, DL-152); an entry written before then reads as its outcome, a Success
-    // or a Failure. When form decided a Check's Degree, one sentence more, for the Party, naming no
-    // Hero (v1.1.4-S3, DL-148 item 12).
-    const { guildId, partyId, index, encounterKey, outcome, injured, died, decidedBy, checks = [] } = event.payload;
+    // its Encounter (DL-152). When form decided a Check's Degree, one sentence more, for the Party,
+    // naming no Hero (DL-148 item 12).
+    const { guildId, partyId, index, encounterKey, outcome, injured, died, decidedBy, checks } = event.payload;
     const went = outcome === 'success' ? 'came through' : 'failed at';
     const hurt = [...injured.map((id) => say`${hero(event, id)} was injured`), ...died.map((id) => say`${hero(event, id)} was killed`)];
     const encounterName = nameIn(content.encounters, encounterKey);
     const encounter = Object.hasOwn(content.encounters, encounterKey) ? content.encounters[encounterKey] : undefined;
     const decider = encounter?.checks.find((it) => it.key === decidedBy)?.name ?? decidedBy;
-    const by = decider !== undefined && (checks.length > 1 || decider !== encounterName) ? `, decided by ${decider}` : '';
+    const by = checks.length > 1 || decider !== encounterName ? `, decided by ${decider}` : '';
     const form = encounterForm(event.payload);
     const told = form === undefined ? '' : ` ${formWords[form]}`;
     const party: PartySlot = { kind: 'party', id: partyId, guild: called(event, guildId) };
-    return say`${party} ${went} ${encounterName} (Encounter ${index + 1}), a ${degreeWords[encounterDegree(event.payload)]}${by}${hurt.length === 0 ? '' : say`: ${listedSentences(hurt)}`}.${told}`;
+    return say`${party} ${went} ${encounterName} (Encounter ${index + 1}), a ${degreeWords[event.payload.degree]}${by}${hurt.length === 0 ? '' : say`: ${listedSentences(hurt)}`}.${told}`;
   },
   'quest.resolved': (event, content) => {
     const { lead, band, rest } = resolvedParts(event, content);

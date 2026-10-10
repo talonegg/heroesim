@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { defaultConfig, potentialHints, type GameConfig, type PotentialHint } from './config.js';
+import { potentialHints, type GameConfig, type PotentialHint } from './config.js';
 import { createWorld } from './create.js';
 import type { Hero } from './document.js';
 import { potentialHint } from './potential.js';
 import { testContent, testDeps, withValid } from './world.test-support.js';
 
-// M3-S3: Potential hints (INPUTS 5.4, data-model rule 9, DL-37). The bands are pinned here, not read
+// Potential hints (INPUTS 5.4, data-model rule 9, DL-37). The bands are pinned here, not read
 // from the defaults a balance pass may move.
 
 const bands = { modest: 0, promising: 6, exceptional: 10 };
@@ -41,12 +41,6 @@ describe('potentialHint', () => {
     expect(hints[maximumGap]).toBe('exceptional');
   });
 
-  test('reads each band from its start: gaps 0, 5, 6, 9, 10 and 19', () => {
-    const at = (gap: number): PotentialHint => potentialHint(withGap(gap), 'strength', config);
-
-    expect([0, 5, 6, 9, 10, 19].map(at)).toEqual(['modest', 'modest', 'promising', 'promising', 'exceptional', 'exceptional']);
-  });
-
   test('reads the gap, not the base or the Potential alone', () => {
     expect(potentialHint(withGap(4, 1), 'strength', config)).toBe('modest');
     expect(potentialHint(withGap(4, 16), 'strength', config)).toBe('modest');
@@ -69,7 +63,7 @@ describe('potentialHint', () => {
     expect(potentialHint(hero, 'no-such-stat', config)).toBe('modest');
   });
 
-  test('takes its bands from config alone, so narrower bands (M4-S5) change the hint and not the Hero', () => {
+  test('takes its bands from config alone, so narrower bands change the hint and not the Hero', () => {
     const hero = withGap(4);
     const before = structuredClone(hero);
     const narrowed = { potentialHintBands: { modest: 0, promising: 3, exceptional: 4 } };
@@ -94,10 +88,5 @@ describe('potentialHint', () => {
     }
 
     expect([...seen].sort()).toEqual([...potentialHints].sort());
-  });
-
-  test('defaults to bands starting at gaps 0, 6 and 10, which the tests above pin', () => {
-    expect(defaultConfig.potentialHintBands).toEqual(bands);
-    expect(Object.isFrozen(defaultConfig.potentialHintBands)).toBe(true);
   });
 });

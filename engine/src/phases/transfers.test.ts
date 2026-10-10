@@ -10,15 +10,13 @@ import { guildmasterOf } from '../guildmaster.js';
 import { next } from '../rng.js';
 import { dispositionOf, playerGuild, transferFee, upkeep } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { deepFreeze, testContent, testDeps, withValid } from '../world.test-support.js';
+import { deepFreeze, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { transfers } from './transfers.js';
 
-// M6-S3: the Transfer Generator's night (DL-59). Each test builds a world, sets the Rosters, Wealth
+// The Transfer Generator's night (DL-59). Each test builds a world, sets the Rosters, Wealth
 // and appetites it is about, and runs the phase on a Generator night; the numbers it relies on are
 // pinned. The acceptance boxes' multi-seed tests are controllers/transfer-generator.test.ts.
-
-const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** The config the tests rely on, pinned: every pair bids, weekly, and the range out of the way. */
 const pins: Partial<GameConfig> = {
@@ -36,14 +34,6 @@ const pins: Partial<GameConfig> = {
 function withAppetites(appetites: Record<DispositionKey, number>, content: ContentSet = testContent): ContentSet {
   const dispositions = Object.fromEntries(
     Object.entries(content.dispositions).map(([key, row]) => [key, { ...row, transferAppetite: appetites[key] ?? row.transferAppetite }]),
-  );
-  return deepFreeze({ ...content, dispositions });
-}
-
-/** `content` with every Disposition's `recruitThreshold` set to `threshold`, frozen. */
-function withRecruitThreshold(content: ContentSet, threshold: number): ContentSet {
-  const dispositions = Object.fromEntries(
-    Object.entries(content.dispositions).map(([key, row]) => [key, { ...row, recruitThreshold: threshold }]),
   );
   return deepFreeze({ ...content, dispositions });
 }
@@ -143,7 +133,7 @@ function pairWorld(seed: string, with_: EngineDeps): { document: WorldDocument; 
   return { document, world, ambitious, miserly };
 }
 
-describe('the Transfer Generator runs weekly (M6-S3)', () => {
+describe('the Transfer Generator runs weekly', () => {
   test('on the night of every transferGeneratorEveryDays-th Day, and on no other night', () => {
     const with_ = deps();
     const { world } = created('weekly', with_);
@@ -170,7 +160,7 @@ describe('the Transfer Generator runs weekly (M6-S3)', () => {
   });
 });
 
-describe('one draw from rivals for each pair of Rivals in play (M6-S3)', () => {
+describe('one draw from rivals for each pair of Rivals in play', () => {
   test('six draws for four Rivals, whatever they hold, and no other stream moves', () => {
     for (const [chance, content] of [
       [0, eager],
@@ -223,14 +213,14 @@ describe('one draw from rivals for each pair of Rivals in play (M6-S3)', () => {
   });
 });
 
-describe('the bid (M6-S3)', () => {
+describe('the bid', () => {
   test('the more transferAppetite-heavy of the pair bids, for the dearest Hero of the other it can pay for, through transferIn', () => {
     for (const [ambitiousAppetite, miserlyAppetite] of [
       [1, 0.5],
       [0.5, 1],
     ] as const) {
       // Any Wealth is enough to hire, so the bidder's only limit is the fee.
-      const with_ = deps({}, withRecruitThreshold(withAppetites({ ambitious: ambitiousAppetite, miserly: miserlyAppetite }), 0));
+      const with_ = deps({}, withDispositions({ recruitThreshold: 0 }, withAppetites({ ambitious: ambitiousAppetite, miserly: miserlyAppetite })));
       const { document, world, ambitious, miserly } = pairWorld('heavier', with_);
       const [bidder, seller] = ambitiousAppetite > miserlyAppetite ? [ambitious, miserly] : [miserly, ambitious];
       // The bidder can pay for all but the dearest of the seller's Heroes, so the one it wants is the second dearest.
@@ -304,7 +294,7 @@ describe('a bidder hiring by need (DL-60)', () => {
   test('below rivalRosterMin and under its threshold, bids only for a Hero whose fee leaves it its reserve', () => {
     const with_ = deps(
       { rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 },
-      withRecruitThreshold(withAppetites({ ambitious: 1, miserly: 0.5 }), 1_000_000),
+      withDispositions({ recruitThreshold: 1_000_000 }, withAppetites({ ambitious: 1, miserly: 0.5 })),
     );
     const { world, ambitious, miserly } = pairWorld('need-bid', with_);
     const spare = playerGuild(world) as Guild;
@@ -323,7 +313,7 @@ describe('a bidder hiring by need (DL-60)', () => {
   });
 });
 
-describe('when there is no bid (M6-S3)', () => {
+describe('when there is no bid', () => {
   /** Whether the Generator made a Transfer in the two-Rival world `change` leaves, the draw still taken. */
   function deals(seed: string, with_: EngineDeps, change: (world: World, ambitious: Guild, miserly: Guild) => void): boolean {
     const { world, ambitious, miserly } = pairWorld(seed, with_);
@@ -365,7 +355,7 @@ describe('when there is no bid (M6-S3)', () => {
   });
 
   test('the bidder can pay for none of the Heroes at home', () => {
-    const with_ = deps({}, withRecruitThreshold(heavy, 0));
+    const with_ = deps({}, withDispositions({ recruitThreshold: 0 }, heavy));
     expect(deals('pay', with_, () => undefined)).toBe(true);
     expect(deals('poor', with_, (world, ambitious, miserly) => {
       const cheapest = Math.min(...miserly.rosterIds.map((heroId) => transferFee(heroOf(world, heroId), guildmasterOf(ambitious, world), with_)));
@@ -397,7 +387,7 @@ describe('when there is no bid (M6-S3)', () => {
   });
 });
 
-describe("the player's Roster (M6-S3)", () => {
+describe("the player's Roster", () => {
   test("is never a source: with every Rival eager and rich, the player's Guild, Guildmaster and Heroes are untouched", () => {
     const with_ = deps();
     const document = created('untouched', with_);

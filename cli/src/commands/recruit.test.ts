@@ -1,16 +1,11 @@
-// `recruit --hero <id>` end to end (M2-S8): `main` run in-process against a real save in a
+// `recruit --hero <id>` end to end: `main` run in-process against a real save in a
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
-  deserialise,
   guildmasterOf,
   playDeps,
   playerGuild,
   rankings,
-  serialise,
   signingFee,
   unattachedHeroes,
   type EngineDeps,
@@ -20,8 +15,8 @@ import {
 } from '@heroesim/engine';
 import { makeId } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground, rowOf } from '../play.test-support.js';
 
 const content = loadContent();
 
@@ -32,49 +27,11 @@ function depsOf(document: WorldDocument): EngineDeps {
   return played.deps;
 }
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-recruit-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-const saved = (): string => readFileSync(current(), 'utf8');
-
-/** The save, loaded and validated as the CLI loads it. */
-function document(): WorldDocument {
-  const loaded = deserialise(saved(), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-/** Rewrites the save after `change`, bypassing the CLI, as a hand edit would. */
-function edit(change: (document: WorldDocument) => void): void {
-  const edited = document();
-  change(edited);
-  writeFileSync(current(), serialise(edited));
-}
+const { play, saved, document, edit } = playground('heroesim-recruit-', content);
 
 /**
  * A new world, its player's Guild and the first Hero in its pool, with the fee the player's Guild
- * pays for them: its Guildmaster's Negotiation applied (M4-S5).
+ * pays for them: its Guildmaster's Negotiation applied.
  */
 function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
@@ -83,13 +40,6 @@ function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   const [hero] = unattachedHeroes(created.world);
   if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
   return { guild, hero, fee: signingFee(hero, depsOf(created), guildmasterOf(guild, created.world)) };
-}
-
-/** The line of `output` that starts with `id`: a row of a table keyed by id. */
-function rowOf(output: string, id: string): string {
-  const row = output.split('\n').find((line) => line.startsWith(id));
-  if (row === undefined) throw new Error(`No row for ${id} in:\n${output}`);
-  return row;
 }
 
 describe('recruit', () => {
@@ -139,7 +89,6 @@ describe('recruit', () => {
     expect(missing.err).toContain('hero-000999');
     expect(play(['recruit', '--hero', 'guild-000001']).code).toBe(exitCodes.usage);
     expect(play(['recruit', '--hero', 'Brenna']).code).toBe(exitCodes.usage);
-    expect(play(['recruit']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);
   });
 });
@@ -151,7 +100,7 @@ function pinFame(): void {
   });
 }
 
-describe('recruit and Fame (M3-S5)', () => {
+describe('recruit and Fame', () => {
   test("refuses a Hero who will not sign for the player's Guild's Fame, naming the Fame asked, and writes nothing", () => {
     const { guild, hero } = newWorld();
     pinFame();
@@ -181,7 +130,7 @@ describe('the views', () => {
     newWorld();
     const created = document();
     const deps = depsOf(created);
-    // The fee the player's Guild pays: its Guildmaster's Negotiation applied (M4-S5).
+    // The fee the player's Guild pays: its Guildmaster's Negotiation applied.
     const buyer = guildmasterOf(playerGuild(created.world) as Guild, created.world);
 
     const run = play(['show', 'pool']);
@@ -193,7 +142,7 @@ describe('the views', () => {
     }
   });
 
-  test("show pool marks the Heroes who will not yet sign for the player's Guild with the Fame they ask (M3-S5)", () => {
+  test("show pool marks the Heroes who will not yet sign for the player's Guild with the Fame they ask", () => {
     const { guild, hero } = newWorld();
     pinFame();
     edit((edited) => {
@@ -240,17 +189,5 @@ describe('the views', () => {
     }
     // The two orders differ on this save: the player's Guild, first created, is last by Fame and first by Wealth.
     expect(rankings(world, 'fame').at(-1)?.guildId).toBe(rankings(world, 'wealth')[0]?.guildId);
-  });
-
-  test('show hero says when a Hero whose row stayed left the pool', () => {
-    const { hero } = newWorld();
-    edit((edited) => Object.assign(edited.world.heroes[hero.id] ?? {}, { unattachedSince: null, leftPoolOnTurn: 0 }));
-
-    const run = play(['show', 'hero', hero.id]);
-
-    expect(run.code).toBe(exitCodes.ok);
-    // The date, the Turn beside it (DL-206 item 33, DL-210).
-    expect(run.out).toMatch(/Left the pool\s+Year 1 Day 1 \(Turn 0\)/);
-    expect(run.out).not.toContain('Unattached');
   });
 });

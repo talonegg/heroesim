@@ -8,9 +8,10 @@
 // item 13), or changed in place (`update`, v1.1.6-S4, DL-186 item 14), where the register's entry says
 // how, and only so.
 
+import { guildmasterTraitEffects, heroTraitEffects, type EffectField } from '@heroesim/content';
 import { contentEntries, rulesFor, traitFiles, usesOf, UseRefusal, type ContentEntry, type ContentJson, type TraitList, type TraitUse } from '@heroesim/content/uses';
-import { encounterKinds, type GuildmasterTraitEffectKind, type HeroTraitEffectKind } from '@heroesim/engine';
-import type { EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange } from './kind.js';
+import { encounterKinds } from '@heroesim/engine/content';
+import type { EffectFieldForm, EffectForm, FieldForm, Kind, ListForm, Row, Rule, Use, UseChange, UseKind } from './kind.js';
 
 const lists: Record<TraitList, { title: string }> = {
   guildmaster: { title: 'Guildmaster Traits' },
@@ -39,34 +40,35 @@ function choicesOf(content: ContentJson): { heroStats: string[]; classes: string
   return { heroStats, classes: isObject(classes) ? Object.keys(classes) : [] };
 }
 
-/** The forms of each list's effects (DL-150 item 8), keyed by the engine's unions, so a kind added there is asked for here. */
+/**
+ * The forms of each list's effects (DL-150 item 8), each derived from content's description of its
+ * kind's fields (DL-243), so a kind the engine adds, and content describes, is asked for here.
+ */
 function effectForms(content: ContentJson): Record<TraitList, EffectForm[]> {
   const { heroStats, classes } = choicesOf(content);
-  const guildmaster: Record<GuildmasterTraitEffectKind, Omit<EffectForm, 'kind'>> = {
-    classStatBonus: {
-      label: 'A Class Stat bonus',
-      fields: [
-        { name: 'classKey', label: 'Class', type: 'choice', choices: classes },
-        { name: 'statKey', label: 'Stat', type: 'choice', choices: heroStats },
-        { name: 'delta', label: 'By', type: 'integer' },
-      ],
-    },
-    guildMoraleShift: { label: 'A Morale shift', fields: [{ name: 'delta', label: 'By', type: 'number' }] },
-    upkeepFactor: { label: 'An Upkeep factor', fields: [{ name: 'factor', label: 'Times', type: 'number' }] },
+  const field = (name: string, described: EffectField): EffectFieldForm => {
+    const { label } = described;
+    const optional = described.optional === true ? { optional: true } : {};
+    switch (described.type) {
+      case 'key':
+        return { name, label, type: 'choice', choices: described.of === 'classes' ? classes : heroStats, ...optional };
+      case 'stat-changes':
+        return { name, label, type: 'stat-changes', choices: heroStats, ...optional };
+      case 'encounter-kinds':
+        return { name, label, type: 'choices', choices: encounterKinds, ...optional };
+      case 'integer':
+      case 'number':
+      case 'tags':
+        return { name, label, type: described.type, ...optional };
+    }
   };
-  const hero: Record<HeroTraitEffectKind, Omit<EffectForm, 'kind'>> = {
-    statModifiers: { label: 'Stat changes', fields: [{ name: 'modifiers', label: 'Stats', type: 'stat-changes', choices: heroStats }] },
-    encounterBonus: {
-      label: 'An Encounter bonus',
-      fields: [
-        { name: 'flat', label: 'Bonus', type: 'number' },
-        { name: 'kinds', label: 'Encounter kinds', type: 'choices', choices: encounterKinds, optional: true },
-        { name: 'tags', label: 'Encounter tags', type: 'tags', optional: true },
-      ],
-    },
-  };
-  const forms = (byKind: Record<string, Omit<EffectForm, 'kind'>>): EffectForm[] => Object.entries(byKind).map(([kind, form]) => ({ kind, ...form }));
-  return { guildmaster: forms(guildmaster), hero: forms(hero) };
+  const forms = (kinds: Readonly<Record<string, { label: string; fields: object }>>): EffectForm[] =>
+    Object.entries(kinds).map(([kind, { label, fields }]) => ({
+      kind,
+      label,
+      fields: Object.entries(fields as Readonly<Record<string, EffectField>>).map(([name, described]) => field(name, described)),
+    }));
+  return { guildmaster: forms(guildmasterTraitEffects), hero: forms(heroTraitEffects) };
 }
 
 /** The register's content entry `id`, or the problem naming the entries there are. */
@@ -139,7 +141,7 @@ export function effectWords(effect: unknown): string {
   }
 }
 
-export const traitsKind: Kind = {
+export const traitsKind: Kind & UseKind = {
   name: 'traits',
   title: 'Traits',
   lists: (['guildmaster', 'hero'] as const).map((list) => ({ id: list, title: lists[list].title, file: traitFiles[list] })),

@@ -1,8 +1,10 @@
 import {
+  createWorld,
+  defaultConfig,
   milestoneTypes,
-  type CheckRoll,
-  type Encounter,
-  type EncounterCheck,
+  playerGuild,
+  type Guild,
+  type Hero,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -13,22 +15,21 @@ import {
   type PartyId,
   type QuestId,
   type StackId,
-  type ModuleEvent,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import type { Calendar, Slot } from '@heroesim/words';
-import { cliNamer, narrateLine } from './namer.js';
+import type { Calendar, Refusal, Slot } from '@heroesim/words';
+import { cliNamer, narrateLine, refusalLine } from './namer.js';
 
 const content = loadContent();
 
 /** The game's calendar, a Year of 360 Days, for the narration's dates (DL-210). */
 const calendar: Calendar = { turnsPerYear: 1080 };
 
-// v1.1.6-S12 (DL-186 item 1): the CLI's Namer fills the slots of the narration's sentences
+// DL-186 item 1: the CLI's Namer fills the slots of the narration's sentences
 // (`@heroesim/words`): a Hero by label and id, an Item, an Offer, a Quest and a Party by the ids the
-// commands take. Every line below is the CLI's as it was before the narration moved, word for word,
-// but the capitals settled to the page's ("'s Offer for", "The probe Module").
+// commands take. `words/src/narrate.test.ts` holds every sentence's words and slots; here, every
+// type's line, one sentence end to end, and each slot in the CLI's words (DL-231 item 4, DL-248).
 
 const guildId = 'guild-000002' as GuildId;
 const heroId = 'hero-000007' as HeroId;
@@ -36,14 +37,14 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
-/** A Rival Guildmaster's successor (M9-S2). */
+/** A Rival Guildmaster's successor. */
 const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
 const rivalId = 'guild-000003' as GuildId;
 const offerId = 'offer-000001' as OfferId;
-/** A Transfer Offer's terms (M6-S2): the Rival asks The Kestrel Guild for Brenna. */
+/** A Transfer Offer's terms: the Rival asks The Kestrel Guild for Brenna. */
 const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
 const labels: Record<string, string> = {
@@ -74,7 +75,7 @@ const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'world.created': event('world.created', [], { seed: 'demo' }),
-  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never }),
+  'guild.founded': event('guild.founded', [guildId, guildmasterId], { guildId, guildmasterId: guildmasterId as never, wealth: 500 }),
   'guildmaster.generated': event('guildmaster.generated', [guildmasterId, guildId], { guildmasterId: guildmasterId as never, guildId }),
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
@@ -105,6 +106,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     target: 18,
     margin: -3.5,
     outcome: 'failure',
+    degree: 'failure',
+    decidedBy: 'steel',
+    checks: [{ key: 'steel', capability: 15, roll: 14.5, target: 18, margin: -3.5, degree: 'failure' }],
     injured: [heroId],
     died: [],
   }),
@@ -135,6 +139,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.morale-changed': event('hero.morale-changed', [heroId], {
     heroId,
     cause: 'roster-death',
+    questId,
     before: 45,
     after: 35,
     bandBefore: 'steady',
@@ -178,6 +183,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     patronId: patronId as never,
     guildId,
     cause: 'quest-failure',
+    questId,
     before: -3,
     after: -5,
     bandBefore: 'neutral',
@@ -188,6 +194,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     entityId: heroId,
     cause: 'quest-success',
+    questId,
     before: 3.5,
     after: 4.5,
     bandBefore: 'neutral',
@@ -197,6 +204,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     heroId,
     entityId: otherHeroId,
     cause: 'shared-quest',
+    questId,
     before: 11,
     after: 12.5,
     bandBefore: 'warm',
@@ -287,290 +295,18 @@ describe('narrateLine', () => {
     if (named.length > 0) expect(named.some((label) => line.includes(label)), line).toBe(true);
   });
 
-  test('names the Guild, the retired Guildmaster and the successor of a Succession (M9-S2)', () => {
-    expect(narrateLine(samples['guildmaster.succeeded'], content, calendar)).toBe(
-      'Osric Vane retired at 65 as Guildmaster of The Kestrel Guild, and Wenna Tolley succeeded them.',
+  // One sentence end to end (DL-231 item 4): `words` holds every sentence's words and slots, and
+  // the Namer's table below each slot in the CLI's words.
+  test('reads a sentence end to end: content keys by content, a Hero by name and the id the commands take', () => {
+    expect(narrateLine(samples['hero.healed'], content, calendar)).toBe(
+      `Brenna Ashcombe (hero-000007) recovered from ${content.injuries['deep-cut']?.name}, left ${content.heroTraits['scarred']?.name}.`,
     );
-  });
-
-  test('names content keys by content, and Heroes by name and id', () => {
-    expect(narrateLine(samples['quest.offered'], content, calendar)).toBe(
-      `Lady Maud offered ${content.questTemplates['clear-the-barrow']?.name} (quest-000003).`,
-    );
-    expect(narrateLine(samples['hero.healed'], content, calendar)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
-    // v1.1.4-S7: an earned Trait, and one an Injury's Trait replaced.
-    expect(narrateLine(samples['hero.trait-gained'], content, calendar)).toBe('Brenna Ashcombe (hero-000007) earned the Trait Scarred on quest-000003, at Ambush on the road.');
-    expect(narrateLine(samples['hero.trait-lost'], content, calendar)).toBe('Brenna Ashcombe (hero-000007) lost the Trait Lame, replaced by Scarred.');
-    expect(narrateLine(samples['hero.declined'], content, calendar)).toBe('Brenna Ashcombe (hero-000007), at 41, lost 1 Endurance to age.');
-    expect(narrateLine(samples['quest.resolved'], content, calendar)).toMatch(/and failed: Wealth 0, Fame -2\.$/);
-    // M4-S3: the Synergies that applied, by name, when any did; none, or an entry from before M4-S3, says nothing.
-    const withSynergies = { ...samples['quest.resolved'], payload: { ...samples['quest.resolved'].payload, synergyKeys: ['shield-wall', 'sword-and-salve'] } };
-    expect(narrateLine(withSynergies, content, calendar)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
-    expect(narrateLine({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content, calendar)).toMatch(/Fame -2\.$/);
-    // The sample is an entry written before v1.1.4-S2: it reads as its outcome, a Failure or a Success.
-    expect(narrateLine(samples['quest.encounter'], content, calendar)).toBe(
-      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Failure: Brenna Ashcombe (hero-000007) was injured.`,
-    );
-    expect(narrateLine({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content, calendar)).toBe(
-      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2), a Success.`,
-    );
-    expect(narrateLine(samples['guild.improved'], content, calendar)).toBe(
-      `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
-    );
-    const quarters = event('guild.improved', [guildId], { guildId, facility: 'quarters', grade: 1, improvementKey: 'quarters-1', cost: 200 });
-    expect(narrateLine(quarters, content, calendar)).toBe(
-      `The Kestrel Guild built ${content.improvements['quarters-1']?.name} for 200 Wealth: its quarters are now grade 1.`,
-    );
-    expect(narrateLine(samples['hero.levelled'], content, calendar)).toBe(
-      'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
-    );
-    // M5-S5: a unique Item by name and id; a common one by name, quantity and the stack it joined.
-    expect(narrateLine(samples['quest.loot'], content, calendar)).toBe(
-      `The Kestrel Guild found Loot on quest-000003: ${content.items['barrow-kings-blade']?.name} (item-000006).`,
-    );
-    const common = { ...samples['quest.loot'].payload, definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId };
-    expect(narrateLine({ ...samples['quest.loot'], payload: common }, content, calendar)).toBe(
-      `The Kestrel Guild found Loot on quest-000003: 3 × ${content.items['healing-draught']?.name} (stack-000008).`,
-    );
-    // One common Item is named without a count, as a purchase is.
-    expect(narrateLine({ ...samples['quest.loot'], payload: { ...common, quantity: 1 } }, content, calendar)).toBe(
-      `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} (stack-000008).`,
-    );
-  });
-
-  test("gives an Encounter's Degree and, of several Checks, the name of the one that decided it (v1.1.4-S2)", () => {
-    const ambush = content.encounters['ambush-on-the-road'] as Encounter;
-    const [front] = ambush.checks as [EncounterCheck];
-    const several = {
-      ...content,
-      encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [front, { ...front, key: 'nerve', name: 'Nerve' }], pass: ['and', front.key, 'nerve'] } },
-    } satisfies typeof content;
-    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
-    const payload = {
-      ...samples['quest.encounter'].payload,
-      degree: 'setback' as const,
-      decidedBy: 'nerve',
-      checks: [
-        { key: front.key, ...roll, roll: 30, margin: 12, degree: 'triumph' as const },
-        { key: 'nerve', ...roll, degree: 'setback' as const },
-      ],
-    };
-
-    expect(narrateLine({ ...samples['quest.encounter'], payload }, several, calendar)).toBe(
-      `party-000004 failed at ${ambush.name} (Encounter 2), a Setback, decided by Nerve: Brenna Ashcombe (hero-000007) was injured.`,
-    );
-    // One Check named as its Encounter names none: it is the Encounter's own (the old form's, v1.1.4-S1).
-    const one = { ...payload, decidedBy: front.key, degree: 'triumph' as const, outcome: 'success' as const, injured: [], checks: payload.checks.slice(0, 1) };
-    const own = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: ambush.name }] } } } satisfies typeof content;
-    expect(narrateLine({ ...samples['quest.encounter'], payload: one }, own, calendar)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph.`);
-    // One Check named otherwise is named (v1.1.4-S2's verification, DL-152).
-    const renamed = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } } satisfies typeof content;
-    expect(narrateLine({ ...samples['quest.encounter'], payload: one }, renamed, calendar)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);
-  });
-
-  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero (v1.1.4-S3)", () => {
-    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
-    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
-    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
-    const line = (payload: EngineEventOf<'quest.encounter'>['payload']) => narrateLine({ ...samples['quest.encounter'], payload }, content, calendar);
-    const plain = line(base);
-
-    expect(plain).not.toMatch(/spirits/);
-    // Lowered from a Success to a Setback: the Encounter failed by form.
-    expect(line({ ...base, formDecided: 'lowered', checks: [{ ...front, formDecided: 'lowered' }] })).toBe(`${plain} Low spirits told against them.`);
-    // Raised from a Setback to a Success: the Encounter succeeded by form.
-    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], checks: [{ ...front, degree: 'success' as const }] };
-    expect(line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] })).toBe(`${line(won)} Their high spirits carried them through.`);
-    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
-    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
-    expect(line({ ...base, checks: [other, front] })).toBe(plain);
-    // An entry written before v1.1.4-S3, or before v1.1.4-S2, has no such sentence.
-    const older = { ...base };
-    Reflect.deleteProperty(older, 'checks');
-    expect(line(older)).not.toMatch(/spirits/);
-    for (const sentence of ['Low spirits told against them.', 'Their high spirits carried them through.']) {
-      expect(sentence).not.toMatch(/Brenna|hero-/);
-    }
-  });
-
-  test('says a Regard band crossed, never the number, and what moved a Patron (M4-S5)', () => {
-    const patron = narrateLine(samples['patron.regard-changed'], content, calendar);
-    const guildmaster = narrateLine(samples['guildmaster.regard-changed'], content, calendar);
-
-    expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
-    // A Hero a Guildmaster's Regard is for is named as a Hero, with the id a command takes (v1.1.7-S3, DL-209).
-    expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe (hero-000007) rose from neutral to warm.");
-    expect(patron).not.toMatch(/\d/);
-    // An Offer, a glossary term, in the page's capitals since v1.1.6-S11 (DL-186 item 1).
-    const untaken = { ...samples['patron.regard-changed'], payload: { ...samples['patron.regard-changed'].payload, cause: 'offer-expired' as const } };
-    expect(narrateLine(untaken, content, calendar)).toMatch(/ when an Offer of theirs went untaken\.$/);
-  });
-
-  test("says a Hero's Regard for another Hero crossed a band, never the number, and what moved it (M4-S4)", () => {
-    const shared = narrateLine(samples['hero.regard-changed'], content, calendar);
-    const decayed = narrateLine(
-      event('hero.regard-changed', [heroId, otherHeroId, guildId], {
-        heroId,
-        entityId: otherHeroId,
-        cause: 'decay',
-        before: 4,
-        after: 3.99,
-        bandBefore: 'warm',
-        bandAfter: 'neutral',
-      }),
-      content,
-      calendar,
-    );
-
-    expect(shared).toBe(
-      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) rose from warm to close after a Quest together.",
-    );
-    expect(decayed).toBe(
-      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) fell from warm to neutral as time passed apart.",
-    );
-    // The ids are the commands'; no Regard value is printed.
-    for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
-  });
-
-  test('says what a Party carried, and each consumable it used, by name, counting Encounters from 1 (M5-S3)', () => {
-    const ids = { questId, partyId, guildId, stackId: 'stack-000006' as never };
-    const used = (payload: EngineEventOf<'item.expended'>['payload']) => narrateLine(event('item.expended', [questId, partyId, guildId], payload), content, calendar);
-
-    expect(narrateLine(samples['quest.taken'], content, calendar)).toBe(
-      'The Kestrel Guild sent party-000004 on quest-000003, back on the night of Year 1 Day 8, carrying Whetstone ×2.',
-    );
-    const bare = { ...samples['quest.taken'], payload: { ...samples['quest.taken'].payload, consumables: [] } };
-    expect(narrateLine(bare, content, calendar)).toBe('The Kestrel Guild sent party-000004 on quest-000003, back on the night of Year 1 Day 8.');
-    expect(used({ ...ids, definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 1, flat: 3 })).toBe(
-      "The Kestrel Guild's party-000004 used one Whetstone on Encounter 2: +3 to its Check.",
-    );
-    expect(used({ ...ids, definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 0, firstRoll: 12.5 })).toBe(
-      "The Kestrel Guild's party-000004 used one Grappling line to try Encounter 1 again.",
-    );
-    expect(narrateLine(samples['item.expended'], content, calendar)).toBe(
-      "The Kestrel Guild's party-000004 used one Healing draught on Brenna Ashcombe (hero-000007): their Injury heals 5 Days sooner.",
-    );
-  });
-
-  test('names gear by content and by the id equip and unequip take, and says why it went back (M5-S2)', () => {
-    expect(narrateLine(samples['item.equipped'], content, calendar)).toBe(
-      "The Kestrel Guild put Arming sword (stack-000004) in Brenna Ashcombe (hero-000007)'s weapon slot.",
-    );
-    expect(narrateLine(samples['item.unequipped'], content, calendar)).toBe(
-      `The Kestrel Guild took ${content.items['lantern-of-stannary']?.name} (item-000002) from Brenna Ashcombe (hero-000007)'s trinket slot.`,
-    );
-    expect(narrateLine(samples['item.returned'], content, calendar)).toBe(
-      'Mail shirt (stack-000004) went back to The Kestrel Guild from Brenna Ashcombe (hero-000007), who died.',
-    );
-    const folded = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'guild-folded' as const } };
-    expect(narrateLine(folded, content, calendar)).toMatch(/from Brenna Ashcombe \(hero-000007\) as the Guild folded\.$/);
   });
 
   test('says a Level gained without naming the points Potential took', () => {
     const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
 
     expect(narrateLine(allLost, content, calendar)).toBe('Brenna Ashcombe (hero-000007) reached Level 20.');
-  });
-});
-
-describe('the Bankruptcy floor (M9-S1, DL-101)', () => {
-  test('names the Guild, its Wealth, the floor and the night Bankruptcy falls on; and says when it is back', () => {
-    expect(narrateLine(samples['guild.below-floor'], content, calendar)).toBe(
-      "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 35 unless it is back " +
-        'to 0 or more on a night by then.',
-    );
-    expect(narrateLine(samples['guild.floor-recovered'], content, calendar)).toBe(
-      "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.",
-    );
-    // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
-    const other = { ...samples['guild.below-floor'], payload: { guildId, wealth: 40, floor: 50, dueDay: 13 } };
-    expect(narrateLine(other, content, calendar)).toBe(
-      "The Kestrel Guild's Wealth, 40, fell below the Bankruptcy floor of 50: Bankruptcy on the night of Year 1 Day 14 unless it is back " +
-        'to 50 or more on a night by then.',
-    );
-  });
-});
-
-describe('Transfers (M6-S2)', () => {
-  test('names who moved, between which Guilds, for how much, and what became of each offer', () => {
-    expect(narrateLine(samples['hero.transferred'], content, calendar)).toBe(
-      'The Iron Wardens took Brenna Ashcombe (hero-000007) from The Kestrel Guild for 420 Wealth, accepting offer-000001.',
-    );
-    const direct = { ...samples['hero.transferred'], payload: { ...samples['hero.transferred'].payload, offerId: null } };
-    expect(narrateLine(direct, content, calendar)).toBe('The Iron Wardens took Brenna Ashcombe (hero-000007) from The Kestrel Guild for 420 Wealth.');
-    expect(narrateLine(samples['guild.transfer-offered'], content, calendar)).toBe(
-      'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe (hero-000007) (offer-000001), until the night of Year 1 Day 8.',
-    );
-    expect(narrateLine(samples['guild.transfer-offer-declined'], content, calendar)).toBe(
-      "The Kestrel Guild declined The Iron Wardens's Offer for Brenna Ashcombe (hero-000007) (offer-000001).",
-    );
-    const expired = (cause: 'expired' | 'hero-left' | 'guild-folded') =>
-      narrateLine({ ...samples['guild.transfer-offer-expired'], payload: { ...samples['guild.transfer-offer-expired'].payload, cause } }, content, calendar);
-    expect(expired('expired')).toBe("The Iron Wardens's Offer for Brenna Ashcombe (hero-000007) (offer-000001) expired unanswered.");
-    expect(expired('hero-left')).toMatch(/lapsed: the Hero left that Roster\.$/);
-    expect(expired('guild-folded')).toMatch(/lapsed as a Guild folded\.$/);
-    const transferred = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'transferred' as const } };
-    expect(narrateLine(transferred, content, calendar)).toMatch(/from Brenna Ashcombe \(hero-000007\), who was transferred\.$/);
-  });
-
-  test("words what a module's effects did (M8-S2)", () => {
-    const patron = samples['patron.regard-changed'];
-    const hero = samples['hero.regard-changed'];
-    const byModule = <E extends { payload: object }>(sample: E): E => ({ ...sample, payload: { ...sample.payload, cause: 'module', moduleId: 'probe' } });
-
-    expect(narrateLine(samples['guild.wealth-changed'], content, calendar)).toBe("The Kestrel Guild's Wealth went from 500 to 750.");
-    expect(narrateLine(byModule(patron), content, calendar)).toMatch(/ through a Module\.$/);
-    expect(narrateLine(byModule(hero), content, calendar)).toMatch(/ through a Module\.$/);
-  });
-});
-
-describe("a module's own event: one generic sentence for any type, never a crash (M8-S4)", () => {
-  /** An event a module made, as the History holds it: the CLI knows neither its type nor its payload. */
-  function moduleEvent(type: string, participants: string[], payload: unknown, extraLabels: Record<string, string> = {}): ModuleEvent {
-    const named = Object.fromEntries(participants.flatMap((id) => {
-      const label = extraLabels[id] ?? labels[id];
-      return label === undefined ? [] : [[id, label]];
-    }));
-    return { type, turn: 9, participants, labels: named, milestone: false, payload } as unknown as ModuleEvent;
-  }
-
-  test("names the module, from its type's namespace, the type, and who it concerns, a Hero with the id the commands take", () => {
-    const fired = moduleEvent('probe.fired', [heroId, patronId, guildId], { roll: 0.01, effects: [] });
-
-    expect(narrateLine(fired, content, calendar)).toBe('The probe Module recorded probe.fired for Brenna Ashcombe (hero-000007), Lady Maud and The Kestrel Guild.');
-  });
-
-  test.each([
-    ['a module the CLI has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather Module recorded weather.storm-broke.'],
-    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger Module recorded ledger.balanced for The Kestrel Guild.'],
-    ['a participant with no label, by its id', moduleEvent('probe.fired', ['hero-000099'], undefined), 'The probe Module recorded probe.fired for hero-000099.'],
-    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A Module recorded mystery for Brenna Ashcombe (hero-000007).'],
-  ])('%s', (_name, event, sentence) => {
-    expect(narrateLine(event, content, calendar)).toBe(sentence);
-  });
-});
-
-describe('the Market (M5-S4)', () => {
-  test('names what was bought and sold, how many, and the Wealth that changed hands', () => {
-    const sold = narrateLine(
-      event('item.sold', [guildId], {
-        guildId,
-        definitionKey: 'healing-draught',
-        quantity: 1,
-        unitPrice: 15,
-        proceeds: 15,
-        itemIds: [],
-        cause: 'sale',
-      }),
-      content,
-      calendar,
-    );
-
-    expect(narrateLine(samples['item.bought'], content, calendar)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
-    expect(sold).toBe('The Kestrel Guild sold Healing draught at the Market for 15 Wealth.');
-    expect(narrateLine(samples['item.sold'], content, calendar)).toBe(
-      `The Kestrel Guild's ${content.items['barrow-kings-blade']?.name} (item-000002) went to the Market for 300 Wealth as the Guild folded.`,
-    );
   });
 });
 
@@ -586,7 +322,54 @@ describe("the CLI's Namer", () => {
     ['an Offer accepted, by id', { kind: 'offer', id: offerId }, 'offer-000001'],
     ['the ids a command takes, after what they name', { kind: 'ids', ids: [itemId, 'item-000003'] }, ' (item-000002, item-000003)'],
     ['no ids, nothing', { kind: 'ids', ids: [] }, ''],
+    ['a date, with its Turn beside it (DL-240)', { kind: 'date', turn: 540, date: 'Year 1 Day 181' }, 'Year 1 Day 181 (Turn 540)'],
+    ["an entry of a new game's setup, by its flag", { kind: 'entry', field: 'sex', value: 'other' }, '--sex other'],
+    ['a number entered, by its flag', { kind: 'entry', field: 'age', value: 51 }, '--age 51'],
+    ["a Stat entered, by its flag's key and value", { kind: 'entry', field: 'stats', value: 16, key: 'negotiation' }, '--stats negotiation=16'],
+    ['a command to run', { kind: 'command', command: 'show-roster' }, ' (show roster)'],
+    ['a flag to give', { kind: 'command', command: 'name-guild' }, ': --guild <name>'],
+    // A stop's slots (DL-209): its Parties, and the command that answers it.
+    ["a stop's one Party, as a noun", { kind: 'parties', ids: [partyId], form: 'noun' }, 'Party'],
+    ["a stop's Parties, as a noun", { kind: 'parties', ids: [partyId, 'party-000009' as PartyId], form: 'noun' }, 'Parties'],
+    ["a stop's Parties, by the ids the commands take", { kind: 'parties', ids: [partyId, 'party-000009' as PartyId], form: 'ids' }, ': party-000004 and party-000009'],
+    ["a stop's Parties, none", { kind: 'parties', ids: [], form: 'ids' }, ''],
+    ['the Board to look at', { kind: 'command', command: 'show-board' }, ' (show board)'],
+    ['the pool to look at', { kind: 'command', command: 'show-pool' }, ' (show pool)'],
+    ['an Offer to answer', { kind: 'command', command: 'answer-offer' }, ' Answer with accept --offer <id> or decline --offer <id> (show offers).'],
+    // Every other command a refusal points to (DL-240), which the refusals' table holds in words alone (DL-248).
+    ["another Guild's Roster to look at", { kind: 'command', command: 'show-rosters' }, ' (show roster <guildId>)'],
+    ['the Market to look at', { kind: 'command', command: 'show-market' }, ' (show market)'],
+    ['the Offers to look at', { kind: 'command', command: 'show-offers' }, ' (show offers)'],
+    ['what the Roster holds', { kind: 'command', command: 'roster-holds' }, ': show roster lists what it holds'],
+    ['what the Market holds', { kind: 'command', command: 'market-holds' }, ' (show market lists what it holds)'],
+    ['who the pool holds', { kind: 'command', command: 'pool-holds' }, '; show pool lists who is'],
+    ["the Guildmaster's name to give", { kind: 'command', command: 'name-guildmaster' }, ': --master <name>'],
+    ['a Portrait of the Sex to choose', { kind: 'command', command: 'portrait-sex' }, ': choose a Portrait of that Sex, or leave out --sex'],
   ])('names %s', (_name, slot, words) => {
     expect(cliNamer(slot)).toBe(words);
+  });
+});
+
+// The refusals' table (`@heroesim/words`, DL-240) in the CLI's words, a row for each kind of slot
+// the CLI words its own way: a Hero by name and the id the commands take, a command to use, and an
+// entry of `new` by its flag (DL-248). `words/src/refusals.test.ts` holds the table's words and slots
+// for every kind, the Namer's table above each slot, and the commands' tests that each command
+// refuses with them.
+describe("the CLI's words for a refusal", () => {
+  const { document } = createWorld(
+    'rejection-words',
+    { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-27T09:00:00.000Z' },
+    { config: defaultConfig, content },
+  );
+  const { world } = document;
+  const player = playerGuild(world) as Guild;
+  const hero = world.heroes[player.rosterIds[0] as Hero['id']] as Hero;
+
+  test.each<[Refusal, string]>([
+    [{ action: 'unequip', reason: 'slot-empty', heroId: hero.id, slot: 'trinket' }, `${hero.name} (${hero.id})'s trinket slot is empty.`],
+    [{ action: 'newGame', reason: 'guild-name-blank' }, 'The Guild needs a name: --guild <name>.'],
+    [{ action: 'newGame', reason: 'age-out-of-range', age: 51, min: 21, max: 50 }, 'A Guildmaster starts aged 21 to 50, in whole Years; --age 51 is not.'],
+  ])('%j', (refusal, words) => {
+    expect(refusalLine(refusal, { world, content, calendar: defaultConfig })).toBe(words);
   });
 });

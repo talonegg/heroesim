@@ -5,7 +5,7 @@ import { content } from '../content';
 import { narrateSegments, type Narration } from '../state/namer';
 import { HistoryLinksContext, Names, type HistoryLinks } from './history-entries';
 
-// The page's Namer, as the page draws it (v1.1.6-S12, DL-186 item 1): the narration's sentence
+// The page's Namer, as the page draws it (DL-186 item 1): the narration's sentence
 // (`@heroesim/words`) filled by `state/namer.ts`, each name a button that opens whom it names, the
 // rest its words; and, where no shell gives links, words alone. No id is drawn.
 

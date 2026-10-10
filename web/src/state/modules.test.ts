@@ -1,8 +1,9 @@
+// @vitest-environment node
 import { probe } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { modulesFromQuery, pageModules } from './modules';
 
-// The page's test-only switch for modules (M8-S4, DL-79): a query parameter, `?modules=probe`, and
+// The page's test-only switch for modules (DL-79): a query parameter, `?modules=probe`, and
 // none installed without it.
 
 describe('the modules a page address installs', () => {

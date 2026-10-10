@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { breakpoints, containerBreakpoints, narrowQuery } from './breakpoints';
 
-// The page's named widths (v1.1.6-S15, DL-186 item 23): every width the style sheet's media queries
+// The page's named widths (DL-186 item 23): every width the style sheet's media queries
 // use is one of them, a `min-width` at it and a `max-width` a pixel under it; and every width its
 // container queries use is one of the parts' named widths, in rem, a `min-width` at it.
 

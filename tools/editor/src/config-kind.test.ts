@@ -7,7 +7,7 @@ import { Editor, pendingPath } from './editor.js';
 import { journalPath, journalState, writeAtomically } from './finish-journal.js';
 import { command, git, json, plantOutcome, scratchRepository, status } from './test-support.js';
 
-// The editor's config kind (v1.1.6-S18, DL-186 item 15, DL-204), each command driven on a scratch
+// The editor's config kind (DL-186 item 15, DL-204), each command driven on a scratch
 // copy of the repository, its `engine/src/config.json` committed, never the real file.
 
 const scratches: (() => void)[] = [];
@@ -84,7 +84,7 @@ describe('set', () => {
     ]);
   });
 
-  // v1.1.6-S18's verification (DL-204): an object's keys given in another order are the same value,
+  // DL-204: an object's keys given in another order are the same value,
   // and are held in the file's order, so that a reordering alone neither raises the version nor
   // rewrites the file.
   test("reads an object's keys in the file's order, whatever order they are given in", async () => {
@@ -184,7 +184,7 @@ describe('finish', () => {
 
     expect(failed.code).toBe(1);
     expect(failed.json.kind).toBe('undone');
-    // Byte for byte, its line ends included (v1.1.6-S18's verification).
+    // Byte for byte, its line ends included (DL-204).
     expect(readFileSync(configPath(dir))).toEqual(bytes);
     expect(status(dir)).toBe('');
     expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([{ setting: 'wagePerLevel', value: 25 }]);
@@ -228,7 +228,7 @@ describe('finish', () => {
   });
 });
 
-// v1.1.6-S18's verification (DL-204): the config kind's "Finish" and the Traits' share one journal
+// DL-204: the config kind's "Finish" and the Traits' share one journal
 // and lock, so neither kind writes or reads while the other's tests run, and a "Finish" of either
 // kind cut off is put back by the next command of either.
 describe("the Traits' journal and lock, shared", () => {
@@ -279,7 +279,7 @@ describe("the Traits' journal and lock, shared", () => {
     expect(status(dir)).toBe('');
   });
 
-  // v1.1.6-S19 (DL-205): show and set put a cut-off "Finish" back before they read the file, so
+  // DL-205: show and set put a cut-off "Finish" back before they read the file, so
   // that what is "in the file" is never the cut-off write.
   test('show and set read the file as put back from a config Finish cut off, never as it was cut off', async () => {
     const dir = scratch();

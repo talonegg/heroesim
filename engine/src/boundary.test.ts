@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ESLint, type Linter } from 'eslint';
 import { beforeAll, describe, expect, test } from 'vitest';
 
 // The engine's boundary is enforced by ESLint (ADR-0001, ADR-0003, ADR-0007). These tests prove
-// the rules fire: each writes a probe file into a package's src/, lints it with the repository's
-// own eslint.config.js through ESLint's Node API, and deletes it whatever happens.
+// the rules fire: each lints a probe as text under a path in a package's src/ with the repository's
+// own eslint.config.js through ESLint's Node API.
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 let eslint: ESLint;
@@ -16,14 +16,9 @@ beforeAll(() => {
 });
 
 async function lintProbe(pkg: string, code: string, extension = 'ts'): Promise<Linter.LintMessage[]> {
-  const file = `${root}${pkg}/src/boundary-probe-${randomUUID()}.${extension}`;
-  writeFileSync(file, code);
-  try {
-    const [result] = await eslint.lintFiles([file]);
-    return errorsIn(result);
-  } finally {
-    rmSync(file, { force: true });
-  }
+  // Linted as text under a path in the package's src/, so no file is written.
+  const [result] = await eslint.lintText(code, { filePath: `${root}${pkg}/src/boundary-probe.${extension}` });
+  return errorsIn(result);
 }
 
 function errorsIn(result: ESLint.LintResult | undefined): Linter.LintMessage[] {
@@ -163,14 +158,14 @@ describe('engine/package.json', () => {
   });
 });
 
-// v1.1.6-S8 (DL-186 item 9): the engine's test entry, for tests alone.
+// DL-186 item 9: the engine's test entry, for tests alone.
 describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 }, () => {
   const code = "import { makeId } from '@heroesim/engine/testing';\nexport { makeId };";
 
   test('is declared beside the entry in engine/package.json', () => {
     const manifest = JSON.parse(readFileSync(`${root}engine/package.json`, 'utf8')) as { exports: Record<string, string> };
 
-    expect(manifest.exports).toEqual({ '.': './src/index.ts', './testing': './src/testing.ts' });
+    expect(manifest.exports).toEqual({ '.': './src/index.ts', './content': './src/content.ts', './testing': './src/testing.ts' });
   });
 
   test.each([
@@ -198,11 +193,35 @@ describe("the engine's test entry, @heroesim/engine/testing", { timeout: 30_000 
   });
 });
 
+// DL-243: content's own entry, its types, lists and `queryProblems`, for content, the words and the
+// tools; a front end and the harness take the engine by its main entry.
+describe("the engine's content entry, @heroesim/engine/content", { timeout: 30_000 }, () => {
+  const code = "import { encounterKinds, type ContentSet } from '@heroesim/engine/content';\nexport const x = (set: ContentSet) => [set, encounterKinds];";
+
+  test.each(['content', 'words', 'tools/editor', 'tools/portraits'])('%s may import it', async (pkg) => {
+    expect(await lintProbe(pkg, code)).toEqual([]);
+  });
+
+  test.each([
+    ['cli', 'ts'],
+    ['harness', 'ts'],
+    ['web', 'ts'],
+    ['web', 'tsx'],
+    ['cli', 'test.ts'],
+  ])('%s (.%s) may not import it', async (pkg, extension) => {
+    const errors = await lintProbe(pkg, code, extension);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+  });
+});
+
 describe('the other packages reach each other by name only', { timeout: 30_000 }, () => {
   test.each([
-    ['content', "import type { World } from '@heroesim/engine';\nexport type { World };"],
-    // DL-186 item 6 (v1.1.6-S5): content takes the engine's values as well as its types.
-    ['content', "import { encounterKinds } from '@heroesim/engine';\nexport { encounterKinds };"],
+    ['content', "import type { ContentSet } from '@heroesim/engine/content';\nexport type { ContentSet };"],
+    // DL-186 item 6: content takes the engine's values as well as its types, by the
+    // engine's content entry (DL-243).
+    ['content', "import { encounterKinds } from '@heroesim/engine/content';\nexport { encounterKinds };"],
     ['cli', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['web', "import { x } from '@heroesim/engine';\nimport { y } from '@heroesim/content';\nexport { x, y };"],
     ['harness', "import { x } from '@heroesim/engine';\nexport { x };"],
@@ -212,6 +231,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
 
   test.each([
     ['content', 'a subpath of the engine', "import { x } from '@heroesim/engine/src/index.ts';\nexport { x };"],
+    ['content', "the engine's main entry (DL-243)", "import type { World } from '@heroesim/engine';\nexport type { World };"],
     ['content', 'a Node built-in outside its Node entry', "import fs from 'node:fs';\nexport { fs };"],
     ['content', 'a front end', "import x from '@heroesim/cli';\nexport { x };"],
     ['cli', 'web', "import x from '@heroesim/web';\nexport { x };"],
@@ -220,7 +240,6 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
     ['cli', 'a subpath of the engine', "import x from '@heroesim/engine/src/index.ts';\nexport { x };"],
     ['web', 'a subpath of content', "import x from '@heroesim/content/src/index.ts';\nexport { x };"],
     ['cli', 'a relative path into engine/', "import x from '../../engine/src/index.js';\nexport { x };"],
-    ['web', 'a relative path into content/', "import x from '../../content/src/index.js';\nexport { x };"],
     ['harness', 'a relative path into cli/', "import x from '../../cli/src/index.js';\nexport { x };"],
     ['content', 'a relative path into engine/', "import x from '../../engine/src/index.js';\nexport { x };"],
   ])('%s may not import %s', async (pkg, _what, code) => {
@@ -232,7 +251,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
 
   test("content's Node entry may import node:fs", async () => {
     // Linted as text under the entry's path rather than written there, so the real
-    // content/src/node.ts (M1-S4) can never be overwritten or deleted by this test.
+    // content/src/node.ts can never be overwritten or deleted by this test.
     const [result] = await eslint.lintText("import fs from 'node:fs';\nexport { fs };", {
       filePath: `${root}content/src/node.ts`,
     });
@@ -241,7 +260,7 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
   });
 });
 
-// M7-S1: the browser front end's components are .tsx, and its page runs in a browser.
+// The browser front end's components are .tsx, and its page runs in a browser.
 describe("web/'s page, components included", { timeout: 30_000 }, () => {
   test('a component may import the engine and content by name', async () => {
     const code = [
@@ -269,7 +288,7 @@ describe("web/'s page, components included", { timeout: 30_000 }, () => {
     expect(errors[0]?.ruleId).toBe(restrictedImports);
   });
 
-  // M7-S2 (DL-65): `web/src/content.ts` shares the content package's name, and a module one
+  // DL-65: `web/src/content.ts` shares the content package's name, and a module one
   // directory down reaches it as `../content`, which leaves neither `web/src/` nor `web/`.
   test.each(['ts', 'tsx', 'test.ts'])("a .%s module under web/src/state/ may import the page's own ../content", async (extension) => {
     const [result] = await eslint.lintText("import { content } from '../content';\nexport { content };", {

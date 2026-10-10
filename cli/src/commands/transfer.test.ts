@@ -1,18 +1,14 @@
 // `transfer`, `accept`, `decline`, `show offers` and fast forward's Transfer Offer stop end to end
-// (M6-S2, DL-57): `main` run in-process against a real save in a temporary directory, with the real
+// (DL-57): `main` run in-process against a real save in a temporary directory, with the real
 // content set, as main.test.ts runs the other commands. The Rivals of seed `demo` are dealt the core's
 // four Dispositions in Guild id order (DL-56): guild-000002 ambitious, guild-000003 miserly,
 // guild-000004 reckless, guild-000005 steady.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync } from 'node:fs';
 import {
   addStack,
   applyAction,
   defaultConfig,
-  deserialise,
-  playerGuild,
   serialise,
   transferFee,
   type Guild,
@@ -23,47 +19,12 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, main } from '../main.js';
+import { describe, expect, test } from 'vitest';
+import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
-let dir: string;
-
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'heroesim-transfer-'));
-});
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-function play(argv: string[]): { code: number; out: string; err: string } {
-  let out = '';
-  let err = '';
-  const code = main(argv, {
-    stdout: (text) => (out += text),
-    stderr: (text) => (err += text),
-    cwd: dir,
-    env: {},
-    now: () => new Date('2026-09-26T09:30:00.000Z'),
-    random: () => 0,
-  });
-  return { code, out, err };
-}
-
-const current = (): string => join(dir, '.saves', 'current.json');
-
-function document(): WorldDocument {
-  const loaded = deserialise(readFileSync(current(), 'utf8'), { content });
-  if (!loaded.ok) throw new Error(loaded.reason.message);
-  return loaded.document;
-}
-
-function thePlayer(world: World): Guild {
-  const guild = playerGuild(world);
-  if (guild === undefined) throw new Error("No player's Guild");
-  return guild;
-}
+const { play, current, document } = playground('heroesim-transfer-', content);
 
 function guildOf(world: World, guildId: string): Guild {
   const guild = world.guilds[guildId as GuildId];
@@ -94,7 +55,7 @@ function newWorld(edit: (world: World) => void = () => {}): WorldDocument {
   return edited;
 }
 
-describe('transfer (M6-S2)', () => {
+describe('transfer', () => {
   test('transfer --hero <id> --to <guildId> sends a Hero to a Rival that wants them, for the fee, and saves', () => {
     const before = newWorld((world) => {
       guildOf(world, ambitious).wealth = 1_000_000; // rich enough to hire: its appetite takes a Hero
@@ -214,7 +175,7 @@ describe('transfer (M6-S2)', () => {
   });
 });
 
-describe('Transfer Offers (M6-S2)', () => {
+describe('Transfer Offers', () => {
   /** The ambitious Rival's offer for the player's first Hero, made through the engine and saved. */
   function withOffer(): { heroId: HeroId; offerId: string; fee: number } {
     const before = newWorld((world) => {
@@ -247,7 +208,7 @@ describe('Transfer Offers (M6-S2)', () => {
     expect(play(['show', 'offers']).out).toBe("No Transfer Offer stands for The Test's Heroes.\n");
     expect(play(['decline', '--offer', offerId])).toMatchObject({
       code: exitCodes.refused,
-      err: `No Transfer Offer ${offerId} stands for The Test's Heroes (show offers).\n`,
+      err: `No such Transfer Offer (${offerId}) stands for The Test's Heroes (show offers).\n`,
     });
   });
 
@@ -271,7 +232,7 @@ describe('Transfer Offers (M6-S2)', () => {
       // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
       // the tries), it offers for them. Its Hall is built and its Heroes are outfitted, since it
-      // builds and buys gear before it weighs a Transfer (M6-S4, DL-58).
+      // builds and buys gear before it weighs a Transfer (DL-58).
       const rival = guildOf(world, ambitious);
       rival.wealth = 1_000_000;
       rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
