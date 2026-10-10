@@ -425,9 +425,9 @@ _Avoid_: Defence, Armour (for the whole), Resistance, Save
 
 **Finale**:
 A fixed last Encounter a Quest template names, with its line, met after the Beats drawn: one of
-the Beats its Tier plays (DL-262). An Encounter named as a Finale is in no Beat's pool. On such a Quest Loot also needs the Finale to end a Triumph. The four hardest
-templates are to have one (DL-148 items 22 and 23, DL-160, the four written in
-DL-166).
+the Beats its Tier plays (DL-262). An Encounter named as a Finale is in no Beat's pool. On such a
+Quest Loot also needs the Finale to end a Triumph. The four hardest templates are to have one
+(DL-148 items 22 and 23, DL-160, the four written in DL-166).
 _Avoid_: Boss, Climax, Final Encounter
 
 **Deadly**:

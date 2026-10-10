@@ -1243,8 +1243,8 @@ describe('a Finale and Loot', () => {
 // Encounters met at every Degree, each Degree's list reading every field: `among` matching some, all or
 // none of its pool, `exposedBy`, `guardedBy`, `steadiedBy`, a Death on the hurt, Traits positive and
 // negative. The fingerprint was recorded against resolve.ts before the move, so it holds the
-// resolutions and the `quests` stream after them to the draw; re-recorded when a Quest's Loot table came
-// to follow its Tier (DL-262), which moves the scenes' Loot draws alone: with the old copy, the old print.
+// resolutions and the `quests` stream after them to the draw, each scene's Quest carrying its Loot table
+// as its Tier says (DL-262), which the scenes' Loot draws read.
 describe('harm and earned Traits across seeds, draw for draw', () => {
   const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 0.6, ...fields });
   const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 0.7, count: 1, ...fields });

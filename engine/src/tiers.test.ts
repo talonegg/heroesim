@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { defaultConfig, type GameConfig, type TierRow } from './config.js';
 import type { Encounter, QuestBeat, QuestTemplate } from './content-types.js';
 import type { Guild, Hero, World } from './document.js';
-import { beatsPlayed, centreTier, daysAt, difficultyBand, inBeatPool, meanLevel, offeredTiers, shortBeats, tierFigures, tierWeights } from './tiers.js';
+import { beatsDrawn, beatsPlayed, centreTier, daysAt, difficultyBand, inBeatPool, meanLevel, offeredTiers, shortBeats, tierFigures, tierWeights } from './tiers.js';
 
 // DL-257 items 1 to 3, DL-262: the Tier a Quest is drawn at, and the figures it is drawn and paid by.
 
@@ -139,6 +139,11 @@ describe('daysAt', () => {
     expect(daysAt(13, tier, config())).toBe(4);
   });
 
+  test("holds a difficulty outside the band to the Tier's days, daysMin below it and daysMax above", () => {
+    expect(daysAt(5, tier, config())).toBe(3);
+    expect(daysAt(45, tier, config())).toBe(7);
+  });
+
   test('is daysMin for a band of one value', () => {
     expect(daysAt(40, { difficultyMin: 40, difficultyMax: 40, daysMin: 6, daysMax: 9 }, config())).toBe(6);
   });
@@ -168,6 +173,12 @@ describe('beatsPlayed', () => {
   test('never plays more Beats than the template has', () => {
     expect(beatsPlayed({ beats }, 9)).toEqual({ beats, finale: null });
     expect(beatsPlayed({ beats, finale: 'the-end' }, 9)).toEqual({ beats, finale: 'the-end' });
+  });
+
+  test('draws count Beats, one fewer for a Finale, never more than the template has nor fewer than none', () => {
+    expect([beatsDrawn(4, false, 3), beatsDrawn(4, true, 3)]).toEqual([3, 2]);
+    expect([beatsDrawn(4, false, 9), beatsDrawn(4, true, 9)]).toEqual([4, 4]);
+    expect([beatsDrawn(4, false, 0), beatsDrawn(4, true, 0)]).toEqual([0, 0]);
   });
 });
 

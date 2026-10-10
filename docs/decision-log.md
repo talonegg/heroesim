@@ -513,7 +513,11 @@ counts, and `lootDifficultyThreshold` gave Loot.
 **Consequences.** S6 and S7 read the ladder's `fameMinimum` and `deathScale`; S11
 writes the Beats' lines and widens the Tiers; DL-257 item 11 tunes. The quick run's moves (Evidence)
 are the owner's to read against S2's: the player's Quest rewards 21% more over two Years
-(`wealth.player.questRewards`), its cause not yet read.
+(`wealth.player.questRewards`), the factors working as decided, a Party-Day neutral: each Tier's
+Wealth a Party-Day is v1.1.9's for its band times the share paid (0.94, 1.00, 1.02, 1.07), and the
+21% is Party-Days ×1.144 (11,981 → 13,707: per-Quest overheads, Days home and Injuries 93 → 47,
+spread over longer Quests; Parties smaller, alone 44% → 51%) times Wealth a Party-Day ×1.057 (more
+of the Days in the better-paid Tiers 2–3, ×1.031; paid 80.1% → 81.9%).
 
 **Evidence.** The commit `v1.2.0-S5 (DL-262)`. The doctor before and after: no drift, 104 reads.
 `neutral v1.2.0-s5-quick` (4 × 2, `harness/reports/v1.2.0-s5-quick-2026-10-11`): refusals 0,
@@ -523,6 +527,8 @@ S2 → S5: the player's Quests a Guild-year 378 → 284, its Party 1.66 → 1.54
 failed 19.9% → 18.1%, Deaths a game 1.75 → 1.25, Wealth at Year 2 15.6 → 22.3 months of Upkeep;
 Bankruptcies 0 and 0. Offered by Tier: 20.9%, 38.6%, 29.4%, 9.9%, 1.1%; the player took 35.8%,
 48.3%, 14.9%, 0.9%, 0. Tests 6,192 (6,188 passed, 4 skipped); lint, typecheck and the build pass.
+Verified 2026-10-11 at d8c0474: the factors, the midpoints and the Beats re-derived alike, the rise
+read as above, 75 mutations red but two, killed by tests (`daysAt` off its band, `beatsDrawn`'s cap).
 
 ## DL-263 — v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box
 
