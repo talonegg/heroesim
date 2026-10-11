@@ -1290,3 +1290,24 @@ word. A Morale-aware estimate would move play and the Rivals' choices, and with 
 **Evidence.** The commit `v1.2.0-S13 (DL-275)`; DL-274's estimate report `estimate-2026-10-11`
 (not committed). The epic's S13 first box and Status.
 Verified 2026-10-11 at 01d8bc1: the line, its source and note, the four moved tests (none loosened) and the note's printed limit re-derived, 5 mutations red; DL-173 item 2's 0.03 found superseded too, its note and record added.
+
+## DL-276 — v1.2.0: the owner's playtest: neither sentence said
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
+
+**Context.** The close (delivery.md, A release) asks for the owner's playtest of a few in-game years of
+the release's build, scored by which of the Guild Management Design's sentences the player finds
+themselves saying. v1.2.0 aimed at two (the epic's "Aims at", Q20 c): "He needs another year of
+development." and "I need to give him a chance." The build at 4f140e2 was played on the local page.
+
+**Decision.**
+
+1. **The playtest is done** (the owner: "playtest done"), and asked which of the two sentences were
+   said, from (a) both, (b) the first, (c) the second, (d) neither, the owner answered **"d": neither**.
+
+**Consequences.** The release's aim is not yet felt in play. The causes the close reported are open
+for the owner: no Guild unlocks Tier 5 in twenty years and the player's Deaths are 0.24 a game
+(DL-274), so a Hero sent too early is rarely punished; the Targets are reported, not tuned (DL-257
+item 11). The owner's word to release is a separate answer.
+
+**Evidence.** The epic's S13 box. DL-274's Gate and Targets.

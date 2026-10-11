@@ -285,6 +285,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [decision-log](../decision-log.md) |
 | DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [decision-log](../decision-log.md) |
 | DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [decision-log](../decision-log.md) |
+| DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
