@@ -21,6 +21,7 @@ import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
 import { demandsCheck, encounterCapability as capability, onlyCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { capability as checkCapability } from './check.js';
+import { moraleFactor } from './form.js';
 import { meanShare } from './harm.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
@@ -659,9 +660,9 @@ describe('several Checks', () => {
   });
 });
 
-// DL-148 items 9 to 11, DL-154: each Hero's form, from the band of their Morale on the
+// DL-148 items 9 to 11, DL-154, DL-283: each Hero's form, Morale's factor at their Morale on the
 // Quest and whether they are hurt on it, scales the Stats they add into a Check's score. The scene's
-// Party of three, steady at Morale 60, has Strength 24 in all; with no variance, its roll is its
+// Party of three has Strength 24 in all, its capability at form 1; with no variance, its roll is its
 // capability.
 describe('form on the Quest', () => {
   /** An Encounter keyed `key` of one Check of the Party's summed Strength at `factor`, with `success` and `failure`. */
@@ -690,17 +691,20 @@ describe('form on the Quest', () => {
       expect(outcome.moraleDelta).toBe(delta);
       return encounters.map((it) => it.checks[0]?.capability ?? Number.NaN);
     };
-    const { moraleCheckFactor: factor } = pinned;
+    /** The Party's Strength at Morale `morale`, held to the scale, by Morale's factor there (DL-283). */
+    const formed = (morale: number) => 24 * moraleFactor(Math.max(defaultConfig.moraleMin, morale), defaultConfig);
 
-    // Steady at 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
-    expect(capabilities(0)).toEqual([24, 24]);
-    const [steady, wretched] = capabilities(-45);
-    expect(steady).toBe(24);
-    expect(wretched).toBeCloseTo(24 * factor.wretched, 10);
-    expect(capabilities(-200)[1]).toBeCloseTo(24 * factor.wretched, 10);
-    expect(capabilities(-30)[1]).toBeCloseTo(24 * factor.low, 10);
-    expect(capabilities(20)[1]).toBeCloseTo(24 * factor.high, 10);
-    expect(capabilities(35)[1]).toBeCloseTo(24 * factor.elated, 10);
+    // At 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
+    const [first, second] = capabilities(0);
+    expect(first).toBeCloseTo(formed(60), 10);
+    expect(second).toBeCloseTo(formed(60), 10);
+    const [before, lowered] = capabilities(-45);
+    expect(before).toBeCloseTo(formed(60), 10);
+    expect(lowered).toBeCloseTo(formed(15), 10);
+    expect(capabilities(-200)[1]).toBeCloseTo(formed(-140), 10);
+    expect(capabilities(-30)[1]).toBeCloseTo(formed(30), 10);
+    expect(capabilities(20)[1]).toBeCloseTo(formed(80), 10);
+    expect(capabilities(35)[1]).toBeCloseTo(formed(95), 10);
   });
 
   test('a Hero hurt in Encounter 1 adds hurtCheckFactor of their Strength in Encounter 2', () => {
@@ -712,18 +716,18 @@ describe('form on the Quest', () => {
   });
 
   test("sets a Check's formDecided exactly when the same roll with every form at 1 falls on the other side of the Success line, and which way", () => {
-    // A target of 22: 24 is a Success at form 1, and 20.4, wretched, a Setback.
+    // A target of 22: 24 is a Success at form 1, and at Morale 10, far below the baseline, a Setback.
     const lowered = resolvedAt('lowered', 10, [summed('one', 0.55)]).encounters[0];
     expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
-    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * pinned.moraleCheckFactor.wretched, 10);
-    // A target of 25.2: 24 is a Setback at form 1, and 25.92, elated, a Success.
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * moraleFactor(10, defaultConfig), 10);
+    // A target of 25.2: 24 is a Setback at form 1, and at Morale 95, far above it, a Success.
     expect(resolvedAt('raised', 95, [summed('one', 0.63)]).encounters[0]).toMatchObject({
       degree: 'success',
       formDecided: 'raised',
       checks: [{ degree: 'success', formDecided: 'raised' }],
     });
     // Form moved the roll but not past the Success line: a Failure made a Setback (a target of 34),
-    // a Success made a Triumph (20), or no Degree moved at all. None is set. Nor at form 1, steady.
+    // a Success made a Triumph (20), or no Degree moved at all. None is set. Nor at Morale 60, form 1 at a baseline of 60.
     for (const [morale, factor] of [[95, 0.85], [95, 0.5], [95, 0.55], [10, 0.25], [60, 0.55], [60, 0.63]] as const) {
       const [only] = resolvedAt(`none-${morale}-${factor}`, morale, [summed('one', factor)]).encounters;
       expect(only).not.toHaveProperty('formDecided');
@@ -776,10 +780,9 @@ describe('form on the Quest', () => {
     expect(missed).toMatchObject({ degree: 'setback', formDecided: 'lowered' });
   });
 
-  test('every form factor 1 plays as before form (DL-154): the capabilities read as they are, and nothing is formDecided', () => {
-    const ones = { moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, hurtCheckFactor: 1 };
-    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'morale', delta: -50 }]);
-    const { encounters } = resolvedAt('ones', 10, [wounding, summed('after', 0.55)], ones);
+  test('every form at 1, at the baseline and hurtCheckFactor 1, plays as before form (DL-154, DL-283): the capabilities read as they are, and nothing is formDecided', () => {
+    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }]);
+    const { encounters } = resolvedAt('ones', defaultConfig.moraleBaseline, [wounding, summed('after', 0.55)], { hurtCheckFactor: 1 });
 
     expect(encounters.map((it) => it.checks)).toEqual([
       [{ key: 'wounding', capability: 24, roll: 24, target: 10, margin: 14, degree: 'triumph' }],
@@ -946,7 +949,7 @@ describe('harm that reads the Stats', () => {
     expect(h.resolve().outcome.moraleByHero).toEqual(Object.fromEntries(h.heroes.map((hero, index) => [hero.id, index === 0 ? -1 : -2])));
   });
 
-  test("each Hero's Morale on the Quest reads their steadied losses unrounded: 40 less a half is the low band", () => {
+  test("each Hero's Morale on the Quest reads their steadied losses unrounded: 40 less a half is 39.5", () => {
     const after: Encounter = {
       key: 'after',
       name: 'after',
@@ -963,8 +966,9 @@ describe('harm that reads the Stats', () => {
       },
     });
 
-    // The first Hero at 39.5 is low; the others, at 59.5, steady.
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
+    // The first Hero at 39.5, the others at 59.5, each by Morale's factor there (DL-283).
+    const formed = (morale: number) => 8 * moraleFactor(morale, defaultConfig);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(39.5) + 2 * formed(59.5), 10);
   });
 
   test('moraleByHero names each Hero home alive, and with no steadiedBy is moraleDelta for each', () => {
@@ -985,7 +989,7 @@ describe('harm that reads the Stats', () => {
       checks: [{ key: 'after', name: 'after', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.25 }],
       consequences: { success: [], failure: [] },
     };
-    // From 60: −30 at the bottom of Courage, to 30, low; −15 at the top, to 45, steady.
+    // From 60: −30 at the bottom of Courage, to 30; −15 at the top, to 45.
     const h = harmed('own-form', [failing('gloom', [{ kind: 'morale', delta: -30, steadiedBy: ['courage'] }]), after], {
       set: (heroes) => {
         heroes.forEach((hero, index) => {
@@ -995,7 +999,8 @@ describe('harm that reads the Stats', () => {
       },
     });
 
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
+    const formed = (morale: number) => 8 * moraleFactor(morale, defaultConfig);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(30) + 2 * formed(45), 10);
   });
 
   test("a share reads effective Stats, so armour's Constitution steadies, and never form", () => {
@@ -1371,6 +1376,7 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     }
     expect([...seen.degrees].sort()).toEqual(['failure', 'setback', 'success', 'triumph']);
     expect(Math.min(seen.injuries, seen.deaths, seen.positive, seen.negative)).toBeGreaterThan(0);
-    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('d1d94ff799486005decad797feadd798c574b6009f8e456406d5db8bee9db80f');
+    // Moved by Morale's form made a line, each Morale consequence now moving form (DL-283; d1d94ff7… before).
+    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('e3360864c5da55c2ce8586df3380169dee2c20e893ed65e38214c0771dab9987');
   });
 });

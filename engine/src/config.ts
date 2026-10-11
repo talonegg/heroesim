@@ -83,7 +83,10 @@ export interface GameConfig {
   startingSkillsMax: number;
   /** Each starting Skill is rated from 1 to this. */
   startingSkillRatingMax: number;
-  /** A Hero's Morale at generation, and what nightly drift returns it to (DL-29). */
+  /**
+   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's quarters and
+   * Guildmaster move it (DL-29), and where Morale's factor on their form is 1 (DL-283).
+   */
   moraleBaseline: number;
 
   // ── `guildmasters`: a generated Guildmaster (INPUTS 3.13, 4.10, DL-19) ───────────────────────
@@ -256,16 +259,10 @@ export interface GameConfig {
    */
   strongTriumphShare: number;
   /**
-   * A Hero's form on a Quest (DL-148 items 9 to 11, DL-154, `CONTEXT.md` Form): the factor on the
-   * Stat values they add into a Check's score, by the band of their Morale on the Quest. Narrow, so
-   * that a Guild failing and losing Morale is not driven down fast (DL-166). Provisional: the values
-   * are to be revisited in the economy pass (#51, DL-168 item 9), not the design's.
-   */
-  moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
-  /**
-   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10, DL-154),
-   * set with the form factors (DL-166). Provisional, like `moraleCheckFactor`: to be revisited in the
-   * economy pass (#51, DL-168 item 9).
+   * A Hero's form on a Quest (DL-148 items 9 to 11, `CONTEXT.md` Form), Morale's factor on the Stat
+   * values they add into a Check's score, is a line through `moraleBaseline` across Morale's scale
+   * (`moraleFactor`, DL-283), and is also multiplied by this once they are hurt on the Quest (DL-148
+   * item 10, DL-154). Provisional: to be revisited in the economy pass (#51, DL-168 item 9).
    */
   hurtCheckFactor: number;
   /**
@@ -296,7 +293,10 @@ export interface GameConfig {
   playerPartyMargin: number;
 
   // ── `heroState`: the Hero State Engine (INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────
-  /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
+  /**
+   * Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. Morale's factor on form
+   * moves a quarter over half of it (DL-283).
+   */
   moraleMin: number;
   moraleMax: number;
   /** How far Morale moves toward `moraleBaseline` each night, never past it. */

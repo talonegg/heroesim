@@ -561,8 +561,8 @@ describe('the Party builder', () => {
   test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (DL-148 item 12)", () => {
     const state = changed(madeToOrder(), (document, player) => {
       const [first, second] = player.rosterIds;
-      (document.world.heroes[first as HeroId] as Hero).morale = 10;
-      (document.world.heroes[second as HeroId] as Hero).morale = 60;
+      (document.world.heroes[first as HeroId] as Hero).morale = document.meta.config.moraleMin;
+      (document.world.heroes[second as HeroId] as Hero).morale = document.meta.config.moraleBaseline;
     });
     render(<App initial={state} />);
     const form = chooseForFirst();
@@ -575,10 +575,11 @@ describe('the Party builder', () => {
     expect(within(form).getByRole('heading', { level: 4, name: 'Morale' })).toBeDefined();
     expect(within(form).getByTestId('party-morale').textContent).toBe('Makes no difference.');
 
-    // A wretched Hero beside a steady one: a mean form of 0.925, below the low band's 0.93.
+    // A Hero at the bottom of the scale beside one at the baseline: a mean form above Morale's
+    // factor at the low band's start (DL-283).
     fireEvent.click(within(first).getByRole('checkbox'));
     const line = within(form).getByTestId('party-morale').textContent ?? '';
-    expect(line).toBe('Lowers the odds badly.');
+    expect(line).toBe('Lowers the odds a little.');
     for (const hero of heroesOf(state).slice(0, 2)) expect(line).not.toContain(hero.name);
   });
 

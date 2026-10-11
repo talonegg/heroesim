@@ -323,8 +323,11 @@ CLI's readings are to be built (DL-280).
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
-One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
-read them (DL-154); Random Events are to read them too (DL-82).
+One of the named ranges a Hero's Morale falls in: wretched, low, steady, high and elated. Morale's
+nightly drift is recorded only when it crosses one, and the page reads a Hero's Morale by them. Form
+reads Morale's line, not the bands, but the Party builder's line says a Party lowers its odds a
+little down to the line's value at the low band's start (DL-283). Random Events are to read them
+too (DL-82).
 _Avoid_: Mood, Tier (a Quest's is another thing)
 
 **Regard**:
@@ -432,8 +435,9 @@ _Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: factors on the Stats they add to a
-score, which multiply. Morale's is a line through `moraleBaseline`, more above it and less below,
-the same for every Guild whatever its quarters and Guildmaster add to its Heroes' Morale, read from
+score, which multiply. Morale's is a line through `moraleBaseline`, more above it and less below, a
+quarter more half the scale above it and a quarter less half the scale below (DL-283), the same for
+every Guild whatever its quarters and Guildmaster add to its Heroes' Morale, read from
 their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
 cost or given them so far, their own since a loss may be steadied (DL-155). Fatigue's, from their
 Fatigue on the Day of the Encounter, takes more from the Physical and Magical Stats than from the
@@ -444,8 +448,8 @@ Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. Form ne
 Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
-Morale's line, Fatigue, the hurt by Stat area and its relief, and the Captain are to be built
-(DL-280); until then Morale's factor is its band's and the hurt's one factor on every Stat.
+Fatigue, the hurt by Stat area and its relief, and the Captain are to be built (DL-280); until
+then the hurt's is one factor on every Stat.
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:

@@ -25,7 +25,7 @@ export interface QueryMember {
   hero: Hero;
   /** Their effective Stats (`effectiveStats`), read once when the Party is taken. */
   stats: StatValues;
-  /** Their Morale on the Quest (`workingMorale`): what `["morale"]` reads, and what sets their form's band. */
+  /** Their Morale on the Quest (`workingMorale`): what `["morale"]` reads, and what Morale's factor in their form reads. */
   morale: number;
   /** Their age in whole years at the Turn the Party is taken (`ageOf`). */
   age: number;

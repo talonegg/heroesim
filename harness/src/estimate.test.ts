@@ -123,7 +123,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(report).toContain('reported, not held');
   });
 
-  test("measures Morale's consequences: a loss that moves a Hero's band moves the resolver's rates, and nothing else does", () => {
+  test("measures Morale's consequences: a loss on the way moves the resolver's rates along Morale's line, and one the scale's floor holds moves nothing", () => {
     const base = { ...deps, content: harmless(deps.content) };
     const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
     /** The most Morale each of `drawn`'s Encounters moves a Hero by, its Morale consequences put back: the largest of its Degrees'. */
@@ -133,8 +133,15 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
         Math.max(0, ...Object.values(content.encounters[key]?.consequences ?? {}).map((list) => sum((list ?? []).flatMap((it) => (it.kind === 'morale' ? [Math.abs(it.delta)] : []))))),
       );
     };
-    // The first sample whose Quest carries a Morale consequence in an Encounter before its last, so that a
-    // band it moves is read by the Checks after it: chosen by that, not by its seed (DL-273).
+    /** Every Morale consequence of `drawn`'s Encounters that raises Morale, its Morale consequences put back. */
+    const gains = (drawn: Drawn) => {
+      const { content } = moraleIn(drawn, deps.content);
+      return drawn.quest.encounterKeys.flatMap((key) =>
+        Object.values(content.encounters[key]?.consequences ?? {}).flatMap((list) => (list ?? []).flatMap((it) => (it.kind === 'morale' && it.delta > 0 ? [it.delta] : []))),
+      );
+    };
+    // The first sample whose Quest carries a Morale consequence in an Encounter before its last, so that
+    // the Morale it moves is read by the Checks after it: chosen by that, not by its seed (DL-273).
     const seed = Array.from({ length: 40 }, (_, at) => `estimate-${String(at + 1).padStart(4, '0')}`).find((each) => moraleMoved(drawSample(each, base)).slice(0, -1).some((moved) => moved > 0));
     if (seed === undefined) throw new Error('No sample of 40 carries a Morale consequence before its last Encounter');
     /** The gaps between the resolver's rates with Morale in and with none, every Hero of the Party at `morale` as they set out. */
@@ -145,14 +152,13 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
       const sample = compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
       return sample.moraleIn.map((it, at) => it.rate - (sample.compared[at]?.rate ?? 0));
     };
-    const { steady, high } = deps.config.moraleBands;
-    // At the steady band's floor: a Morale loss on the way takes a Hero below it, and their form with it.
-    expect(rates(steady).some((gap) => gap !== 0)).toBe(true);
-    // Midway up the band, further from either floor than every Morale consequence of the Quest together: no
-    // Hero's band moves, so nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
-    const middle = Math.floor((steady + high) / 2);
-    expect(sum(moraleMoved(drawSample(seed, base)))).toBeLessThan(Math.min(middle - steady, high - middle));
-    expect(rates(middle).every((gap) => gap === 0)).toBe(true);
+    const { moraleBaseline, moraleMin } = deps.config;
+    // At the baseline: a Morale loss on the way takes a Hero down Morale's line, and their form with it (DL-283).
+    expect(rates(moraleBaseline).some((gap) => gap !== 0)).toBe(true);
+    // At the scale's floor, the Quest carrying no gain, every loss is held there: no Hero's form moves, so
+    // nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
+    expect(gains(drawSample(seed, base))).toEqual([]);
+    expect(rates(moraleMin).every((gap) => gap === 0)).toBe(true);
   });
 
   // S7's verification (DL-173): the Morale check and its report read the second measure, not the first,

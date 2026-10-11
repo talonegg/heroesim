@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chanceBandNames, defaultConfig, moraleBandNames, type GameConfig, type TierRow } from './config.js';
+import { chanceBandNames, defaultConfig, type GameConfig, type TierRow } from './config.js';
 import { checkConfig, configRules, playConfig, playDeps, tierRowProblems } from './config-check.js';
 import type { Module } from './modules.js';
 import { cyrb128, int } from './rng.js';
@@ -207,18 +207,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     allowed: [{ triumph: 1.01, success: 1, setback: 0.01 }],
   },
   strongTriumphShare: share,
-  moraleCheckFactor: {
-    refused: [
-      ...[0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined].flatMap((bad) => moraleBandNames.map((band) => ({ ...defaultConfig.moraleCheckFactor, [band]: bad }))),
-      { wretched: 0.93, low: 0.97, high: 1.03, elated: 1.06 },
-      { ...defaultConfig.moraleCheckFactor, steady: 1.02 },
-      { ...defaultConfig.moraleCheckFactor, wretched: 0.95, low: 0.93 },
-      { ...defaultConfig.moraleCheckFactor, low: 1.01 },
-      { ...defaultConfig.moraleCheckFactor, high: 0.99 },
-      { ...defaultConfig.moraleCheckFactor, elated: 1.02 },
-    ],
-    allowed: [{ wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, { wretched: 0.5, low: 0.5, steady: 1, high: 2, elated: 2 }],
-  },
   hurtCheckFactor: { refused: [0, -0.5, 1.01, Number.NaN, Number.POSITIVE_INFINITY], allowed: [0.01, 1] },
   exposureRange: { refused: [-1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 2] },
   guardRange: { refused: [-0.1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 1] },
@@ -513,6 +501,10 @@ describe('the bands, in their order', () => {
     expect(broken({ moraleMin: defaultConfig.moraleBands.wretched + 1 })).toEqual(['moraleBands']);
     expect(broken({ moraleMax: defaultConfig.moraleBands.elated - 1 })).toEqual(['moraleBands']);
     expect(broken({ moraleMin: defaultConfig.moraleBaseline + 1 })).toEqual(['moraleBaseline', 'moraleBands']);
+  });
+
+  test("the Morale bands keep the scale Morale's factor divides by wider than 0 (DL-283)", () => {
+    expect(broken({ moraleMax: defaultConfig.moraleMin })).toContain('moraleBands');
   });
 
   test('the Fatigue bands lie within 0 and fatigueMax (DL-282)', () => {

@@ -157,13 +157,13 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-145 | 2026-10-02 | v1.1.3-S7 built: the setup grid of one sex's thumbnails, a thumbnail beside each name in the lists … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
 | DL-146 | 2026-10-02 | v1.1.3 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
 | DL-147 | 2026-10-02 | The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
-| DL-148 | 2026-10-02 | Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter … | item 3 in part by DL-181; item 8 in part by DL-168; item 10 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-148 | 2026-10-02 | Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter … | item 3 in part by DL-181; item 8 in part by DL-168; item 9 in part by DL-283; item 10 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-149 | 2026-10-02 | The Guildmaster's setup in v1.1.4: "Choose for me" for the whole Guildmaster, or the player's own … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-150 | 2026-10-02 | Traits in two lists, each a list of effects; a content editor for the owner with Traits as its … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-151 | 2026-10-02 | v1.1.4-S1 built: Checks scored by Queries over the Party, Synergy requirements written in them, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-152 | 2026-10-02 | v1.1.4-S2 built: several Checks to an Encounter, combined by a pass formula into a Degree … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-153 | 2026-10-02 | v1.1.4-S11 built: "Choose for me" for the whole Guildmaster, or "Choose myself" with the sex, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
-| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 5 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 1 in part by DL-283; item 5 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-155 | 2026-10-02 | v1.1.4-S4 built: harm that reads the Stats, an Injury's and a Death's `among`, `exposedBy` and … | item 3 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-156 | 2026-10-02 | v1.1.4-S5 built: the chance estimate, worked out exactly from what the resolver draws, the chance … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-157 | 2026-10-02 | v1.1.4-S6 built: the Board's cards show each Encounter and what each Check reads with "Your best … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
@@ -177,7 +177,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-165 | 2026-10-03 | v1.1.4: the owner's answers to S9's review: the Quest target deferred, `checkVariance` 0.4 in … | item 1 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-166 | 2026-10-03 | v1.1.4-S10 built: the approved drafts in content, the balance pass tuned for few bankruptcies, the … | item 6 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-167 | 2026-10-03 | v1.1.4 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
-| DL-168 | 2026-10-03 | The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing … | item 4 in part by DL-179; item 16 in part by DL-182; in part by DL-169 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-168 | 2026-10-03 | The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing … | item 4 in part by DL-179; item 9 in part by DL-283; item 16 in part by DL-182; in part by DL-169 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-169 | 2026-10-03 | The owner's answers on the Board's unavailable Heroes and the Roster's Table: the Away and the … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-170 | 2026-10-03 | v1.1.5-S11 built: the Board's Party builder lists the Heroes who can go first in the default order … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-171 | 2026-10-03 | v1.1.5-S12 built: the Roster as Tiles or a Table of effective Stats, its columns chosen in a panel … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
@@ -292,6 +292,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … |  | [decision-log](../decision-log.md) |
 | DL-281 | 2026-10-11 | v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a … |  | [decision-log](../decision-log.md) |
 | DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [decision-log](../decision-log.md) |
+| DL-283 | 2026-10-11 | v1.2.1-S3 built: Morale's form made continuous, a line through the baseline |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

@@ -6,6 +6,7 @@ import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
 import type { QuestEncounter } from '../events.js';
 import { addStack } from '../items.js';
+import { moraleBaselineFor } from '../morale.js';
 import { heroState } from '../phases/hero-state.js';
 import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
@@ -198,6 +199,9 @@ describe('one Check', () => {
       { key: 'one', kind: 'combat', checks: [draft('one', strength, 1)] },
       { key: 'gate', kind: 'combat', checks: [draft('gate', strongCount, 1, { raw: true, variance: 0 })] },
     ], { carried: [['whetstone', 2]] });
+    // At their Guild's baseline, the Morale the estimate brings them home with is the Morale they set
+    // out with, and so is Morale's factor on their form (DL-283).
+    for (const hero of s.heroes) hero.morale = moraleBaselineFor(hero, s.world, s.deps.config, s.deps.content);
     const [one, gate] = estimated(s).encounters;
     const check = one?.checks[0];
     if (check === undefined || gate === undefined) throw new Error('No Check');

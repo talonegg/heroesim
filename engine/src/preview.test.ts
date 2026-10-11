@@ -6,6 +6,7 @@ import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { addStack } from './items.js';
 import { previewDispatch, skillsThatHelp, statsRead } from './preview.js';
 import { estimateQuest } from './quest-engine/estimate.js';
+import { moraleFactor } from './quest-engine/form.js';
 import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
@@ -117,12 +118,14 @@ describe('previewDispatch', () => {
       party.forEach((id, index) => ((world.heroes[id] as Hero).morale = morales[index] as number));
       return previewDispatch(world, request(setting, party), deps)?.form;
     };
-    const { moraleCheckFactor: factor } = deps.config;
+    const { moraleBaseline: base, moraleBands: bands, moraleMin } = deps.config;
+    const factor = (morale: number) => moraleFactor(morale, deps.config);
 
-    expect(at([60, 60])).toEqual({ mean: 1, effect: 'none' });
-    expect(at([95, 60])).toEqual({ mean: (factor.elated + 1) / 2, effect: 'raises' });
-    expect(at([30, 60])).toEqual({ mean: (factor.low + 1) / 2, effect: 'lowers-a-little' });
-    expect(at([10, 30])).toEqual({ mean: (factor.wretched + factor.low) / 2, effect: 'lowers-badly' });
+    // Morale's line (DL-283): 1 at the baseline; down to its value at the low band's start, a little.
+    expect(at([base, base])).toEqual({ mean: 1, effect: 'none' });
+    expect(at([95, base])).toEqual({ mean: (factor(95) + 1) / 2, effect: 'raises' });
+    expect(at([bands.low, bands.low])).toEqual({ mean: factor(bands.low), effect: 'lowers-a-little' });
+    expect(at([moraleMin, bands.low])).toEqual({ mean: (factor(moraleMin) + factor(bands.low)) / 2, effect: 'lowers-badly' });
     expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
   });
 

@@ -419,3 +419,59 @@ one survives, the estimate's copies marked away, unseen until S4 reads Fatigue (
 the set-out Fatigue from the Heroes proposed, not the brought-home copies, cached by return night
 whatever the Tier); tests added for a Quest played against the clock, a Hero generated rested and
 a Quest of no Days.
+
+## DL-283 — v1.2.1-S3 built: Morale's form made continuous, a line through the baseline
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 3 makes Morale's part of a Hero's form a line, 1 + (m − `moraleBaseline`) ÷
+(2 × (`moraleMax` − `moraleMin`)), in place of the band factors `moraleCheckFactor` (DL-148 item 9,
+DL-154, DL-168 item 9), with the owner's Morale values: `moraleBaseline` 50, the bands' starts 0, 11,
+35, 66 and 90, `moraleOnRosterDeath` −20. Form stays one number a Hero carries until S4's module.
+
+**Decision.**
+
+1. **The line.** `moraleFactor(morale, config)` in `quest-engine/form.ts`: 1 at `moraleBaseline`, a
+   quarter more half the scale above it and a quarter less half the scale below, the same for every
+   Guild. `formOf` is it, times `hurtCheckFactor` once hurt; `queryParty`, so the resolver, the
+   estimate and the Party builder, reads it there and nowhere else. The Morale bands' rule keeps the
+   scale it divides by wider than 0.
+2. **`moraleCheckFactor` removed** from `GameConfig`, `config.json`, `configRules` and the tests, by
+   hand as `config.md` says for a setting removed; the config version 23 with its changelog line.
+3. **The Party builder's line** keeps its meaning: "lowers a little" down to the line's value at the
+   low band's start (`formEffect`), below it "badly"; above 1 it raises, at 1 none. The thresholds live
+   in `formEffect` alone; the page's and the CLI's maps only word its four effects, unchanged.
+4. **The owner's values are pending.** `config set` took `moraleBaseline` 50, the bands' starts 0,
+   11, 35, 66 and 90 and `moraleOnRosterDeath` −20, and `config finish` ran the tests: 15 failed in
+   9 files, each pinning or resting on the old values, so the file was put back and the edits
+   discarded. The defaults stay 60, 0/20/40/75/90 and −10 until the owner rules on those tests
+   (delivery.md rule 4); then the three `config set`s and `finish` raise the config to 24.
+5. **The words.** `CONTEXT.md`'s Morale band and Form say what is built; `config.ts`, `resolve.ts`
+   and the estimate probe's comments read the line.
+6. **Superseded in part:** DL-148 item 9 and DL-154 item 1 (each Hero's band's factor) and DL-168
+   item 9 (`moraleCheckFactor`'s provisional values), with their notes and records.
+
+*Judgement calls, for the owner to see.*
+- *Tests that pinned `moraleCheckFactor` or the band rule* are rewritten through `moraleFactor` over
+  the deps' config or set at the baseline (form, query, resolve, preview, check, estimate, the
+  harness's Morale-in test, the page's and the CLI's Morale lines), so they change with a default
+  rather than pin it (DL-231 Q10 b). The 120-Day History fingerprints and the resolver's 300 seeds
+  cannot be made form-neutral by any setting now: re-recorded, the old values in their comments.
+  Tests the line did not fail were left as they were, so the owner's values meet them as they stand;
+  the harness's Morale-in test, rewritten here, is among the 15 (its 500 rolls cross no threshold at
+  the baseline 50), reported, not rewritten again.
+- *"Raises" and "none".* Any mean above 1 raises the odds, however slightly; only a Party at the
+  baseline makes none. Under the bands most Heroes were steady at 1; under the line almost none are.
+- *The estimate probe* still counts the Heroes whose Morale band moved on the way home; every Morale
+  change now moves form. Left to S4, which measures the probe.
+
+**Consequences.** Morale's form spans 0.7 to 1.2 at the baseline 60, 0.75 to 1.25 at the owner's 50,
+against 0.93 to 1.06, and every Morale change moves it. Heroes above the baseline gain: the Rivals,
+who build quarters, most. In a quick run (4 × 2 years) the Rivals' strong successes rise from 55.5%
+to 62.9% of their Quests and their failures fall from 8.2% to 5.8%; the player's strong successes
+from 76.9% to 78.9%. A trial of the owner's values on the same seeds (`HEROESIM_CONFIG`) gives 62.5%
+and 5.7%, and the player's 77.6%. Every save's `meta.config` loses one setting.
+
+**Evidence.** The commit `v1.2.1-S3 (DL-283)`; the epic's S3 boxes. The quick runs before and after
+and `compare`, the doctors' readings and the checks' counts are in the commit message; the reports
+are not committed.

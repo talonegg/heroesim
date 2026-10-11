@@ -194,18 +194,6 @@ const degreeThresholds: ConfigRule = (value, settings) => {
     : 'triumph > success > setback > 0';
 };
 
-/**
- * The form factors (DL-154): one for every Morale band, each a finite number above 0, `steady`'s 1
- * and the rest in the bands' order, so that better spirits never bring less.
- */
-const formFactors: ConfigRule = (value, settings) => {
-  const factors = numbersOf(value, moraleBandNames, { above: 0 }, settings);
-  const ordered = factors?.every((factor, index) => index === 0 || factor >= (factors[index - 1] as number));
-  return ordered === true && factors?.[moraleBandNames.indexOf('steady')] === 1
-    ? undefined
-    : `it holds ${moraleBandNames.join(' ≤ ')}, each a finite number above 0, steady 1, the band that changes nothing`;
-};
-
 /** A Quest's band by its share of Encounters succeeded (M4-S2): two shares, `successAbove` below `strongAtLeast`. */
 const successShares: ConfigRule = (value, settings) => {
   const [successAbove, strongAtLeast] = numbersOf(value, ['successAbove', 'strongAtLeast'], { min: 0, max: 1 }, settings) ?? [];
@@ -410,7 +398,6 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   bandBySuccessShare: successShares,
   checkDegrees: degreeThresholds,
   strongTriumphShare: share,
-  moraleCheckFactor: formFactors,
   // A wound never helps (DL-154).
   hurtCheckFactor: finite({ above: 0, max: 1 }),
   // No weight in the draw of who is hit falls below 1 (DL-155).
@@ -424,7 +411,8 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   moraleMin: whole(),
   moraleMax: whole({ min: 'moraleMin' }),
   moraleDrift: finite({ min: 0 }),
-  moraleBands: bands(moraleBandNames, { min: 'moraleMin', max: 'moraleMax' }),
+  // Rising starts inside the scale keep it wider than 0, which Morale's factor divides by (DL-283).
+  moraleBands:bands(moraleBandNames, { min: 'moraleMin', max: 'moraleMax' }),
   moraleOnRosterDeath: finite({ max: 0 }),
   moraleOnStrongSuccess: finite({ min: 0 }),
   heroRetirementAge: whole({ min: 0 }),

@@ -2,7 +2,7 @@
 // (`resolveQuest`) where no one falls. Each sample is a Party and a Quest drawn from its own seed:
 //
 // - a world created from the core content and `defaultConfig`, and of the player's Roster, one to four
-//   Heroes drawn, each set to a Morale drawn from 0 to 100, so that every band's form comes up;
+//   Heroes drawn, each set to a Morale drawn from 0 to 100, so that the whole of Morale's line comes up;
 // - a Quest of difficulty 10 to 100 and one to five Encounters, each the core's or one written for the
 //   sample: one to four Checks, each scored by a Query of every shape the core's and S10's content
 //   writes (sums, the best of a Class, weightings, rankings, arithmetic, a raw count against a flat),

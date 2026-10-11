@@ -869,8 +869,8 @@ describe('the Quest named on what its return causes', () => {
    * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
    * before DL-152, with no share of Triumphs asked for a strong success, so that the
    * fingerprints below, recorded at `86c7afa` before DL-112, still hold: with that rule, an Encounter's
-   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. Every
-   * form factor is 1, as before DL-154, so that form is shown to change nothing else.
+   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. The
+   * hurt's form factor is 1, as before DL-154; Morale's, a line, moves as the Heroes' Morale does (DL-283).
    */
   const deps = testDeps(
     {
@@ -879,7 +879,6 @@ describe('the Quest named on what its return causes', () => {
       guildmasterRetirementAge: 65,
       startingWealth: 100_000,
       strongTriumphShare: 0,
-      moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
       hurtCheckFactor: 1,
     },
     // Its Deaths at every Tier, as they fell when the History was recorded (DL-265).
@@ -1079,11 +1078,13 @@ describe('the Quest named on what its return causes', () => {
     // and Encounters and name its Tier on its offer and its taking; and no Quest with a most Party
     // (DL-266; d9c65ed6… and fa5362b7…, the third's game unchanged), which lets the Rivals' Best
     // Parties grow past it; and the Board's Tiers unlocked by each Guild's best four (DL-271; bcbd90c0…,
-    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew.
+    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew; and Morale's form made
+    // a line (DL-283; 4aa6fab2…, d59db236… and 88664527…, with every form factor 1 before it), which
+    // no setting can make 1 for every Hero.
     expect(fingerprints).toEqual([
-      '4aa6fab27234f409f0ac01e3536c93ec13dcb6debc6d9406529142233a25f634',
-      'd59db23614a6257893e8a6abdef780cf84c09d700756955ce3203821773e0f02',
-      '886645274c526d3c3e17d866e88d7f28e2eb295c170a541ac7001b6aee585b20',
+      'cfa59f20b6baa249fdcbf12b4c41a057ec7cb8ada7d380be52f0ce594701bfeb',
+      'b44dee00ea1bff2d903ff26e35f1dc6ccb2ada333b5f98e8613e8a39e81594c4',
+      '6378c240678f1d283289727cf672915edf6c1917a5c518eede77cfc47e5fdb8c',
     ]);
   });
 
@@ -1116,15 +1117,16 @@ describe('the Quest named on what its return causes', () => {
     }
   });
 
-  test('what was added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
+  test('what was added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome, and form deciding it where it decided the Check (DL-152, DL-283)', () => {
     const encounters = seeds.flatMap((seed) =>
       (played.get(seed) as WorldDocument).history.entries.filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter'),
     );
     expect(encounters.length).toBeGreaterThan(100);
     for (const { payload } of encounters) {
-      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks } = payload;
+      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks, formDecided } = payload;
       expect(decidedBy).toBe(encounterKey);
-      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree }]);
+      const form = formDecided === undefined ? {} : { formDecided };
+      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree, ...form }]);
       expect(degree === 'success' || degree === 'triumph').toBe(outcome === 'success');
     }
     expect(new Set(encounters.map((entry) => entry.payload.degree))).toEqual(new Set(['triumph', 'success', 'setback', 'failure']));

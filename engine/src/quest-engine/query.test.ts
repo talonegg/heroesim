@@ -5,6 +5,7 @@ import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
 import { classSkillRequires, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
+import { moraleFactor } from './form.js';
 import { evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryParty } from './query.js';
 
 // The Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
@@ -386,18 +387,23 @@ describe('queryParty', () => {
   });
 });
 
-// DL-148 items 9 to 11, DL-154: a Hero's form scales only the Stat values they add into a
-// Check's score (`withForm`). Aric is hurt on the Quest (steady, so 0.85), Dara is in low spirits
-// (0.93), and the rest are steady (1). Every read that chooses, filters or counts reads them as they are.
+// DL-148 items 9 to 11, DL-154, DL-283: a Hero's form scales only the Stat values they add into a
+// Check's score (`withForm`). Aric is hurt on the Quest at the baseline (so `hurtCheckFactor`), Dara
+// is at Morale 20, below it (Morale's factor there), and the rest are at the baseline (1). Every read
+// that chooses, filters or counts reads them as they are.
 describe('form: what it scales, and what it does not', () => {
-  const { party: formed } = partyOf(['aric']);
+  const formed = ((): QueryParty => {
+    const { world, heroes, all } = scene();
+    for (const hero of all) if (hero.name !== 'dara') hero.morale = deps.config.moraleBaseline;
+    return queryParty(all, world, deps, { hurt: new Set([(heroes['aric'] as Hero).id]) });
+  })();
   const aric = deps.config.hurtCheckFactor;
-  const dara = deps.config.moraleCheckFactor.low;
+  const dara = moraleFactor(20, deps.config);
   const scaled = (query: NumQuery): number => evaluate(query, formed, true);
   const scaledVal = (query: ValQuery, name: string): number => valueOf(query, member(name, formed), formed.content, true);
   const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
 
-  test("each member carries their form: their band's factor, times hurtCheckFactor once hurt", () => {
+  test("each member carries their form: Morale's factor, times hurtCheckFactor once hurt", () => {
     expect(formed.members.map((it) => [it.hero.name, it.form])).toEqual([
       ['aric', aric],
       ['bryn', 1],
@@ -470,7 +476,7 @@ describe('form: what it scales, and what it does not', () => {
     test("`top` and `bottom`, and `ranked`'s order", () => {
       expect(names(['top', 'party', 1, ['stat', 'strength']], formed)).toEqual(['aric']);
       expect(names(['bottom', ['where', 'party', ['class', 'warrior']], 1, ['stat', 'strength']], formed)).toEqual(['aric']);
-      // Ranked by Strength as they are, Aric first, though with his form he adds 12.75 to Bryn's 15.
+      // Ranked by Strength as they are, Aric first, though with his form he adds less than Bryn's 15.
       expect(scaled(['ranked', warriors, ['stat', 'strength'], [1, 0]])).toBe(15 * aric);
     });
 
@@ -514,27 +520,27 @@ describe('form: what it scales, and what it does not', () => {
 });
 
 describe("queryParty's Morale on the Quest", () => {
-  test('is the stored Morale plus the Morale consequences so far, held to the scale, and sets the band of the form', () => {
+  test("is the stored Morale plus the Morale consequences so far, held to the scale, and sets Morale's factor in the form", () => {
     const { world, all } = scene('working');
     const at = (delta: number) =>
       queryParty(all, world, deps, { moraleByHero: Object.fromEntries(all.map((hero) => [hero.id, delta])) }).members.map((it) => [it.morale, it.form]);
-    const { moraleCheckFactor: factor } = deps.config;
+    const formed = (...morales: number[]) => morales.map((morale) => [morale, moraleFactor(morale, deps.config)]);
 
     // aric 60, bryn 40, cass 70, dara 20, edda 50.
-    expect(at(0)).toEqual([[60, 1], [40, 1], [70, 1], [20, factor.low], [50, 1]]);
-    expect(at(-25)).toEqual([[35, factor.low], [15, factor.wretched], [45, 1], [0, factor.wretched], [25, factor.low]]);
-    expect(at(30)).toEqual([[90, factor.elated], [70, 1], [100, factor.elated], [50, 1], [80, factor.high]]);
+    expect(at(0)).toEqual(formed(60, 40, 70, 20, 50));
+    expect(at(-25)).toEqual(formed(35, 15, 45, 0, 25));
+    expect(at(30)).toEqual(formed(90, 70, 100, 50, 80));
     // The stored Morale is untouched: it changes on the return.
     expect(all.map((hero) => hero.morale)).toEqual([60, 40, 70, 20, 50]);
   });
 
-  test("hurt on the Quest multiplies the band's factor by hurtCheckFactor", () => {
+  test("hurt on the Quest multiplies Morale's factor by hurtCheckFactor", () => {
     const { world, all } = scene('hurt-form');
     const [aric, bryn] = all as [Hero, Hero];
     const taken = queryParty(all, world, deps, { hurt: new Set([aric.id, bryn.id]), moraleByHero: { [aric.id]: 30, [bryn.id]: 30 } });
 
-    expect(taken.members[0]?.form).toBe(deps.config.moraleCheckFactor.elated * deps.config.hurtCheckFactor);
-    expect(taken.members[1]?.form).toBe(deps.config.hurtCheckFactor);
+    expect(taken.members[0]?.form).toBe(moraleFactor(90, deps.config) * deps.config.hurtCheckFactor);
+    expect(taken.members[1]?.form).toBe(moraleFactor(70, deps.config) * deps.config.hurtCheckFactor);
     expect(taken.members.map((it) => it.hurt)).toEqual([true, true, false, false, false]);
   });
 
@@ -546,12 +552,6 @@ describe("queryParty's Morale on the Quest", () => {
     const taken = queryParty(all, world, deps, { moraleByHero: { [aric.id]: -50, [bryn.id]: 35, [cass.id]: 0 } });
 
     expect(taken.members.map((it) => it.morale)).toEqual([10, 75, 70, 20, 50]);
-    expect(taken.members.map((it) => it.form)).toEqual([
-      deps.config.moraleCheckFactor.wretched,
-      deps.config.moraleCheckFactor.high,
-      1,
-      deps.config.moraleCheckFactor.low,
-      1,
-    ]);
+    expect(taken.members.map((it) => it.form)).toEqual([10, 75, 70, 20, 50].map((morale) => moraleFactor(morale, deps.config)));
   });
 });

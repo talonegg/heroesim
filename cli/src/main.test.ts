@@ -1625,7 +1625,7 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     [[60, 60], 'Makes no difference'],
     [[80, 60], 'Raises the odds'],
     [[30, 30], 'Lowers the odds a little'],
-    [[10, 60], 'Lowers the odds badly'],
+    [[0, 10], 'Lowers the odds badly'],
   ])('with Morale %j, says once for the Party: %s', (morales, words) => {
     const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'rogue');
     edit((edited) => heroIds.forEach((id, index) => ((edited.world.heroes[id] as Hero).morale = morales[index] ?? 60)));

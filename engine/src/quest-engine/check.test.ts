@@ -167,7 +167,10 @@ describe('check', () => {
 // selector, so a Guildmaster's `classStatBonus` Trait reaches the Check, and so Quest outcomes, for
 // that Guild's Heroes of that Class and no other, every Guild alike (ADR-0002).
 describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, DL-44)', () => {
-  /** The fixture world, every Guildmaster without a Trait, and a Warrior and a Mage on each Roster, every Stat 8. */
+  /**
+   * The fixture world, every Guildmaster without a Trait, and a Warrior and a Mage on each Roster, every
+   * Stat 8, at the Morale baseline, where their form is 1 (DL-283).
+   */
   function traitScene() {
     const { world } = buildDocument({ rivals: 1, rosterSize: 2 }).document;
     for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
@@ -177,6 +180,7 @@ describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, D
         hero.classKey = classKey;
         hero.stats = Object.fromEntries(heroStatKeys.map((key) => [key, 8]));
         hero.skills = {};
+        hero.morale = deps.config.moraleBaseline;
       }
       return { guild, warrior, mage };
     });
