@@ -7,7 +7,7 @@ One epic per milestone of the delivery plan, and, after the first build, one per
 needs a plan of its own. Each epic turns a milestone's or a release's increments into stories with
 acceptance boxes, the files and functions each story lands, the tests that prove it, the
 configuration fields it introduces and the harness counters it must report. This folder holds the
-open release's epic; the epics of finished milestones and releases, M0 to v1.1.9, are in
+open release's epic; the epics of finished milestones and releases, M0 to v1.2.0, are in
 [`../archive/`](../archive/README.md), and each release is a row of `plan.md` §2's ledger. The
 inputs the first build needed from the owner, cited in code as `INPUTS n.m`, are archived there too
 ([`INPUTS-REQUIRED.md`](../archive/INPUTS-REQUIRED.md)); a later epic asks its own inputs as a
@@ -30,7 +30,6 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
-| `v1.2.0` | [Fewer, weightier Quests](./v1.2.0-release.md) | A full `gate`'s correctness and performance lines; DL-83's targets reported, not tuned; the owner's playtest | 19–24 | `v1.1.9` (DL-257) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
 [the archive](../archive/README.md).

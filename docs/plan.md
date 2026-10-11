@@ -65,6 +65,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.1.7` | 2026-10-07 | #58 | `25f8fa0` | DL-206 to DL-214 | [v1.1.7](./planning/archive/v1.1.7-release.md) |
 | `v1.1.8` | 2026-10-09 | #59 | `10f17aa` | DL-215 to DL-230 | [v1.1.8](./planning/archive/v1.1.8-release.md) |
 | `v1.1.9` | 2026-10-10 | #60 | `4fa8d0e` | DL-231 to DL-254 | [v1.1.9](./planning/archive/v1.1.9-release.md) |
+| `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, open with the owner (DL-278) |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -80,11 +81,11 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
 (#51) is spread across the releases that change what it tunes.
 
-- **Now: `v1.2.0`, fewer, weightier Quests** ([its epic](./planning/epics/v1.2.0-release.md),
-  DL-257): tiered Quest templates with Beats, the Board's Tiers unlocked by each Guild's best four, Death
-  by Tier and the Deadly mark, a Party floor of two, content in one file per row, and the editor's
-  commands and skills to write it. Nothing is tuned: every DL-83 target is reported against
-  `v1.1.9`'s. It takes in #19, #22's Board scaling and #40.
+- **Now: none open.** `v1.2.0` was released on 2026-10-11 (§2), untuned (DL-277): every DL-83 target
+  is reported against `v1.1.9`'s, and the targets, the unlock Levels, the Death factor and the
+  Rivals' Rosters are tuned in a later release (Alongside, below). Its live check failed on
+  Pages, on Cloudflare's Web Analytics beacon, and is with the owner (DL-278). The next release is
+  the first of the short term, `v1.2.1`, when the owner says.
 - **Short term: choices that cost something.**
   1. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
      part 11 sets them, and #51's form factors. It takes in #41.

@@ -266,27 +266,28 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 | DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … | item 2 in part by DL-257 | [decision-log](../decision-log.md) |
-| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … | item 3 in part by DL-271 | [decision-log](../decision-log.md) |
-| DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [decision-log](../decision-log.md) |
-| DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [decision-log](../decision-log.md) |
-| DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [decision-log](../decision-log.md) |
-| DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [decision-log](../decision-log.md) |
-| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … | item 1 in part by DL-271; item 3 in part by DL-271 | [decision-log](../decision-log.md) |
-| DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [decision-log](../decision-log.md) |
-| DL-264 | 2026-10-11 | v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every … |  | [decision-log](../decision-log.md) |
-| DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [decision-log](../decision-log.md) |
-| DL-266 | 2026-10-11 | v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39 |  | [decision-log](../decision-log.md) |
-| DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [decision-log](../decision-log.md) |
-| DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [decision-log](../decision-log.md) |
-| DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [decision-log](../decision-log.md) |
-| DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [decision-log](../decision-log.md) |
-| DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [decision-log](../decision-log.md) |
-| DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [decision-log](../decision-log.md) |
-| DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [decision-log](../decision-log.md) |
-| DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [decision-log](../decision-log.md) |
-| DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [decision-log](../decision-log.md) |
-| DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [decision-log](../decision-log.md) |
-| DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [decision-log](../decision-log.md) |
+| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … | item 3 in part by DL-271 | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … | item 1 in part by DL-271; item 3 in part by DL-271 | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-264 | 2026-10-11 | v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-266 | 2026-10-11 | v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39 |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-278 | 2026-10-11 | v1.2.0 released; the live check failed on Pages, Cloudflare's Web Analytics beacon; with the owner |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
 
 ## Pre-M0 review decisions
 
