@@ -229,3 +229,7 @@ mutations survived; tests now refuse each.
 
 *Note, 2026-10-11 (the owner's answer (a)).* Dependabot's two `target-branch`es move to `v1.2.1-dev`
 (DL-147 item 6), taking effect when `v1.2.1` is merged.
+
+*Note, 2026-10-11 (the owner's word).* The owner made `v1.2.0`'s GitHub Release a full release, the
+latest, in place of the pre-release CI had made when the live check failed. Its first line now says
+the check failed on Pages only on the beacon (DL-278); the deploy record beneath it is unchanged.
