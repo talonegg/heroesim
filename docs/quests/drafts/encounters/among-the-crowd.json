@@ -1,0 +1,32 @@
+{
+  "name": "Among the crowd",
+  "kind": "stealth",
+  "tags": ["town","talk"],
+  "checks": [
+    {
+      "key": "blending-in",
+      "name": "Blending in",
+      "score": ["min","party",["stat","adaptability"]],
+      "skills": ["stealth"],
+      "flat": 2.21,
+      "difficultyFactor": 0.055,
+      "variance": 0.4
+    },
+    {
+      "key": "cover-story",
+      "name": "A cover story",
+      "score": ["max","party",["weighted",[["wits",0.6],["diplomacy",0.4]]]],
+      "skills": [],
+      "flat": 3.08,
+      "difficultyFactor": 0.077,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","blending-in","cover-story"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"fame","delta":-1}],
+    "failure": [{"kind":"fame","delta":-1},{"kind":"regard","between":"party","delta":-1}]
+  }
+}

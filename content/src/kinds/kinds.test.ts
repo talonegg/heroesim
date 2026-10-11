@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { readKinds } from '../parse.js';
 import { validateKinds } from '../validate.js';
 import { changed, realFiles, refusalOf, shipped } from './content.test-support.js';
-import { contentFieldNames, contentKinds, contentRules } from './index.js';
+import { contentFieldNames, contentKinds, contentRules, rowFields } from './index.js';
 import { number, oneOf, optional, table, text } from './read.js';
 import type { KindRules } from './rules.js';
 import { spheresKind, spheresRules } from './spheres.js';
@@ -70,8 +70,19 @@ describe('the kinds', () => {
     const places = Object.keys(shipped).filter((place) => place !== 'id');
 
     expect(contentKinds.map((kind) => kind.key)).toEqual(places);
-    expect(new Set(contentKinds.map((kind) => kind.file)).size).toBe(contentKinds.length);
+    expect(new Set(contentKinds.map((kind) => kind.source)).size).toBe(contentKinds.length);
     expect(contentRules.map((kind) => kind.key)).toEqual(places.filter((place) => place !== 'version'));
+  });
+
+  test("give a row's fields in their written order, each optional or not, for a tool that writes a row (DL-267)", () => {
+    const fields = (source: Parameters<typeof rowFields>[0]): string[] | undefined => rowFields(source)?.map((field) => `${field.name}${field.optional ? '?' : ''}`);
+
+    expect(fields('quest-templates/')).toEqual([
+      'name', 'sphereKeys', 'tags', 'tierMin', 'tierMax', 'rewardPerDifficulty', 'fameEffect', 'partySizeMin', 'skillKeys',
+      'requires', 'lootTableKey', 'beats', 'finale?', 'finaleLine?', 'overrides?', 'weight?',
+    ]);
+    expect(fields('encounters/')).toEqual(['name', 'kind', 'tags?', 'checks', 'pass?', 'consequences']);
+    expect(rowFields('not-a-source.json')).toBeNull();
   });
 });
 

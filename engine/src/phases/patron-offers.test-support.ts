@@ -21,7 +21,9 @@ import { phaseContext } from './phase.js';
 export const pinned: Partial<GameConfig> = {
   rivalCount: 0,
   turnsPerYear: 1080,
-  boardSize: 6,
+  boardSizeStart: 6,
+  boardGrowthPerYear: 0,
+  boardSizeMax: 6,
   questOfferDays: 3,
   regardMin: -20,
   regardMax: 20,

@@ -1,0 +1,30 @@
+{
+  "name": "The names of the dead",
+  "kind": "lore",
+  "tags": ["dark","holy"],
+  "checks": [
+    {
+      "key": "rolls",
+      "name": "The parish rolls",
+      "score": ["max","party",["stat","knowledge"]],
+      "skills": [],
+      "flat": 3.18,
+      "difficultyFactor": 0.08
+    },
+    {
+      "key": "rites",
+      "name": "The old rites",
+      "score": ["max","party",["weighted",[["spelllore",0.5],["spirit",0.5]]]],
+      "skills": ["benediction"],
+      "flat": 3.18,
+      "difficultyFactor": 0.08
+    }
+  ],
+  "pass": ["and","rolls","rites"],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["courage","willpower"]}],
+    "failure": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}]
+  }
+}

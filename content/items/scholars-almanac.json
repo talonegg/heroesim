@@ -1,0 +1,9 @@
+{
+  "name": "Scholar's almanac",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "knowledge": 3, "intelligence": 2 },
+  "buyPrice": 280,
+  "tags": ["masterwork"]
+}

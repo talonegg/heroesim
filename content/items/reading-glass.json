@@ -1,0 +1,9 @@
+{
+  "name": "Reading glass",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": { "intelligence": 2, "perception": 1 },
+  "buyPrice": 100,
+  "tags": ["fine"]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "The counting-house job",
+  "sphereKeys": ["underworld"],
+  "tags": ["recover", "town", "dark"],
+  "tierMin": 3,
+  "tierMax": 5,
+  "rewardPerDifficulty": 4.5,
+  "fameEffect": 3,
+  "partySizeMin": 2,
+  "skillKeys": ["lockpicking", "stealth", "trapcraft"],
+  "requires": { "skillKey": "lockpicking" },
+  "lootTableKey": "greater-loot",
+  "beats": [
+    { "line": "The Party buys plans of the counting-house from those who know its clerks and keys.", "pool": { "encounters": ["a-word-with-the-fence", "the-patrons-steward"] } },
+    { "line": "After dark the Party slips past the watch and into the counting-house.", "pool": { "kinds": ["stealth"], "tags": ["town"] } },
+    { "line": "A warded door bars the stair down to the strongroom.", "pool": { "kinds": ["arcane"], "tags": ["delve"] } },
+    { "line": "The alarm is raised, and the house's guards bar the stair.", "pool": { "kinds": ["combat"], "tags": ["guard", "fight"] } }
+  ],
+  "finale": "the-strongroom",
+  "finaleLine": "At last the strongroom is opened, and the coin is carried out."
+}

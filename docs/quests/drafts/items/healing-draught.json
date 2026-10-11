@@ -1,0 +1,8 @@
+{
+  "name": "Healing draught",
+  "kind": "consumable",
+  "unique": false,
+  "effect": {"kind":"heal","days":5},
+  "buyPrice": 30,
+  "tags": ["potion"]
+}

@@ -1,0 +1,61 @@
+{
+  "name": "The last assault",
+  "kind": "combat",
+  "tags": ["guard","fight"],
+  "checks": [
+    {
+      "key": "wall",
+      "name": "The wall",
+      "score": ["sum",["top","party",3,["stat","constitution"]],["weighted",[["constitution",0.4],["strength",0.3],["weaponry",0.3]]]],
+      "skills": ["shieldwork"],
+      "flat": 8.26,
+      "difficultyFactor": 0.177
+    },
+    {
+      "key": "command",
+      "name": "Command",
+      "score": ["of",["best",["where","party",["class","warrior"]],["stat","leadership"]],["stat","leadership"]],
+      "skills": ["tactics"],
+      "flat": 3.01,
+      "difficultyFactor": 0.064
+    },
+    {
+      "key": "holding-out",
+      "name": "Holding out",
+      "score": ["min","party",["weighted",[["endurance",0.5],["willpower",0.5]]]],
+      "skills": [],
+      "flat": 2.13,
+      "difficultyFactor": 0.046
+    }
+  ],
+  "pass": ["at-least",2,"wall","command","holding-out"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":2}],
+    "triumph": [{ "kind": "fame", "delta": 3 }, { "kind": "trait", "traitKey": "battle-tried", "chance": 0.05 }],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "bruised-ribs",
+        "chance": 0.2,
+        "count": 2,
+        "among": ["top","party",3,["stat","constitution"]],
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.25,
+        "count": 2,
+        "among": ["top","party",3,["stat","constitution"]],
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.05,"guardedBy":["constitution"]},
+      {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]},
+      { "kind": "trait", "traitKey": "battle-shy", "chance": 0.08 }
+    ]
+  }
+}

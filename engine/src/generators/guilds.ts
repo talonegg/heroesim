@@ -49,9 +49,6 @@ import { generateHero } from './heroes.js';
 /** A Hall facility's grade before any Improvement (M3-S6). */
 const unimprovedGrade = 0;
 
-/** A Guild is founded unknown: Fame rises and falls with Quest outcomes from M2. */
-const foundingFame = 0;
-
 export interface GuildOptions extends DrawsFrom {
   /** The one thing a player's Guild and a Rival's differ in (ADR-0002). */
   controller: Controller;
@@ -109,8 +106,8 @@ export interface GeneratedGuild {
 /**
  * Generates a Guild into `world` (DL-19 items 6 and 7): the Guild, its Guildmaster, and its Roster
  * through the Heroes Generator, all drawn from `options.stream` (`generation` by default); ids
- * from the counters; the Hall at grade 0 in every facility and Fame 0. Returns both rows and the
- * events for the caller to append.
+ * from the counters; the Hall at grade 0 in every facility and Fame `foundingFame` (DL-261).
+ * Returns both rows and the events for the caller to append.
  *
  * Throws, changing nothing, on a programming error: a blank name, a key that is not a Guild
  * Background, a Roster size that is not a whole number from 0, a Wealth that is not a finite
@@ -153,7 +150,8 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     guildmasterId,
     rosterIds: [],
     wealth,
-    fame: foundingFame,
+    // Every Guild alike, the player's and each Rival's (#40, DL-261); Quest outcomes move it after.
+    fame: deps.config.foundingFame,
     belowFloorSince: null,
     foldedOnTurn: null,
     hall: Object.fromEntries(facilityKeys.map((key) => [key, unimprovedGrade])) as Hall,

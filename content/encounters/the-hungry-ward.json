@@ -1,0 +1,40 @@
+{
+  "name": "The hungry ward",
+  "kind": "arcane",
+  "tags": ["delve","recover"],
+  "checks": [
+    {
+      "key": "counter",
+      "name": "Counter-spell",
+      "score": ["max","party",["weighted",[["spelllore",0.6],["arcana",0.2],["intelligence",0.2]]]],
+      "skills": ["warding"],
+      "flat": 4.78,
+      "difficultyFactor": 0.12
+    },
+    {
+      "key": "enduring",
+      "name": "Enduring",
+      "score": ["avg","party",["stat","resistance"]],
+      "skills": [],
+      "flat": 3.42,
+      "difficultyFactor": 0.085
+    }
+  ],
+  "pass": ["or","counter","enduring"],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.05}],
+    "triumph": [{"kind":"wealth","factor":1.1}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["willpower"]}
+    ]
+  }
+}

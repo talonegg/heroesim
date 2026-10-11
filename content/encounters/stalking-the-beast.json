@@ -1,0 +1,48 @@
+{
+  "name": "Stalking the beast",
+  "kind": "stealth",
+  "tags": ["hunt","wilds"],
+  "checks": [
+    {
+      "key": "tracking",
+      "name": "Tracking",
+      "score": ["max","party",["weighted",[["perception",0.5],["knowledge",0.5]]]],
+      "skills": ["stealth"],
+      "flat": 3.67,
+      "difficultyFactor": 0.092
+    },
+    {
+      "key": "downwind",
+      "name": "Downwind",
+      "score": ["min","party",["stat","dexterity"]],
+      "skills": [],
+      "flat": 1.68,
+      "difficultyFactor": 0.042
+    },
+    {
+      "key": "the-shot",
+      "name": "The shot",
+      "score": ["max","party",["weighted",[["weaponry",0.5],["dexterity",0.5]]]],
+      "skills": [],
+      "flat": 3.45,
+      "difficultyFactor": 0.086
+    }
+  ],
+  "pass": ["and","tracking",["or","downwind","the-shot"]],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.15,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
+    ]
+  }
+}

@@ -75,10 +75,10 @@ function scene(seed = 'policy'): { document: WorldDocument; guild: Guild; quests
   return { document, guild, quests };
 }
 
-/** Opens every Quest on the Board to a Party of `min` to 4, rewards rising in Board order. */
+/** Opens every Quest on the Board to a Party of `min` or more (no most, DL-266), rewards rising in Board order. */
 function openBoard(quests: Quest[], min = 2): void {
   quests.forEach((quest, index) => {
-    quest.requirements = { partySizeMin: min, partySizeMax: 4 };
+    quest.requirements = { partySizeMin: min };
     quest.reward = 100 + 10 * index;
   });
 }
@@ -201,7 +201,7 @@ describe('automaticPolicy', () => {
     const hero = hurt === undefined ? undefined : document.world.heroes[hurt];
     if (hurt === undefined || hero === undefined) throw new Error('No Hero');
     hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
-    (quests.at(-1) as Quest).requirements = { partySizeMin: 4, partySizeMax: 4 };
+    (quests.at(-1) as Quest).requirements = { partySizeMin: 4 };
 
     const sent = dispatches(automaticPolicy(document, deps));
 
@@ -209,10 +209,38 @@ describe('automaticPolicy', () => {
     expect(sent.flatMap((action) => action.heroIds)).not.toContain(hurt);
   });
 
+  // DL-264: the player's Guild takes only what it may, its Fame at least the minimum of the Quest's Tier.
+  test("passes over a Quest of a Tier whose Fame minimum is above the Guild's Fame for the next, and every dispatch is accepted", () => {
+    const { document, guild, quests } = scene();
+    openBoard(quests);
+    alike(quests);
+    // The richest Quest, the one it would send first, posted at Tier 3, the rest at Tier 1.
+    quests.forEach((quest, index) => {
+      quest.tier = index === quests.length - 1 ? 3 : 1;
+    });
+    const tiers = fewest.config.tiers.map((row, index) => ({ ...row, fameMinimum: index === 2 ? guild.fame + 1 : 0 }));
+    const closed: EngineDeps = { ...fewest, config: { ...fewest.config, tiers } };
+
+    expect(dispatches(automaticPolicy(document, fewest))[0]?.questId).toBe(quests.at(-1)?.id);
+    const sent = dispatches(automaticPolicy(document, closed));
+    expect(sent.map((action) => action.questId)).toEqual([quests.at(-2)?.id, quests.at(-3)?.id]);
+    let played = document;
+    for (const action of sent) {
+      const result = applyAction(played, action, closed);
+      if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
+      played = result.document;
+    }
+    // Every Tier closed to it: it sends no one.
+    const shut: EngineDeps = { ...fewest, config: { ...fewest.config, tiers: tiers.map((row) => ({ ...row, fameMinimum: guild.fame + 1 })) } };
+    expect(dispatches(automaticPolicy(document, shut))).toEqual([]);
+  });
+
   describe('chooses its Quests by their chance (DL-168 item 2)', () => {
     /**
-     * The Board opened and its Quests alike at `base`, the first's difficulty, then the first eased to
-     * half of it and the rest made half as hard again: the first the likeliest and the lowest reward.
+     * The Board opened and its Quests alike, then at `base`, the first of the ladder's band tops at which
+     * the player's margin leaves a Quest of the Board uncertain (DL-273), the first eased to half of it and
+     * the rest made half as hard again: the first the likeliest and the lowest reward, and none so easy
+     * that the player's margin makes every Party certain.
      */
     function likeliestLowest() {
       const { document, guild, quests } = scene();
@@ -220,7 +248,14 @@ describe('automaticPolicy', () => {
       alike(quests);
       const [easy] = quests;
       if (easy === undefined) throw new Error('No Quest');
-      const base = easy.difficulty;
+      const heroes = availableHeroes(document.world, guild);
+      const base = deps.config.tiers
+        .map((tier) => tier.difficultyMax)
+        .find((difficulty) => {
+          easy.difficulty = difficulty;
+          return chanceOf(document, guild, easy, heroes) < 1;
+        });
+      if (base === undefined) throw new Error("No band top of the ladder leaves a Quest uncertain at the player's margin");
       for (const quest of quests) quest.difficulty = base * 1.5;
       easy.difficulty = base / 2;
       return { document, guild, quests, easy, base };
@@ -264,7 +299,7 @@ describe('automaticPolicy', () => {
       const { document, guild, quests, easy, base } = likeliestLowest();
       const next = quests[1] as Quest;
       next.difficulty = base;
-      easy.requirements = { partySizeMin: 4, partySizeMax: 4 };
+      easy.requirements = { partySizeMin: 4 };
       const all = availableHeroes(document.world, guild);
       expect(chanceOf(document, guild, easy, all, fewest)).toBeGreaterThan(chanceOf(document, guild, next, all, fewest));
       const [hurt] = guild.rosterIds;

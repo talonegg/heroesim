@@ -146,6 +146,8 @@ export type QuestOffered = Entry<
     questId: QuestId;
     patronId: PatronId;
     templateKey: QuestTemplateKey;
+    /** Its Tier (DL-257, DL-262), which the validator requires. */
+    tier: number;
     /** The module whose `offerQuest` effect offered it (M8-S2, DL-77); absent for the Board's refresh. */
     moduleId?: ModuleId;
   }
@@ -174,6 +176,8 @@ export type QuestTaken = Entry<
     guildId: GuildId;
     heroIds: HeroId[];
     returnsOnTurn: Turn;
+    /** The Quest's Tier (DL-257, DL-262), which the validator requires. */
+    tier: number;
     /**
      * The reward agreed: the Quest's reward as the Guildmaster's Negotiation set it at dispatch,
      * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before DL-43.

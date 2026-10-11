@@ -103,11 +103,12 @@ describe('the production build', { timeout: 120_000 }, () => {
   });
 
   // DL-134 item 9, DL-143: the content's JSON is bundled as data, not as it is written,
-  // so its indentation and line breaks do not count against the script's 850 kB.
+  // so its indentation and line breaks do not count against the script's 850 kB; a folder's row's
+  // too (DL-260).
   test("bundles each content file's JSON without its whitespace", () => {
     const bundled = (json: string): boolean => text.includes(json) || text.includes(JSON.stringify(json).slice(1, -1));
-    for (const file of ['spheres.json', 'skills.json', 'dispositions.json']) {
-      const written = readFileSync(path.join(contentDir, file), 'utf8');
+    for (const file of ['spheres.json', 'skills.json', 'dispositions.json', 'encounters/ambush-on-the-road.json', 'items/short-sword.json']) {
+      const written = readFileSync(path.join(contentDir, ...file.split('/')), 'utf8');
       const compact = JSON.stringify(JSON.parse(written));
       expect(written, file).not.toBe(compact);
       expect(bundled(compact), `${file} compact`).toBe(true);

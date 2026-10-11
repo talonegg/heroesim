@@ -7,14 +7,14 @@
 // Its lines are of two kinds. The invariants hold on any run: no policy action refused, no game invalid,
 // stopped, unfinished or failing its round trip, and the replay identical: one seed played once more,
 // alone, its last save's length and fingerprint the same as its shard recorded (v1.1.6-S3, DL-189).
-// The bands, the player's Bankruptcies, the save's gzipped mean and the per-Turn copy's share of a Turn, are
-// set on the spec's run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a
-// short trial) they read "not comparable", neither passing nor failing. The Traits a career and the
-// save's uncompressed size are the report's to print, not the Gate's to hold (the owner's answers,
-// DL-188). The copy's line holds the mean of the copy times the sweep took as each year ended over the
-// mean of `advance`, within `growth` of its baseline share, a share so that the machine's speed cancels
-// (the owner's answers, DL-203 answer 3 and DL-206 item 17); a run with no copy times or no `advance`
-// times reads "not comparable".
+// The bands, the save's gzipped mean and the per-Turn copy's share of a Turn, are set on the spec's
+// run, 50 games of 20 years: on a run of another shape (the `neutral` profile's 10, a short trial)
+// they read "not comparable", neither passing nor failing. The Traits a career and the save's
+// uncompressed size are the report's to print, not the Gate's to hold (the owner's answers, DL-188),
+// and the player's Bankruptcies the report's Targets' (DL-257 item 7). The copy's line holds the mean
+// of the copy times the sweep took as each year ended over the mean of `advance`, within `growth` of
+// its baseline share, a share so that the machine's speed cancels (the owner's answers, DL-203 answer 3
+// and DL-206 item 17); a run with no copy times or no `advance` times reads "not comparable".
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +48,6 @@ export interface GateSpec {
     unfinished: AtMost;
     roundTrips: AtMost;
     replay: { identical: true; source: string };
-    playerBankruptcies: { max: number; baseline: number; source: string };
     saveGzipped: { meanMiB: number; baselineMeanMiB: number; baselineMaxMiB: number; source: string };
     /**
      * The per-Turn copy's share of a Turn: the mean time of `copyWorld` (timed as each year ended) over
@@ -80,7 +79,6 @@ const specShape: { readonly [key: string]: Shape } = {
     unfinished: atMost,
     roundTrips: atMost,
     replay: line({ identical: 'true' }),
-    playerBankruptcies: line({ max: 'number', baseline: 'number' }),
     saveGzipped: line({ meanMiB: 'number', baselineMeanMiB: 'number', baselineMaxMiB: 'number' }),
     copyShare: line({ growth: 'number', baselineShare: 'number' }),
   },
@@ -220,11 +218,8 @@ export function checkGate(spec: GateSpec, run: RunReport, expect: string | null 
       add(label, pass, measured, limit, source);
     }
   };
-  const { playerBankruptcies, saveGzipped, copyShare } = lines;
-  band("The player's Bankruptcies", `at most ${whole(playerBankruptcies.max)} of ${whole(spec.run.games)}`, playerBankruptcies.source, () => {
-    const bankrupt = totals.endings['bankruptcy'] ?? 0;
-    return { pass: bankrupt <= playerBankruptcies.max, measured: `${whole(bankrupt)} of ${whole(games.length)}` };
-  });
+  // The player's Bankruptcies are no line: the report's Targets set them against DL-83 item 2's band (DL-257 item 7).
+  const { saveGzipped, copyShare } = lines;
   const last = totals.saves[spec.run.years - 1];
   band(`The save after ${yearsOf(spec.run.years)}, gzipped`, `mean under ${fixed(saveGzipped.meanMiB, 2)} MiB`, saveGzipped.source, () => {
     const gzipped = last?.gzipped ?? [];

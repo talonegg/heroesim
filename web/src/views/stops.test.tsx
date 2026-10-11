@@ -56,7 +56,7 @@ describe('the ways to fast forward (#32)', () => {
   });
 
   test('with a Party out, "until a Quest you can staff appears" stops before it is home, naming a Quest it offers a Party for', async () => {
-    render(<App initial={withPartyOut(started('reducer-test'))} />);
+    render(<App initial={withPartyOut(started('reducer-test'), 2)} />);
 
     fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest you can staff appears' }));
     await idle();

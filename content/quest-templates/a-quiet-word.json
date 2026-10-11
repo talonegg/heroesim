@@ -1,0 +1,18 @@
+{
+  "name": "A quiet word",
+  "sphereKeys": ["underworld"],
+  "tags": ["talk", "town"],
+  "tierMin": 1,
+  "tierMax": 3,
+  "rewardPerDifficulty": 5,
+  "fameEffect": 1,
+  "partySizeMin": 2,
+  "skillKeys": ["stealth", "lockpicking"],
+  "requires": {},
+  "lootTableKey": null,
+  "beats": [
+    { "line": "A name is asked after in the market town.", "pool": { "kinds": ["social"], "tags": ["town"] } },
+    { "line": "The word is carried unseen to the one it is meant for.", "pool": { "kinds": ["stealth"], "tags": ["town"] } },
+    { "line": "A bargain is struck over the answer.", "pool": { "kinds": ["social"], "tags": ["talk"] } }
+  ]
+}

@@ -1,4 +1,4 @@
-import { type Encounter } from '@heroesim/engine/content';
+import { type Encounter, type QuestBeat } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { realFiles, parse, withJson, changed, refusalOf, barrow, type Files, type EncounterRow, type SynergyRow, type Template } from './content.test-support.js';
 
@@ -8,7 +8,7 @@ import { realFiles, parse, withJson, changed, refusalOf, barrow, type Files, typ
 
 // An Encounter naming an unknown Stat, Skill or Injury type is refused.
 describe('an Encounter', () => {
-  const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as EncounterRow;
+  const ambush = (json: Files['encounters/']) => json['ambush-on-the-road'] as EncounterRow;
 
   test.each<[string, (it: EncounterRow) => void, RegExp]>([
     [
@@ -33,55 +33,55 @@ describe('an Encounter', () => {
       /ambush-on-the-road\.consequences\.success\.1\.factor is -1/,
     ],
   ])('with %s is refused, naming the Encounter', (_, change, problem) => {
-    const files = withJson('encounters.json', (json) => change(ambush(json)));
+    const files = withJson('encounters/', (json) => change(ambush(json)));
 
     expect(refusalOf(() => parse(files)).message).toMatch(problem);
   });
 
   test('with a consequence of an unknown kind, or a field its kind lacks, is refused, naming it', () => {
-    const unknown = withJson('encounters.json', (json) => {
+    const unknown = withJson('encounters/', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'loot', table: 'hoard' }] });
     });
-    const extra = withJson('encounters.json', (json) => {
+    const extra = withJson('encounters/', (json) => {
       Object.assign(ambush(json).consequences, { success: [{ kind: 'fame', delta: 1, factor: 2 }] });
     });
-    const outcome = withJson('encounters.json', (json) => {
+    const outcome = withJson('encounters/', (json) => {
       Object.assign(ambush(json).consequences, { draw: [] });
     });
 
-    expect(refusalOf(() => parse(unknown)).message).toMatch(/ambush-on-the-road\.consequences\.success\.0\.kind is "loot"/);
+    expect(refusalOf(() => parse(unknown)).message).toMatch(/ambush-on-the-road\.json: consequences\.success\.0\.kind is "loot"/);
     expect(refusalOf(() => parse(extra)).message).toMatch(
-      /ambush-on-the-road\.consequences\.success\.0\.factor is not a field of a consequence of kind fame/,
+      /ambush-on-the-road\.json: consequences\.success\.0\.factor is not a field of a consequence of kind fame/,
     );
-    expect(refusalOf(() => parse(outcome)).message).toMatch(/ambush-on-the-road\.consequences\.draw is not a field/);
+    expect(refusalOf(() => parse(outcome)).message).toMatch(/ambush-on-the-road\.json: consequences\.draw is not a field/);
   });
 
   // DL-192: the old form of an Encounter, `demands`, `aggregate` and `skillKeys` for one Check, is not read.
   test('in the old form is refused, as an Encounter with no Checks', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withJson('encounters/', (json) => {
       const { name, kind, consequences } = ambush(json);
       json['ambush-on-the-road'] = { name, kind, consequences, demands: [['strength', 1]], aggregate: 'sum', skillKeys: [], difficultyFactor: 1 } as unknown as EncounterRow;
     });
 
     const { message } = refusalOf(() => parse(files));
 
-    expect(message).toMatch(/ambush-on-the-road\.checks is missing/);
-    expect(message).toMatch(/ambush-on-the-road\.demands is not a field of an Encounter/);
+    expect(message).toMatch(/ambush-on-the-road\.json: checks is missing/);
+    expect(message).toMatch(/ambush-on-the-road\.json: demands is not a field of an Encounter/);
   });
 
   test('of a kind outside the choices is refused, naming the choices', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withJson('encounters/', (json) => {
       Object.assign(ambush(json), { kind: 'naval' });
     });
 
     const { message } = refusalOf(() => parse(files));
 
-    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth, lore/);
+    expect(message).toMatch(/ambush-on-the-road\.json: kind is "naval"; expected one of combat, travel, social, arcane, stealth, lore/);
   });
 });
 
 // DL-148 items 7 and 8: an Encounter written in the new form, `checks` and `pass`, with
-// consequences by Degree. `encounters.json` may hold either form; the old one still loads.
+// consequences by Degree. An Encounter's file may hold either form; the old one still loads.
 describe('an Encounter in the new form', () => {
   /** A Check as the new form writes it. */
   const checkRow = (key: string, fields: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -94,7 +94,7 @@ describe('an Encounter in the new form', () => {
   });
   /** `ambush-on-the-road` rewritten in the new form, with `fields` in place of its own. */
   const rewritten = (fields: Record<string, unknown> = {}) =>
-    withJson('encounters.json', (json) => {
+    withJson('encounters/', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
       (json as Record<string, unknown>)['ambush-on-the-road'] = {
         name,
@@ -141,13 +141,13 @@ describe('an Encounter in the new form', () => {
     ['a factor of 0 with no flat', { checks: [checkRow('front', { difficultyFactor: 0 })], pass: 'front' }, path('checks.0.difficultyFactor is 0; it is a number above 0, or 0 beside a flat above 0')],
     ['a negative factor beside a flat', { checks: [checkRow('front', { difficultyFactor: -0.1, flat: 2 })], pass: 'front' }, path('checks.0.difficultyFactor is -0.1; it is a number of 0 or more')],
     ['a variance above 1', { checks: [checkRow('front', { variance: 1.5 })], pass: 'front' }, path('checks.0.variance is 1.5; it is a number from 0 to 1')],
-    ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\.json: ambush-on-the-road\.checks\.0\.aggregate is not a field of an Encounter's Check/],
+    ['a Check with a field it lacks', { checks: [checkRow('front', { aggregate: 'sum' })], pass: 'front' }, /encounters\/ambush-on-the-road\.json: checks\.0\.aggregate is not a field of an Encounter's Check/],
     ['a Check with no score', { checks: [checkRow('front', { score: undefined })], pass: 'front' }, path('checks.0.score')],
     ['a Check with a Skill content lacks', { checks: [checkRow('front', { skills: ['axemanship'] })], pass: 'front' }, path('checks.0.skills: "axemanship" is not a Skill')],
     ['a Check with a Skill listed twice', { checks: [checkRow('front', { skills: ['tactics', 'tactics'] })], pass: 'front' }, path('checks.0.skills: "tactics" is listed twice')],
-    ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\.json: ambush-on-the-road\.demands is not a field of an Encounter/],
+    ['the old form beside the new', { demands: [['strength', 1]] }, /encounters\/ambush-on-the-road\.json: demands is not a field of an Encounter/],
     ['a raw Check with Skills', { checks: [checkRow('front', { raw: true })], pass: 'front' }, path('checks.0.skills lists 1; a raw Check is its score alone, and lists no Skills')],
-    ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.checks\.0\.raw is "yes"; expected true or false/],
+    ['a raw that is not true or false', { checks: [checkRow('front', { raw: 'yes', skills: [] })], pass: 'front' }, /ambush-on-the-road\.json: checks\.0\.raw is "yes"; expected true or false/],
   ])('with %s is refused, naming its path', (_, fields, problem) => {
     expect(refusalOf(() => parse(rewritten(fields))).message).toMatch(problem);
   });
@@ -160,7 +160,7 @@ describe('an Encounter in the new form', () => {
     const { message } = refusalOf(() => parse(bad));
     expect(message).toMatch(path('consequences.triumph.0.chance is 2'));
     expect(message).toMatch(path('consequences.setback.0.factor is -1'));
-    expect(refusalOf(() => parse(odd)).message).toMatch(/ambush-on-the-road\.consequences\.glory is not a field of an Encounter's consequences/);
+    expect(refusalOf(() => parse(odd)).message).toMatch(/ambush-on-the-road\.json: consequences\.glory is not a field of an Encounter's consequences/);
   });
 });
 
@@ -170,7 +170,7 @@ describe('an Encounter in the new form', () => {
 // is refused in a Check's score. A Synergy's requirement reads the Heroes as they are, and keeps it.
 describe("a Check's score that subtracts a Stat", () => {
   const scored = (score: unknown) =>
-    withJson('encounters.json', (json) => {
+    withJson('encounters/', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
       (json as Record<string, unknown>)['ambush-on-the-road'] = {
         name,
@@ -202,7 +202,7 @@ describe("a Check's score that subtracts a Stat", () => {
   });
 
   test('a raw Check, read without form, may weigh a Stat negatively', () => {
-    const files = withJson('encounters.json', (json) => {
+    const files = withJson('encounters/', (json) => {
       const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
       (json as Record<string, unknown>)['ambush-on-the-road'] = {
         name,
@@ -221,7 +221,7 @@ describe("a Check's score that subtracts a Stat", () => {
 describe('harm that reads the Stats', () => {
   /** The real files with `ambush-on-the-road`'s failure consequences as given. */
   const failing = (...failure: Record<string, unknown>[]) =>
-    withJson('encounters.json', (json) => {
+    withJson('encounters/', (json) => {
       const ambush = json['ambush-on-the-road'] as EncounterRow;
       (ambush.consequences as { failure: unknown[] }).failure = failure;
     });
@@ -230,7 +230,7 @@ describe('harm that reads the Stats', () => {
   /** A refusal of validation, at the path's end `rest`. */
   const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
   /** A refusal as the file is read, which names the file and then the row. */
-  const read = (rest: string) => new RegExp(`encounters\\.json: ambush-on-the-road\\.consequences\\.failure\\.${escaped(rest)}`);
+  const read = (rest: string) => new RegExp(`encounters/ambush-on-the-road\\.json: consequences\\.failure\\.${escaped(rest)}`);
 
   test('every field, at its fullest, loads as written', () => {
     const among = ['top', ['where', 'party', ['and', ['class', 'warrior'], ['sex', 'male']]], 2, ['stat', 'constitution']];
@@ -284,7 +284,7 @@ describe('an earned Trait', () => {
   type Lists = Partial<Record<'success' | 'failure' | 'triumph' | 'setback', Record<string, unknown>[]>>;
   /** The real files with `ambush-on-the-road`'s consequences as given. */
   const consequences = (lists: Lists) =>
-    withJson('encounters.json', (json) => {
+    withJson('encounters/', (json) => {
       const ambush = json['ambush-on-the-road'] as EncounterRow;
       ambush.consequences = { success: [], failure: [], ...lists } as never;
     });
@@ -319,85 +319,112 @@ describe('an earned Trait', () => {
 
   test("a field it lacks is refused as the file is read: a count, an Injury's exposedBy", () => {
     expect(refusalOf(() => parse(consequences({ triumph: [{ ...trait, count: 1 }] }))).message).toMatch(
-      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.count is not a field of a consequence of kind trait/,
+      /encounters\/ambush-on-the-road\.json: consequences\.triumph\.0\.count is not a field of a consequence of kind trait/,
     );
     expect(refusalOf(() => parse(consequences({ triumph: [{ ...trait, exposedBy: ['dexterity'] }] }))).message).toMatch(
-      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.exposedBy is not a field of a consequence of kind trait/,
+      /encounters\/ambush-on-the-road\.json: consequences\.triumph\.0\.exposedBy is not a field of a consequence of kind trait/,
     );
   });
 });
 
 describe('tags, a Finale and the lore kind', () => {
   /** The real files with `ambush-on-the-road` changed. */
-  const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
+  const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters/', (json) => change(json['ambush-on-the-road'] as EncounterRow));
   /** `files` with the barrow's template changed. */
-  const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
-  /** `files` without the Encounters keyed `keys`. */
-  const without = (files: Record<string, string>, keys: string[]) =>
-    changed(files, 'encounters.json', (json) => keys.forEach((key) => Reflect.deleteProperty(json, key)));
+  const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates/', (json) => change(barrow(json)));
+  /**
+   * `files` with an Encounter planted under `key`: one combat Check, and `tags` if given; drawn by a pool
+   * of combat or of its tags, so that a test of tags and Finales rests on no Encounter as shipped (DL-272).
+   */
+  const planted = (files: Record<string, string>, key: string, tags?: string[]) =>
+    changed(files, 'encounters/', (json) => {
+      json[key] = {
+        name: 'A planted fight',
+        kind: 'combat',
+        ...(tags === undefined ? {} : { tags }),
+        checks: [{ key: 'fight', name: 'The fight', score: ['avg', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.1 }],
+        consequences: { success: [], failure: [{ kind: 'morale', delta: -1 }] },
+      } as unknown as EncounterRow;
+    });
+  /** `files` without any Encounter of `kind`, whichever the content holds (DL-272). */
+  const withoutKind = (files: Record<string, string>, kind: string) =>
+    changed(files, 'encounters/', (json) => {
+      for (const [key, row] of Object.entries(json)) if ((row as EncounterRow).kind === kind) Reflect.deleteProperty(json, key);
+    });
   /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
   const riddle = (files: Record<string, string>) =>
-    changed(files, 'encounters.json', (json) => {
+    changed(files, 'encounters/', (json) => {
       json['a-riddle'] = { ...(json['the-sealed-door'] as EncounterRow), name: 'A riddle', kind: 'lore', tags: ['delve'] };
     });
 
   test("loads an Encounter's tags and a template's Finale as written, and an Encounter with none has no tags", () => {
-    const files = barrowed((it) => (it.finale = 'hold-the-line'), ambushed((it) => (it.tags = ['escort', 'road-side'])));
+    const files = barrowed((it) => Object.assign(it, { finale: 'a-planted-finale', finaleLine: 'Hold.' }), planted(planted(realFiles(), 'a-planted-ambush', ['escort', 'road-side']), 'a-planted-finale'));
     const content = parse(files);
-    expect(content.encounters['ambush-on-the-road']?.tags).toEqual(['escort', 'road-side']);
-    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
-    const untagged = parse(ambushed((it) => delete it.tags));
-    expect(untagged.encounters['ambush-on-the-road']).not.toHaveProperty('tags');
+    expect(content.encounters['a-planted-ambush']?.tags).toEqual(['escort', 'road-side']);
+    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('a-planted-finale');
+    const untagged = parse(barrowed(() => undefined, planted(realFiles(), 'a-planted-ambush')));
+    expect(untagged.encounters['a-planted-ambush']).not.toHaveProperty('tags');
     expect(untagged.questTemplates['clear-the-barrow']).not.toHaveProperty('finale');
   });
 
   test.each<[string, (it: EncounterRow) => void, RegExp]>([
     ['a tag that is not kebab-case', (it) => (it.tags = ['On The Road']), /encounters\.ambush-on-the-road\.tags: "On The Road" is not kebab-case/],
     ['a tag listed twice', (it) => (it.tags = ['escort', 'escort']), /encounters\.ambush-on-the-road\.tags: "escort" is listed twice/],
-    ['tags that are not a list of strings', (it) => ((it as unknown as Record<string, unknown>)['tags'] = 'escort'), /encounters\.json: ambush-on-the-road\.tags is "escort"; expected a list of strings/],
+    ['tags that are not a list of strings', (it) => ((it as unknown as Record<string, unknown>)['tags'] = 'escort'), /encounters\/ambush-on-the-road\.json: tags is "escort"; expected a list of strings/],
   ])("an Encounter's %s is refused, naming its path", (_, change, problem) => {
     expect(refusalOf(() => parse(ambushed(change))).message).toMatch(problem);
   });
 
   test.each<[string, (it: Template) => void, RegExp]>([
-    ['a Finale that is not an Encounter', (it) => (it.finale = 'the-dragon'), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
-    ['a Finale that is not a string', (it) => ((it as unknown as Record<string, unknown>)['finale'] = ['hold-the-line']), /quest-templates\.json: clear-the-barrow\.finale is \["hold-the-line"\]; expected a string, or no such field/],
+    ['a Finale that is not an Encounter', (it) => Object.assign(it, { finale: 'the-dragon', finaleLine: 'The dragon.' }), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
+    ['a Finale that is not a string', (it) => ((it as unknown as Record<string, unknown>)['finale'] = ['hold-the-line']), /quest-templates\/clear-the-barrow\.json: finale is \["hold-the-line"\]; expected a string, or no such field/],
   ])("a template's %s is refused, naming its path", (_, change, problem) => {
     expect(refusalOf(() => parse(barrowed(change))).message).toMatch(problem);
   });
 
-  test('a kind whose every Encounter is a Finale, which is never drawn, is refused for each template that draws it', () => {
-    // The four arcane Encounters that are not Finales gone: the two left are the lay's and the vault's.
-    const files = without(realFiles(), ['the-sealed-door', 'a-restless-power', 'the-hungry-ward', 'the-dead-light']);
+  test('a Beat whose pool holds only Finales, which no Beat draws, is refused for each template that has one', () => {
+    // A tag only the barrow's Finale carries, and two templates planted from the barrow, each with one
+    // Beat drawing by that tag alone; the barrow's own Beats draw by kind.
+    const files = changed(planted(realFiles(), 'a-planted-finale', ['planted']), 'quest-templates/', (json) => {
+      const it = Object.assign(barrow(json), { finale: 'a-planted-finale', finaleLine: 'The end.' });
+      const drawing = (at: number): Template => {
+        const copy = structuredClone(it);
+        for (const field of ['finale', 'finaleLine'] as const) Reflect.deleteProperty(copy, field);
+        (copy.beats[at] as QuestBeat).pool = { tags: ['planted'] };
+        return copy;
+      };
+      json['a-planted-vault'] = drawing(0);
+      json['a-planted-rite'] = drawing(1);
+    });
     const { message } = refusalOf(() => parse(files));
-    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.encounterKinds: every Encounter of kind "arcane" is a Finale, which is never drawn/);
-    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.encounterKinds: every Encounter of kind "arcane" is a Finale/);
-    expect(message).not.toMatch(/clear-the-barrow\.encounterKinds/);
+    expect(message).toMatch(/questTemplates\.a-planted-vault\.beats\.0\.pool may draw 0 Encounters, none a Finale; it needs 1/);
+    expect(message).toMatch(/questTemplates\.a-planted-rite\.beats\.1\.pool may draw 0 Encounters/);
+    expect(message).not.toMatch(/clear-the-barrow\.beats/);
   });
 
-  test("a Finale may be of any kind, one its template's places are not drawn from", () => {
-    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(realFiles()));
+  test("a Finale may be of any kind, one its template's Beats do not draw", () => {
+    const files = barrowed((it) => Object.assign(it, { finale: 'a-riddle', finaleLine: 'A riddle.' }), riddle(realFiles()));
     expect(parse(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
   });
 
   test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
     let files = riddle(realFiles());
-    files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
+    files = barrowed((it) => (it.beats = [...it.beats, { line: 'A riddle.', pool: { kinds: ['lore'] } }]), files);
     files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
-    files = changed(files, 'items.json', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
+    files = changed(files, 'items/', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
     files = changed(files, 'hero-traits.json', (json) =>
       Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['lore'], tags: ['delve'] }] }),
     );
     const content = parse(files);
     expect(content.encounters['a-riddle']?.kind).toBe('lore');
-    expect(content.questTemplates['clear-the-barrow']?.encounterKinds).toContain('lore');
+    expect(content.questTemplates['clear-the-barrow']?.beats.at(-1)?.pool.kinds).toEqual(['lore']);
     expect(content.synergies['sword-and-salve']?.kinds).toEqual(['lore']);
   });
 
-  test('a template drawing lore when content has no lore Encounter is refused, naming the kind', () => {
-    const files = without(realFiles(), ['old-records', 'a-riddle-at-the-gate', 'the-cause-of-the-sickness', 'the-names-of-the-dead']);
-    expect(refusalOf(() => parse(barrowed((it) => (it.encounterKinds = ['lore']), files))).message).toMatch(
-      /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "lore"/,
+  test('a template drawing lore when content has no lore Encounter is refused, naming the Beat', () => {
+    const files = withoutKind(realFiles(), 'lore');
+    expect(refusalOf(() => parse(barrowed((it) => (it.beats = [{ line: 'A riddle.', pool: { kinds: ['lore'] } }, ...it.beats]), files))).message).toMatch(
+      /questTemplates\.clear-the-barrow\.beats\.0\.pool may draw 0 Encounters/,
     );
   });
 });

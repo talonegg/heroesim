@@ -7,6 +7,7 @@ import { negotiatedReward } from '../guildmaster.js';
 import { count } from '../history.js';
 import { addStack, holdings } from '../items.js';
 import { phaseContext } from '../phases/phase.js';
+import { previewDispatch } from '../preview.js';
 import { questsAdvance } from '../phases/quests-advance.js';
 import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
@@ -42,10 +43,10 @@ function heroOf(world: World, heroId: HeroId): Hero {
 }
 
 /** Dispatches and returns the rejection, asserting that nothing changed and nothing was thrown. */
-function rejected(document: WorldDocument, request: DispatchRequest): DispatchRejection {
+function rejected(document: WorldDocument, request: DispatchRequest, under: EngineDeps = deps): DispatchRejection {
   const before = serialise(document);
   const entries = document.history.entries.length;
-  const result = applyAction(document, { kind: 'dispatch', ...request }, deps);
+  const result = applyAction(document, { kind: 'dispatch', ...request }, under);
   expect(serialise(document)).toBe(before);
   expect(document.history.entries).toHaveLength(entries);
   if (result.ok) throw new Error('Expected a rejection');
@@ -93,7 +94,7 @@ describe('dispatch', () => {
           [quest.patronId]: world.patrons[quest.patronId]?.name,
         },
         milestone: false,
-        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed, consumables: [] },
+        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, tier: quest.tier, reward: agreed, consumables: [] },
       },
     ]);
     // The reward agreed is the offer's, the Guildmaster's Negotiation applied, and the Quest carries it.
@@ -183,37 +184,46 @@ describe('dispatch', () => {
       }
     });
 
-    test('requirement-unmet naming party-size: too few or too many, with partySizeMin and partySizeMax; any size within is accepted', () => {
-      const { document, ids, rogue, mage, healer } = built();
-      const { partySizeMin, partySizeMax } = questOf(document.world, ids.offeredQuest).requirements;
-      expect([partySizeMin, partySizeMax]).toEqual([2, 4]);
+    test('requirement-unmet naming party-size: too few, with partySizeMin; a Party of one refused on a Quest of two (DL-257 item 6)', () => {
+      const { document, ids, rogue } = built();
+      const { requirements } = questOf(document.world, ids.offeredQuest);
+      expect(requirements).toEqual({ partySizeMin: 2 });
       const request = (heroIds: HeroId[]): DispatchRequest => ({
         guildId: ids.playerGuild,
         questId: ids.offeredQuest,
         heroIds,
       });
-      const refusal = (size: number, max = partySizeMax) => ({
+      const refusal = (size: number) => ({
         action: 'dispatch',
         reason: 'requirement-unmet',
         questId: ids.offeredQuest,
-        unmet: [{ requirement: 'party-size', size, partySizeMin, partySizeMax: max }],
+        unmet: [{ requirement: 'party-size', size, partySizeMin: 2 }],
       });
 
       expect(rejected(document, request([]))).toEqual(refusal(0));
       expect(rejected(document, request([rogue]))).toEqual(refusal(1));
-      const small = structuredClone(document);
-      questOf(small.world, ids.offeredQuest).requirements.partySizeMax = 2;
-      expect(rejected(withValid(small, deps), request([rogue, mage, healer]))).toEqual(refusal(3, 2));
+    });
 
-      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage]) }, deps).ok).toBe(true);
-      expect(applyAction(document, { kind: 'dispatch', ...request([rogue, mage, healer]) }, deps).ok).toBe(true);
+    test('any size at or above partySizeMin is accepted: no Quest has a greatest (DL-257 item 6)', () => {
+      // A Roster of eight, the first in a Party: seven free Heroes.
+      const { document, ids } = buildDocument({ rosterSize: 8 });
+      withValid(document, deps);
+      const free = (document.world.guilds[ids.playerGuild] as Guild).rosterIds.slice(1);
+      expect(free).toHaveLength(7);
+      for (const size of [2, 3, 4, 5, 7]) {
+        const heroIds = free.slice(0, size);
+        const result = applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds }, deps);
+        if (!result.ok) throw new Error(`A Party of ${size} refused: ${result.rejection.reason}`);
+        const party = Object.values(withValid(result.document, deps).world.parties).find((it) => it.questId === ids.offeredQuest);
+        expect(party?.heroIds, `a Party of ${size}`).toEqual(heroIds);
+      }
     });
 
     test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order', () => {
       const { document, ids, rogue, mage, healer } = built();
       const demanding = structuredClone(document);
       const quest = questOf(demanding.world, ids.offeredQuest);
-      quest.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      quest.requirements = { partySizeMin: 1, classKey: 'mage', skillKey: 'lockpicking' };
       withValid(demanding, deps);
       const request = (heroIds: HeroId[]): DispatchRequest => ({
         guildId: ids.playerGuild,
@@ -237,9 +247,9 @@ describe('dispatch', () => {
       expect(applyAction(demanding, { kind: 'dispatch', ...request([mage, rogue]) }, deps).ok).toBe(true);
 
       // Every requirement missed at once: the size, the Class and the Skill.
-      quest.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      quest.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
       expect(rejected(demanding, request([healer]))).toEqual(
-        unmet({ requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 }, needsMage, needsLockpicking),
+        unmet({ requirement: 'party-size', size: 1, partySizeMin: 2 }, needsMage, needsLockpicking),
       );
     });
 
@@ -257,6 +267,79 @@ describe('dispatch', () => {
       expect(applyAction(document, { kind: 'dispatch', guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair }, deps).ok).toBe(
         true,
       );
+    });
+
+    // DL-264: a Guild below the Fame minimum of its Quest's Tier may not take it (DL-257 item 3).
+    describe('fame-below-minimum', () => {
+      /** The test deps with each Tier's Fame minimum as `minimums` gives it, in Tier order. */
+      const minimums = (values: number[], content = deps.content): EngineDeps =>
+        testDeps({ rivalCount: 0, tiers: deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: values[index] ?? 0 })) }, content);
+
+      test("refuses a Guild whose Fame is below its Quest's Tier's minimum, naming the Tier, the minimum and the Fame; at the minimum it sends", () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        // The fixture's Quest is posted at Tier 2, and the player's Guild has 0 Fame.
+        expect(questOf(document.world, ids.offeredQuest).tier).toBe(2);
+        const fameShort = minimums([0, 5, 9, 9, 9]);
+
+        expect(rejected(document, request, fameShort)).toEqual({
+          action: 'dispatch',
+          reason: 'fame-below-minimum',
+          guildId: ids.playerGuild,
+          questId: ids.offeredQuest,
+          tier: 2,
+          fameMinimum: 5,
+          fame: 0,
+        });
+        const famous = structuredClone(document);
+        (famous.world.guilds[ids.playerGuild] as Guild).fame = 4;
+        expect(rejected(famous, request, fameShort)).toMatchObject({ reason: 'fame-below-minimum', fameMinimum: 5, fame: 4 });
+        (famous.world.guilds[ids.playerGuild] as Guild).fame = 5;
+        expect(applyAction(famous, { kind: 'dispatch', ...request }, fameShort).ok).toBe(true);
+        // Another Tier's minimum does not bind it.
+        expect(applyAction(document, { kind: 'dispatch', ...request }, minimums([9, 0, 9, 9, 9])).ok).toBe(true);
+      });
+
+      test("reads the template's own minimum for the Tier where it overrides the ladder's", () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        const template = deps.content.questTemplates['escort-the-tithe'];
+        if (template === undefined) throw new Error('No escort-the-tithe');
+        const overridden = { ...deps.content, questTemplates: { ...deps.content.questTemplates, 'escort-the-tithe': { ...template, overrides: { '2': { fameMinimum: 3 } } } } };
+
+        expect(rejected(document, request, minimums([0, 0, 0, 0, 0], overridden))).toMatchObject({ reason: 'fame-below-minimum', tier: 2, fameMinimum: 3 });
+        expect(rejected(document, request, minimums([0, 50, 0, 0, 0], overridden))).toMatchObject({ fameMinimum: 3 });
+      });
+
+      test('comes after the Guild and the Quest, and before the Heroes and the requirements', () => {
+        const { document, ids } = built();
+        const fameShort = minimums([5, 5, 5, 5, 5]);
+        const reason = (questId: QuestId, heroIds: HeroId[]): string =>
+          rejected(document, { guildId: ids.playerGuild, questId, heroIds }, fameShort).reason;
+
+        expect(reason(ids.takenQuest, [ids.rivalHero])).toBe('quest-not-offered');
+        expect(reason(ids.offeredQuest, [ids.rivalHero])).toBe('fame-below-minimum');
+        expect(reason(ids.offeredQuest, [])).toBe('fame-below-minimum');
+      });
+
+      test('previewDispatch says so: its verdict is the refusal, the rest of the preview as before', () => {
+        const { document, ids, rogue, mage } = built();
+        const request = { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] };
+        const open = previewDispatch(document.world, request, deps);
+        const closed = previewDispatch(document.world, request, minimums([0, 5, 0, 0, 0]));
+
+        expect(open?.refusal).toBeNull();
+        expect(closed?.refusal).toEqual({
+          action: 'dispatch',
+          reason: 'fame-below-minimum',
+          guildId: ids.playerGuild,
+          questId: ids.offeredQuest,
+          tier: 2,
+          fameMinimum: 5,
+          fame: 0,
+        });
+        expect({ ...closed, refusal: null }).toEqual(open);
+      });
     });
 
     test('in order: the Guild, then the Quest, then each Hero, then the requirements, the size among them', () => {
@@ -409,9 +492,9 @@ function playTo(document: WorldDocument, turn: number, playDeps: EngineDeps = de
  */
 function openQuest(world: World, size: number, minDays: number): Quest {
   const fits = (quest: Quest): boolean => {
-    const { classKey, skillKey, partySizeMin, partySizeMax } = quest.requirements;
+    const { classKey, skillKey, partySizeMin } = quest.requirements;
     const open = classKey === undefined && skillKey === undefined;
-    return open && partySizeMin <= size && size <= partySizeMax && durationDaysOf(quest) >= minDays;
+    return open && partySizeMin <= size && durationDaysOf(quest) >= minDays;
   };
   const quest = world.board.map((id) => questOf(world, id)).find(fits);
   if (quest === undefined) throw new Error(`No Quest on the Board at Turn ${world.turn} takes a Party of ${size}`);

@@ -19,7 +19,7 @@ function tally(keys: string[]): Record<string, number> {
 }
 
 describe('generateGuild', () => {
-  test('makes a Guild at Fame 0 with an unimproved Hall, its Guildmaster, and its Roster', () => {
+  test('makes a Guild at the founding Fame with an unimproved Hall, its Guildmaster, and its Roster', () => {
     const deps = testDeps();
     const world = testWorld('guild', deps);
     world.turn = 5;
@@ -30,7 +30,7 @@ describe('generateGuild', () => {
       guildmasterId: 'guildmaster-000001',
       foundedTurn: 5,
       wealth: 450,
-      fame: 0,
+      fame: deps.config.foundingFame,
       belowFloorSince: null,
       foldedOnTurn: null,
       hall: { infirmary: 0, trainingYard: 0, quarters: 0 },
@@ -46,6 +46,20 @@ describe('generateGuild', () => {
 
     expect(guild.rosterIds).toHaveLength(6);
     for (const id of guild.rosterIds) expect(world.heroes[id]?.guildId).toBe(guild.id);
+  });
+
+  test("founds every Guild, the player's and a Rival's, with foundingFame from the config it is given, drawing nothing for it (#40, DL-261)", () => {
+    const deps = testDeps({ foundingFame: 40 });
+    const world = testWorld('famous', deps);
+    const plain = testWorld('famous', testDeps());
+
+    expect(generateGuild(world, deps, { controller: player, rosterSize: 4, wealth: 500 }).guild.fame).toBe(40);
+    expect(generateGuild(world, deps, { controller: rival, rosterSize: 4, wealth: 500 }).guild.fame).toBe(40);
+    expect(generateRival(world, deps, { controller: rival }).guild.fame).toBe(40);
+    generateGuild(plain, testDeps(), { controller: player, rosterSize: 4, wealth: 500 });
+    generateGuild(plain, testDeps(), { controller: rival, rosterSize: 4, wealth: 500 });
+    generateRival(plain, testDeps(), { controller: rival });
+    expect(world.rng).toEqual(plain.rng);
   });
 
   test("the Guildmaster has the five Guildmaster Stats, an age and 0–2 Guildmaster Traits from the config's ranges", () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, test } from 'vitest';
-import { configSections, configVersion, configChangelog, defaultConfig, flattenConfig, type ConfigSections, type GameConfig } from './config.js';
+import { configSections, configVersion, configChangelog, defaultConfig, flattenConfig, tierFields, type ConfigSections, type GameConfig, type TierRow } from './config.js';
 import { configRules } from './config-check.js';
 
 // DL-186 item 15, DL-204: the defaults' values are data, `config.json`, in sections,
@@ -43,6 +43,14 @@ describe('config.json', () => {
   });
 });
 
+describe('the Tier ladder (DL-262)', () => {
+  test("tierFields are a Tier row's fields, each once, and every Tier of the defaults holds them in that order", () => {
+    expectTypeOf<(typeof tierFields)[number]>().toEqualTypeOf<keyof TierRow>();
+    expect(new Set(tierFields).size).toBe(tierFields.length);
+    for (const row of defaultConfig.tiers) expect(Object.keys(row)).toEqual([...tierFields]);
+  });
+});
+
 describe('flattenConfig', () => {
   test('lays the sections end to end, each in its order', () => {
     expect(Object.entries(flattenConfig({ b: { z: 1, y: [2] }, a: { x: { w: 3 } } }))).toEqual([
@@ -53,6 +61,6 @@ describe('flattenConfig', () => {
   });
 
   test('refuses a setting in two sections, naming both', () => {
-    expect(() => flattenConfig({ quest: { boardSize: 6 }, board: { boardSize: 7 } })).toThrow('boardSize is in both quest and board');
+    expect(() => flattenConfig({ quest: { boardSizeMax: 6 }, board: { boardSizeMax: 7 } })).toThrow('boardSizeMax is in both quest and board');
   });
 });

@@ -13,7 +13,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
-import { cameHome, changed, documentOf, partyOut, played, started, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
+import { cameHome, changed, documentOf, firstSeedWhere, partyOut, played, started, startedWithEveryTier, withPartyOut, withReturn, withReturns, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { partOfAReturn } from './history-reader';
 import { narrateSegments, narrateText, textOf } from './namer';
@@ -37,7 +37,21 @@ vi.mock('./reducer', async (importOriginal) => {
   return { ...actual, calendarFor: vi.fn(actual.calendarFor) };
 });
 
-const base = withPartyOut(started('quest-return'));
+/**
+ * A Party of three Heroes or more out, and one Hero at home: the first game from quest-return, every Tier
+ * open, that gives one (DL-272, DL-273), since a Death's lines read a Party mate's Regard and the grief of
+ * the one at home.
+ */
+const base = firstSeedWhere(
+  'quest-return',
+  (seed) => withPartyOut(startedWithEveryTier(seed)),
+  (state) => {
+    const document = documentOf(state);
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    return party.length >= 3 && playerGuild(document.world)?.rosterIds.filter((heroId) => !party.includes(heroId)).length === 1;
+  },
+  'a Party of three or more out and one Hero at home',
+);
 
 // A Party home from its Quest, one game the tests below read and none plays on or writes to (ADR-0008).
 const cameHomeState = cameHome(started('reducer-test'));
@@ -273,15 +287,21 @@ describe('questReturn', () => {
   });
 
   test('two Parties home the same night for the same Patron: each has its own Regard line, the band it moved into or the band now', () => {
-    // Two Quests of one Patron and one length on the Board, each taken the same morning by two of the
+    // Two Quests of one Patron on the Board, made one length, each taken the same morning by two of the
     // Roster, so both Parties come home the same night and the engine plays both outcomes on it (DL-250).
-    const game = started('two-home');
-    const document = documentOf(game);
+    const drawn = started('two-home');
+    const document = documentOf(drawn);
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
-    const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2 && 2 <= requirements.partySizeMax);
-    const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId && other.durationTurns === quest.durationTurns).map((other) => [quest, other]))[0];
-    if (pair === undefined) throw new Error('no two Quests of one Patron and one length on the Board');
+    const open = offeredQuests(document.world).filter(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2);
+    const pair = open.flatMap((quest) => open.filter((other) => other.id > quest.id && other.patronId === quest.patronId).map((other) => [quest, other]))[0];
+    if (pair === undefined) throw new Error('no two Quests of one Patron on the Board');
+    // As long as each other whatever Days their Tiers drew (DL-262).
+    const game = changed(drawn, (next) => {
+      const [one, other] = pair.map((quest) => next.world.quests[quest.id]);
+      if (one === undefined || other === undefined) throw new Error('no Quests');
+      other.durationTurns = one.durationTurns;
+    });
     const sent = pair.reduce((state, quest, at) => played(state, { kind: 'dispatch', questId: quest.id, heroIds: guild.rosterIds.slice(2 * at, 2 * at + 2) }), game);
     if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
     const [firstId, secondId] = Object.keys(documentOf(sent).world.parties) as [PartyId, PartyId];

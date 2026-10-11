@@ -1,0 +1,57 @@
+{
+  "name": "The restless dead",
+  "kind": "combat",
+  "tags": ["dark","holy"],
+  "checks": [
+    {
+      "key": "blessing",
+      "name": "Blessing",
+      "score": ["max","party",["weighted",[["spirit",0.7],["willpower",0.3]]]],
+      "skills": ["benediction"],
+      "flat": 3.86,
+      "difficultyFactor": 0.097
+    },
+    {
+      "key": "blades",
+      "name": "Blades",
+      "score": ["ranked","party",["stat","weaponry"],[1,0.5]],
+      "skills": ["swordcraft"],
+      "flat": 5.52,
+      "difficultyFactor": 0.138
+    },
+    {
+      "key": "fire",
+      "name": "Fire",
+      "score": ["max","party",["stat","power"]],
+      "skills": ["evocation"],
+      "flat": 4.13,
+      "difficultyFactor": 0.103
+    },
+    {
+      "key": "dread",
+      "name": "Dread",
+      "score": ["avg","party",["weighted",[["courage",0.5],["resistance",0.5]]]],
+      "skills": [],
+      "flat": 2.99,
+      "difficultyFactor": 0.075
+    }
+  ],
+  "pass": ["and",["or","blessing","blades","fire"],"dread"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":2}],
+    "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "broken-arm",
+        "chance": 0.15,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["constitution"]},
+      {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
+    ]
+  }
+}

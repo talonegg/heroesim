@@ -6,7 +6,18 @@
 // asks nothing of the content (DL-193); none is checked lazily where it is read (the Quest Engine's and
 // the Encounter draw's checks, DL-152 to DL-160, are rules here).
 
-import { chanceBandNames, defaultConfig, moraleBandNames, potentialHints, questBands, regardBandNames, type EngineDeps, type GameConfig } from './config.js';
+import {
+  chanceBandNames,
+  defaultConfig,
+  moraleBandNames,
+  potentialHints,
+  questBands,
+  regardBandNames,
+  tierFields,
+  type EngineDeps,
+  type GameConfig,
+  type TierRow,
+} from './config.js';
 import { degrees, type ContentSet, type StatArea } from './content-types.js';
 import { highestSkillRating, lowestSkillRating, type Meta } from './document.js';
 import { sexes } from './generators/draw.js';
@@ -218,6 +229,90 @@ const healFactors: ConfigRule = (value) =>
  */
 const declineAreaList: ConfigRule = listOf(statAreas);
 
+/** A bound of a Tier row's field: a number, or another field of the same row. */
+type RowBound = number | keyof TierRow;
+
+/**
+ * Each field of a Tier row and what it is (DL-262): its bands rise, from a difficulty and a Day of
+ * 1; a Quest of it meets one Encounter at least; its factors, its Fame and its unlock Level are not
+ * below 0 (DL-271).
+ */
+const tierRowRules: { readonly [Field in keyof TierRow]: 'boolean' | { whole: boolean; min: RowBound } } = {
+  difficultyMin: { whole: true, min: 1 },
+  difficultyMax: { whole: true, min: 'difficultyMin' },
+  daysMin: { whole: true, min: 1 },
+  daysMax: { whole: true, min: 'daysMin' },
+  beats: { whole: true, min: 1 },
+  loot: 'boolean',
+  rewardFactor: { whole: false, min: 0 },
+  xpFactor: { whole: false, min: 0 },
+  deathScale: { whole: false, min: 0 },
+  fameMinimum: { whole: true, min: 0 },
+  unlockLevel: { whole: true, min: 0 },
+};
+
+/**
+ * What is wrong with one Tier row, alone (DL-262): each field it lacks or holds out of its rule, and
+ * each it has that a Tier has not; none for a sound row. The config's `tiers` rule reads it for each
+ * Tier of the ladder, and content's check for each Tier a template's override changes. Never throws.
+ */
+export function tierRowProblems(row: unknown): string[] {
+  if (!isRecord(row)) return [`a Tier is an object of ${tierFields.join(', ')}; got ${shown(row)}`];
+  const problems = Object.keys(row)
+    .filter((field) => !(tierFields as readonly string[]).includes(field))
+    .map((field) => `${field} is no field of a Tier, which holds ${tierFields.join(', ')}`);
+  for (const field of tierFields) {
+    const rule = tierRowRules[field];
+    const value = row[field];
+    if (rule === 'boolean') {
+      if (typeof value !== 'boolean') problems.push(`${field} is ${shown(value)}; it is true or false`);
+      continue;
+    }
+    const min = typeof rule.min === 'number' ? rule.min : row[rule.min];
+    const sound = isNumber(value) && (!rule.whole || Number.isSafeInteger(value)) && (!isNumber(min) || value >= min);
+    if (!sound) {
+      const bound = typeof rule.min === 'number' ? String(rule.min) : `${rule.min} (${shown(row[rule.min])})`;
+      problems.push(`${field} is ${shown(value)}; it is a ${rule.whole ? 'whole' : 'finite'} number, at least ${bound}`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * The Tier ladder (DL-257 item 1, DL-262): one Tier or more, each sound (`tierRowProblems`), and each
+ * Tier's difficulty band starting and ending no lower than the Tier's below, so a higher Tier is never
+ * the easier. Its days may overlap and its factors fall: those are tuning, not sense. Tier 1's unlock
+ * Level is 0, so that it is always on offer, and each Tier's is at least the Tier's below, so a Tier
+ * unlocked unlocks every Tier beneath it (DL-271).
+ */
+const tierLadder: ConfigRule = (value) => {
+  if (!Array.isArray(value) || value.length === 0) return `it is a list of one or more Tiers, each an object of ${tierFields.join(', ')}`;
+  const rows: unknown[] = value;
+  const problems = rows.flatMap((row, index) => tierRowProblems(row).map((problem) => `Tier ${index + 1}: ${problem}`));
+  rows.forEach((row, index) => {
+    const below = rows[index - 1];
+    if (!isRecord(row) || !isRecord(below)) return;
+    for (const field of ['difficultyMin', 'difficultyMax', 'unlockLevel'] as const) {
+      const [now, then] = [row[field], below[field]];
+      if (isNumber(now) && isNumber(then) && now < then) problems.push(`Tier ${index + 1}: ${field} is ${now}; it is at least Tier ${index}'s, ${then}`);
+    }
+  });
+  const first: unknown = rows[0];
+  if (isRecord(first) && isNumber(first['unlockLevel']) && first['unlockLevel'] !== 0) {
+    problems.push(`Tier 1: unlockLevel is ${first['unlockLevel']}; it is 0, so that Tier 1 is always on offer`);
+  }
+  return problems.length === 0 ? undefined : problems.join('; ');
+};
+
+/**
+ * A Tier's weights by its distance below the Board's top Tier (DL-262, DL-271): one or more, the top's
+ * first, each a finite number above 0, so that every Tier at or below the top stays on offer.
+ */
+const drawWeights: ConfigRule = (value) =>
+  Array.isArray(value) && value.length >= 1 && value.every((weight) => isNumber(weight) && weight > 0)
+    ? undefined
+    : "it is a list of one weight or more, the top Tier's first, then each Tier further below it, the last held, each a finite number above 0";
+
 /**
  * Every setting's rule (v1.1.6-S7, DL-193), in `GameConfig`'s order. A Min's Max is at least the Min,
  * and spans no more than a draw does where `int` draws between them;
@@ -271,18 +366,28 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   bankruptcyFloor: whole(),
   bankruptcyGraceDays: whole({ min: 0 }),
   fameFloor: whole({ min: 0 }),
+  // A Guild founded below the floor would be raised to it the first night (DL-261).
+  foundingFame: whole({ min: 'fameFloor' }),
   signingFeeBase: whole({ min: 0 }),
   signingFeePerLevel: whole({ min: 0 }),
   signingFeeStatDivisor: finite({ above: 0 }),
   unattachedStayDays: whole({ min: 0 }),
   fameRequiredPerLevel: finite({ min: 0 }),
-  boardSize: whole({ min: 0 }),
+  // A Board holds a whole number of Quests; it grows towards its cap, never shrinks (DL-261).
+  boardSizeStart: whole({ min: 0 }),
+  boardGrowthPerYear: finite({ min: 0 }),
+  boardSizeMax: whole({ min: 'boardSizeStart' }),
   questOfferDays: whole({ min: 1 }),
   // A Quest's difficulty is above 0 (`resolveQuest`, `estimateQuest`).
   questDifficultyMin: whole({ min: 1 }),
   questDifficultyMax: drawnMax('questDifficultyMin'),
   // A tag shared never makes an Encounter rarer (DL-160).
   encounterTagWeight: finite({ min: 1 }),
+  tiers: tierLadder,
+  tierDrawWeights: drawWeights,
+  unlockHeroes: whole({ min: 1 }),
+  // A chance is never scaled below 0; one scaled past 1 is held at 1 (DL-265).
+  deathFactor: finite({ min: 0 }),
 
   // A roll never reaches below nothing (DL-156).
   checkVariance: share,
@@ -365,7 +470,6 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   transferGeneratorChance: share,
   transferLockDays: whole({ min: 0 }),
 
-  lootDifficultyThreshold: finite({ min: 0 }),
   lootOnBands: listOf(questBands),
   lootOnFinaleDegrees: listOf(degrees),
 

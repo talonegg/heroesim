@@ -15,7 +15,7 @@ import {
 import { count, createItem } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { exitCodes, playground } from '../play.test-support.js';
+import { exitCodes, openToTwo, playground } from '../play.test-support.js';
 
 const content = loadContent();
 
@@ -145,9 +145,7 @@ describe('equip and unequip', () => {
   test('refuses to change the Gear of a Hero away on a Quest, and writes nothing', () => {
     const { hero, guild, blades } = stocked();
     expect(play(['equip', '--hero', hero.id, '--stack', blades]).code).toBe(exitCodes.ok);
-    const { world } = document();
-    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
-    if (questId === undefined) throw new Error('The demo Board has changed');
+    const questId = openToTwo(document().world).id;
     expect(play(['dispatch', '--quest', questId, '--heroes', guild.rosterIds.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
     const before = saved();
 

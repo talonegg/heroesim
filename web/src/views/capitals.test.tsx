@@ -144,12 +144,15 @@ function busyGame(): { state: GameState; gone: Named[] } {
     if (guildmaster === undefined) throw new Error("no player's Guildmaster");
     guildmaster.traits = [];
   });
-  // One Hero of the pool signed after the Party left, so one is at the Hall.
+  // A Hero of the pool signed before the Party left, which is two Heroes or more (DL-266), and one
+  // after, so one is at the Hall.
+  const signed = (state: GameState): GameState => {
+    const signing = poolView(state.document as WorldDocument).rows.find((row) => row.willSign === true);
+    if (signing === undefined) throw new Error('no Hero in the pool who signs');
+    return played(state, { kind: 'recruit', heroId: signing.heroId });
+  };
   // A Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
-  const out = withPartyOut(withTraitNews(changed6));
-  const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
-  if (signing === undefined) throw new Error('no Hero in the pool who signs');
-  const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });
+  const recruited = signed(withPartyOut(signed(withTraitNews(changed6))));
   // An Item a Hero carries, on their tile and in the Roster's Table (DL-171); a Unique Item
   // carried, its picture on their tile and the gold glow on their tile and their row.
   const carried = carryingUnique(carrying(recruited, 'arming-sword', 'weapon'), 'lantern-of-stannary', 'trinket');

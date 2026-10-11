@@ -311,7 +311,7 @@ describe("show's layouts of the readings (DL-241)", () => {
   test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {
     const document = newGame();
     const [first, second, third] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest, Quest];
-    first.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+    first.requirements = { partySizeMin: 1, classKey: 'mage', skillKey: 'lockpicking' };
     // Its Encounters are none the content in use defines (data-model rule 5).
     second.encounterKeys = ['no-such-encounter'];
     const reading = playerReading(document, playDeps(document));
@@ -320,9 +320,23 @@ describe("show's layouts of the readings (DL-241)", () => {
     const lines = renderBoard(reading);
 
     expect(lines[0]).toBe(`Board: ${quests.length} Quests on offer, Turn 0 (Year 1 Day 1, morning)`);
-    expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Difficulty', 'Days', 'Reward', 'Fame', 'Party', 'Requires', 'On offer through']);
+    // The Quest, then its Tier, Deadly, Days and reward, as its card on the page (DL-269), then the rest of its terms.
+    expect(lines[2]?.split(/\s{2,}/)).toEqual(['Id', 'Quest', 'Patron', 'Tier', 'Deadly', 'Days', 'Reward', 'Difficulty', 'Fame', 'Party', 'Requires', 'On offer through']);
     const [one, two, three] = quests as [QuestReading, QuestReading, QuestReading];
-    expect(lines[4]?.split(/\s{2,}/)).toEqual([one.id, one.name, one.patron, String(one.difficulty), String(one.days), String(one.reward), String(one.fame), '1 to 4', 'Mage, Lockpicking', 'Year 1 Day 3']);
+    expect(lines[4]?.split(/\s{2,}/)).toEqual([
+      one.id,
+      one.name,
+      one.patron,
+      String(one.tier),
+      one.deadly ? 'Yes' : 'No',
+      String(one.days),
+      String(one.reward),
+      String(one.difficulty),
+      String(one.fame),
+      '1 or more',
+      'Mage, Lockpicking',
+      'Year 1 Day 3',
+    ]);
     const rows = lines.filter((line) => line.startsWith(one.id) || line.startsWith(two.id)).map((line) => line.split(/\s{2,}/));
     expect(rows[2]).toEqual([one.id, one.skills.join(', '), capitalised(one.encounters.map((encounter) => encounter.kind).join(', '))]);
     // An Encounter content does not define, by its key; no Skill is known to help, since its Encounters'
@@ -336,5 +350,52 @@ describe("show's layouts of the readings (DL-241)", () => {
     if (best === null || best.chance === null) throw new Error('no Best Party');
     expect(block(three)).toContain(`  Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${listed(best.names)}.`);
     expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
+  });
+
+  // DL-264: a Quest the player's Guild may not take offers no Party; the line says why, in the refusals' words.
+  test("show board says, in place of a Quest's best Party, that its Tier's Fame minimum is above the Guild's Fame", () => {
+    const document = newGame();
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    for (const quest of [first, second]) quest.requirements = { partySizeMin: 1 };
+    first.tier = 1;
+    second.tier = 2;
+    const deps = playDeps(document);
+    const tiers = deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? 7 : 0 }));
+    const reading = playerReading(document, { ...deps, config: { ...deps.config, tiers } });
+    const quests = boardReading(reading);
+    const lines = renderBoard(reading);
+    const [one, two] = quests as [QuestReading, QuestReading];
+    // A Quest's block runs from its heading to the blank line after it, its Best Party's line last.
+    const lastOf = (quest: QuestReading): string | undefined => {
+      const from = lines.indexOf(`${quest.id}, ${quest.name}`);
+      const to = lines.indexOf('', from);
+      return lines.slice(from, to === -1 ? undefined : to).at(-1);
+    };
+
+    expect(lastOf(one)).toMatch(/^ {2}Your best Party: /);
+    expect(lastOf(two)).toBe(`  ${two.name} (${two.id}) is a Tier 2 Quest, open to a Guild of 7 Fame or more; The Test has 0, 7 short.`);
+  });
+
+  // DL-265: a Quest whose Tier and Encounters can kill a Hero is marked Deadly, with no figure.
+  test('show board marks a Deadly Quest, after its Encounters, and no other', () => {
+    const document = newGame();
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
+    if (killer === undefined) throw new Error('No Encounter that kills');
+    for (const [quest, tier] of [[first, 4], [second, 3]] as const) Object.assign(quest, { tier, encounterKeys: [killer.key], beatLines: ['A line'] });
+    const reading = playerReading(document, playDeps(document));
+    const lines = renderBoard(reading);
+    const blockOf = (quest: Quest): string[] => {
+      const from = lines.findIndex((line) => line.startsWith(`${quest.id}, `));
+      const to = lines.indexOf('', from);
+      return lines.slice(from, to === -1 ? undefined : to);
+    };
+
+    expect(blockOf(first).slice(-2, -1)).toEqual(['  Deadly: a Hero may die on this Quest.']);
+    expect(blockOf(second).some((line) => line.includes('Deadly'))).toBe(false);
+    // The table's Deadly column marks it too, a word and no figure (DL-269).
+    const cellsOf = (quest: Quest): string[] | undefined => lines.find((line) => line.startsWith(`${quest.id}  `))?.split(/\s{2,}/);
+    expect(cellsOf(first)?.slice(3, 5)).toEqual(['4', 'Yes']);
+    expect(cellsOf(second)?.slice(3, 5)).toEqual(['3', 'No']);
   });
 });

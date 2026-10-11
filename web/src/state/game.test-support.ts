@@ -20,6 +20,7 @@ import {
   isMilestone,
   offeredQuests,
   playerGuild,
+  serialise,
   type ConsumableRequest,
   type ConsumableUse,
   type Degree,
@@ -99,6 +100,19 @@ export const newGameSetup = { guildName: 'The Lantern', guildmasterName: 'Ada Ve
 /** A new game's document from `seed`, as the engine creates it under the default rules and the page's content. */
 export function newDocument(seed: string): WorldDocument {
   return createWorld(seed, newGameSetup, { config: defaultConfig, content }).document;
+}
+
+/**
+ * The default rules with every Tier unlocked from Level 0, which a game carries as its rules: so that a
+ * new game's first Board may draw each Tier a template offers, its longer and harder Quests among them,
+ * whatever Tiers the opening's best fours unlock (DL-271, DL-273), as the e2e's Board does (DL-272).
+ */
+export const everyTierOpen = { ...defaultConfig, tiers: defaultConfig.tiers.map((tier) => ({ ...tier, unlockLevel: 0 })) };
+
+/** A new game of The Lantern, led by Ada Vell, from `seed`, as `started` gives, under rules opening every Tier: loaded as its save. */
+export function startedWithEveryTier(seed: string): GameState {
+  const { document } = createWorld(seed, newGameSetup, { config: everyTierOpen, content });
+  return played(initialGameState, { kind: 'load', text: serialise(document) });
 }
 
 /** A new game from `seed` played `turns` Turns by the engine's `advance`, and the events of the last of them. */
@@ -239,9 +253,10 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
  * comes home (or for an offer, or at the end). The Party is the Best Party at the player's margin of 1,
- * the fewest the Quest allows, so that Heroes stay at home to staff what comes next.
+ * the fewest the Quest allows, so that Heroes stay at home to staff what comes next: at least
+ * `atHome` of them, for a test that needs a Party of them, two or more (DL-266).
  */
-export function withPartyOut(state: GameState): GameState {
+export function withPartyOut(state: GameState, atHome = 0): GameState {
   const document = documentOf(state);
   const available = availableHeroes(document.world, playerOf(document));
   const deps = playDeps(document);
@@ -249,13 +264,53 @@ export function withPartyOut(state: GameState): GameState {
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
       const heroIds = bestParties(document.world, playerOf(document), fewest).party(quest, available)?.heroIds ?? null;
-      return heroIds === null ? [] : [{ quest, heroIds }];
+      return heroIds === null || available.length - heroIds.length < atHome ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
   if (longest === undefined) throw new Error('no Quest on the Board the Roster can staff');
   const sent = played(state, { kind: 'dispatch', questId: longest.quest.id, heroIds: longest.heroIds });
   if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
   return sent;
+}
+
+/**
+ * What `make` gives for the first of the seeds `seed`, `seed-1`, `seed-2`, … that meets `meets`: so that
+ * a test states the condition its game must meet and finds a game meeting it, as the e2e's Board does,
+ * resting on no Quest or Encounter as shipped (DL-272). Throws naming `condition` when none of `tries`
+ * seeds meets it.
+ */
+export function firstSeedWhere<Made>(seed: string, make: (seed: string) => Made, meets: (made: Made) => boolean, condition: string, tries = 40): Made {
+  for (let at = 0; at < tries; at += 1) {
+    const made = make(at === 0 ? seed : `${seed}-${at}`);
+    if (meets(made)) return made;
+  }
+  throw new Error(`No seed of ${tries} from ${seed} gives ${condition}`);
+}
+
+/** The Turns from `state`'s Turn to the night the player's one Party out comes home. */
+export function turnsUntilHome(state: GameState): number {
+  const document = documentOf(state);
+  const parties = Object.values(document.world.parties).filter((party) => party.guildId === playerOf(document).id);
+  const [party] = parties;
+  if (party === undefined || parties.length > 1) throw new Error(`expected one Party of the player's out, not ${parties.length}`);
+  return party.returnsOnTurn - document.world.turn;
+}
+
+/**
+ * `withPartyOut` on the first game from `seed`, every Tier open, whose Party comes home partway through a
+ * fast forward's second or third step of `step` Turns: after the first step, before the third ends, and
+ * not at a step's end (DL-96, DL-272, DL-273).
+ */
+export function withPartyHomeInALaterStep(seed: string, step: number): GameState {
+  return firstSeedWhere(
+    seed,
+    (each) => withPartyOut(startedWithEveryTier(each)),
+    (state) => {
+      const turns = turnsUntilHome(state);
+      return turns > step && turns < 3 * step && turns % step !== 0;
+    },
+    'a Party home partway through the second or third step',
+  );
 }
 
 /**

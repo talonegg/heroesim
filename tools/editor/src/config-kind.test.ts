@@ -103,8 +103,8 @@ describe('set', () => {
 
   test("refuses a value checkConfig refuses, naming the setting, and holds nothing", async () => {
     const dir = scratch();
-    const negative = await json<Failure>(dir, 'config', 'set', 'boardSize', '-1');
-    expect(negative).toEqual({ code: 1, json: { ok: false, kind: 'refused', problems: ['boardSize is -1; it is a whole number, at least 0'] } });
+    const negative = await json<Failure>(dir, 'config', 'set', 'boardSizeStart', '-1');
+    expect(negative).toEqual({ code: 1, json: { ok: false, kind: 'refused', problems: ['boardSizeStart is -1; it is a whole number, at least 0'] } });
 
     // A setting another's rule reads: a Max below its Min names the Max.
     const below = await json<Failure>(dir, 'config', 'set', 'rivalRosterMin', '9');
@@ -116,6 +116,34 @@ describe('set', () => {
 
     expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([]);
     expect(status(dir)).toBe('');
+  });
+
+  // The ladder is read by the content's Quest templates too (DL-262), so a ladder they cannot play is
+  // refused as it is set, not by "Finish"'s tests (DL-270).
+  test('refuses a Tier ladder the Quest templates cannot play, naming each, and holds nothing', async () => {
+    const dir = scratch();
+    const tiers = readConfig(dir).sections.questTiers?.tiers as Record<string, unknown>[];
+    const longer = tiers.map((row, index) => (index === 0 ? { ...row, beats: 4 } : row));
+    const refused = await json<Failure>(dir, 'config', 'set', 'tiers', JSON.stringify(longer));
+    expect(refused.code).toBe(1);
+    expect(refused.json.problems).toContain('questTemplates.escort-the-tithe: Tier 1 plays 4 Beats, more than its 3 Beats');
+    expect(refused.json.problems.every((problem) => problem.startsWith('questTemplates.'))).toBe(true);
+    expect((await json<{ edits: unknown[] }>(dir, 'config', 'pending')).json.edits).toEqual([]);
+
+    const fewer = tiers.slice(0, 4);
+    expect((await json<Failure>(dir, 'config', 'set', 'tiers', JSON.stringify(fewer))).json.problems).toContain('questTemplates.break-the-sealed-vault.tierMax is 5; the ladder has 4 Tiers');
+    expect(status(dir)).toBe('');
+  });
+
+  test('holds a changed Tier ladder every Quest template can play, and "Finish" writes it', async () => {
+    const dir = scratch();
+    const tiers = readConfig(dir).sections.questTiers?.tiers as { daysMax: number }[];
+    const longer = tiers.map((row, index) => (index === 0 ? { ...row, daysMax: row.daysMax + 1 } : row));
+    expect((await json(dir, 'config', 'set', 'tiers', JSON.stringify(longer))).code).toBe(0);
+    expect((await json<{ edits: { setting: string }[] }>(dir, 'config', 'pending')).json.edits.map((edit) => edit.setting)).toEqual(['tiers']);
+
+    expect((await command(['config', 'finish', '--reason', 'a trial', '--root', dir], planted)).code).toBe(0);
+    expect(readConfig(dir).sections.questTiers?.tiers).toEqual(longer);
   });
 
   test('refuses a setting the file lacks', async () => {
@@ -139,8 +167,8 @@ describe('set', () => {
   test('discard drops one setting\'s edit, or all', async () => {
     const dir = scratch();
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
-    await json(dir, 'config', 'set', 'boardSize', '7');
-    expect((await json(dir, 'config', 'discard', 'boardSize')).json).toEqual({ ok: true, discarded: 1, left: 1 });
+    await json(dir, 'config', 'set', 'boardSizeMax', '7');
+    expect((await json(dir, 'config', 'discard', 'boardSizeMax')).json).toEqual({ ok: true, discarded: 1, left: 1 });
     expect((await json(dir, 'config', 'discard')).json).toEqual({ ok: true, discarded: 1, left: 0 });
   });
 });
@@ -207,7 +235,7 @@ describe('finish', () => {
 
   test('checks the settings again as the file is, refusing what checkConfig refuses', async () => {
     const dir = scratch();
-    await json(dir, 'config', 'set', 'boardSize', '7');
+    await json(dir, 'config', 'set', 'boardSizeMax', '7');
     // Another hand changes the file under the edit: a Min above its Max.
     const file = readConfig(dir);
     (file.sections.world as Record<string, unknown>).rivalRosterMin = 9;
@@ -239,7 +267,7 @@ describe("the Traits' journal and lock, shared", () => {
     const finished = await new ConfigEditor(dir).finish('a trial', async (root) => {
       during.traits = (await json<Failure>(root, 'traits', 'list')).json.kind;
       during.traitsFinish = (await json<Failure>(root, 'traits', 'finish')).json.kind;
-      during.config = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      during.config = (await json<Failure>(root, 'config', 'set', 'boardSizeMax', '7')).json.kind;
       return { ok: true, exitCode: 0, failures: [], tail: [] };
     });
     expect(during).toEqual({ traits: 'busy', traitsFinish: 'busy', config: 'busy' });
@@ -253,7 +281,7 @@ describe("the Traits' journal and lock, shared", () => {
     await json(dir, 'config', 'set', 'wagePerLevel', '25');
     const during: Record<string, string> = {};
     await new Editor(dir).finish(async (root) => {
-      during.set = (await json<Failure>(root, 'config', 'set', 'boardSize', '7')).json.kind;
+      during.set = (await json<Failure>(root, 'config', 'set', 'boardSizeMax', '7')).json.kind;
       during.finish = (await json<Failure>(root, 'config', 'finish', '--reason', 'a trial')).json.kind;
       return { ok: true, exitCode: 0, failures: [], tail: [] };
     });

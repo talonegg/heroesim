@@ -30,14 +30,16 @@ Markdown's path.
 Sweeps run one at a time, with nothing else running, since a 20-year game's process holds about
 1.3 GB (DL-184).
 
-The current `neutral` baseline, every play-neutral story's `--expect`, is
-`29c09fb4ea34f50addee9f8bd12ed8de40db1a3bd01655d5338795e97914d662` (`v1.1.9-s16-neutral`, v1.1.9's close,
-DL-252: schema 7, config version 17, content version 37, as at v1.1.7-S6, DL-212). The 4 × 2 quick check
-at the same versions is `38d1c0d4a48765086d39026c84e559d8e84008fb12205309a33db8aabeb5112a`. Each changes
-only with a DL entry, as at a story that changes play or the save's shape or raises the content version
-or the config version, both of which every save records (with `meta.config`). The full `gate`'s, 50 × 20,
-is `5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
-Gate's baseline in `gate.json`, DL-229; the same games as v1.1.7's close, DL-214).
+The last `neutral` baseline is
+`036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e` (`v1.2.0-close-neutral`, DL-274: schema 9,
+config version 21, content version 41, v1.2.0's games), the reference every play-neutral story's `--expect` reads. The
+Tiers (DL-262), Death by Tier (DL-265) and the Party floor (DL-266) changed play, so the earlier ones, v1.1.9's
+`661789f1…` (`v1.2.0-s4-neutral`, schema 7) and the 4 × 2 quick check `62fab24b…` (`v1.2.0-s8-quick`), are no longer
+`--expect`'s. Each changes only with a DL entry, as at a story that changes play or the
+save's shape or raises the content version or the config version, both of which every save records
+(with `meta.config`). The full `gate`'s, 50 × 20, is
+`59d52e71b712bd1721a81d42b41a43fd3f680a7f29003cfe2533d04807c42d11` (`v1.2.0-gate`, v1.2.0's close, the
+Gate's baseline in `gate.json`, DL-274).
 
 ## Settings
 
@@ -58,8 +60,9 @@ or the seeds of each of the calibration's spot-check samples.
 
 Each run writes its Markdown report to `harness/reports/<name>-<date>.md`. A play sweep writes
 its JSON report beside it (`src/run-report.ts`): what it played (seeds, years, content, config and
-policy), its fingerprint, each game's line, its timings and its totals, the data the Gate and
-`compare` read.
+policy), its fingerprint, each game's line with its seed's own fingerprint (`games[].fingerprint`,
+DL-188 item 6), its timings, its totals and its Targets: the data the Gate, `compare` and a later
+run's Targets read.
 
 `harness/reports/` is ignored by Git. A report a DL entry or a release's Gate cites is committed, its
 Markdown and its JSON force-added (DL-186 item 28). A passing `gate` or `neutral` run prints the line:
@@ -71,9 +74,20 @@ entries cite. The rest leave it at a release's record (DL-223). The baseline is 
 previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's close removed, the
 v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). Those v1.1.9's record
 removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` reference among them, are
-read from git at `fb55a8c`. The 84 committed before 2026-10-08 that nothing live cited are
+read from git at `fb55a8c`. The baseline v1.2.0's close replaced, `v1.1.8-gate`, is read from git at
+`4220f57` (DL-274). The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
+
+## Targets
+
+A play sweep's reports open, after the Summary and the Gate, with its Targets (`src/targets.ts`,
+DL-259): the owner's target bands for the automatic policy's games (DL-83, the player's Deaths by
+DL-256 item 10) and DL-69 item 4's lines for the Rivals, each declared once with the entry that set
+it, and the Quest weight, the player's and each Disposition's. Each is measured with its standard
+error over the games, set beside the value of the run report `HEROESIM_BASELINE` names
+(`v1.2.0-gate-2026-10-11`, the release's closing gate, unless set, DL-270, DL-274; `none` for none), and marked inside or outside its band. None fails a run
+(DL-257 item 7). The core-only run carries them until a module is on by default (DL-82 item 18).
 
 ## Counters
 
@@ -97,14 +111,14 @@ source (`src/gate.ts`). Its invariants hold on any run: no policy action refused
 stopped by a harness assertion, unfinished or failing its round trip; the replay identical: one seed
 played once more, alone, its last save's length and fingerprint the same as its shard recorded. Its
 bands are set on its run, 50 games of 20 years, and read "not comparable" on a run of another shape:
-the player's Bankruptcies, at most 3 of 50; the save after 20 years, its gzipped mean under
-30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
+the save after 20 years, its gzipped mean under 30 MiB; and the per-Turn copy's share of a Turn, the mean time of the copy (`copyWorld`, timed as
 each year ended) over the mean time of `advance`, at most 25% over its baseline share, 0.390 (1.438 ms
 over 3.688 ms, measured at v1.1.9's closing full gate, DL-252), so at most 0.4875 (DL-206 item 17, DL-207),
 printed as it is applied, and the share printed to as many places as show it above the limit when it
 fails; a run with no copy times or no `advance` times reads "not comparable", naming the times missing
-and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career and the save's uncompressed size are not lines of the
-Gate; the report prints them. The estimate probe reads its two limits from it. A `gate` or `neutral`
+and printing those measured. The report prints both times and the share. The Traits earned a player's Hero career, the save's uncompressed size and the player's
+Bankruptcies are not lines of the Gate; the report prints them, the Bankruptcies in its Targets
+(DL-257 item 7). The estimate probe reads its two limits from it. A `gate` or `neutral`
 run prints each line's verdict and writes them into both reports; it fails when a line fails.
 
 The spec binds: the owner approved its first draft on 2026-10-05 (DL-188), its `status` `approved`. Its

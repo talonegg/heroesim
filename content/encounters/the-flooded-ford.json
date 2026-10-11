@@ -1,0 +1,40 @@
+{
+  "name": "The flooded ford",
+  "kind": "travel",
+  "tags": ["water"],
+  "checks": [
+    {
+      "key": "ford",
+      "name": "Finding the ford",
+      "score": ["max","party",["stat","perception"]],
+      "skills": [],
+      "flat": 5.29,
+      "difficultyFactor": 0.132
+    },
+    {
+      "key": "crossing",
+      "name": "The crossing",
+      "score": ["min","party",["weighted",[["strength",0.5],["constitution",0.5]]]],
+      "skills": [],
+      "flat": 2.81,
+      "difficultyFactor": 0.07
+    }
+  ],
+  "pass": ["or","ford","crossing"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"wealth","factor":0.95}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "sprained-ankle",
+        "chance": 0.15,
+        "count": 1,
+        "among": ["bottom","party",1,["stat","strength"]],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"wealth","factor":0.9}
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
-import type { EngineDeps, GameConfig } from '../config.js';
+import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Entry, Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
@@ -11,13 +11,13 @@ import { deserialise, serialise } from '../serialise.js';
 import { addStack, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
 import { xpForLevel } from '../progression.js';
-import { encounterCount } from '../quest-engine/encounters.js';
 import { regardValue } from '../regard.js';
 import { createStreams } from '../rng.js';
 import { effectiveStats, playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
 import {
   certainHarmContent,
+  deadlyAtEveryTier,
   harmlessContent,
   plannedStreams,
   testContent,
@@ -25,10 +25,12 @@ import {
   withDispositions,
   withEncounters,
   withValid,
+  setEncounters,
 } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { questsConclude } from './quests-conclude.js';
 import { applyAction } from '../actions/action.js';
+import { beatsPlayed, tierFigures } from '../tiers.js';
 
 // The night's `questsConclude` (DL-29), through the Quest Engine (DL-42). Parties are
 // sent by `dispatch` from created worlds and played to the afternoon before they come home; a test
@@ -128,8 +130,8 @@ function sentAway(
   const heroIds = guild.rosterIds.slice(0, size);
   const open = start.world.board
     .map((id) => start.world.quests[id] as Quest)
-    .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-      classKey === undefined && skillKey === undefined && partySizeMin <= size && size <= partySizeMax,
+    .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+      classKey === undefined && skillKey === undefined && partySizeMin <= size,
     );
   if (open === undefined) throw new Error(`No open Quest for ${size} on ${seed}'s first Board`);
   for (const [definitionKey, quantity] of consumables) addStack(start.world, definitionKey, quantity, { kind: 'guild', id: guild.id });
@@ -138,7 +140,7 @@ function sentAway(
   if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;
-  if (encounterKeys !== undefined) quest.encounterKeys = [...encounterKeys];
+  if (encounterKeys !== undefined) setEncounters(quest, encounterKeys);
   const party = sent.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
   const { document: eve, events } = playTo(withValid(sent.document, deps), party.returnsOnTurn - 1 - 3 * daysEarly, deps);
   return { eve, party: structuredClone(party), quest: structuredClone(quest), guildId: guild.id, heroIds, events };
@@ -216,7 +218,8 @@ describe('questsConclude', () => {
   // DL-182 item 1: the Quest's XP split across the Party sent, its Dead counted.
   for (const rival of [false, true]) {
     test(`gives each Hero who came home the Quest's XP split across the Party sent, the dead Hero nothing: ${rival ? "a Rival's" : "the player's"} Party`, () => {
-      const xp = { xpPerDifficultyPoint: 1, xpBandFactor: { fail: 0.5, success: 1, strong: 1 } };
+      // Every Tier's XP factor 1, so the XP is the difficulty's alone (DL-262).
+      const xp = { xpPerDifficultyPoint: 1, xpBandFactor: { fail: 0.5, success: 1, strong: 1 }, tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1 })) };
       const deps = rival ? testDeps({ rivalCount: 1, ...xp }, certainHarmContent) : soloDeps(xp, certainHarmContent);
       if (rival) stillRivalControllers();
       const { eve, guildId, heroIds } = sentAway(rival ? 'split-rival' : 'split', deps, { rival, size: 3, difficulty: 5000, encounterKeys: oneEncounter });
@@ -373,7 +376,7 @@ describe('questsConclude', () => {
   test("a quest.encounter names the Heroes its consequences hurt, and the Encounters' Morale moves each Hero home", () => {
     const deps = soloDeps(
       { moraleMin: 0, moraleMax: 100 },
-      withEncounters({ success: [{ kind: 'morale', delta: 2 }], failure: [{ kind: 'death', chance: 1 }, { kind: 'morale', delta: -3 }] }),
+      deadlyAtEveryTier(withEncounters({ success: [{ kind: 'morale', delta: 2 }], failure: [{ kind: 'death', chance: 1 }, { kind: 'morale', delta: -3 }] })),
     );
     const { eve, heroIds } = sentAway('named', deps, { size: 3, difficulty: 5000, encounterKeys: ['hold-the-line', 'hold-the-line'] });
 
@@ -453,7 +456,7 @@ describe('questsConclude', () => {
     const deps = soloDeps({}, harmlessContent);
     const { eve, party, quest } = sentAway('content-gone', deps);
     // The save names an Encounter the content in use no longer defines.
-    (eve.world.quests[quest.id] as Quest).encounterKeys = ['gone'];
+    setEncounters(eve.world.quests[quest.id] as Quest, ['gone']);
     const template = deps.content.questTemplates[quest.templateKey];
     if (template === undefined) throw new Error('No template');
     const encountersBefore = structuredClone(eve.world.rng.encounters);
@@ -461,8 +464,9 @@ describe('questsConclude', () => {
     const { document, events } = playTo(eve, party.returnsOnTurn, deps);
 
     const encounters = ofType(events, 'quest.encounter').filter((event) => event.payload.questId === quest.id);
-    expect(encounters).toHaveLength(encounterCount(template, quest.difficulty, deps.config));
-    for (const { payload } of encounters) expect(template.encounterKinds).toContain(payload.kind);
+    // One a Beat its Tier plays, each of its Beat's kind (DL-262).
+    const { beats } = beatsPlayed(template, tierFigures(template, quest.tier, deps.config).beats);
+    expect(encounters.map(({ payload }) => payload.kind)).toEqual(beats.map(({ pool }) => pool.kinds?.[0]));
     expect(document.world.rng.encounters).not.toEqual(encountersBefore);
     expect(ofType(events, 'quest.resolved')[0]?.payload.encounterCount).toBe(encounters.length);
   });
@@ -727,14 +731,14 @@ describe('questsConclude writes Regard once for each resolved Quest (DL-44)', ()
       checks: base.checks.map((it) => ({ ...structuredClone(it), difficultyFactor })),
       consequences: { success: [], failure },
     });
-    const content: ContentSet = {
+    const content: ContentSet = deadlyAtEveryTier({
       ...harmlessContent,
       encounters: {
         ...harmlessContent.encounters,
         'sure-pass': row('sure-pass', 1e-6, []),
         'sure-death': row('sure-death', 1e6, [{ kind: 'death', chance: 1 }]),
       },
-    };
+    });
     const deps = soloDeps(
       {
         ...regardPins,
@@ -878,7 +882,8 @@ describe('the Quest named on what its return causes', () => {
       moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
       hurtCheckFactor: 1,
     },
-    withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
+    // Its Deaths at every Tier, as they fell when the History was recorded (DL-265).
+    deadlyAtEveryTier(withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] })),
   );
   const seeds = ['named-a', 'named-b', 'named-c'] as const;
   /** Every event each game emitted, those its History does not record among them (DL-211). */
@@ -1030,6 +1035,27 @@ describe('the Quest named on what its return causes', () => {
     expect(failures).toEqual([...stripped.keys()].map((position) => ({ check: 'entry-field-missing', id: `$.history.entries[${position}]` })));
   });
 
+  test("a History with a Quest's offer or taking that names no Tier, or a Tier below 1, is refused, naming each entry (DL-262)", () => {
+    const document = played.get('named-a') as WorldDocument;
+    const { entries } = document.history;
+    const offered = entries.findIndex((entry) => entry.type === 'quest.offered');
+    const taken = entries.findIndex((entry) => entry.type === 'quest.taken');
+    const zero = entries.findIndex((entry, position) => entry.type === 'quest.offered' && position > offered);
+    expect(Math.min(offered, taken, zero)).toBeGreaterThanOrEqual(0);
+    const history = createHistory();
+    entries.forEach((entry, position) => {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      if (position === offered || position === taken) delete payload['tier'];
+      if (position === zero) payload['tier'] = 0;
+      append(history, { ...entry, payload } as Entry);
+    });
+
+    const loaded = deserialise(serialise({ ...document, history }), deps);
+
+    const failures = loaded.ok || loaded.reason.kind !== 'invalid' ? [] : loaded.reason.failures.map(({ check, id }) => ({ check, id }));
+    expect(failures).toEqual([offered, taken, zero].sort((a, b) => a - b).map((position) => ({ check: 'entry-field-missing', id: `$.history.entries[${position}]` })));
+  });
+
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];
@@ -1046,11 +1072,16 @@ describe('the Quest named on what its return causes', () => {
     // DL-157's 00de1d95…, db199b7c… and c5519e67…), and its balance pass (DL-166; 6ba3f040…,
     // d1b90581… and a72002b4…, the third's game unchanged by it); and a Quest's XP split across the
     // Party sent (DL-182, DL-184; f1e65b3b…, 096c92a2… and a72002b4…), which changes each
-    // `hero.xp-gained`'s amount and with it the Levels, their Stats and the wage.
+    // `hero.xp-gained`'s amount and with it the Levels, their Stats and the wage; and the Quests in
+    // Tiers and Beats (DL-262; ae34d056…, 83073fb4… and 20a8de88…), which change every Quest's figures
+    // and Encounters and name its Tier on its offer and its taking; and no Quest with a most Party
+    // (DL-266; d9c65ed6… and fa5362b7…, the third's game unchanged), which lets the Rivals' Best
+    // Parties grow past it; and the Board's Tiers unlocked by each Guild's best four (DL-271; bcbd90c0…,
+    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew.
     expect(fingerprints).toEqual([
-      'ae34d056cde2b428a3063c3e47ac28aa5b5d7e1fc31b2a3c9e39a1bf0fc170a7',
-      '83073fb4443fdb744f1bcf491b49960a7db4b70c93cfe3baba41e86e426dd11d',
-      '20a8de88e861bf65c27897fdedaace1f0b21073a52625bf6e76cb7a6f582a251',
+      '4aa6fab27234f409f0ac01e3536c93ec13dcb6debc6d9406529142233a25f634',
+      'd59db23614a6257893e8a6abdef780cf84c09d700756955ce3203821773e0f02',
+      '886645274c526d3c3e17d866e88d7f28e2eb295c170a541ac7001b6aee585b20',
     ]);
   });
 

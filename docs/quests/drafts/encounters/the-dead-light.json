@@ -1,0 +1,42 @@
+{
+  "name": "The dead-light",
+  "kind": "arcane",
+  "tags": ["dark","holy"],
+  "checks": [
+    {
+      "key": "consecration",
+      "name": "Consecration",
+      "score": ["sum",["where","party",["class","healer","mage"]],["weighted",[["spirit",0.5],["power",0.5]]]],
+      "skills": ["benediction","evocation"],
+      "flat": 4.84,
+      "difficultyFactor": 0.121,
+      "variance": 0.4
+    },
+    {
+      "key": "steadfast",
+      "name": "Steadfast",
+      "score": ["min","party",["weighted",[["willpower",0.5],["courage",0.5]]]],
+      "skills": [],
+      "flat": 2.06,
+      "difficultyFactor": 0.051,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","consecration","steadfast"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":2}],
+    "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      },
+      {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]}
+    ]
+  }
+}

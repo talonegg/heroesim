@@ -1,0 +1,40 @@
+{
+  "name": "Lost in the fells",
+  "kind": "travel",
+  "tags": ["wilds","hunt"],
+  "checks": [
+    {
+      "key": "bearings",
+      "name": "Bearings",
+      "score": ["max","party",["weighted",[["knowledge",0.5],["perception",0.5]]]],
+      "skills": ["herbalism"],
+      "flat": 3.26,
+      "difficultyFactor": 0.082
+    },
+    {
+      "key": "footing",
+      "name": "Footing",
+      "score": ["of",["worst","party",["stat","dexterity"]],["stat","wits"]],
+      "skills": [],
+      "flat": 2.29,
+      "difficultyFactor": 0.057
+    }
+  ],
+  "pass": ["and","bearings","footing"],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{ "kind": "xp", "factor": 1.2 }, { "kind": "trait", "traitKey": "wayfinder", "chance": 0.05 }],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["endurance","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "shattered-knee",
+        "chance": 0.08,
+        "count": 1,
+        "exposedBy": ["perception"],
+        "guardedBy": ["dexterity"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["endurance","willpower"]}
+    ]
+  }
+}

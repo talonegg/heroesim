@@ -1,9 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { encounterKinds, facilityKeys, gearSlotKeys, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
+import { tierFigures } from '@heroesim/engine';
+import { encounterKinds, facilityKeys, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, parseContent } from './index.js';
-import { contentDir, loadContent } from './node.js';
+import { contentSources, parseContent } from './index.js';
+import { contentDir, loadContent, readContentDir, readSource } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory.
 
@@ -223,22 +225,23 @@ describe('loadContent()', () => {
       for (const it of templates) expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
     });
 
-    // The ranges are content, not rules: the templates hold them (DL-25).
-    test('keep to INPUTS 4.2 and 4.3: 2 to 10 Days, a reward of 40 to 400, Fame 1 to 5, difficulty 10 to 100', () => {
+    // A Quest's difficulty, Days and reward are its Tier's, the ladder's in config (DL-257 item 1,
+    // DL-262); a template holds the Tiers it offers, its reward per difficulty and its Fame.
+    test('offer Tiers of the ladder, a reward of 4 to 5 a difficulty and Fame 1 to 5 (INPUTS 4.2 and 4.3)', () => {
       for (const it of templates) {
-        expect(it.durationDaysMin, it.key).toBeGreaterThanOrEqual(2);
-        expect(it.durationDaysMax, it.key).toBeLessThanOrEqual(10);
-        expect(it.difficultyMin, it.key).toBeGreaterThanOrEqual(10);
-        expect(it.difficultyMax, it.key).toBeLessThanOrEqual(100);
-        expect(Math.round(it.difficultyMin * it.rewardPerDifficulty), it.key).toBeGreaterThanOrEqual(40);
-        expect(Math.round(it.difficultyMax * it.rewardPerDifficulty), it.key).toBeLessThanOrEqual(400);
+        expect(it.tierMin, it.key).toBeGreaterThanOrEqual(1);
+        expect(it.tierMax, it.key).toBeLessThanOrEqual(tierLadder.length);
+        expect(it.rewardPerDifficulty, it.key).toBeGreaterThanOrEqual(4);
+        expect(it.rewardPerDifficulty, it.key).toBeLessThanOrEqual(5);
         expect(it.fameEffect, it.key).toBeGreaterThanOrEqual(1);
         expect(it.fameEffect, it.key).toBeLessThanOrEqual(5);
       }
     });
 
-    test('ask for a Party the starting Roster of four can field, a few with a Class or Skill required', () => {
+    test('ask for a Party of two or more the starting Roster of four can field, a few with a Class or Skill required (DL-257 item 6)', () => {
+      for (const it of templates) expect(it.partySizeMin, it.key).toBeGreaterThanOrEqual(2);
       for (const it of templates) expect(it.partySizeMin, it.key).toBeLessThanOrEqual(4);
+      for (const it of templates) expect(it, it.key).not.toHaveProperty('partySizeMax');
       const requiring = templates.filter(
         (it) => it.requires.classKey !== undefined || it.requires.skillKey !== undefined,
       );
@@ -246,11 +249,16 @@ describe('loadContent()', () => {
       expect(requiring.length).toBeLessThan(templates.length / 2);
     });
 
-    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1)', () => {
+    test('are drawn with 2 to 5 Encounters at every Tier they offer, more at the higher, overrides read (INPUTS 6.1, DL-262)', () => {
       for (const it of templates) {
-        expect(it.encountersMin, it.key).toBeGreaterThanOrEqual(2);
-        expect(it.encountersMax, it.key).toBeLessThanOrEqual(5);
-        expect(it.encountersMin, it.key).toBeLessThanOrEqual(it.encountersMax);
+        const counts = [];
+        for (let tier = it.tierMin; tier <= it.tierMax; tier += 1) {
+          const count = Math.min(tierFigures(it, tier, { tiers: tierLadder }).beats, it.beats.length + (it.finale === undefined ? 0 : 1));
+          expect(count, `${it.key} at Tier ${tier}`).toBeGreaterThanOrEqual(2);
+          expect(count, `${it.key} at Tier ${tier}`).toBeLessThanOrEqual(5);
+          counts.push(count);
+        }
+        expect(counts, it.key).toEqual([...counts].sort((a, b) => a - b));
       }
     });
   });
@@ -259,11 +267,10 @@ describe('loadContent()', () => {
   // (DL-162, DL-165): each in Checks scored by Queries over the Party, with a pass formula.
   describe('Encounters', () => {
     const encounters = Object.values(content.encounters);
-    /** Each Encounter as `encounters.json` writes it: the new form. */
-    const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
-      string,
-      { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }
-    >;
+    /** Each Encounter as its file in `encounters/` writes it: the new form. */
+    const written = Object.fromEntries(
+      Object.entries(readSource(contentDir, 'encounters/')).map(([name, text]) => [name.slice('encounters/'.length, -'.json'.length), JSON.parse(text)]),
+    ) as Record<string, { checks: Record<string, unknown>[]; pass?: unknown; consequences: Record<string, unknown[]> }>;
     const finales = new Set(Object.values(content.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
 
     // Drawn in their places: every kind has at least two that are no template's Finale (DL-162).
@@ -433,14 +440,14 @@ describe('loadContent()', () => {
     });
   });
 
-  // DL-52: the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
-  // templates carry one agrees with `defaultConfig.lootDifficultyThreshold`, which content cannot
-  // read: the harness's creation.test.ts holds that.
+  // DL-52: the templates carry a Loot table chosen by their Tiers (INPUTS 7.4, DL-262). That a
+  // table is named only where a template offers a Tier that pays Loot is the ladder's, which content
+  // cannot read: the harness's creation.test.ts holds that.
   describe('Loot tables', () => {
     const templates = Object.values(content.questTemplates);
     const tables = Object.values(content.lootTables);
 
-    test('are chosen by difficulty band: a harder template never names a lesser table than an easier one', () => {
+    test('are chosen by Tier: a template of higher Tiers never names a lesser table than one of lower', () => {
       // A table's rank is the mean worth of what one roll awards: its entries' quantity times price.
       const worth = (table: (typeof tables)[number]): number => {
         const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
@@ -451,10 +458,12 @@ describe('loadContent()', () => {
         return value / total;
       };
       const rank = [...tables].sort((a, b) => worth(a) - worth(b)).map((it) => it.key);
+      // By the Tiers each offers, the lower first (DL-262); templates of the same Tiers in any order.
+      const rankOf = (it: (typeof templates)[number]): number => rank.indexOf(it.lootTableKey ?? '');
       const named = templates
         .filter((it) => it.lootTableKey !== null)
-        .sort((a, b) => a.difficultyMin - b.difficultyMin)
-        .map((it) => rank.indexOf(it.lootTableKey ?? ''));
+        .sort((a, b) => a.tierMin - b.tierMin || a.tierMax - b.tierMax || rankOf(a) - rankOf(b))
+        .map(rankOf);
 
       expect(rank.length).toBeGreaterThan(1);
       expect(named).not.toContain(-1);
@@ -493,14 +502,56 @@ describe('loadContent()', () => {
 
 describe('the pure entry and the Node entry', () => {
   test('ignore files that are not content, as a glob of the directory would include', () => {
-    const files = Object.fromEntries(
-      [...contentFiles, 'package.json', 'tsconfig.json'].map((name) => [
-        name,
-        readFileSync(join(contentDir, name), 'utf8'),
-      ]),
-    );
+    const files = {
+      ...readContentDir(),
+      ...Object.fromEntries(['package.json', 'tsconfig.json'].map((name) => [name, readFileSync(join(contentDir, name), 'utf8')])),
+      'src/kinds/rows.json': '{ "not": "content" }',
+      'items/nested/short-sword.json': '{ "not": "a row" }',
+    };
 
     expect(parseContent(files)).toEqual(loadContent());
+  });
+});
+
+// DL-260: Quest templates, Encounters, Items and Loot tables are each a folder of one file a row,
+// named by its key, and the rest one file each, as each kind declares.
+describe('the content directory', () => {
+  test('holds the four folders and the other kinds as one file each', () => {
+    expect(contentSources.filter((source) => source.endsWith('/'))).toEqual(['quest-templates/', 'encounters/', 'items/', 'loot-tables/']);
+    for (const source of contentSources) expect(existsSync(join(contentDir, source)), source).toBe(true);
+    for (const source of ['quest-templates', 'encounters', 'items', 'loot-tables']) expect(existsSync(join(contentDir, `${source}.json`)), source).toBe(false);
+  });
+
+  test("reads each folder's rows from their own files, named by their keys, in key order", () => {
+    const content = loadContent();
+    for (const [place, source] of [['questTemplates', 'quest-templates/'], ['encounters', 'encounters/'], ['items', 'items/'], ['lootTables', 'loot-tables/']] as const) {
+      const keys = Object.keys(readSource(contentDir, source)).map((name) => name.slice(source.length, -'.json'.length));
+      expect(Object.keys(content[place]), place).toEqual([...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+      expect(keys.length, place).toBeGreaterThan(0);
+    }
+  });
+
+  // DL-260's verification: a folder's rows are its `.json` files alone, as the page's bundle finds
+  // them by `*.json`; another file there, a system's or an editor's, and a folder within it are not
+  // read. A source of the other shape, a file where a folder is declared or a folder where a file
+  // is, is no source.
+  test("reads a folder's .json files alone, and a source of the wrong shape as none", () => {
+    const dir = mkdtempSync(join(tmpdir(), 'heroesim-sources-'));
+    try {
+      mkdirSync(join(dir, 'items', 'old'), { recursive: true });
+      writeFileSync(join(dir, 'items', 'whetstone.json'), '{}');
+      writeFileSync(join(dir, 'items', 'notes.txt'), 'not a row');
+      writeFileSync(join(dir, 'items', '.DS_Store'), 'not a row');
+      writeFileSync(join(dir, 'items', 'old', 'short-sword.json'), '{}');
+      writeFileSync(join(dir, 'loot-tables'), '{}');
+      mkdirSync(join(dir, 'stats.json'));
+
+      expect(readSource(dir, 'items/')).toEqual({ 'items/whetstone.json': '{}' });
+      expect(readSource(dir, 'loot-tables/')).toEqual({});
+      expect(readSource(dir, 'stats.json')).toEqual({});
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

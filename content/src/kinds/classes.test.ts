@@ -9,15 +9,15 @@ import { shippedTexts, realFiles, parse, withJson, withText, refusalOf, warrior 
 // The Classes' order, declared (DL-186 item 24): each Class once, in the order every list shows them.
 describe("the Classes' order", () => {
   test('is the order class-order.json lists, kept when classes.json lists its keys in another order', () => {
-    const order = JSON.parse(shippedTexts['class-order.json']) as string[];
+    const order = JSON.parse(shippedTexts['class-order.json'] ?? '') as string[];
     expect(parse(realFiles()).classOrder).toEqual(order);
     const reordered = withText(
       'classes.json',
-      JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(shippedTexts['classes.json']) as Record<string, unknown>).reverse()), null, 2),
+      JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(shippedTexts['classes.json'] ?? '') as Record<string, unknown>).reverse()), null, 2),
     );
     const set = parse(reordered);
 
-    expect(Object.keys(set.classes)).toEqual(Object.keys(JSON.parse(shippedTexts['classes.json']) as object).reverse());
+    expect(Object.keys(set.classes)).toEqual(Object.keys(JSON.parse(shippedTexts['classes.json'] ?? '') as object).reverse());
     expect(set.classOrder).toEqual(order);
   });
 

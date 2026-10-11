@@ -109,14 +109,15 @@ const samples: Samples = {
   'load unsound-config': {
     action: 'load',
     reason: 'unsound-config',
-    problems: [{ setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' }],
-    message: "The game's config is unsound: boardSize is -1; it is a whole number, at least 0",
+    problems: [{ setting: 'boardSizeStart', message: 'boardSizeStart is -1; it is a whole number, at least 0' }],
+    message: "The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0",
   },
 
   'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion },
 
   'dispatch guild-folded': { action: 'dispatch', reason: 'guild-folded', guildId },
   'dispatch quest-not-offered': { action: 'dispatch', reason: 'quest-not-offered', questId: quest.id },
+  'dispatch fame-below-minimum': { action: 'dispatch', reason: 'fame-below-minimum', guildId, questId: quest.id, tier: 3, fameMinimum: 20, fame: 12 },
   'dispatch hero-not-on-roster': { action: 'dispatch', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
   'dispatch hero-unavailable': { action: 'dispatch', reason: 'hero-unavailable', heroId, because: 'injured' },
   'dispatch requirement-unmet': {
@@ -124,7 +125,7 @@ const samples: Samples = {
     reason: 'requirement-unmet',
     questId: quest.id,
     unmet: [
-      { requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 },
+      { requirement: 'party-size', size: 1, partySizeMin: 2 },
       { requirement: 'class', classKey: 'healer' },
       { requirement: 'skill', skillKey: 'lockpicking' },
     ],
@@ -272,16 +273,17 @@ const exactly: Record<keyof Samples, string> = {
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
   'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
-  'load unsound-config': "Cannot load the save: The game's config is unsound: boardSize is -1; it is a whole number, at least 0.",
+  'load unsound-config': "Cannot load the save: The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0.",
 
   'rebase already-current': `This game already plays under this release's rules, configVersion ${configVersion}.`,
 
   'dispatch guild-folded': 'The Lantern has folded and sends no one.',
   'dispatch quest-not-offered': `${questName} is not on the Board: it has been taken or has expired, or was never offered.`,
+  'dispatch fame-below-minimum': `${questName} is a Tier 3 Quest, open to a Guild of 20 Fame or more; The Lantern has 12, 8 short.`,
   'dispatch hero-not-on-roster': `${rivalHero.name} is not on the Roster of The Lantern.`,
   'dispatch hero-unavailable': `${hero.name} is injured and cannot go.`,
   'dispatch requirement-unmet':
-    `${questName} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
+    `${questName} needs a Party of at least 2 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
     `and a Hero with ${named(content.skills, 'lockpicking')} in the Party.`,
   'dispatch not-consumable': `${sword} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': `The Lantern holds no ${whetstone} to carry.`,
@@ -379,6 +381,7 @@ describe('with no world to name from', () => {
 
     expect(words('dispatch hero-not-on-roster')).toBe('That Hero is not on the Roster of that Guild.');
     expect(words('dispatch quest-not-offered')).toBe('That Quest is not on the Board: it has been taken or has expired, or was never offered.');
+    expect(words('dispatch fame-below-minimum')).toBe('That Quest is a Tier 3 Quest, open to a Guild of 20 Fame or more; that Guild has 12, 8 short.');
     expect(words('equip slot-occupied')).toBe("That Hero's weapon slot holds that Item: unequip it first.");
     expect(words('recruit insufficient-wealth')).toBe('The signing fee is 900 Wealth; your Guild has 500.');
   });

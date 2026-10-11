@@ -5,7 +5,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { deserialise, playerGuild, serialise, type ContentSet, type Guild, type World, type WorldDocument } from '@heroesim/engine';
+import { deserialise, playerGuild, serialise, type ContentSet, type Guild, type Quest, type World, type WorldDocument } from '@heroesim/engine';
 import { afterEach, beforeEach } from 'vitest';
 import type { CliIo } from './context.js';
 import { main } from './main.js';
@@ -42,6 +42,22 @@ export function thePlayer(world: World): Guild {
   const guild = playerGuild(world);
   if (guild === undefined) throw new Error("No player's Guild");
   return guild;
+}
+
+/**
+ * The Quest on `world`'s Board that any two Heroes may take, no Class or Skill asked and a Party of two
+ * enough, the longest of them: chosen by what it asks, not by its template, so that a test sending a
+ * Party rests on no Board the content as shipped draws (DL-272).
+ */
+export function openToTwo(world: World): Quest {
+  const open = world.board.flatMap((id) => {
+    const quest = world.quests[id];
+    const asks = quest?.requirements;
+    return quest !== undefined && asks !== undefined && asks.partySizeMin <= 2 && asks.classKey === undefined && asks.skillKey === undefined ? [quest] : [];
+  });
+  const longest = open.reduce<Quest | undefined>((most, each) => (most === undefined || each.durationTurns > most.durationTurns ? each : most), undefined);
+  if (longest === undefined) throw new Error('No Quest on the Board that any two Heroes may take');
+  return longest;
 }
 
 /** The line of `output` that starts with `id`: a row of a table keyed by id. */

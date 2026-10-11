@@ -1,0 +1,30 @@
+{
+  "name": "Frightened villagers",
+  "kind": "social",
+  "tags": ["town","recover"],
+  "checks": [
+    {
+      "key": "reassurance",
+      "name": "Reassurance",
+      "score": ["max","party",["weighted",[["charisma",0.6],["spirit",0.4]]]],
+      "skills": ["benediction"],
+      "flat": 4.72,
+      "difficultyFactor": 0.118
+    },
+    {
+      "key": "fitting-in",
+      "name": "Fitting in",
+      "score": ["avg","party",["stat","adaptability"]],
+      "skills": [],
+      "flat": 3.82,
+      "difficultyFactor": 0.096
+    }
+  ],
+  "pass": ["or","reassurance","fitting-in"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":1},{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["adaptability"]}],
+    "failure": [{"kind":"fame","delta":-1},{"kind":"morale","delta":-2,"steadiedBy":["adaptability"]}]
+  }
+}

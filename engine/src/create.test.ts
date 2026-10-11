@@ -4,6 +4,7 @@ import type { Disposition } from './content-types.js';
 import { configVersion } from './config.js';
 import { makeId, schemaVersion, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
+import { boardSizeAt } from './phases/board-refresh.js';
 import { ageIntoPortrait } from './portraits.js';
 import { validate } from './validate.js';
 import { testDeps, withoutPortraits, withValid } from './world.test-support.js';
@@ -219,20 +220,39 @@ describe('createWorld', () => {
     ]);
   });
 
+  test("founds every Guild, the player's and each Rival's, at foundingFame, the world otherwise as before (#40, DL-261)", () => {
+    const famous = testDeps({ foundingFame: 30 });
+    const { document } = createWorld('famous', setup, famous);
+    withValid(document, famous);
+    const plain = createWorld('famous', setup, testDeps()).document;
+
+    const guilds = Object.values(document.world.guilds);
+    expect(guilds.map((guild) => guild.controller.kind).sort()).toEqual(['player', ...Array<string>(famous.config.rivalCount).fill('rival')]);
+    for (const guild of guilds) expect(guild.fame, guild.id).toBe(30);
+    for (const guild of Object.values(plain.world.guilds)) guild.fame = 30;
+    expect(document.world).toEqual(plain.world);
+  });
+
+  test('opens on a Board of boardSizeStart, the start of its growth (DL-261)', () => {
+    const deps = testDeps({ boardSizeStart: 3, boardGrowthPerYear: 2, boardSizeMax: 9 });
+    expect(createWorld('small-board', setup, deps).document.world.board).toHaveLength(3);
+  });
+
   test('opens on a full Board, drawn last and from the board stream alone (DL-25)', () => {
     const deps = testDeps();
     const { document, events } = createWorld('first-board', setup, deps);
     withValid(document, deps);
     const { world, history } = document;
     // The same world with no first Board (DL-25).
-    const empty = createWorld('first-board', setup, testDeps({ boardSize: 0 })).document;
+    const empty = createWorld('first-board', setup, testDeps({ boardSizeStart: 0, boardSizeMax: 0 })).document;
+    const size = boardSizeAt(0, deps.config);
 
-    expect(world.board).toHaveLength(deps.config.boardSize);
+    expect(world.board).toHaveLength(size);
     for (const questId of world.board) {
       expect(world.quests[questId]).toMatchObject({ status: 'offered', offeredOnTurn: 0 });
     }
-    expect(count(history, 'quest.offered')).toBe(deps.config.boardSize);
-    expect(events.slice(-deps.config.boardSize).map((event) => event.participants[0])).toEqual(world.board);
+    expect(count(history, 'quest.offered')).toBe(size);
+    expect(events.slice(-size).map((event) => event.participants[0])).toEqual(world.board);
     expect(world.rng.generation).toEqual(empty.world.rng.generation);
     expect(world.rng.board).not.toEqual(empty.world.rng.board);
     for (const table of ['guilds', 'guildmasters', 'heroes', 'patrons'] as const) {

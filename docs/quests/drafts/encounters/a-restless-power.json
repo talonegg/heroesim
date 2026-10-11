@@ -1,0 +1,43 @@
+{
+  "name": "A restless power",
+  "kind": "arcane",
+  "tags": ["dark"],
+  "checks": [
+    {
+      "key": "binding",
+      "name": "Binding",
+      "score": ["ranked","party",["stat","power"],[1,0.5]],
+      "skills": ["evocation","warding"],
+      "flat": 5.2,
+      "difficultyFactor": 0.13,
+      "variance": 0.4
+    },
+    {
+      "key": "resisting",
+      "name": "Resisting",
+      "score": ["min","party",["stat","resistance"]],
+      "skills": [],
+      "flat": 1.59,
+      "difficultyFactor": 0.04,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","binding","resisting"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":2}],
+    "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.15,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["resistance"]},
+      {"kind":"trait","traitKey":"haunted","chance":0.08}
+    ]
+  }
+}

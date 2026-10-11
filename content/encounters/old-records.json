@@ -1,0 +1,30 @@
+{
+  "name": "Old records",
+  "kind": "lore",
+  "tags": ["study","recover"],
+  "checks": [
+    {
+      "key": "reading",
+      "name": "Reading",
+      "score": ["max","party",["weighted",[["knowledge",0.6],["intelligence",0.4]]]],
+      "skills": ["runecraft"],
+      "flat": 4.77,
+      "difficultyFactor": 0.119
+    },
+    {
+      "key": "sifting",
+      "name": "Sifting",
+      "score": ["sum",["top","party",2,["stat","intelligence"]],["stat","intelligence"]],
+      "skills": [],
+      "flat": 7.98,
+      "difficultyFactor": 0.199
+    }
+  ],
+  "pass": ["or","reading","sifting"],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+    "failure": [{"kind":"wealth","factor":0.95},{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}]
+  }
+}

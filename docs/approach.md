@@ -136,8 +136,10 @@ a History entry. Front ends narrate them; the History stores them; tests assert 
 
 ## 4. Content
 
-JSON files under `content/` (ADR-0007), one Content kind to a file, each read and checked by its
-module in `content/src/kinds/`; `kinds/index.ts` lists them (DL-243). The engine reads content by
+JSON files under `content/` (ADR-0007), one Content kind to a file, or to a folder of one file a
+row named by its key, as its kind declares: Quest templates, Encounters, Items and Loot tables are
+folders (DL-260). Each is read and checked by its module in `content/src/kinds/`; `kinds/index.ts`
+lists them (DL-243). The engine reads content by
 key. Adding a Stat, Class, Trait or Synergy is a content change; a new kind of condition or effect
 is an engine change, and rare (ADR-0006). The format is revisited when authored Campaign prose
 arrives.

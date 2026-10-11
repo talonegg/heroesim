@@ -1,0 +1,17 @@
+{
+  "name": "A quiet word",
+  "sphereKeys": ["underworld"],
+  "tags": ["talk", "town"],
+  "tierMin": 1, "tierMax": 2,
+  "rewardPerDifficulty": 5,
+  "fameEffect": 1,
+  "partySizeMin": 2,
+  "skillKeys": ["stealth", "lockpicking"],
+  "requires": {},
+  "lootTableKey": null,
+  "beats": [
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } }
+  ]
+}

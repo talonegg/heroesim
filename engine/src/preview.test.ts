@@ -9,7 +9,7 @@ import { estimateQuest } from './quest-engine/estimate.js';
 import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
-import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
+import { buildDocument, setEncounters, testContent, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
 // The dispatch preview (DL-66): what a proposed Party would meet on a Quest from the Board,
@@ -30,8 +30,8 @@ function proposal() {
   const player = world.guilds[built.ids.playerGuild] as Guild;
   const [warrior, rogue, mage, healer] = player.rosterIds as [HeroId, HeroId, HeroId, HeroId];
   const quest = world.quests[built.ids.offeredQuest] as Quest;
-  quest.encounterKeys = ['ambush-on-the-road', 'the-long-march', 'past-the-watch'];
-  quest.requirements = { partySizeMin: 2, partySizeMax: 3, classKey: 'mage', skillKey: 'lockpicking' };
+  setEncounters(quest, ['ambush-on-the-road', 'the-long-march', 'past-the-watch']);
+  quest.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
   addStack(world, 'whetstone', 2, { kind: 'guild', id: player.id });
   return { document: withValid(document, deps), ids: built.ids, player, quest, warrior, rogue, mage, healer };
 }
@@ -61,7 +61,7 @@ describe('previewDispatch', () => {
     const meeting = previewDispatch(world, request(setting, [setting.rogue, setting.mage]), deps);
 
     expect(missing?.requirements).toEqual([
-      { requirement: 'party-size', met: false, size: 1, partySizeMin: 2, partySizeMax: 3 },
+      { requirement: 'party-size', met: false, size: 1, partySizeMin: 2},
       { requirement: 'class', met: false, classKey: 'mage' },
       { requirement: 'skill', met: false, skillKey: 'lockpicking' },
     ]);
@@ -71,11 +71,11 @@ describe('previewDispatch', () => {
   test('lists only the requirements the Quest has: the Party size alone when it names no Class or Skill', () => {
     const setting = proposal();
     const world: World = structuredClone(setting.document.world);
-    (world.quests[setting.quest.id] as Quest).requirements = { partySizeMin: 1, partySizeMax: 4 };
+    (world.quests[setting.quest.id] as Quest).requirements = { partySizeMin: 1 };
 
     const preview = previewDispatch(world, request(setting, [setting.rogue]), deps);
 
-    expect(preview?.requirements).toEqual([{ requirement: 'party-size', met: true, size: 1, partySizeMin: 1, partySizeMax: 4 }]);
+    expect(preview?.requirements).toEqual([{ requirement: 'party-size', met: true, size: 1, partySizeMin: 1}]);
   });
 
   test('names each Hero who cannot go, by dispatch\'s own test, in the order named', () => {
@@ -139,7 +139,7 @@ describe('previewDispatch', () => {
     expect(preview?.chances?.encounters.map((it) => it.encounterKey)).toEqual(setting.quest.encounterKeys);
     expect(preview?.chances?.ifNoOneFalls).toBe(true);
     expect(previewDispatch(world, request(setting, []), deps)?.chances).toBeNull();
-    setting.quest.encounterKeys = ['no-such-encounter'];
+    setEncounters(setting.quest, ['no-such-encounter']);
     expect(previewDispatch(world, request(setting, party), deps)?.chances).toBeNull();
   });
 
@@ -153,7 +153,7 @@ describe('previewDispatch', () => {
     warrior.partyId = null;
 
     const drawn = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
-    (world.quests[setting.quest.id] as Quest).encounterKeys = ['no-such-encounter'];
+    setEncounters(world.quests[setting.quest.id] as Quest, ['no-such-encounter']);
     const onTheWay = previewDispatch(world, request(setting, [setting.warrior, ...party]), deps);
 
     expect(drawn?.synergies.find(({ synergy }) => synergy.key === 'a-full-company')?.encounters).toBe(3);

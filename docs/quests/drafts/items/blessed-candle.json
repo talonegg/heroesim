@@ -1,0 +1,8 @@
+{
+  "name": "Blessed candle",
+  "kind": "consumable",
+  "unique": false,
+  "effect": {"kind":"reroll","kinds":["arcane","social"]},
+  "buyPrice": 60,
+  "tags": ["holy"]
+}

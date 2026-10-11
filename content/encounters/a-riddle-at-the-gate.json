@@ -1,0 +1,40 @@
+{
+  "name": "A riddle at the gate",
+  "kind": "lore",
+  "tags": ["delve","dark","study"],
+  "checks": [
+    {
+      "key": "answer",
+      "name": "The answer",
+      "score": ["max","party",["weighted",[["intelligence",0.6],["arcana",0.4]]]],
+      "skills": [],
+      "flat": 4.73,
+      "difficultyFactor": 0.118
+    },
+    {
+      "key": "second-guess",
+      "name": "A second guess",
+      "score": ["max","party",["stat","wits"]],
+      "skills": [],
+      "flat": 4.78,
+      "difficultyFactor": 0.12
+    }
+  ],
+  "pass": ["or","answer","second-guess"],
+  "consequences": {
+    "success": [],
+    "triumph": [{"kind":"xp","factor":1.1}],
+    "setback": [{"kind":"morale","delta":-1,"steadiedBy":["willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "eye-wound",
+        "chance": 0.08,
+        "count": 1,
+        "exposedBy": ["resistance"],
+        "guardedBy": ["resistance"]
+      },
+      {"kind":"morale","delta":-2,"steadiedBy":["willpower"]}
+    ]
+  }
+}

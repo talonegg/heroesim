@@ -8,10 +8,11 @@ import { content, coreDeps, twentyDays } from './harness.test-support.js';
 import { defaultPolicyConfig } from './policy.js';
 import { coreCounters } from './module-report.js';
 import { machine, whole } from './report.js';
-import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
+import { addCommand, compareRuns, jsonPathOf, parseRunReport, readRunReport, reportAt, runReport, runReportJson, writeRunReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { sweepFingerprint, sweepPlay, type PlaySweep } from './sweep.js';
+import { targetsOf } from './targets.js';
 
 // DL-186 item 13: a play sweep's JSON report beside its Markdown, and two runs compared.
 
@@ -60,6 +61,18 @@ describe("a play sweep's JSON report", () => {
     expect(readRunReport(path)).toEqual(withNaN);
     expect(readRunReport(join(scratch, 'm9-v116-s2-2026-10-05.md'))).toEqual(withNaN);
     expect(readFileSync(path, 'utf8').endsWith('}\n')).toBe(true);
+  });
+
+  test('holds the Targets, set against the baseline given (DL-259)', () => {
+    expect(report.targets).toEqual(targetsOf(sweep, deps.config.turnsPerYear, null));
+    const against = runReport(sweep, { ...context, baseline: { path: 'x.json', run: report } });
+    expect(against.targets?.baseline).toEqual({ report: 'x.json', milestone: 'm9-v116-s2', games: 2, years, fingerprint: report.fingerprint });
+  });
+
+  test('finds a report by its path, or its name in harness/reports/, with or without .json', () => {
+    expect(reportAt('v1.1.9-gate-2026-10-10').replaceAll('\\', '/')).toMatch(/harness\/reports\/v1\.1\.9-gate-2026-10-10\.json$/);
+    expect(reportAt('harness/reports/v1.1.9-gate-2026-10-10.json')).toBe('harness/reports/v1.1.9-gate-2026-10-10.json');
+    expect(() => reportAt('no-such-report')).toThrow('No report at no-such-report');
   });
 
   test('refuses what is not a run report of its format', () => {

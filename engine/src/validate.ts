@@ -344,9 +344,11 @@ type FieldKind =
   | 'string'
   | 'number'
   | 'integer'
+  | 'integer-from-one'
   | 'boolean'
   | 'list'
   | 'list-of-one-or-more'
+  | 'list-of-strings'
   | 'map'
   | 'string-or-null'
   | 'sex'
@@ -372,10 +374,14 @@ const kindTests: Record<FieldKind, (value: unknown) => boolean> = {
   // Finiteness is json-safe's to report.
   number: (value) => typeof value === 'number',
   integer: isInteger,
+  // A Quest's Tier: the ladder's first is 1 (DL-262).
+  'integer-from-one': (value) => isInteger(value) && (value as number) >= 1,
   boolean: (value) => typeof value === 'boolean',
   list: (value) => Array.isArray(value),
   // A Quest's Encounters: every Quest is drawn with one or more (DL-248).
   'list-of-one-or-more': (value) => Array.isArray(value) && value.length > 0,
+  // A Quest's Beats' lines (DL-262).
+  'list-of-strings': (value) => Array.isArray(value) && value.every((item) => typeof item === 'string'),
   map: isMap,
   'string-or-null': (value) => value === null || typeof value === 'string',
   // One of the engine's `sexes` (v1.1.2-S6): a front end finds a Portrait's folder by it.
@@ -496,6 +502,7 @@ const questFields: Shape<Quest> = {
   id: 'string',
   templateKey: 'string',
   patronId: 'string',
+  tier: 'integer-from-one',
   difficulty: 'number',
   tags: 'list',
   reward: 'number',
@@ -503,6 +510,7 @@ const questFields: Shape<Quest> = {
   durationTurns: 'integer',
   skillKeys: 'list',
   encounterKeys: 'list-of-one-or-more',
+  beatLines: 'list-of-strings',
   requirements: 'map',
   lootTableKey: 'string-or-null',
   status: 'string',
@@ -593,8 +601,12 @@ function documentShape(document: unknown, from: number): ValidationFailure[] {
     return failures.length === before;
   };
 
-  /** The parts of a row a later check walks below its fields: a holder. */
+  /** The parts of a row a later check walks below its fields: a holder, and a Quest's lines beside its Encounters. */
   const rowParts = (table: TableName, id: string, row: Record<string, unknown>): void => {
+    if (table === 'quests' && (row.beatLines as unknown[]).length !== (row.encounterKeys as unknown[]).length) {
+      const path = ['world', table, id, 'beatLines'];
+      fail(path, `${formatPath(path)} holds ${(row.beatLines as unknown[]).length} lines for ${(row.encounterKeys as unknown[]).length} Encounters; it holds one for each (DL-262)`);
+    }
     if (table === 'items' || table === 'stacks') {
       const path = ['world', table, id, 'holder'];
       const holder = row.holder as Record<string, unknown>;
@@ -1313,8 +1325,9 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 /**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
  * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), an entry of a cause a
- * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), and an Encounter's names its
- * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247).
+ * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), an Encounter's names its
+ * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247), and a Quest's offer and its
+ * taking name its Tier, a whole number from 1 (DL-262).
  */
 function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1331,6 +1344,9 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
     }
     if (entry.type === 'quest.encounter' && (typeof payload.degree !== 'string' || typeof payload.decidedBy !== 'string' || !Array.isArray(payload.checks))) {
       failures.push({ check: 'entry-field-missing', id, detail: `${id} records an Encounter and names no Degree, deciding Check or Checks rolled` });
+    }
+    if ((entry.type === 'quest.offered' || entry.type === 'quest.taken') && !kindTests['integer-from-one'](payload.tier)) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} offers or takes a Quest and names no Tier` });
     }
   }
   return failures;

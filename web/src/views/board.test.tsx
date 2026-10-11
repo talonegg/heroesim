@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test } from 'vitest';
 import { chanceWords, shownPercent } from '@heroesim/words';
 import { App } from '../app';
+import { content } from '../content';
 import { changed, documentOf, estimateOf, holding, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
@@ -31,13 +32,23 @@ function heroesOf(state: GameState): Hero[] {
   return (guild?.rosterIds ?? []).map((id) => world.heroes[id] as Hero);
 }
 
+/** The key of an Encounter in content whose Failure may kill, which makes a Quest of Tier 4 Deadly (DL-265). */
+function anEncounterThatKills(): string {
+  const killer = Object.values(content.encounters).find((encounter) => encounter.consequences.failure.some((it) => it.kind === 'death' && it.chance > 0));
+  if (killer === undefined) throw new Error('No Encounter that kills');
+  return killer.key;
+}
+
+/** The first Quest's Beats' lines, made to order (`madeToOrder`). */
+const beatLines = ['Past the gate unseen.', 'Steel on the road.', 'A door that bites.', 'Hold until dawn.', 'The long way home.'];
+
 /**
- * A new game whose first Quest is made to order: difficulty 54 on a Board of 19 to 89, 5 Days away,
- * 243 Wealth, Fame 2, a Party of 1 to 3 with a Hero with Herbalism among them, on its last Day; it
+ * A new game whose first Quest is made to order: Tier 2, difficulty 54 on a Board of 19 to 89, 5 Days away,
+ * 243 Wealth, Fame 2, a Party of 1 or more with a Hero with Herbalism among them, on its last Day; it
  * meets Past the watch, Ambush on the road, The trapped passage, Hold the line and The long march,
  * stealth, combat, stealth, combat and travel, whose Checks read Dexterity, Wits, Perception,
- * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order.
- * The last Hero on the Roster has Herbalism 2.
+ * Weaponry, Strength, Courage, Constitution, Endurance, Leadership and Willpower, in that order, each
+ * the Beat of a line of its own (`beatLines`). The last Hero on the Roster has Herbalism 2.
  */
 function madeToOrder(from: GameState = started()): GameState {
   return changed(from, (document, player) => {
@@ -54,9 +65,11 @@ function madeToOrder(from: GameState = started()): GameState {
     first.durationTurns = 15;
     first.reward = 243;
     first.fameEffect = 2;
-    first.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
+    first.requirements = { partySizeMin: 1, skillKey: 'herbalism' };
     first.expiresOnTurn = 2;
+    first.tier = 2;
     first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
+    first.beatLines = beatLines;
   });
 }
 
@@ -116,12 +129,14 @@ describe('a Quest card', () => {
     const name = within(card).getByRole('heading', { level: 3 }).textContent ?? '';
     expect(within(card).getByText(patron?.name ?? '')).toBeDefined();
     const terms = within(card).getByRole('list', { name: `The terms of ${name}` });
+    // Its Tier, the Days and the reward first (DL-257, DL-269); not Deadly, so no mark.
     expect(within(terms).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Difficulty 54',
+      'Tier 2',
       '5 Days away',
       '243 Wealth',
+      'Difficulty 54',
       'Fame ±2',
-      '1 to 3 Heroes',
+      '1 or more Heroes',
       'Needs a Hero with Herbalism',
       'Leaves today',
     ]);
@@ -138,7 +153,7 @@ describe('a Quest card', () => {
   test('says "Your best Party:" with a chance word and who, or that no Party of the free Heroes meets the requirements', () => {
     const state = changed(madeToOrder(), (document) => {
       const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
-      second.requirements = { partySizeMin: 1, partySizeMax: 2, classKey: 'no-such-class' };
+      second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
     });
     render(<App initial={state} />);
     const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
@@ -149,6 +164,42 @@ describe('a Quest card', () => {
     // The Quest needs a Hero with Herbalism, whom only the last Hero has: they are of the Party.
     expect(best.textContent).toContain(heroesOf(state).at(-1)?.name ?? '');
     expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your free Heroes meets its requirements.');
+  });
+
+  // DL-264: a Quest the player's Guild may not take, its Tier's Fame minimum above the Guild's Fame.
+  test("says, in place of a Quest's best Party, why the Guild may not take it", () => {
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      const tiers = document.meta.config.tiers.map((row, index) => ({ ...row, fameMinimum: index + 1 === second.tier ? 9 : 0 }));
+      document.meta = { ...document.meta, config: { ...document.meta.config, tiers } };
+    });
+    render(<App initial={state} />);
+    const [, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+
+    expect(within(second).getByTestId('best-party').textContent).toMatch(/^.+ is a Tier \d Quest, open to a Guild of 9 Fame or more; .+ has \d+, \d+ short\.$/);
+  });
+
+  // DL-257 item 5, Q18 b: a Quest that can kill is marked Deadly on its card, after its Tier, with no figure (DL-269).
+  test('marks a Deadly Quest after its Tier, the mark saying what it means with no figure, and no other', () => {
+    const killer = anEncounterThatKills();
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      Object.assign(second, { tier: 4, encounterKeys: [killer], beatLines: ['A line.'] });
+    });
+    render(<App initial={state} />);
+    const [first, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+    const termsOf = (card: HTMLElement): string[] =>
+      [...card.querySelectorAll('.quest__chips > li')].map((item) => item.textContent ?? '');
+
+    expect(termsOf(second).slice(0, 2)).toEqual(['Tier 4', 'Deadly']);
+    const mark = within(second).getByText('Deadly').closest('.chip');
+    expect(mark?.getAttribute('title')).toBe('A Hero may die on this Quest');
+    expect(mark?.className).toContain('chip--bad');
+    // The alert icon beside the word (DL-269 item 2).
+    const alert = render(<Icon name="alert" />).container.querySelector('svg')?.innerHTML;
+    expect(mark?.querySelector('svg')?.innerHTML).toBe(alert);
+    expect(second.textContent).not.toMatch(/\d+ ?%/);
+    expect(termsOf(first)).not.toContain('Deadly');
   });
 
   test("unfolds from its name to its Encounters, each Check's name and what it reads, the Skills that help, and its difficulty against the Board", () => {
@@ -265,6 +316,41 @@ describe('the Board', () => {
 });
 
 describe('the Party builder', () => {
+  // DL-257, DL-269: the Quest's narrative, its Beats' lines in the order it plays them, at the head of the builder; the least Party in the checklist; no Death figure.
+  test("opens on the Quest's Beats' lines in order, and says the least Party it takes in the requirements, with no Death figure", () => {
+    // A Deadly Quest, where a Death figure would be if the builder gave one (Q18 b).
+    const killer = anEncounterThatKills();
+    const state = changed(madeToOrder(), (document) => {
+      const first = document.world.quests[document.world.board[0] as QuestId] as Quest;
+      Object.assign(first, { tier: 4, encounterKeys: [...first.encounterKeys.slice(0, 4), killer] });
+    });
+    render(<App initial={state} />);
+    expect(within(firstCard()).getByText('Deadly')).toBeDefined();
+    // What the builder says, shown, read only by a screen reader, or in a tooltip.
+    const said = (form: HTMLElement): string =>
+      [form, ...form.querySelectorAll('*')].flatMap((element) => [element.getAttribute('title'), element.getAttribute('aria-label')]).join(' ') + ` ${form.textContent ?? ''}`;
+    const noDeath = /\bDeath\b|\bdie\b|\bDeadly\b/;
+
+    const form = chooseForFirst();
+    expect(said(form)).not.toMatch(noDeath);
+
+    const beats = within(form).getByTestId('beats');
+    expect(beats.tagName).toBe('OL');
+    expect(within(beats).getAllByRole('listitem').map((item) => item.textContent)).toEqual(beatLines);
+    expect(within(form).getAllByRole('heading', { level: 4 })[0]?.textContent).toBe('Beats');
+    // Before the Heroes are chosen.
+    expect(beats.compareDocumentPosition(within(form).getByRole('group', { name: 'Heroes' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(form).getByText(/^A Party of at least 1 \(0 chosen\)/)).toBeDefined();
+
+    // A Hero chosen: the floor met and the chances given, still with no Death figure.
+    const [box] = within(form).getAllByRole('checkbox').filter((it) => !(it as HTMLInputElement).disabled);
+    if (box === undefined) throw new Error('No Hero free to go');
+    fireEvent.click(box);
+    expect(within(form).getByText(/^A Party of at least 1 \(1 chosen\)/)).toBeDefined();
+    expect(within(form).getByTestId('chances')).toBeDefined();
+    expect(said(form)).not.toMatch(noDeath);
+  });
+
   test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; the Stats the Quest's Checks read; the Skills it names; and no Hero's Morale (DL-148 item 12)", () => {
     let names: string[] = [];
     const state = changed(madeToOrder(), (document) => {
@@ -451,7 +537,7 @@ describe('the Party builder', () => {
     const verdict = within(form).getByRole('status');
 
     expect(checklist()).toEqual([
-      ['is-missed', 'A Party of 1 to 3 (0 chosen): missed'],
+      ['is-missed', 'A Party of at least 1 (0 chosen): missed'],
       ['is-missed', 'A Hero with Herbalism: missed'],
     ]);
     expect(verdict.className).toBe('banner banner--bad');
@@ -464,7 +550,7 @@ describe('the Party builder', () => {
     fireEvent.click(within(healer).getByRole('checkbox'));
 
     expect(checklist()).toEqual([
-      ['is-met', 'A Party of 1 to 3 (1 chosen): met'],
+      ['is-met', 'A Party of at least 1 (1 chosen): met'],
       ['is-met', 'A Hero with Herbalism: met'],
     ]);
     expect(verdict.className).toBe('banner banner--good');
@@ -647,7 +733,9 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
 
   test('goes when its Quest leaves the Board', async () => {
     render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
-    const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
+    // The Quest by its heading's id, since two Quests of one template share a name (DL-273).
+    const questHeading = within(firstCard()).getByRole('heading', { level: 3 }).id;
+    expect(questHeading).not.toBe('');
     chooseSome();
 
     // The first Quest's last Day is today: a Day on, it has left the Board, and its choice with it.
@@ -656,7 +744,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
       await idle();
     }
     const board = openView('Board');
-    expect(within(board).queryByRole('heading', { level: 3, name: questName })).toBeNull();
+    expect(within(board).getAllByRole('heading', { level: 3 }).map((heading) => heading.id)).not.toContain(questHeading);
     for (const card of within(board).getAllByRole('article')) expect(within(card).queryByRole('form')).toBeNull();
   });
 

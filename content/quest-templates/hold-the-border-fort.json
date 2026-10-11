@@ -1,0 +1,21 @@
+{
+  "name": "Hold the border fort",
+  "sphereKeys": ["crown"],
+  "tags": ["guard", "fight", "wilds"],
+  "tierMin": 3,
+  "tierMax": 5,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 4,
+  "partySizeMin": 3,
+  "skillKeys": ["tactics", "shieldwork"],
+  "requires": { "classKey": "warrior" },
+  "lootTableKey": "greater-loot",
+  "beats": [
+    { "line": "The Party marches hard to reach the fort before the raiders.", "pool": { "kinds": ["travel"], "tags": ["wilds", "guard"] } },
+    { "line": "The raiders strike first, on the road in and at the walls.", "pool": { "kinds": ["combat"], "tags": ["guard", "escort"] } },
+    { "line": "Border folk crowd behind the walls, and fear runs high.", "pool": { "encounters": ["frightened-villagers", "a-hostile-reeve"] } },
+    { "line": "As the siege tightens, the Party rides out for help and must fight its way back.", "pool": { "kinds": ["combat"], "tags": ["guard", "escort", "hunt"] } }
+  ],
+  "finale": "the-last-assault",
+  "finaleLine": "At dawn the raiders' last assault breaks on the walls."
+}

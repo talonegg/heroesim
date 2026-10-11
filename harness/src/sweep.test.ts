@@ -25,6 +25,7 @@ import { seedNames } from './seeds.js';
 import { sweepTotals } from './counter.js';
 import { playReport } from './play-report.js';
 import { compareReplay, replayedGame, sweepFingerprint, sweepPlay, sweepPlayInParallel, type PlaySweep } from './sweep.js';
+import { targetsOf, targetsSection } from './targets.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (DL-34).
@@ -366,6 +367,9 @@ describe('sweepPlay', () => {
 
     const [first, second] = sweep.games as [GameRecord, GameRecord];
     const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    /** The takings of the first Tier the first game took a Quest of, whichever Tiers its Board offered (DL-273). */
+    const taken = Object.values(first.counters.questTiers).find((tier) => Object.keys(tier.byController).length > 0)?.byController;
+    if (taken === undefined) throw new Error('The first game took no Quest');
     /** The first game's counters with a number in every counter: those a game of 20 Days leaves `null` or empty, filled. */
     const template: GameCounters = {
       ...first.counters,
@@ -385,6 +389,8 @@ describe('sweepPlay', () => {
       offers: { player: { steady: noOffers() } },
       moduleEvents: { 'probe.fired': 1 },
       moduleEffects: { probe: { 'hero.injured': 1 } },
+      // Tier 5, which a game this short may offer and leave untaken, given the takings of a Tier it took.
+      questTiers: { ...first.counters.questTiers, 5: { offered: 1, byController: structuredClone(taken) } },
     };
     const games = [numbered(template, 1), numbered(template, 10_000)].map((counters, index) => ({ ...(index === 0 ? first : second), counters }));
     const summed = sweepTotals({ ...sweep, games }, deps.config.turnsPerYear);
@@ -582,13 +588,38 @@ describe('sweepPlay', () => {
     const report = playReport(sweep, context);
 
     test("gives the sweep's fingerprint, so two runs' saves compare in one line (DL-76)", () => {
-      expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
+      expect(report).toContain(
+        `| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\`, each seed's own in the JSON report's \`games[].fingerprint\` (DL-188 item 6) |`,
+      );
+    });
+
+    test('names the slice of a game it measures (DL-83 item 18)', () => {
+      // A run shorter than the slice says so, rather than call its years the slice (DL-270).
+      expect(report).toContain(" · the first 0.06 years of games that run 20 to 35 years, short of DL-83 item 18's slice, their first 20 · ");
+      expect(playReport({ ...sweep, years: 20 }, context)).toContain(' · the first 20 years of games that run 20 to 35 years, the slice measured (DL-83 item 18) · ');
+      expect(playReport({ ...sweep, years: 25 }, context)).toContain(" · the first 25 years of games that run 20 to 35 years, past DL-83 item 18's slice, their first 20 · ");
+    });
+
+    // A game ended early is not in a later year's mean (`carryHighestLevels`), and the table says so (DL-270).
+    test("words the highest Levels by year as the mean over the games still in play", () => {
+      expect(report).toContain('the mean over the games still in play that year in which the side had a Hero by then');
+    });
+
+    test('sets its Targets after the Summary and before the Counters (DL-259)', () => {
+      expect(report).toContain(targetsSection(targetsOf(sweep, deps.config.turnsPerYear, null)).join('\n'));
+      expect(report.indexOf('## Targets')).toBeGreaterThan(report.indexOf('## Summary'));
+      expect(report.indexOf('## Targets')).toBeLessThan(report.indexOf('## Counters'));
+    });
+
+    test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
+      expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
+      expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);
     });
 
     test('names the draft content files it played in place of the core files, and none when it played the core', () => {
       expect(report).toContain(` · content \`core\` version ${deps.content.version} · config version`);
-      const drafted = playReport(sweep, { ...context, drafted: ['encounters.json', 'items.json'] });
-      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters.json\`, \`items.json\` · config version`);
+      const drafted = playReport(sweep, { ...context, drafted: ['encounters/', 'items/'] });
+      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters/\`, \`items/\` · config version`);
     });
 
     test('names the config it changed from the defaults, and nothing when it changed none (DL-162)', () => {

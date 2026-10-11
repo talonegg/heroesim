@@ -1,0 +1,18 @@
+{
+  "name": "The counting-house job",
+  "sphereKeys": ["underworld"],
+  "tags": ["recover", "town", "dark"],
+  "tierMin": 3, "tierMax": 4,
+  "rewardPerDifficulty": 4.5,
+  "fameEffect": 3,
+  "partySizeMin": 2,
+  "skillKeys": ["lockpicking", "stealth", "trapcraft"],
+  "requires": { "skillKey": "lockpicking" },
+  "lootTableKey": "greater-loot",
+  "beats": [
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "Words to be had.", "pool": { "kinds": ["social"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } }
+  ],
+  "finale": "the-strongroom", "finaleLine": "The last of it."
+}

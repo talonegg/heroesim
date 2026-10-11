@@ -11,7 +11,7 @@ import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { bestParties } from '../best-party.js';
 import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
@@ -85,12 +85,12 @@ function boardQuests(world: World): Quest[] {
   });
 }
 
-/** Opens every Quest on the Board to any Party of `min` to `max`, at the difficulties given in Board order. */
-function openBoard(world: World, difficulties: number[], [min, max]: [number, number] = [1, 4]): Quest[] {
+/** Opens every Quest on the Board to any Party of `min` or more, at the difficulties given in Board order. */
+function openBoard(world: World, difficulties: number[], min = 1): Quest[] {
   const quests = boardQuests(world);
   quests.forEach((quest, index) => {
     quest.difficulty = difficulties[index] ?? 100;
-    quest.requirements = { partySizeMin: min, partySizeMax: max };
+    quest.requirements = { partySizeMin: min };
   });
   return quests;
 }
@@ -141,11 +141,11 @@ function chanceOf(world: World, quest: Quest, heroes: readonly Hero[], deps: Eng
  * The Party DL-148 item 17's greedy rule names, worked out here from `estimateQuest` alone, a fresh
  * estimate for every Party weighed: the Heroes the requirements take, each the one who
  * most raises the chance of success; then the one who most raises it up to `partySizeMin`; then the
- * one who most raises it while it raises it by more than `margin`, up to `partySizeMax`. Ties go to
+ * one who most raises it while it raises it by more than `margin`, of any number (DL-266). Ties go to
  * the better chance of a strong success, then the lower Hero id.
  */
 function greedyParty(world: World, quest: Quest, available: readonly Hero[], deps: EngineDeps, margin: number): HeroId[] | null {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const ofClass = (hero: Hero) => classKey === undefined || hero.classKey === classKey;
   const withSkill = (hero: Hero) => skillKey === undefined || Object.hasOwn(hero.skills, skillKey);
   const party: Hero[] = [];
@@ -163,7 +163,7 @@ function greedyParty(world: World, quest: Quest, available: readonly Hero[], dep
     else return null;
   }
   const size = Math.max(partySizeMin, places);
-  if (size > partySizeMax || size > available.length) return null;
+  if (size > available.length) return null;
   if (places === 1) party.push(pick(available.filter((hero) => ofClass(hero) && withSkill(hero))).hero);
   if (places === 2) {
     const first = pick(available.filter((hero) => ofClass(hero) || withSkill(hero))).hero;
@@ -171,7 +171,7 @@ function greedyParty(world: World, quest: Quest, available: readonly Hero[], dep
   }
   while (party.length < partySizeMin) party.push(pick(rest()).hero);
   let chance = chanceOf(world, quest, party, deps)[0];
-  while (party.length < partySizeMax && rest().length > 0) {
+  while (rest().length > 0) {
     const next = pick(rest());
     if (!(next.chance[0] - chance > margin)) break;
     party.push(next.hero);
@@ -223,19 +223,39 @@ describe('steady: which Quest', () => {
     const missing = Object.keys(testContent.classes).find((classKey) => !classes.has(classKey));
     const [first, second, third] = quests as [Quest, Quest, Quest];
     // More Heroes than the Rival has; then a Class it lacks, or a Skill nobody holds.
-    first.requirements = { partySizeMin: heroes.length + 1, partySizeMax: heroes.length + 2 };
+    first.requirements = { partySizeMin: heroes.length + 1 };
     second.requirements =
       missing === undefined
-        ? { partySizeMin: 1, partySizeMax: 4, skillKey: 'no-such-skill' }
-        : { partySizeMin: 1, partySizeMax: 4, classKey: missing };
+        ? { partySizeMin: 1, skillKey: 'no-such-skill' }
+        : { partySizeMin: 1, classKey: missing };
 
     expect(dispatchOf(world, rival, deps)?.questId).toBe(third.id);
+  });
+
+  // DL-264: a Rival chooses only what it may take, its Fame at least the minimum of the Quest's Tier.
+  test("passes over a Quest of a Tier whose Fame minimum is above its Fame, as dispatch would refuse it, for the easiest it may take", () => {
+    const { world, rival, deps } = scene('fame-minimum');
+    const quests = openBoard(world, [10, 20, 30, 40, 50, 60]);
+    // The easiest two posted at Tier 3, the rest at Tier 1; Tier 3's minimum one above the Rival's Fame.
+    quests.forEach((quest, index) => {
+      quest.tier = index < 2 ? 3 : 1;
+    });
+    const tiers = deps.config.tiers.map((row, index) => ({ ...row, fameMinimum: index === 2 ? rival.fame + 1 : 0 }));
+    const closed = { ...deps, config: { ...deps.config, tiers } };
+
+    expect(dispatchOf(world, rival, deps)?.questId).toBe(quests[0]?.id);
+    expect(dispatchOf(world, rival, closed)?.questId).toBe(quests[2]?.id);
+    expect(staffableQuests(world, rival, closed).map((quest) => quest.id)).toEqual(quests.slice(2).map((quest) => quest.id));
+    // Every Quest closed to it: it sends no one.
+    const shut = { ...deps, config: { ...deps.config, tiers: tiers.map((row) => ({ ...row, fameMinimum: rival.fame + 1 })) } };
+    expect(dispatchOf(world, rival, shut)).toBeUndefined();
+    expect(staffableQuests(world, rival, shut)).toEqual([]);
   });
 
   test('takes nothing when it can staff nothing on the Board, or the Board is empty', () => {
     const { world, rival, deps } = scene('nothing');
     const size = availableHeroes(world, rival).length + 1;
-    openBoard(world, [10, 20, 30, 40, 50, 60], [size, size + 1]);
+    openBoard(world, [10, 20, 30, 40, 50, 60], size);
 
     expect(dispatchOf(world, rival, deps)).toBeUndefined();
     world.board = [];
@@ -253,7 +273,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
     for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
       // One world a Disposition: a margin draws nothing at creation, so only the deps read differ.
       const made = scene(`greedy-${disposition}`, testDeps(), disposition);
-      openBoard(made.world, [70, 75, 80, 85, 90, 95], [1, 4]);
+      openBoard(made.world, [70, 75, 80, 85, 90, 95], 1);
       for (const partyMargin of margins) {
         const deps = testDeps({}, withDispositions({ partyMargin }));
         const world = structuredClone(made.world);
@@ -265,9 +285,9 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
         const expected = greedyParty(world, quest, availableHeroes(world, rival), deps, partyMargin);
         expect(action?.heroIds, `${disposition} at ${partyMargin}`).toEqual(expected);
         sizes.set(partyMargin, [...(sizes.get(partyMargin) ?? []), expected?.length ?? 0]);
-        // DL-175: at 0 a Party stops short of the most the Quest takes only when no
-        // Hero left raises its chance at all.
-        if (partyMargin === 0 && expected !== null && expected.length < quest.requirements.partySizeMax) {
+        // DL-175: at 0 a Party stops short of every Hero free only when no Hero left raises its
+        // chance at all, no Quest having a most (DL-266).
+        if (partyMargin === 0 && expected !== null) {
           const party = expected.map((id) => world.heroes[id] as Hero);
           const chance = chanceOf(world, quest, party, deps)[0];
           for (const hero of availableHeroes(world, rival).filter((it) => !expected.includes(it.id))) {
@@ -293,7 +313,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
       const deps = testDeps({ playerPartyMargin });
       const { world } = createWorld('greedy-player', setup, deps).document;
       const guild = playerGuild(world) as Guild;
-      const [quest] = openBoard(world, [80], [1, 4]) as [Quest];
+      const [quest] = openBoard(world, [80], 1) as [Quest];
       const available = availableHeroes(world, guild);
 
       expect(bestParties(world, guild, deps).party(quest, available)?.heroIds ?? null, String(playerPartyMargin)).toEqual(
@@ -312,7 +332,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
       const deps = testDeps({ playerPartyMargin });
       const { world } = createWorld('gain-strict', setup, deps).document;
       const guild = playerGuild(world) as Guild;
-      const [quest] = openBoard(world, [80], [1, 4]) as [Quest];
+      const [quest] = openBoard(world, [80], 1) as [Quest];
       const available = availableHeroes(world, guild);
       chances.bySize = bySize;
       chances.asked = 0;
@@ -368,7 +388,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
 
   test('adds first the Hero who most raises the chance, however the Roster is ordered', () => {
     const { world, rival, deps } = scene('greedy-first', testDeps({}, withDispositions({ partyMargin: 1 })));
-    const [quest] = openBoard(world, [60, 90, 90, 90, 90, 90], [1, 4]) as [Quest];
+    const [quest] = openBoard(world, [60, 90, 90, 90, 90, 90], 1) as [Quest];
     const heroes = availableHeroes(world, rival);
     const last = byId(heroes).at(-1) as Hero;
     // The last Hero by id is made far the strongest in every Stat.
@@ -381,7 +401,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
 
   test('includes a Hero of the required Class, however weak, and then whoever most raises the chance', () => {
     const { world, rival, deps } = scene('requires-class', testDeps({}, withDispositions({ partyMargin: 1 })));
-    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [2, 3]) as [Quest];
+    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], 2) as [Quest];
     const heroes = byId(availableHeroes(world, rival));
     const weakest = heroes[0] as Hero;
     for (const statKey of Object.keys(weakest.stats)) weakest.stats[statKey] = 1;
@@ -398,7 +418,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
 
   test('sends two Heroes to a Quest of one when one holds the required Skill and another is of the Class', () => {
     const { world, rival, deps } = scene('requires-both', testDeps({}, withDispositions({ partyMargin: 1 })));
-    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [1, 3]) as [Quest];
+    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], 1) as [Quest];
     const heroes = byId(availableHeroes(world, rival));
     for (const hero of heroes) {
       hero.classKey = 'warrior';
@@ -407,7 +427,7 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
     const second = heroes[1] as Hero;
     second.classKey = 'rogue';
     second.skills = { lockpicking: 1 };
-    quest.requirements = { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'lockpicking' };
+    quest.requirements = { partySizeMin: 1, classKey: 'warrior', skillKey: 'lockpicking' };
 
     const heroIds = dispatchOf(world, rival, deps)?.heroIds ?? [];
     expect(heroIds).toHaveLength(2);
@@ -415,25 +435,23 @@ describe('which Heroes: the greedy rule by the chance estimate', () => {
     expect(heroOf(world, heroIds.find((id) => id !== second.id) as HeroId).classKey).toBe('warrior');
     expect(heroIds).toEqual(greedyParty(world, quest, heroes, deps, 1));
 
-    // A Party of one cannot meet both; a Hero who meets both goes alone.
-    quest.requirements.partySizeMax = 1;
-    expect(dispatchOf(world, rival, deps)?.questId).not.toBe(quest.id);
+    // A Hero who meets both goes alone.
     second.classKey = 'warrior';
     expect(dispatchOf(world, rival, deps)).toMatchObject({ questId: quest.id, heroIds: [second.id] });
   });
 
   test('a Quest whose Encounters are drawn on the way has no estimate: the fewest it allows, by Hero id', () => {
     const { world, rival, deps } = scene('greedy-unknown', testDeps({}, withDispositions({ partyMargin: 0.05 })));
-    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [2, 4]) as [Quest];
+    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], 2) as [Quest];
     // Content defines none of its Encounters (data-model rule 5).
-    quest.encounterKeys = ['no-such-encounter'];
+    setEncounters(quest, ['no-such-encounter']);
 
     expect(dispatchOf(world, rival, deps)?.heroIds).toEqual(byId(availableHeroes(world, rival)).slice(0, 2).map((hero) => hero.id));
   });
 
   test('never sends an unavailable Hero: injured, in a Party, dead or retired', () => {
     const { world, rival, deps } = scene('unavailable', testDeps({ rivalRosterMin: 6 }, withDispositions({ partyMargin: 0 })));
-    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], [2, 4]) as [Quest];
+    const [quest] = openBoard(world, [10, 90, 90, 90, 90, 90], 2) as [Quest];
     const heroes = byId(availableHeroes(world, rival));
     expect(heroes.length).toBeGreaterThanOrEqual(6);
     const [injured, away, dead, retired] = heroes as [Hero, Hero, Hero, Hero];
@@ -475,14 +493,14 @@ describe('staffing agrees with dispatch', () => {
         { classKey: 'warrior', skillKey: 'tactics' },
       ];
       for (const quest of boardQuests(world)) {
-        for (const [min, max] of [[1, 1], [1, 3], [2, 4], [3, 5]] as const) {
+        for (const min of [1, 2, 3]) {
           for (const shape of shapes) {
-            const asked = { ...quest, requirements: { partySizeMin: min, partySizeMax: max, ...shape } };
+            const asked = { ...quest, requirements: { partySizeMin: min, ...shape } };
             const heroIds = bestParties(world, rival, deps).party(asked, available)?.heroIds ?? null;
-            expect(heroIds, `${seed} ${quest.id} ${min}-${max}`).toEqual(greedyParty(world, asked, available, deps, rowOf(rival, deps).partyMargin));
+            expect(heroIds, `${seed} ${quest.id} ${min}`).toEqual(greedyParty(world, asked, available, deps, rowOf(rival, deps).partyMargin));
             if (heroIds === null) continue;
             named += 1;
-            expect(unmetRequirements(asked, heroIds.map((id) => heroOf(world, id))), `${seed} ${quest.id} ${min}-${max}`).toEqual([]);
+            expect(unmetRequirements(asked, heroIds.map((id) => heroOf(world, id))), `${seed} ${quest.id} ${min}`).toEqual([]);
           }
         }
       }
@@ -496,7 +514,7 @@ describe('staffing agrees with dispatch', () => {
       const { world, rival, deps } = scene(seed, testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }));
       const quests = boardQuests(world);
       quests.forEach((quest, index) => {
-        quest.requirements = [{ partySizeMin: 1, partySizeMax: 3 }, { partySizeMin: 9, partySizeMax: 9 }, { partySizeMin: 1, partySizeMax: 2, classKey: 'healer' }][index % 3] as Quest['requirements'];
+        quest.requirements = [{ partySizeMin: 1 }, { partySizeMin: 9 }, { partySizeMin: 1, classKey: 'healer' }][index % 3] as Quest['requirements'];
       });
       const available = availableHeroes(world, rival);
       const byBestParty = quests.filter((quest) => {
@@ -863,7 +881,7 @@ describe('one rule for every Disposition, reading its row', () => {
     const quests = openBoard(world, difficulties);
     const size = availableHeroes(world, rival).length + 1;
     // The two hardest ask for more Heroes than it has.
-    for (const quest of quests.filter((it) => it.difficulty >= 60)) quest.requirements = { partySizeMin: size, partySizeMax: size };
+    for (const quest of quests.filter((it) => it.difficulty >= 60)) quest.requirements = { partySizeMin: size };
 
     expect(takenDifficulty(world, rival, deps)).toBe(55);
   });

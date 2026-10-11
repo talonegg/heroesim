@@ -116,7 +116,7 @@ describe('decision-needed', () => {
     const after = requiring(
       world,
       questId,
-      missing === undefined ? { partySizeMin: guild.rosterIds.length + 1, partySizeMax: guild.rosterIds.length + 1 } : { classKey: missing },
+      missing === undefined ? { partySizeMin: guild.rosterIds.length + 1 } : { classKey: missing },
     );
     const before = structuredClone(after);
     before.board = before.board.filter((id) => id !== questId);
@@ -153,9 +153,8 @@ describe('decision-needed', () => {
   test('is needed on the night a Party comes home to a Board it can staff, after party-returned', () => {
     const document = created('stops-home');
     const guild = player(document.world);
-    const quest = staffableQuests(document.world, guild, deps).find(
-      (row) => row.requirements.partySizeMax >= guild.rosterIds.length,
-    );
+    // Any Quest the Roster can staff takes it whole: none has a most (DL-266).
+    const [quest] = staffableQuests(document.world, guild, deps);
     if (quest === undefined) throw new Error('No Quest takes the whole Roster');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [...guild.rosterIds] }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -242,7 +241,7 @@ describe('quest-staffable (DL-85 item 8)', () => {
     const beyond = requiring(
       after,
       questId,
-      missing === undefined ? { partySizeMin: guild.rosterIds.length, partySizeMax: guild.rosterIds.length } : { classKey: missing },
+      missing === undefined ? { partySizeMin: guild.rosterIds.length } : { classKey: missing },
     );
     expect(questStaffableStop(before, beyond, guild.id, deps)).toBeNull();
   });
@@ -293,15 +292,15 @@ describe("staffableQuests: a Quest can be staffed exactly when dispatch would se
         if (unavailable.length > 0) (world.heroes[away] as Hero).partyId = 'party-000001' as Party['id'];
         if (unavailable.length > 1) (world.heroes[hurt] as Hero).injury = { typeKey: 'bruised-ribs', healsOnTurn: 99 };
         const questId = world.board[0] as Quest['id'];
-        for (const [partySizeMin, partySizeMax] of sizes) {
+        for (const [partySizeMin] of sizes) {
           for (const shape of shapes) {
             const asked = structuredClone(world);
-            (asked.quests[questId] as Quest).requirements = { partySizeMin, partySizeMax, ...shape };
+            (asked.quests[questId] as Quest).requirements = { partySizeMin, ...shape };
             const some = subsets(guild.rosterIds).some(
               (heroIds) => dispatchRefusal(asked, { guildId: guild.id, questId, heroIds }, six) === null,
             );
             const named = staffableQuests(asked, player(asked), six).some((quest) => quest.id === questId);
-            expect(named, `${seed} ${unavailable.length} away ${partySizeMin}-${partySizeMax} ${JSON.stringify(shape)}`).toBe(some);
+            expect(named, `${seed} ${unavailable.length} away ${partySizeMin} ${JSON.stringify(shape)}`).toBe(some);
             if (some) staffable += 1;
             else unstaffable += 1;
           }

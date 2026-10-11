@@ -321,8 +321,8 @@ describe('Retirement', () => {
       const today = day;
       quest = morning.world.board
         .map((id) => morning.world.quests[id] as Quest)
-        .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax }, durationTurns }) =>
-          classKey === undefined && skillKey === undefined && partySizeMin <= 2 && partySizeMax >= 2 &&
+        .find(({ requirements: { classKey, skillKey, partySizeMin }, durationTurns }) =>
+          classKey === undefined && skillKey === undefined && partySizeMin <= 2 &&
           today + durationDaysOf({ durationTurns }) > 10,
         );
     }

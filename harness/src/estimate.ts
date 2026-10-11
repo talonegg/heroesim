@@ -11,8 +11,9 @@
 // - and, for half the samples, Whetstones, lockpicks, grappling lines and blessed candles carried.
 //
 // The Party is estimated as it is about to be sent, then sent by `dispatch` (the Quest's requirements
-// set to any Party of one to four) and the world advanced, every phase played, to the afternoon
-// before the night it comes home: the Quest lasts its template's two to ten Days, so each Hero's
+// set to a Party of one or more with no most, DL-266, and the Guild's Fame raised to its Tier's Fame
+// minimum, DL-264) and the world advanced, every phase played, to the afternoon before the night it
+// comes home: the Quest lasts its Tier's Days (DL-262), so each Hero's
 // Morale has drifted toward their baseline, their Regard decayed, before the resolver meets them, as
 // `questsConclude` would meet them that night (v1.1.4-S5's verification). The Rivals play their own
 // Guilds meanwhile, and the player's Guild, which no policy plays here, does nothing.
@@ -35,9 +36,10 @@
 // and drawing nothing (`moraleIn`), so that it meets Morale about as often as the content's do. Every
 // chance of that measure was to be held within 3 points of the resolver's rate; on the shipped content an
 // Encounter's Degrees stood 23.65 points off, and the owner's answer (2026-10-04, DL-173) holds only the
-// whole Quest's chances, its bands and success, within 3 points (`moraleHeld`), and reports each
-// Encounter's gaps, its Degrees and Success or better, without holding them. The no-one-falls check
-// stays on every chance.
+// whole Quest's chances, its bands and success (`moraleHeld`), and reports each Encounter's gaps, its
+// Degrees and Success or better, without holding them; within 5 points, the owner's answer (DL-275) to
+// the key-order sample's 4.84 (DL-263), the estimate not following Morale. The no-one-falls check stays
+// on every chance.
 
 import { createHash } from 'node:crypto';
 import {
@@ -49,6 +51,7 @@ import {
   degrees,
   encounterKinds,
   estimateQuest,
+  fameRefusal,
   moraleBand,
   playerGuild,
   queryParty,
@@ -84,8 +87,8 @@ export const defaultEstimateRuns = 20_000;
 export const estimateTolerance = readGateSpec().estimate.noOneFalls.within;
 /**
  * How far, in chance, the estimate of the whole Quest may stand from the resolver's rate with Morale's
- * consequences left in (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example; DL-173: held on the
- * Quest's chances only, each Encounter's reported), as the Gate's spec holds it.
+ * consequences left in (v1.1.5-S7, DL-168 item 7; DL-173: held on the Quest's chances only, each
+ * Encounter's reported; 5 points, DL-275), as the Gate's spec holds it.
  */
 export const estimateMoraleTolerance = readGateSpec().estimate.moraleInQuest.within;
 
@@ -255,14 +258,18 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
 
   const sampled: EngineDeps = { ...deps, content: { ...content, encounters: { ...content.encounters, ...Object.fromEntries(written.map((it) => [it.key, it])) } } };
   const questId = world.board[0] as Quest['id'];
-  Object.assign(world.quests[questId] as Quest, { difficulty, encounterKeys: sequence, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 4 } });
+  const beatLines = sequence.map(() => 'A Beat of the probe.');
+  Object.assign(world.quests[questId] as Quest, { difficulty, encounterKeys: sequence, beatLines, lootTableKey: null, requirements: { partySizeMin: 1 } });
   const carried = draw() < 0.5 ? [] : carriable.filter(() => draw() < 0.5).map((definitionKey) => ({ definitionKey, quantity: 1 + below(3) }));
   for (const { definitionKey, quantity } of carried) addStack(world, definitionKey, quantity, { kind: 'guild', id: guild.id });
   const estimate = estimateQuest(world, world.quests[questId] as Quest, heroes, sampled, carried);
   if (estimate === null) throw new Error(`${seed}: the Quest has no estimate`);
   const bandsAtFirst = heroes.map((hero) => moraleBand(hero.morale, deps.config));
 
-  // Sent, and played to the afternoon before the night it comes home.
+  // Sent, and played to the afternoon before the night it comes home. The probe measures the estimate,
+  // not whether the Guild may take the Quest, so its Fame is raised to the Tier's minimum (DL-264).
+  const closed = fameRefusal(guild, world.quests[questId] as Quest, sampled);
+  if (closed !== null) guild.fame = closed.fameMinimum;
   const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id), consumables: carried }, sampled);
   if (!sent.ok) throw new Error(`${seed}: dispatch refused the Party, ${sent.rejection.reason}`);
   let document = sent.document;
@@ -498,7 +505,7 @@ export function estimateReport(
     ...section(
       'moraleIn',
       'Morale in',
-      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one. Only the Quest's bands and success are held within the limit (DL-173, the owner's answer of 2026-10-04); each Encounter's gaps are reported, not held, the "Beyond the limit" of their rows counting those beyond 3 points.`,
+      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one. Only the Quest's bands and success are held within the limit (DL-173, the owner's answer of 2026-10-04; DL-275); each Encounter's gaps are reported, not held, the "Beyond the limit" of their rows counting those beyond ${fixed(100 * estimateMoraleTolerance, 0)} points.`,
       estimateMoraleTolerance,
       'quest',
     ),

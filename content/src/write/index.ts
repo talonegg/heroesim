@@ -5,6 +5,8 @@
 // import it (eslint.config.js), so no byte of it is in the page's script.
 
 export { contentChecks, contentTexts, textChecks } from './checks.js';
+export { ladderProblems } from '../kinds/quest-templates.js';
+export { kebabCase } from '../kinds/rules.js';
 export { NotUndone, Undone } from './errors.js';
 export { editJson } from './json-edit.js';
 export { compact, format, formatJson } from './json-format.js';

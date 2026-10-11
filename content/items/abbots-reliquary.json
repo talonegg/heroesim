@@ -1,0 +1,9 @@
+{
+  "name": "The Abbot's reliquary",
+  "kind": "gear",
+  "unique": true,
+  "slot": "trinket",
+  "statModifiers": { "spirit": 3, "willpower": 2, "resistance": 1 },
+  "buyPrice": null,
+  "tags": ["relic", "holy"]
+}

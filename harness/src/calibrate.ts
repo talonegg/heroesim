@@ -11,8 +11,8 @@
 //   drawn at random from the pool, each estimated on a Quest of that one Encounter at each
 //   difficulty; each Degree's rate is the mean of their chances, the Encounter's and each Check's.
 // - *Each template.* For each Level, Quests drawn by the Quest Generator (`generateQuest`) for the
-//   template, their Encounters and difficulty as the game draws them, binned by the third of the
-//   template's difficulty range they fall in. For each, the Best Party (`bestParties`) of a Roster of
+//   template, their Encounters and difficulty as the game draws them with every Tier unlocked (DL-271),
+//   binned by the third of the template's difficulty range they fall in. For each, the Best Party (`bestParties`) of a Roster of
 //   `roster` Heroes of the pool (the Board's "Your best Party", the harness's policy's Party), and
 //   Parties of each size the template allows drawn at random, each meeting its requirements; each
 //   Quest band's rate, and the positive Earned Traits a Quest draws.
@@ -22,10 +22,11 @@
 //   its value (not those that only choose or filter by it), the gate's "every Hero Stat read by at
 //   least three Checks across at least two kinds".
 //
-// Draft content is calibrated before it is in `content/`: a directory of content files, each in
-// place of the core file of its name (`loadDrafts`, content's Node entry). `npm run harness -- calibrate`
+// Draft content is calibrated before it is in `content/`: a directory of content files and folders,
+// each in place of the core's of its name (`loadDrafts`, content's Node entry; a folder whole, DL-260). `npm run harness -- calibrate`
 // (calibrate.harness.test.ts) writes the report and its data under `docs/quests/`.
 
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contentDir, loadDrafts } from '@heroesim/content/node';
 import {
@@ -34,15 +35,18 @@ import {
   createWorld,
   degrees,
   describeQuery,
+  difficultyBand,
   encounterKinds,
   generateHero,
   generateQuest,
   growOneLevel,
+  offeredTiers,
   passDegree,
   passOf,
   playerGuild,
   questBands,
   resolveQuest,
+  tierFigures,
   type CheckKey,
   type ContentSet,
   type Degree,
@@ -50,6 +54,7 @@ import {
   type Encounter,
   type EncounterKind,
   type EngineDeps,
+  type GameConfig,
   type Guild,
   type Hero,
   type Party,
@@ -202,7 +207,8 @@ function partyOf(heroes: readonly Hero[], size: number, draw: () => number, firs
 
 /** A Quest of `encounterKeys` at `difficulty`, as the estimate and the resolver read one: a day long. */
 function questOf(template: Quest, difficulty: number, encounterKeys: string[]): Quest {
-  return { ...template, difficulty, encounterKeys, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1, partySizeMax: 5 } };
+  const beatLines = encounterKeys.map(() => 'A Beat of the calibration.');
+  return { ...template, difficulty, encounterKeys, beatLines, durationTurns: 3, lootTableKey: null, requirements: { partySizeMin: 1 } };
 }
 
 // --- The rates --------------------------------------------------------------------------------------
@@ -250,7 +256,7 @@ export interface TemplateRow {
   difficulty: [number, number];
   /** The best Party from a Roster: its rates, its mean size, and the positive Earned Traits a Quest draws. */
   best: BandRates & { size: number; traitsDrawn: number };
-  /** Random Parties of each size the template allows, meeting its requirements. */
+  /** Random Parties of each size the template allows, its least or more, meeting its requirements. */
   bySize: Record<number, BandRates>;
 }
 
@@ -258,7 +264,8 @@ export interface TemplateCalibration {
   key: string;
   name: string;
   finale: string | null;
-  sizes: [number, number];
+  /** Its least Party; none is the most (DL-257 item 6, DL-266). */
+  sizeMin: number;
   /** Quests whose Roster could not staff them in 50 draws, left out. */
   unstaffed: number;
   rows: TemplateRow[];
@@ -350,10 +357,25 @@ export function calibrateEncounters(pools: readonly Pool[], settings: Calibratio
   return results;
 }
 
-/** Which third of `template`'s difficulty range `difficulty` falls in. */
-export function thirdOf(template: Pick<QuestTemplate, 'difficultyMin' | 'difficultyMax'>, difficulty: number): Third {
-  const span = template.difficultyMax - template.difficultyMin;
-  const share = span > 0 ? (difficulty - template.difficultyMin) / span : 0;
+/** A range of difficulties, from its `difficultyMin` to its `difficultyMax`. */
+export interface DifficultyRange {
+  difficultyMin: number;
+  difficultyMax: number;
+}
+
+/**
+ * The difficulties `template`'s Quests are drawn at under `config` (DL-262): from the bottom of the
+ * band of the lowest Tier it offers to the top of the highest's, its overrides read, held in the scale.
+ */
+export function difficultyRange(template: QuestTemplate, config: GameConfig): DifficultyRange {
+  const bands = offeredTiers(template, config).map((tier) => difficultyBand(tierFigures(template, tier, config), config));
+  return { difficultyMin: Math.min(...bands.map(([low]) => low)), difficultyMax: Math.max(...bands.map(([, high]) => high)) };
+}
+
+/** Which third of a template's difficulty range (`difficultyRange`) `difficulty` falls in. */
+export function thirdOf(range: DifficultyRange, difficulty: number): Third {
+  const span = range.difficultyMax - range.difficultyMin;
+  const share = span > 0 ? (difficulty - range.difficultyMin) / span : 0;
   return share < 1 / 3 ? 'low' : share < 2 / 3 ? 'mid' : 'high';
 }
 
@@ -391,8 +413,17 @@ function traitsDrawn(estimate: QuestEstimate, content: ContentSet): number {
 }
 
 /**
+ * The Board's top Tier a template's Quests are drawn under here: the ladder's last, every Tier unlocked
+ * (DL-271), so that they span every Tier the template offers and every third of its difficulty range,
+ * at every Level, whatever the pool's own world, whose Guilds stay at Level 1, has unlocked.
+ */
+function everyTier(config: Pick<GameConfig, 'tiers'>): number {
+  return config.tiers.length;
+}
+
+/**
  * Each template's Quest band rates by Level and difficulty third: `settings.questsPerTemplate` Quests
- * drawn by the Quest Generator at each Level, each met by the best Party of a Roster drawn from the
+ * drawn by the Quest Generator at each Level, every Tier unlocked (`everyTier`), each met by the best Party of a Roster drawn from the
  * pool (redrawn until it can staff the Quest, at most 50 times) and by random Parties of each size the
  * template allows.
  */
@@ -404,7 +435,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
       key: template.key,
       name: template.name,
       finale: template.finale ?? null,
-      sizes: [template.partySizeMin, template.partySizeMax],
+      sizeMin: template.partySizeMin,
       unstaffed: 0,
       rows: [],
     }),
@@ -419,7 +450,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
       if (patron === undefined) continue;
       const rows = new Map<Third, TemplateRow>();
       for (let n = 0; n < settings.questsPerTemplate; n += 1) {
-        const { quest } = generateQuest(world, patron, deps, { templateKey: template.key });
+        const { quest } = generateQuest(world, patron, deps, { templateKey: template.key, topTier: everyTier(deps.config) });
         world.board = world.board.filter((id) => id !== quest.id);
         delete world.quests[quest.id];
         // Opened once the Quest is drawn, which moved the world (DL-237).
@@ -431,7 +462,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
           result.unstaffed += 1;
           continue;
         }
-        const third = thirdOf(template, quest.difficulty);
+        const third = thirdOf(difficultyRange(template, deps.config), quest.difficulty);
         const row = rows.get(third) ?? {
           level: pool.level,
           third,
@@ -446,7 +477,7 @@ export function calibrateTemplates(pools: readonly Pool[], settings: Calibration
         row.best.size += best.heroIds.length;
         row.best.traitsDrawn += traitsDrawn(best.estimate, content);
         for (const size of settings.sizes) {
-          if (size < template.partySizeMin || size > template.partySizeMax) continue;
+          if (size < template.partySizeMin) continue;
           const rates = (row.bySize[size] ??= { quests: 0, bands: noBands() });
           for (let p = 0; p < sizeParties; p += 1) {
             const party = partyOf(pool.heroes, size, draw, requiredOf(quest, pool.heroes, draw));
@@ -503,7 +534,7 @@ export function spotCheck(pools: readonly Pool[], settings: CalibrationSettings,
       const template = one(templates);
       const patron = Object.values(world.patrons).find((it: Patron) => template.sphereKeys.includes(it.sphereKey));
       if (patron === undefined) continue;
-      quest = generateQuest(world, patron, safe, { templateKey: template.key }).quest;
+      quest = generateQuest(world, patron, safe, { templateKey: template.key, topTier: everyTier(safe.config) }).quest;
       world.board = world.board.filter((id) => id !== quest.id);
       delete world.quests[quest.id];
       let roster = partyOf(pool.heroes, settings.roster, draw);
@@ -613,16 +644,17 @@ export const defaultTuningAim: Readonly<Omit<TuningAim, 'chance'>> = Object.free
 
 /**
  * Where `encounter` is tuned: at `aim`, but a Finale (v1.1.4-S9's verification) at the middle of its
- * template's difficulties, with Parties of the aim's size brought within the template's sizes; the
- * first template's, when it ends more than one.
+ * template's difficulties under `config` (`difficultyRange`), with Parties of the aim's size raised to
+ * at least the template's least; the first template's, when it ends more than one.
  */
-export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet): TuningAim {
+export function aimOf(encounter: Encounter, aim: TuningAim, content: ContentSet, config: GameConfig): TuningAim {
   const template = Object.values(content.questTemplates).find((it) => it.finale === encounter.key);
   if (template === undefined) return aim;
+  const { difficultyMin, difficultyMax } = difficultyRange(template, config);
   return {
     ...aim,
-    difficulty: Math.round((template.difficultyMin + template.difficultyMax) / 2),
-    size: Math.min(Math.max(aim.size, template.partySizeMin), template.partySizeMax),
+    difficulty: Math.round((difficultyMin + difficultyMax) / 2),
+    size: Math.max(aim.size, template.partySizeMin),
   };
 }
 
@@ -650,7 +682,7 @@ export function tunedFactors(pool: Pool, aim: TuningAim, parties: number, deps: 
   const best = bestParties(pool.world, pool.guild, deps);
   const tuned: Record<string, Record<CheckKey, CheckTuning>> = {};
   for (const encounter of Object.values(content.encounters)) {
-    const { difficulty, size } = aimOf(encounter, aim, content);
+    const { difficulty, size } = aimOf(encounter, aim, content, config);
     const quest = questOf(template, difficulty, [encounter.key]);
     const capabilities = partiesOf(size).map((party) => (best.chance(quest, party) as QuestEstimate).encounters[0]?.checks.map((it) => it.capability) ?? []);
     const tunable = encounter.checks.map((it) => it.raw !== true && it.difficultyFactor > 0);
@@ -694,6 +726,32 @@ export function tunedFactors(pool: Pool, aim: TuningAim, parties: number, deps: 
     );
   }
   return tuned;
+}
+
+/**
+ * `factors` (`tunedFactors`) written into the drafted Encounters' files of `dir`'s `encounters/`
+ * folder, a file a row (DL-260): each tuned Check's flat term before its factor, as a target reads
+ * (flat + factor × difficulty), its other fields after them in their own order, the file ending in a
+ * newline as the drafts are written. A file of an Encounter `factors` does not name is not rewritten.
+ * Refuses a `dir` with no `encounters/` folder.
+ */
+export function writeTunedEncounters(dir: string, factors: Readonly<Record<string, Readonly<Record<CheckKey, CheckTuning>>>>): void {
+  const folder = join(dir, 'encounters');
+  if (!existsSync(folder)) throw new Error(`The drafts directory ${dir} has no encounters/ folder, so there is nothing to tune (HEROESIM_TUNE).`);
+  for (const name of readdirSync(folder).filter((each) => each.endsWith('.json'))) {
+    const path = join(folder, name);
+    const key = name.slice(0, -'.json'.length);
+    if (factors[key] === undefined) continue;
+    const encounter = JSON.parse(readFileSync(path, 'utf8')) as { checks: { key: string; flat?: number; difficultyFactor: number }[] };
+    encounter.checks = encounter.checks.map((it) => {
+      const tuning = factors[key]?.[it.key];
+      if (tuning === undefined) return it;
+      const after = Object.fromEntries(Object.entries(it).filter(([field]) => !['key', 'name', 'score', 'skills', 'flat', 'difficultyFactor'].includes(field)));
+      const { key: checkKey, name: checkName, score, skills } = it as typeof it & { name: unknown; score: unknown; skills: unknown };
+      return { key: checkKey, name: checkName, score, skills, ...(tuning.flat === undefined ? {} : { flat: tuning.flat }), difficultyFactor: tuning.difficultyFactor, ...after };
+    });
+    writeFileSync(path, `${formatJson(encounter)}\n`, 'utf8');
+  }
 }
 
 /** The least factor, and the least scale on an Encounter's factors, a tuning tries. */
@@ -835,10 +893,10 @@ export function calibrationReport(
   for (const template of templates) {
     lines.push(`### ${template.name}`, '');
     lines.push(
-      `Parties of ${template.sizes[0]} to ${template.sizes[1]}${template.finale === null ? '' : `; its Finale ${encounters.find((it) => it.key === template.finale)?.name ?? template.finale}`}${template.unstaffed > 0 ? `; ${template.unstaffed} Quests no Roster drawn could staff, left out` : ''}.`,
+      `Parties of ${template.sizeMin} or more${template.finale === null ? '' : `; its Finale ${encounters.find((it) => it.key === template.finale)?.name ?? template.finale}`}${template.unstaffed > 0 ? `; ${template.unstaffed} Quests no Roster drawn could staff, left out` : ''}.`,
       '',
     );
-    const sizes = settings.sizes.filter((size) => size >= template.sizes[0] && size <= template.sizes[1]);
+    const sizes = settings.sizes.filter((size) => size >= template.sizeMin);
     lines.push(
       markdownTable(
         ['Level', 'Third', 'Difficulty', 'Quests', 'Best Party', 'Its size', 'Traits drawn', ...sizes.map((size) => `${size} at random`)],
@@ -880,8 +938,10 @@ export function calibrationReport(
 }
 
 /**
- * `value` as JSON written the way content's files are: an object over `width` characters on one line
- * opened a field to a line, and everything else, a Query among them, on one line.
+ * `value` as JSON written the way the drafts' files are (`docs/quests/drafts/`), without the final
+ * newline: an object over `width` characters on one line opened a field to a line, and everything
+ * else, a Query among them, on one line. Content's own files are written by content's `formatJson`
+ * (`content/src/write/json-format.ts`), which spaces a line differently.
  */
 export function formatJson(value: unknown, width = 110, indent = ''): string {
   const flat = JSON.stringify(value);

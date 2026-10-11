@@ -46,7 +46,7 @@ export interface ShardJob {
   modules?: string[];
   /** Play the seeds as the Succession probe, the first Rival's Guildmaster at `age` (M9-F1). */
   probe?: { age: number };
-  /** A directory of draft content files, each in place of the core file of its name (v1.1.4-S9, `loadDrafts`). */
+  /** A directory of draft content files and folders, each in place of the core's of its name (v1.1.4-S9, `loadDrafts`). */
   drafts?: string;
 }
 

@@ -1,0 +1,9 @@
+{
+  "name": "Short sword",
+  "kind": "gear",
+  "unique": false,
+  "slot": "weapon",
+  "statModifiers": {"weaponry":1},
+  "buyPrice": 40,
+  "tags": ["plain"]
+}

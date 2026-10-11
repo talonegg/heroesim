@@ -37,6 +37,7 @@ export type {
   NotInMarket,
 } from './actions/buy.js';
 export {
+  fameRefusal,
   unavailability,
   unmetRequirements,
   type ConsumableRequest,
@@ -47,6 +48,7 @@ export {
   type DispatchNotHeldByGuild,
   type DispatchRejection,
   type DispatchRequest,
+  type FameBelowMinimum,
   type HeroNotOnRoster,
   type HeroUnavailable,
   type QuestNotOffered,
@@ -393,6 +395,7 @@ export {
 export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
 export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, turnsPerDay, yearOf, type Aged, type TimeOfDay } from './time.js';
+export { bestFourLevel, boardTopTier, difficultyBand, isDeadly, offeredTiers, tierFigures, unlockedTier } from './tiers.js';
 export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
 export { offersTo } from './transfer.js';
 export {

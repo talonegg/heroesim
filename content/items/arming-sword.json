@@ -1,0 +1,9 @@
+{
+  "name": "Arming sword",
+  "kind": "gear",
+  "unique": false,
+  "slot": "weapon",
+  "statModifiers": { "weaponry": 2, "strength": 1 },
+  "buyPrice": 120,
+  "tags": ["fine"]
+}

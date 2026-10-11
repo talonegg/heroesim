@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { chanceBandNames, defaultConfig, moraleBandNames, type GameConfig } from './config.js';
-import { checkConfig, configRules, playConfig, playDeps } from './config-check.js';
+import { chanceBandNames, defaultConfig, moraleBandNames, type GameConfig, type TierRow } from './config.js';
+import { checkConfig, configRules, playConfig, playDeps, tierRowProblems } from './config-check.js';
 import type { Module } from './modules.js';
 import { cyrb128, int } from './rng.js';
 import { testContent, testMeta } from './world.test-support.js';
@@ -8,6 +8,21 @@ import { testContent, testMeta } from './world.test-support.js';
 // DL-186 item 12, DL-193: every setting checked, from one table of rules, before any play.
 
 const content = testContent;
+
+/** A sound Tier, its bands from `10 + 20 × step`. */
+const tierRow = (step: number): TierRow => ({
+  difficultyMin: 10 + 20 * step,
+  difficultyMax: 30 + 20 * step,
+  daysMin: 3,
+  daysMax: 5,
+  beats: 2,
+  loot: false,
+  rewardFactor: 1.5,
+  xpFactor: 1.5,
+  deathScale: 0,
+  fameMinimum: 0,
+  unlockLevel: 0,
+});
 
 /** The settings a config with `changes` breaks the rules of. */
 const broken = (changes: Readonly<Record<string, unknown>>): string[] => checkConfig({ ...defaultConfig, ...changes }).map((problem) => problem.setting);
@@ -19,13 +34,13 @@ describe('the rules', () => {
 
   test('a setting missing is named, as missing', () => {
     const config: Record<string, unknown> = { ...defaultConfig };
-    delete config['boardSize'];
-    expect(checkConfig(config)).toEqual([{ setting: 'boardSize', message: 'boardSize is missing; it is a whole number, at least 0' }]);
+    delete config['boardSizeStart'];
+    expect(checkConfig(config)).toEqual([{ setting: 'boardSizeStart', message: 'boardSizeStart is missing; it is a whole number, at least 0' }]);
   });
 
   test('a problem names its setting, its value and what it is to be, in GameConfig\'s order', () => {
-    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSize: -1 })).toEqual([
-      { setting: 'boardSize', message: 'boardSize is -1; it is a whole number, at least 0' },
+    expect(checkConfig({ ...defaultConfig, checkVariance: 2, boardSizeStart: -1 })).toEqual([
+      { setting: 'boardSizeStart', message: 'boardSizeStart is -1; it is a whole number, at least 0' },
       { setting: 'checkVariance', message: 'checkVariance is 2; it is a share from 0 to 1' },
     ]);
   });
@@ -140,17 +155,41 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   hallMaintenancePerGrade: wholeFrom(0),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
-  fameFloor: wholeFrom(0),
+  // No higher than `foundingFame`, whose rule reads it (DL-261): its edges above 0 are 'the Board's size and the founding Fame'.
+  fameFloor: { refused: [-1, 0.5, Number.POSITIVE_INFINITY], allowed: [0] },
+  // At least `fameFloor` (DL-261), held by 'the Board's size and the founding Fame'.
+  foundingFame: wholeFrom(0),
   signingFeeBase: wholeFrom(0),
   signingFeePerLevel: wholeFrom(0),
   signingFeeStatDivisor: finiteAbove(0),
   unattachedStayDays: wholeFrom(0),
   fameRequiredPerLevel: finiteFrom(0),
-  boardSize: wholeFrom(0),
+  boardSizeStart: wholeFrom(0),
+  boardGrowthPerYear: finiteFrom(0),
+  // At least `boardSizeStart` (DL-261).
+  boardSizeMax: { refused: [defaultConfig.boardSizeStart - 1, defaultConfig.boardSizeMax + 0.5, Number.NaN], allowed: [defaultConfig.boardSizeStart, defaultConfig.boardSizeMax + 1] },
   questOfferDays: wholeFrom(1),
   questDifficultyMin: { refused: [0, 10.5], allowed: [1, defaultConfig.questDifficultyMax] },
   questDifficultyMax: maxOf('questDifficultyMin', 'questDifficultyMax'),
   encounterTagWeight: { refused: [0.99, 0, -3, Number.NaN, Number.POSITIVE_INFINITY], allowed: [1, 3.5] },
+  // One Tier or more, each sound, its bands and unlock Levels no lower than the Tier's below, Tier 1's
+  // unlock Level 0 (DL-262, DL-271), held by 'the Tier ladder'.
+  tiers: {
+    refused: [
+      [],
+      'tiers',
+      [{ ...tierRow(0), beats: 0 }],
+      [tierRow(1), tierRow(0)],
+      [{ ...tierRow(0), extra: 1 }],
+      [{ ...tierRow(0), unlockLevel: 3 }],
+      [tierRow(0), { ...tierRow(0), unlockLevel: 6 }, { ...tierRow(0), unlockLevel: 3 }],
+    ],
+    allowed: [[tierRow(0)], defaultConfig.tiers, [tierRow(0), tierRow(0)], [tierRow(0), { ...tierRow(0), unlockLevel: 4 }, { ...tierRow(0), unlockLevel: 4 }]],
+  },
+  // Every weight above 0, so that no Tier at or below the Board's top Tier is ever left out (DL-271).
+  tierDrawWeights: { refused: [[], [0, 1], [1, -0.5], [1, Number.NaN], 1, [1, 0], [0.01, 0, 0]], allowed: [[1], [0.01, 0.01], [1, 0.5, 0.2, 0.1, 5]] },
+  unlockHeroes: wholeFrom(1),
+  deathFactor: finiteFrom(0),
   checkVariance: share,
   skillBonusPerRating: finiteFrom(0),
   bandBySuccessShare: {
@@ -273,7 +312,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   transferGeneratorEveryDays: wholeFrom(1),
   transferGeneratorChance: share,
   transferLockDays: wholeFrom(0),
-  lootDifficultyThreshold: finiteFrom(0),
   lootOnBands: { refused: [['strong', 'strong'], ['great'], 'strong'], allowed: [[], ['fail', 'success', 'strong']] },
   lootOnFinaleDegrees: { refused: [['triumph', 'triumph'], ['strong'], ['unmet'], 'triumph'], allowed: [[], ['success', 'triumph'], ['failure', 'setback', 'success', 'triumph']] },
   marketSize: wholeFrom(0),
@@ -351,6 +389,112 @@ describe('a Min and its Max', () => {
   });
 });
 
+describe("the Board's size and the founding Fame (DL-261)", () => {
+  test('a Board starting above its cap is refused, the cap named with the start', () => {
+    expect(checkConfig({ ...defaultConfig, boardSizeStart: 7, boardSizeMax: 6 })).toEqual([
+      { setting: 'boardSizeMax', message: 'boardSizeMax is 6; it is a whole number, at least boardSizeStart (7)' },
+    ]);
+    expect(broken({ boardSizeStart: 6, boardSizeMax: 6 })).toEqual([]);
+    expect(broken({ boardSizeStart: 2, boardSizeMax: 9 })).toEqual([]);
+  });
+
+  test('the Board grows by a finite number of 0 or more a Year, a part of one Quest allowed, and starts and ends whole', () => {
+    expect(checkConfig({ ...defaultConfig, boardGrowthPerYear: -1 })).toEqual([
+      { setting: 'boardGrowthPerYear', message: 'boardGrowthPerYear is -1; it is a finite number, at least 0' },
+    ]);
+    expect(broken({ boardGrowthPerYear: Number.POSITIVE_INFINITY })).toEqual(['boardGrowthPerYear']);
+    expect(broken({ boardSizeStart: 2, boardGrowthPerYear: 0.5 })).toEqual([]);
+    expect(broken({ boardSizeStart: 2.5 })).toEqual(['boardSizeStart']);
+    expect(broken({ boardSizeMax: 7.5 })).toEqual(['boardSizeMax']);
+  });
+
+  test('a Guild is founded with whole Fame, never below the Fame floor', () => {
+    expect(checkConfig({ ...defaultConfig, fameFloor: 10, foundingFame: 5 })).toEqual([
+      { setting: 'foundingFame', message: 'foundingFame is 5; it is a whole number, at least fameFloor (10)' },
+    ]);
+    expect(broken({ fameFloor: 10, foundingFame: 10 })).toEqual([]);
+    expect(broken({ foundingFame: 25 })).toEqual([]);
+    expect(broken({ foundingFame: 2.5 })).toEqual(['foundingFame']);
+  });
+});
+
+describe('the Tier ladder (DL-262)', () => {
+  test('a Tier row breaks no rule at its edges', () => {
+    expect(tierRowProblems(tierRow(0))).toEqual([]);
+    expect(tierRowProblems({ ...tierRow(0), difficultyMin: 1, difficultyMax: 1, daysMin: 1, daysMax: 1, beats: 1, loot: true })).toEqual([]);
+    expect(tierRowProblems({ ...tierRow(0), rewardFactor: 0, xpFactor: 0, deathScale: 0, fameMinimum: 0 })).toEqual([]);
+    expect(tierRowProblems({ ...tierRow(0), rewardFactor: 0.25, deathScale: 2.5, fameMinimum: 40 })).toEqual([]);
+  });
+
+  test("a Tier row's field below its bound, not whole where it is a count, or of no number is named, with what it is to be", () => {
+    expect(tierRowProblems({ ...tierRow(0), difficultyMin: 0 })).toEqual(['difficultyMin is 0; it is a whole number, at least 1']);
+    expect(tierRowProblems({ ...tierRow(0), difficultyMax: 9 })).toEqual(['difficultyMax is 9; it is a whole number, at least difficultyMin (10)']);
+    expect(tierRowProblems({ ...tierRow(0), daysMin: 0.5 })).toEqual(['daysMin is 0.5; it is a whole number, at least 1']);
+    expect(tierRowProblems({ ...tierRow(0), daysMax: 2 })).toEqual(['daysMax is 2; it is a whole number, at least daysMin (3)']);
+    expect(tierRowProblems({ ...tierRow(0), beats: 0 })).toEqual(['beats is 0; it is a whole number, at least 1']);
+    expect(tierRowProblems({ ...tierRow(0), beats: 2.5 })).toEqual(['beats is 2.5; it is a whole number, at least 1']);
+    expect(tierRowProblems({ ...tierRow(0), loot: 'yes' })).toEqual(['loot is "yes"; it is true or false']);
+    expect(tierRowProblems({ ...tierRow(0), rewardFactor: -0.1 })).toEqual(['rewardFactor is -0.1; it is a finite number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), xpFactor: Number.NaN })).toEqual(['xpFactor is NaN; it is a finite number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), deathScale: Number.POSITIVE_INFINITY })).toEqual(['deathScale is Infinity; it is a finite number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), fameMinimum: 1.5 })).toEqual(['fameMinimum is 1.5; it is a whole number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), unlockLevel: -1 })).toEqual(['unlockLevel is -1; it is a whole number, at least 0']);
+    expect(tierRowProblems({ ...tierRow(0), unlockLevel: 2.5 })).toEqual(['unlockLevel is 2.5; it is a whole number, at least 0']);
+  });
+
+  test('a Tier row lacking a field, or holding one a Tier has not, is named; one that is no object is named whole', () => {
+    const lacking: Partial<TierRow> = tierRow(0);
+    delete lacking.beats;
+    expect(tierRowProblems(lacking)).toEqual(['beats is missing; it is a whole number, at least 1']);
+    expect(tierRowProblems({ ...tierRow(0), duration: 3 })).toEqual([expect.stringMatching(/^duration is no field of a Tier, which holds difficultyMin, /)]);
+    expect(tierRowProblems(5)).toEqual([expect.stringMatching(/^a Tier is an object of difficultyMin, .*; got 5$/)]);
+    expect(tierRowProblems(null)).toHaveLength(1);
+  });
+
+  test("the ladder names each Tier's problem by its number", () => {
+    const [problem] = checkConfig({ ...defaultConfig, tiers: [tierRow(0), { ...tierRow(1), daysMax: 1 }] });
+    expect(problem?.setting).toBe('tiers');
+    expect(problem?.message.endsWith('; Tier 2: daysMax is 1; it is a whole number, at least daysMin (3)')).toBe(true);
+  });
+
+  test("a Tier's band starts and ends no lower than the Tier's below; days and factors may fall", () => {
+    const [start] = checkConfig({ ...defaultConfig, tiers: [tierRow(1), { ...tierRow(1), difficultyMin: 29 }] });
+    expect(start?.message).toMatch(/; Tier 2: difficultyMin is 29; it is at least Tier 1's, 30$/);
+    const [end] = checkConfig({ ...defaultConfig, tiers: [tierRow(1), { ...tierRow(1), difficultyMax: 49 }] });
+    expect(end?.message).toMatch(/; Tier 2: difficultyMax is 49; it is at least Tier 1's, 50$/);
+    expect(broken({ tiers: [tierRow(1), tierRow(1)] })).toEqual([]);
+    expect(broken({ tiers: [tierRow(0), { ...tierRow(1), daysMin: 1, daysMax: 2, rewardFactor: 0.5, beats: 1 }] })).toEqual([]);
+  });
+
+  test("Tier 1's unlock Level is 0, and each Tier's at least the Tier's below (DL-271)", () => {
+    const [first] = checkConfig({ ...defaultConfig, tiers: [{ ...tierRow(0), unlockLevel: 2 }, { ...tierRow(0), unlockLevel: 3 }] });
+    expect(first?.message).toMatch(/; Tier 1: unlockLevel is 2; it is 0, so that Tier 1 is always on offer$/);
+    const [falling] = checkConfig({ ...defaultConfig, tiers: [tierRow(0), { ...tierRow(0), unlockLevel: 6 }, { ...tierRow(0), unlockLevel: 5 }] });
+    expect(falling?.message).toMatch(/; Tier 3: unlockLevel is 5; it is at least Tier 2's, 6$/);
+    expect(broken({ tiers: [tierRow(0), tierRow(0), { ...tierRow(0), unlockLevel: 1 }] })).toEqual([]);
+  });
+
+  test('an empty ladder, or one that is no list, is refused', () => {
+    expect(checkConfig({ ...defaultConfig, tiers: [] })[0]?.message).toBe(
+      'tiers is []; it is a list of one or more Tiers, each an object of difficultyMin, difficultyMax, daysMin, daysMax, beats, loot, rewardFactor, xpFactor, deathScale, fameMinimum, unlockLevel',
+    );
+    expect(broken({ tiers: { 1: tierRow(0) } })).toEqual(['tiers']);
+  });
+
+  test("the draw weights name the top Tier's first, each above 0 (DL-271)", () => {
+    expect(checkConfig({ ...defaultConfig, tierDrawWeights: [1, 0] })).toEqual([
+      {
+        setting: 'tierDrawWeights',
+        message: "tierDrawWeights is [1,0]; it is a list of one weight or more, the top Tier's first, then each Tier further below it, the last held, each a finite number above 0",
+      },
+    ]);
+  });
+
+  test('the best four are one Hero or more', () => {
+    expect(checkConfig({ ...defaultConfig, unlockHeroes: 0 })).toEqual([{ setting: 'unlockHeroes', message: 'unlockHeroes is 0; it is a whole number, at least 1' }]);
+  });
+});
+
 describe('the bands, in their order', () => {
   test('the Morale bands, and the baseline, lie within moraleMin and moraleMax', () => {
     expect(broken({ moraleMin: defaultConfig.moraleBands.wretched + 1 })).toEqual(['moraleBands']);
@@ -393,25 +537,25 @@ describe('the lists a content release may outgrow: no rule reads the content (DL
 
 describe('playConfig', () => {
   test("is the defaults with the saved values over them, a setting the save lacks the default's, a field GameConfig lacks left out", () => {
-    const saved = { boardSize: 3, retiredField: 7 };
-    expect(playConfig(saved)).toEqual({ ok: true, config: { ...defaultConfig, boardSize: 3 } });
+    const saved = { boardSizeStart: 3, retiredField: 7 };
+    expect(playConfig(saved)).toEqual({ ok: true, config: { ...defaultConfig, boardSizeStart: 3 } });
   });
 
   test('refuses a saved value its rule refuses, naming each', () => {
-    const played = playConfig({ boardSize: 1.5, sellRatio: 1 });
-    expect(played).toMatchObject({ ok: false, refusal: { kind: 'unsound-config', problems: [{ setting: 'boardSize' }, { setting: 'sellRatio' }] } });
+    const played = playConfig({ boardSizeStart: 1.5, sellRatio: 1 });
+    expect(played).toMatchObject({ ok: false, refusal: { kind: 'unsound-config', problems: [{ setting: 'boardSizeStart' }, { setting: 'sellRatio' }] } });
     expect(!played.ok && played.refusal.message).toBe(
-      "The game's config is unsound: boardSize is 1.5; it is a whole number, at least 0; sellRatio is 1; it is a finite number, at least 0 and below 1",
+      "The game's config is unsound: boardSizeStart is 1.5; it is a whole number, at least 0; sellRatio is 1; it is a finite number, at least 0 and below 1",
     );
   });
 });
 
 describe('playDeps', () => {
   test("is the game's own config filled forward, the content, and the modules given, none unless given", () => {
-    const meta = { ...testMeta, config: { ...testMeta.config, boardSize: 4 } };
-    expect(playDeps({ meta }, content)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSize: 4 }, content } });
+    const meta = { ...testMeta, config: { ...testMeta.config, boardSizeStart: 4 } };
+    expect(playDeps({ meta }, content)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSizeStart: 4 }, content } });
     const modules = [{ id: 'a-module' }] as unknown as Module[];
-    expect(playDeps({ meta }, content, modules)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSize: 4 }, content, modules } });
+    expect(playDeps({ meta }, content, modules)).toEqual({ ok: true, deps: { config: { ...defaultConfig, boardSizeStart: 4 }, content, modules } });
   });
 
   test("copies: the play config is not the save's, nor the defaults", () => {

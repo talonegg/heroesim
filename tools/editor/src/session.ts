@@ -45,8 +45,8 @@ export interface Written {
 
 /** What a "Finish" writes, as an adapter gives it. */
 export interface Finishing {
-  /** Each file written, by its full path. */
-  files: Record<string, Written>;
+  /** Each file written, by its full path, or `null` for a file it removes, a folder's row's (DL-260). */
+  files: Record<string, Written | null>;
   /** What the result names as changed: the content's files, or the settings. */
   changed: string[];
   /** The files written, as the run's first line names them. */
@@ -223,7 +223,7 @@ export class EditSession<E, W> {
     let version: SessionFinished['version'] = null;
     if (plan.version !== null) {
       const { file, why } = plan.version;
-      const was = files[file] ?? { text: readFileSync(file, 'utf8'), value: JSON.parse(readFileSync(file, 'utf8')) as unknown, keepLines: false };
+      const was: Written = files[file] ?? { text: readFileSync(file, 'utf8'), value: JSON.parse(readFileSync(file, 'utf8')) as unknown, keepLines: false };
       const raised = raisedVersion(was.value, why, file);
       files[file] = { ...was, value: raised.value };
       version = { from: raised.from, to: raised.to };
@@ -233,7 +233,10 @@ export class EditSession<E, W> {
     let finished: SessionFinished;
     try {
       finished = await transaction(async (transaction) => {
-        for (const [file, written] of Object.entries(files)) transaction.write(file, editJson(written.text, written.value, { keepLines: written.keepLines }));
+        for (const [file, written] of Object.entries(files)) {
+          if (written === null) transaction.remove(file);
+          else transaction.write(file, editJson(written.text, written.value, { keepLines: written.keepLines }));
+        }
         onLine(`Wrote ${plan.wrote}${version === null || plan.version === null ? '' : `; ${plan.version.name} ${version.from} → ${version.to}`}. Running the tests…`);
         const tests = await runTests(this.root, onLine);
         if (!tests.ok) {

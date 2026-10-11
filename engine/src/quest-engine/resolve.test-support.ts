@@ -3,7 +3,7 @@
 // `resolve.test.ts`, in `npm test`, and `resolve.harness.test.ts`, the harm box's 20,000 draws, run
 // apart by `npm run harness` as DL-230's boxes are (DL-246).
 
-import type { EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
@@ -26,6 +26,10 @@ export const pinned = {
   hurtCheckFactor: 0.85,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
+  // Every Tier's XP and Death at a factor of 1, as the scenes' XP and harm were worked out before
+  // Tiers (DL-262, DL-265).
+  tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1, deathScale: 1 })),
+  deathFactor: 1,
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
 };
 

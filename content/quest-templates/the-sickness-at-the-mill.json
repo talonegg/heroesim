@@ -1,0 +1,19 @@
+{
+  "name": "The sickness at the mill",
+  "sphereKeys": ["villages"],
+  "tags": ["recover", "town", "study"],
+  "tierMin": 1,
+  "tierMax": 4,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 1,
+  "partySizeMin": 2,
+  "skillKeys": ["herbalism", "field-surgery"],
+  "requires": {},
+  "lootTableKey": null,
+  "beats": [
+    { "line": "The mill folk are frightened, and the Party hears what each of them saw.", "pool": { "kinds": ["social"], "tags": ["recover"] } },
+    { "line": "The mill's old records are searched and the sick examined, and the cause is found.", "pool": { "kinds": ["lore"], "tags": ["recover"] } },
+    { "line": "The cure is sought in the fells and along the water.", "pool": { "kinds": ["travel"], "tags": ["wilds", "water"] } },
+    { "line": "The mill's owners press to open again too soon, and must be talked round.", "pool": { "encounters": ["a-hostile-reeve", "the-patrons-steward"] } }
+  ]
+}

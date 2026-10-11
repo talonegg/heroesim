@@ -62,7 +62,7 @@ interface Scene {
   deps: EngineDeps;
 }
 
-/** A new world and its first Rival, by Guild id, every Quest on the Board open to one to four Heroes at the difficulties given. */
+/** A new world and its first Rival, by Guild id, every Quest on the Board open to a Party of one or more at the difficulties given. */
 function scene(seed: string, difficulties: readonly number[] = [40, 60, 80, 90, 95, 99], partyMargin = 0.02): Scene {
   const deps = testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }, withDispositions({ partyMargin }));
   const { document } = createWorld(seed, setup, deps);
@@ -74,7 +74,7 @@ function scene(seed: string, difficulties: readonly number[] = [40, 60, 80, 90, 
   const quests = world.board.map((questId, index) => {
     const quest = world.quests[questId] as Quest;
     quest.difficulty = difficulties[index] ?? 100;
-    quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    quest.requirements = { partySizeMin: 1 };
     return quest;
   });
   return { document, world, rival, quests, deps };
@@ -87,8 +87,8 @@ describe('the Best Party module (DL-237)', () => {
   test('names, asked many questions, the Party a module opened for each names, with estimateQuest’s estimate for it', () => {
     for (const margin of [0, 0.05, 1]) {
       const { world, rival, quests, deps } = scene('best-many', undefined, margin);
-      quests[1]!.requirements = { partySizeMin: 9, partySizeMax: 9 };
-      quests[2]!.requirements = { partySizeMin: 1, partySizeMax: 3, classKey: 'healer' };
+      quests[1]!.requirements = { partySizeMin: 9 };
+      quests[2]!.requirements = { partySizeMin: 1, classKey: 'healer' };
       const available = availableHeroes(world, rival);
       const module = bestParties(world, rival, deps);
       for (const heroes of [available, available.slice(1), available.slice(0, 2), []]) {
@@ -104,13 +104,14 @@ describe('the Best Party module (DL-237)', () => {
   });
 
   test('asked again from the Heroes a dispatch left, names what a new module names, and weighs no Party it has weighed', () => {
-    const { world, rival, quests, deps } = scene('best-again', [60, 60, 70, 80, 90, 95], 0);
+    // A margin of 1, so that each Party is its two fewest, some sharing no Hero: no Quest has a most (DL-266).
+    const { world, rival, quests, deps } = scene('best-again', [60, 60, 70, 80, 90, 95], 1);
     const available = availableHeroes(world, rival);
     // Each Quest asks for a Class of the Roster's in turn, so that some Parties share no Hero.
     const classes = [...new Set(available.map((hero) => hero.classKey))];
     expect(classes.length).toBeGreaterThan(1);
     quests.forEach((quest, index) => {
-      quest.requirements = { partySizeMin: 1, partySizeMax: 2, classKey: classes[index % classes.length] as string };
+      quest.requirements = { partySizeMin: 2, classKey: classes[index % classes.length] as string };
     });
     const module = bestParties(world, rival, deps);
     const first = quests.map((quest) => module.party(quest, available));
@@ -189,6 +190,70 @@ describe('the Best Party module (DL-237)', () => {
     for (const hero of available) fresh.chance(quest, [hero]);
     expect(read.formulas).toBeGreaterThan(0);
     expect(read.formulas).toBeLessThanOrEqual(combinations);
+  });
+
+  // DL-257 item 6: no Quest has a greatest Party; the margin and the Heroes free bound it.
+  test('adds each Hero past partySizeMin while they raise the chance by more than the margin, and stops at the margin, bounded by the Heroes free alone', () => {
+    let largest = 0;
+    for (const margin of [0, 0.02, 0.05, 0.1]) {
+      const { world, rival, quests, deps } = scene(`best-margin-${margin}`, [70, 80, 90, 95, 99, 100], margin);
+      const available = availableHeroes(world, rival);
+      const module = bestParties(world, rival, deps);
+      for (const quest of quests) {
+        const chanceOf = (party: readonly Hero[]): number => Math.min(1, estimateQuest(world, quest, party, deps)?.success ?? 0);
+        const best = module.party(quest, available);
+        if (best === null) throw new Error(`No Best Party for ${quest.id}`);
+        const party = best.heroIds.map((id) => world.heroes[id] as Hero);
+        largest = Math.max(largest, party.length);
+        // Each Hero past the first raised the chance by more than the margin.
+        for (let size = 2; size <= party.length; size += 1) {
+          expect(chanceOf(party.slice(0, size)) - chanceOf(party.slice(0, size - 1)), `${margin} ${quest.id} the ${size}th`).toBeGreaterThan(margin);
+        }
+        // And none of those left would.
+        const chance = chanceOf(party);
+        for (const hero of available.filter((it) => !best.heroIds.includes(it.id))) {
+          expect(chanceOf([...party, hero]) - chance, `${margin} ${quest.id} with ${hero.id}`).toBeLessThanOrEqual(margin);
+        }
+      }
+    }
+    // Past the four and the five the templates once allowed.
+    expect(largest).toBeGreaterThan(5);
+  });
+
+  // DL-257 item 6, DL-266: the floor holds whatever the margin, and the search stays greedy with no most.
+  test('names no Party below partySizeMin, and none when too few Heroes are free, whatever the margin', () => {
+    for (const margin of [0, 1]) {
+      const { world, rival, quests, deps } = scene(`best-floor-${margin}`, [40, 60, 80, 90, 95, 99], margin);
+      const available = availableHeroes(world, rival);
+      const module = bestParties(world, rival, deps);
+      for (const quest of quests) {
+        quest.requirements = { partySizeMin: 2 };
+        const best = module.party(quest, available);
+        expect(best?.heroIds.length, `${margin} ${quest.id}`).toBeGreaterThanOrEqual(2);
+        // At a margin of 1 no Hero is added past the least.
+        if (margin === 1) expect(best?.heroIds, `${quest.id}`).toHaveLength(2);
+        expect(module.party(quest, available.slice(0, 1)), `${margin} ${quest.id} one Hero free`).toBeNull();
+      }
+    }
+  });
+
+  test('weighs at most n(n + 1)/2 + 1 Parties of n free Heroes, never every Party of them: a Roster of 20 at a margin of 0', () => {
+    const deps = testDeps({ rivalRosterMin: 20, rivalRosterMax: 20 }, withDispositions({ partyMargin: 0 }));
+    const { world } = createWorld('best-twenty', setup, deps).document;
+    const rival = Object.values(world.guilds).find((guild) => dispositionOf(guild) !== null) as Guild;
+    const available = availableHeroes(world, rival);
+    expect(available).toHaveLength(20);
+    const bound = (20 * 21) / 2 + 1;
+    for (const [index, questId] of world.board.entries()) {
+      const quest = world.quests[questId] as Quest;
+      quest.difficulty = [60, 80, 95, 100][index % 4] as number;
+      quest.requirements = { partySizeMin: 2 };
+      counted.estimates = 0;
+      const best = bestParties(world, rival, deps).party(quest, available);
+      expect(best?.heroIds.length, quest.id).toBeGreaterThanOrEqual(2);
+      expect(counted.estimates, quest.id).toBeGreaterThan(20);
+      expect(counted.estimates, quest.id).toBeLessThanOrEqual(bound);
+    }
   });
 
   test('draws nothing and changes nothing: the world after its questions is the world before', () => {

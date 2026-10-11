@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { contentSources, isFolder } from '@heroesim/content';
 import type { TestProject } from 'vitest/node';
 import { repositoryRoot } from './cli.js';
 
@@ -38,7 +39,9 @@ function templateRepository(): string {
     recursive: true,
     filter: (source) => {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
-      return relative === '' || relative.endsWith('.json');
+      // A folder of one file a row (DL-260).
+      const folder = contentSources.some((each) => isFolder(each) && `${relative}/` === each);
+      return relative === '' || relative.endsWith('.json') || folder;
     },
   });
   copy('media/portraits');

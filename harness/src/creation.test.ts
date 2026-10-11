@@ -53,16 +53,17 @@ describe('every Guildmaster attribute chosen, against none', () => {
   });
 });
 
-// DL-52: content names a template's Loot table and config says from which difficulty a
-// Quest carries it. Content validation cannot read config, so their agreement is held here, where
-// both are loaded: the core names a table for exactly the templates the default threshold admits.
-describe('the core content and the default Loot threshold', () => {
-  test('agree: a template names a Loot table exactly when its difficultyMin is above the threshold', () => {
+// DL-52, DL-262: content names a template's Loot table and the config's ladder says at which Tiers a
+// Quest carries it. Their agreement is held here, where both are loaded: the core names a table only
+// for a template that offers a Tier awarding Loot, so no table it names goes unawarded.
+describe("the core content and the default ladder's Loot", () => {
+  test('agree: a template names a Loot table only when it offers a Tier whose loot is true', () => {
     const templates = Object.values(content.questTemplates);
-    const above = templates.filter((it) => it.difficultyMin > defaultConfig.lootDifficultyThreshold);
     const named = templates.filter((it) => it.lootTableKey !== null);
+    const awarding = (it: (typeof templates)[number]): boolean =>
+      defaultConfig.tiers.some((tier, index) => tier.loot && index + 1 >= it.tierMin && index + 1 <= it.tierMax);
 
-    expect(named.map((it) => it.key).sort()).toEqual(above.map((it) => it.key).sort());
+    expect(named.filter((it) => !awarding(it)).map((it) => it.key)).toEqual([]);
     expect(named.length).toBeGreaterThanOrEqual(2);
     expect(named.length).toBeLessThan(templates.length);
   });

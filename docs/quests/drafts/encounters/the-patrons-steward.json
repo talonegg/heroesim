@@ -1,0 +1,32 @@
+{
+  "name": "The Patron's steward",
+  "kind": "social",
+  "tags": ["talk"],
+  "checks": [
+    {
+      "key": "terms",
+      "name": "Terms",
+      "score": ["max","party",["weighted",[["diplomacy",0.7],["wits",0.3]]]],
+      "skills": [],
+      "flat": 4.06,
+      "difficultyFactor": 0.102,
+      "variance": 0.4
+    },
+    {
+      "key": "standing",
+      "name": "Standing",
+      "score": ["max","party",["stat","leadership"]],
+      "skills": [],
+      "flat": 4.15,
+      "difficultyFactor": 0.104,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["or","terms","standing"],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.1}],
+    "triumph": [{"kind":"wealth","factor":1.2},{"kind":"trait","traitKey":"silver-tongued","chance":0.05}],
+    "setback": [{"kind":"wealth","factor":0.95}],
+    "failure": [{"kind":"wealth","factor":0.9}]
+  }
+}

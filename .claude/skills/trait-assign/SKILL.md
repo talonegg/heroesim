@@ -41,10 +41,11 @@ names to its entry in `docs/agents/traits-register.md`:
 | A picture's Feature shows it (Hero Traits) | `portrait-features` |
 | Another Trait of its list excludes it | `excludes` |
 
-Each target field the entry names takes a key the content defines: read it from the content file the
-entry names (`content/injuries.json`, `encounters.json`, `synergies.json`, `descriptions.json`,
-`portrait-appearances.json`). A `path` is the place of a Set Query inside the Encounter or Synergy
-(`checks.0.score.1`, `consequences.failure.0.among`): read the Encounter to find it.
+Each target field the entry names takes a key the content defines: read it from the content the
+entry names (`content/injuries.json`, an Encounter's own file in `content/encounters/`,
+`synergies.json`, `descriptions.json`, `portrait-appearances.json`). A `path` is the place of a Set
+Query inside the Encounter or Synergy (`checks.0.score.1`, `consequences.failure.0.among`): read the
+Encounter to find it.
 
 - **A Biography sentence** keeps `docs/agents/portraits.md`'s rules for a sentence: the pronoun
   slots, a capital first, a full stop last, the glossary's terms capitalised.

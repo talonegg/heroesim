@@ -1,0 +1,9 @@
+{
+  "name": "Courtier's brooch",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": {"charisma":2,"diplomacy":1},
+  "buyPrice": 115,
+  "tags": ["fine"]
+}

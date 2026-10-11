@@ -263,7 +263,7 @@ describe('equip', () => {
     test('hero-unavailable: away with a Party, which has their gear with it', () => {
       const { document, guild, hero, blades } = scene();
       const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
-      quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      quest.requirements = { partySizeMin: 1 };
       const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [hero.id] }, deps);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
 

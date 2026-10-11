@@ -17,7 +17,7 @@ import { capability, check } from './quest-engine/check.js';
 import { queryParty } from './quest-engine/query.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, deepFreeze, demandsCheck, ofType, setup, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, demandsCheck, ofType, setEncounters, setup, testDeps, withValid } from './world.test-support.js';
 
 // Gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
@@ -164,8 +164,8 @@ describe('gear goes back to the Guild (DL-49)', () => {
 
     // The doomed Hero alone, through one Encounter they cannot pass, whose failure kills for certain.
     const offered = current.world.quests[current.world.board[0] as QuestId] as Quest;
-    offered.requirements = { partySizeMin: 1, partySizeMax: 4 };
-    offered.encounterKeys = ['ambush-on-the-road'];
+    offered.requirements = { partySizeMin: 1 };
+    setEncounters(offered, ['ambush-on-the-road']);
     const sent = applyAction(current, { kind: 'dispatch', guildId: guild.id, questId: offered.id, heroIds: [doomed.id] }, harm);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     (sent.document.world.quests[offered.id] as Quest).difficulty = 5000;
@@ -281,7 +281,7 @@ describe('gearChoices: the gear the controllers equip (DL-49)', () => {
       whetstones: addStack(world, 'whetstone', 3, vault), // a consumable
     };
     const quest = world.quests[world.board[0] as QuestId] as Quest;
-    quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+    quest.requirements = { partySizeMin: 1 };
     const sent = applyAction(withValid(document, deps), { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [h2.id] }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
     return { document: withValid(sent.document, deps), guild, heroes, ids };

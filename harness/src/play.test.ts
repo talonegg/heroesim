@@ -5,9 +5,11 @@ import {
   createWorld,
   defaultConfig,
   deserialise,
+  difficultyBand,
   dispositionOf,
   playerGuild,
   serialise,
+  tierFigures,
   timeOfDay,
   type EngineDeps,
   type Guild,
@@ -95,7 +97,7 @@ describe('runConfig', () => {
 
   test('refuses a setting its rule refuses, naming each', () => {
     expect(() => runConfig({ checkVariance: 2 })).toThrow(new RangeError('HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1'));
-    expect(() => runConfig({ boardSize: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSize is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
+    expect(() => runConfig({ boardSizeStart: 1.5, sellRatio: 1 })).toThrow(/^HEROESIM_CONFIG: boardSizeStart is 1\.5; .*; HEROESIM_CONFIG: sellRatio is 1; /);
   });
 
   test('a game whose config breaks a rule is refused before its first Turn, naming the setting', () => {
@@ -349,18 +351,20 @@ describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () =
     expect(taken.length).toBeGreaterThan(0);
     expect([...seen.playerQuestDifficulty.keys()].sort()).toEqual(taken.map((payload) => payload.questId).sort());
 
-    // Each difficulty lies in its template's range; the template is named by the Quest's quest.offered.
+    // Each difficulty lies in its Tier's band; the template and the Tier are named by the Quest's quest.offered (DL-262).
     const offered = new Map(
       (history.byType['quest.offered'] ?? []).map((position) => {
-        const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
-        return [payload.questId, payload.templateKey];
+        const payload = history.entries[position]?.payload as { questId: string; templateKey: string; tier: number };
+        return [payload.questId, payload];
       }),
     );
     for (const [questId, difficulty] of seen.playerQuestDifficulty) {
-      const template = content.questTemplates[offered.get(questId) ?? ''];
+      const { templateKey = '', tier = 0 } = offered.get(questId) ?? {};
+      const template = content.questTemplates[templateKey];
       expect(template, questId).toBeDefined();
-      expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
-      expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
+      const [low, high] = difficultyBand(tierFigures(template, tier, deps.config), deps.config);
+      expect(difficulty).toBeGreaterThanOrEqual(low);
+      expect(difficulty).toBeLessThanOrEqual(high);
     }
 
     const { record } = recorded;
@@ -379,8 +383,8 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     const { history, world } = watched.document;
     const offered = new Map(
       (history.byType['quest.offered'] ?? []).map((position) => {
-        const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
-        return [payload.questId, payload.templateKey];
+        const payload = history.entries[position]?.payload as { questId: string; templateKey: string; tier: number };
+        return [payload.questId, payload];
       }),
     );
     const rivalTaken = (history.byType['quest.taken'] ?? [])
@@ -389,10 +393,12 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     expect(rivalTaken.length).toBeGreaterThan(0);
     expect([...seen.afternoons.questDifficulty.keys()].sort()).toEqual(rivalTaken.map((payload) => payload.questId).sort());
     for (const [questId, difficulty] of seen.afternoons.questDifficulty) {
-      const template = content.questTemplates[offered.get(questId) ?? ''];
+      const { templateKey = '', tier = 0 } = offered.get(questId) ?? {};
+      const template = content.questTemplates[templateKey];
       expect(template, questId).toBeDefined();
-      expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
-      expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
+      const [low, high] = difficultyBand(tierFigures(template, tier, deps.config), deps.config);
+      expect(difficulty).toBeGreaterThanOrEqual(low);
+      expect(difficulty).toBeLessThanOrEqual(high);
     }
 
     const tallies = Object.values(recorded.record.counters.dispositions);

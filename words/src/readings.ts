@@ -18,7 +18,9 @@ import {
   carriedGear,
   descriptiveAttributeLabels,
   durationDaysOf,
+  fameRefusal,
   guildmasterOf,
+  isDeadly,
   itemDefinition,
   judgedHintBands,
   moraleBand,
@@ -37,6 +39,7 @@ import {
   type BestParties,
   type ChanceBand,
   type EngineDeps,
+  type FameBelowMinimum,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -78,8 +81,9 @@ export interface PlayerReading {
   readonly hintBands: Readonly<Record<PotentialHint, number>>;
   /**
    * The Best Party of the player's free Heroes for `quest`, and the estimate it was chosen by; `null`
-   * when none meets the Quest's requirements, and with no player's Guild. Every question shares one
-   * Best Party module over the reading's world, opened at the first (DL-237).
+   * when none meets the Quest's requirements, when the Guild may not take the Quest (`questClosed`,
+   * DL-264), and with no player's Guild. Every question shares one Best Party module over the
+   * reading's world, opened at the first (DL-237).
    */
   bestParty(quest: Quest): BestParty | null;
 }
@@ -100,7 +104,7 @@ export function playerReading(document: Pick<WorldDocument, 'world'>, deps: Engi
     guildmaster,
     hintBands: judgedHintBands(guildmaster, content, config),
     bestParty(quest) {
-      if (guild === undefined) return null;
+      if (guild === undefined || fameRefusal(guild, quest, deps) !== null) return null;
       opened ??= { best: bestParties(world, guild, deps), available: availableHeroes(world, guild) };
       return opened.best.party(quest, opened.available);
     },
@@ -366,8 +370,8 @@ export interface QuestReading {
   days: number;
   reward: number;
   fame: number;
+  /** The fewest Heroes it takes; none is the most (DL-257 item 6, DL-266). */
   partySizeMin: number;
-  partySizeMax: number;
   /** The Class and the Skill it requires beyond its Party size, by name; `null` for none. */
   classRequired: string | null;
   skillRequired: string | null;
@@ -377,11 +381,36 @@ export interface QuestReading {
   skills: string[];
   /** Its Encounters, drawn when it was posted, in order: one or more (DL-248). */
   encounters: EncounterReading[];
+  /** Whether it is Deadly: its Tier scales Death above 0 and one of its Encounters may kill (`isDeadly`, DL-265). No figure. */
+  deadly: boolean;
+  /** Its Tier, from 1 (DL-262): the card's and `show board`'s, after its name (DL-269). */
+  tier: number;
+  /**
+   * Its narrative: its Beats' lines in the order it plays them, one for each of its Encounters, a
+   * Finale's last (`Quest.beatLines`, DL-262). The Party builder's and the CLI's preview's (DL-269).
+   */
+  beats: string[];
 }
 
-/** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16). */
-function questReading({ world, content }: PlayerReading, quest: Quest): QuestReading {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+/** A Quest's Tier as the Board names it: `Tier 3` (DL-257 item 1, DL-269). */
+export function tierWords(tier: number): string {
+  return `Tier ${tier}`;
+}
+
+/**
+ * The Deadly mark and what it means, with no figure (DL-257 item 5, Q18 b, DL-269): the card shows the
+ * mark, its title the meaning; the CLI says "Deadly: a Hero may die on this Quest."
+ */
+export const deadlyWords = { mark: 'Deadly', meaning: 'a Hero may die on this Quest' } as const;
+
+/** The least Party a Quest takes, as the Party builder's checklist and the CLI's preview say it: `A Party of at least 2` (DL-266). */
+export function partyFloorWords(partySizeMin: number): string {
+  return `A Party of at least ${partySizeMin}`;
+}
+
+/** `quest` as the Board gives it: its terms, what it requires, the Skills that help and its Encounters (DL-148 item 16), its Tier, whether it is Deadly and its Beats' lines (DL-269). */
+function questReading({ world, content, deps }: PlayerReading, quest: Quest): QuestReading {
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   return {
     id: quest.id,
     name: nameIn(content.questTemplates, quest.templateKey),
@@ -392,12 +421,14 @@ function questReading({ world, content }: PlayerReading, quest: Quest): QuestRea
     reward: quest.reward,
     fame: quest.fameEffect,
     partySizeMin,
-    partySizeMax,
     classRequired: classKey === undefined ? null : nameIn(content.classes, classKey),
     skillRequired: skillKey === undefined ? null : nameIn(content.skills, skillKey),
     expiresOnTurn: quest.expiresOnTurn,
     skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
     encounters: encounterReadings(quest, content),
+    deadly: isDeadly(quest, content, deps.config),
+    tier: quest.tier,
+    beats: [...quest.beatLines],
   };
 }
 
@@ -416,6 +447,15 @@ export interface BestPartyReading {
   names: string[];
   /** Its chance in a band and floored to 5% (`shownPercent`); `null` while the Quest's Encounters are drawn on the way. */
   chance: { band: ChanceBand; percent: number } | null;
+}
+
+/**
+ * Why the player's Guild may not take `quest`, which offers it no Party: its Fame below the Fame
+ * minimum of the Quest's Tier, as `dispatch` would refuse it (`fameRefusal`, DL-264); `null` when it
+ * may, and with no player's Guild. The Board says it in the Best Party's place, in the refusals' words.
+ */
+export function questClosed(reading: PlayerReading, quest: Quest): FameBelowMinimum | null {
+  return reading.guild === undefined ? null : fameRefusal(reading.guild, quest, reading.deps);
 }
 
 /** "Your best Party" for `quest` (`PlayerReading.bestParty`), its chance the estimate the rule chose it by; `null` for none. */

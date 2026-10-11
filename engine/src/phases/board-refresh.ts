@@ -1,19 +1,39 @@
 // Morning: Board refresh, drawing from Patrons (approach §2, M2-S3). Offered Quests past their
 // `expiresOnTurn` expire and their rows go, the History keeping their record, and each costs its
 // Patron's Regard for every Guild in play (M4-S5); then the `board` stream draws Quests until the
-// Board holds `config.boardSize`, each Patron weighted by their mean Regard across the Guilds in
-// play (R22, M4-S5, closing DL-25's uniform draw). `createWorld` runs the same refresh at Turn 0, so
-// a new game opens on a full Board (DL-25).
+// Board holds the Year's size (`boardSizeAt`, DL-261), each Patron weighted by their mean Regard
+// across the Guilds in play (R22, M4-S5, closing DL-25's uniform draw). `createWorld` runs the same
+// refresh at Turn 0, so a new game opens on a full Board (DL-25).
 
-import { compareByCodeUnit, rowOf, type Patron, type QuestId, type World } from '../document.js';
+import { compareByCodeUnit, rowOf, type Patron, type QuestId, type Turn, type World } from '../document.js';
+import type { GameConfig } from '../config.js';
 import type { EngineEvent } from '../events.js';
 import { boardStream, generateQuest, templatesFor } from '../generators/quests.js';
 import { streamOf } from '../generators/draw.js';
+import { boardTopTier } from '../tiers.js';
 import { patronBoardWeight, regardOnOfferExpired } from '../regard.js';
 import { weightedPick } from '../rng.js';
+import { yearOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
 export const boardRefresh: PhaseRun = (world, ctx) => [...expireQuests(world, ctx), ...fillBoard(world, ctx)];
+
+/**
+ * How near the Board's grown size must come to a whole Quest to count as it: a growth written in
+ * decimals is rarely a binary fraction, and 1.16 × 25 is 28.999… in floating point (DL-261).
+ */
+const wholeQuestTolerance = 1e-9;
+
+/**
+ * How many Quests the Board holds on `turn` (DL-257 item 4, DL-261): `boardSizeStart` plus
+ * `boardGrowthPerYear` for each whole Year played, the Years `yearOf` counts from Turn 0, floored to
+ * a whole Board and never above `boardSizeMax`. A Year begins on a morning (`turnsPerYear` is whole
+ * Days, DL-210), so the Board grows at that morning's refresh.
+ */
+export function boardSizeAt(turn: Turn, config: Pick<GameConfig, 'turnsPerYear' | 'boardSizeStart' | 'boardGrowthPerYear' | 'boardSizeMax'>): number {
+  const grown = Math.floor(config.boardSizeStart + config.boardGrowthPerYear * yearOf(turn, config) + wholeQuestTolerance);
+  return Math.min(config.boardSizeMax, grown);
+}
 
 /**
  * Takes off the Board every offered Quest whose `expiresOnTurn` is before this Turn, emitting
@@ -42,12 +62,13 @@ function expireQuests(world: World, ctx: PhaseContext): EngineEvent[] {
 }
 
 /**
- * Draws Quests until the Board holds `boardSize`, never more: a Board already that full, as after
- * `boardSize` is lowered, draws nothing and loses nothing. Each Quest's Patron is drawn among the
+ * Draws Quests until the Board holds `boardSizeAt` this Turn, never more: a Board already that full,
+ * as after the size is lowered, draws nothing and loses nothing. Each Quest's Patron is drawn among the
  * Patrons whose Sphere some template serves, in proportion to `patronBoardWeight`: their mean
  * Regard across the Guilds in play, since every Guild draws from one Board (R22, M4-S5, DL-43).
  * The weights are read once, after this refresh's expiries and before its first draw: drawing moves
- * no Regard. With every Patron at neutral the draw is DL-25's uniform one, draw for draw. One draw for the Patron,
+ * no Regard. With every Patron at neutral the draw is DL-25's uniform one, draw for draw. The Board's
+ * top Tier is read once too (`boardTopTier`, DL-271): no draw moves a Level. One draw for the Patron,
  * then the Quest Generator's own, all from `board`.
  */
 function fillBoard(world: World, ctx: PhaseContext): EngineEvent[] {
@@ -55,14 +76,16 @@ function fillBoard(world: World, ctx: PhaseContext): EngineEvent[] {
   const patrons: Patron[] = Object.values(world.patrons)
     .filter((patron) => templatesFor(content, patron.sphereKey).length > 0)
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
-  if (patrons.length === 0 || world.board.length >= config.boardSize) return [];
+  const size = boardSizeAt(ctx.turn, config);
+  if (patrons.length === 0 || world.board.length >= size) return [];
 
   const weights = patrons.map((patron) => patronBoardWeight(patron, world, config));
+  const topTier = boardTopTier(world, config);
   const state = streamOf(world, boardStream);
   const events: EngineEvent[] = [];
-  while (world.board.length < config.boardSize) {
+  while (world.board.length < size) {
     const patron = weightedPick(state, patrons, weights);
-    events.push(...generateQuest(world, patron, { config, content }, { stream: boardStream }).events);
+    events.push(...generateQuest(world, patron, { config, content }, { stream: boardStream, topTier }).events);
   }
   return events;
 }

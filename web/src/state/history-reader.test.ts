@@ -38,7 +38,7 @@ function playedFrozen(turns: number): WorldDocument {
 }
 
 describe('the reader reads the shared History by reference and never copies it (ADR-0008)', () => {
-  const document = playedFrozen(90);
+  const document = playedFrozen(180);
   const { history } = document;
   const own = new Set<object>(history.entries);
   const guild = playerGuild(document.world);

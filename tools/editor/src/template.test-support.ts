@@ -10,6 +10,7 @@ import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { TestProject } from 'vitest/node';
+import { contentSources, isFolder } from '@heroesim/content';
 import { repositoryRoot } from './content-files.js';
 
 declare module 'vitest' {
@@ -60,7 +61,9 @@ function templateRepository(): string {
       const relative = path.relative(path.join(root, 'content'), source).replace(/\\/g, '/');
       // The checks' source the drift check reads: the driver and the content kinds (DL-243), their tests left out.
       const kind = relative.startsWith('src/kinds/') && !relative.endsWith('.test.ts');
-      return relative === '' || relative.endsWith('.json') || ['src', 'src/validate.ts', 'src/kinds'].includes(relative) || kind;
+      // A folder of one file a row (DL-260).
+      const folder = contentSources.some((source) => isFolder(source) && `${relative}/` === source);
+      return relative === '' || relative.endsWith('.json') || folder || ['src', 'src/validate.ts', 'src/kinds'].includes(relative) || kind;
     },
   });
   cpSync(path.join(root, 'docs', 'agents', 'traits-register.md'), path.join(dir, 'docs', 'agents', 'traits-register.md'));

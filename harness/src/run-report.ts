@@ -1,24 +1,26 @@
 // A play sweep's JSON report (v1.1.6-S2, DL-186 item 13), written beside its Markdown report: what the
 // sweep played (seeds, years, content, config and policy), its fingerprint, each game's line, its
-// timings and its totals (`sweepTotals`, the one fold, DL-187, DL-239), so that the Gate is checked over data
-// (`gate.ts`) and two runs are compared by machine (`compareRuns`) rather than by eye.
+// timings, its totals (`sweepTotals`, the one fold, DL-187, DL-239) and its Targets (`targets.ts`, DL-259),
+// so that the Gate is checked over data (`gate.ts`), two runs are compared by machine (`compareRuns`)
+// rather than by eye, and a later run reads this one's totals as its Targets' baseline.
 //
 // A number JSON cannot hold (`NaN`, as an empty series' mean is, or an infinity) is written as its name
 // in a string and read back as the number, so the report reads back as it was written.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, relative } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configVersion, schemaVersion, type EndingReason, type GameConfig } from '@heroesim/engine';
 import type { GateResult } from './gate.js';
 import type { PolicyConfig } from './policy.js';
-import { fixed, whole, type Machine } from './report.js';
+import { fixed, reportsDir, whole, type Machine } from './report.js';
 import type { ProfileName } from './settings.js';
 import type { Summary } from './stats.js';
 import { kindOf, sweepTotals, type Counter } from './counter.js';
 import { gameCounters, type SweepTotals } from './game-counters.js';
 import { coreCounters, counterDeltas, type CounterDelta } from './module-report.js';
 import { sweepFingerprint, type PlaySweep } from './sweep.js';
+import { targetsOf, type Baseline, type TargetsReport } from './targets.js';
 
 /** The report's format: raised when its shape changes, so a reader refuses a report it cannot read. */
 export const runReportFormat = 1;
@@ -81,6 +83,8 @@ export interface RunReport {
   totals: SweepTotals;
   /** The Gate's lines, when the run was checked against `harness/gate.json`. */
   gate: GateResult | null;
+  /** The Targets, against the baseline the run read (DL-259); absent from a report written before them. */
+  targets?: TargetsReport;
 }
 
 export interface RunReportContext {
@@ -95,6 +99,8 @@ export interface RunReportContext {
   configured?: Partial<GameConfig>;
   policyChanged?: Partial<PolicyConfig>;
   modules?: readonly string[];
+  /** The run report the Targets set beside the run's (`HEROESIM_BASELINE`, DL-259); none when absent. */
+  baseline?: Baseline | null;
 }
 
 /** The run's config version: its own, or, in a report written before DL-193, its config's. */
@@ -104,7 +110,7 @@ function configVersionOf(run: RunReport): number | undefined {
 
 /** `sweep` as its JSON report, unchecked against the Gate (`gate` `null`). */
 export function runReport(sweep: PlaySweep, context: RunReportContext): RunReport {
-  const { milestone, profile = null, startedAt, settings = [], machine, config, content, drafted = [], configured = {}, policyChanged = {}, modules = [] } = context;
+  const { milestone, profile = null, startedAt, settings = [], machine, config, content, drafted = [], configured = {}, policyChanged = {}, modules = [], baseline = null } = context;
   return {
     format: runReportFormat,
     milestone,
@@ -141,6 +147,7 @@ export function runReport(sweep: PlaySweep, context: RunReportContext): RunRepor
     timings: { totalMs: sweep.totalMs, gamesMs: sweep.gamesMs, advance: sweep.advance, replayAdvance: sweep.replay?.advance ?? null, validation: sweep.validation },
     totals: sweepTotals(sweep, config.turnsPerYear),
     gate: null,
+    targets: targetsOf(sweep, config.turnsPerYear, baseline),
   };
 }
 
@@ -169,6 +176,13 @@ export function jsonPathOf(markdown: string): string {
   return markdown.replace(/\.md$/, '') + '.json';
 }
 
+/** A report named on the command line or by `HEROESIM_BASELINE`: a path, or a name in `harness/reports/`, with or without `.json`. */
+export function reportAt(named: string): string {
+  const found = [named, `${named}.json`, join(reportsDir, named), join(reportsDir, `${named}.json`)].find((path) => existsSync(path));
+  if (found === undefined) throw new RangeError(`No report at ${named}, nor in ${reportsDir}`);
+  return found;
+}
+
 /** Writes `report` to `path`, making its directory, and returns the path. */
 export function writeRunReport(path: string, report: RunReport): string {
   mkdirSync(dirname(path), { recursive: true });
@@ -184,13 +198,17 @@ export function readRunReport(path: string): RunReport {
 
 const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 
+/** `file`'s path from the repository's root, with forward slashes, as a report or a command names it. */
+export function fromRoot(file: string): string {
+  return relative(repositoryRoot, resolve(file)).replaceAll('\\', '/');
+}
+
 /**
  * The command that commits a report, its Markdown and its JSON, force-added past `.gitignore`
  * (DL-186 item 28): a report a DL entry or a release's Gate cites is committed.
  */
 export function addCommand(markdown: string): string {
-  const path = (file: string): string => relative(repositoryRoot, file).replaceAll('\\', '/');
-  return `git add -f ${path(markdown)} ${path(jsonPathOf(markdown))}`;
+  return `git add -f ${fromRoot(markdown)} ${fromRoot(jsonPathOf(markdown))}`;
 }
 
 // ── compare ──────────────────────────────────────────────────────────────────────────────────

@@ -41,8 +41,10 @@ Guild's finances support (DL-185).
 _Avoid_: Team, Squad, Stable
 
 **Party**:
-The Heroes a Guild assigns to one Quest, existing for that Quest's duration. A Party once
-dispatched is never called home (DL-89); only its Guild's fold disbands it early (DL-28).
+The Heroes a Guild assigns to one Quest, existing for that Quest's duration: no fewer than its
+Quest's least Party, two Heroes or more, and no most; nothing caps the Parties a Guild has out
+(DL-257 item 6, DL-266). A Party once dispatched is never called home (DL-89); only its Guild's
+fold disbands it early (DL-28).
 _Avoid_: Team, Squad, Band
 
 **Patron**:
@@ -253,7 +255,7 @@ _Avoid_: Point buy, Pool (alone), Points (alone), Stat budget
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
 raises Stats along the Class's growth profile.
-_Avoid_: Rank, Tier, Grade
+_Avoid_: Rank, Tier (a Quest's is another thing), Grade
 
 **XP**:
 Experience points, earned from Quests and training, that raise a Hero's Level. A Quest's XP is
@@ -293,7 +295,7 @@ _Avoid_: Happiness, Mood, Loyalty
 **Morale band**:
 One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
 read them (DL-154); Random Events are to read them too (DL-82).
-_Avoid_: Mood, Tier
+_Avoid_: Mood, Tier (a Quest's is another thing)
 
 **Regard**:
 The opinion one entity holds of another, whether Hero, Guild, Guildmaster or Patron.
@@ -302,7 +304,7 @@ _Avoid_: Reputation, Opinion, Affinity, Standing
 **Regard band**:
 One of the named ranges a Regard value falls in; a History entry is recorded when a value
 crosses one.
-_Avoid_: Tier, Level (of Regard)
+_Avoid_: Tier (a Quest's is another thing), Level (of Regard)
 
 **Relationship**:
 A score between two entities computed from the Regard each holds for the other.
@@ -316,14 +318,32 @@ the Quest Engine.
 _Avoid_: Mission, Commission, Job, Contract, Task
 
 **Quest template**:
-A content row a Quest is drawn from: its Spheres, Skills, requirements, the ranges
-of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
-table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
-changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
-Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
-it shares with the template (DL-148 item 22, DL-160); they are kept too for
-Random Events' conditions (DL-82).
+A content row a Quest is drawn from: its Spheres, Skills, requirements and least Party, the Tiers it
+offers, its reward per difficulty and Fame effect, its tags, its Loot table, its Beats, any Finale,
+and any figure of the ladder it overrides for a Tier it offers (DL-257 items 1 and 2, DL-262). A
+Quest copies what it carries at generation, so a changed template alters no Quest already offered
+(DL-25), but for the overrides of its Tier's XP factor, Death scale and Fame minimum, read as the Quest
+is dispatched or resolved (DL-262, DL-264, DL-265). Its tags weight the draw of its Encounters: an Encounter is drawn from a Beat's
+pool `encounterTagWeight` times as often for each tag it shares with the template (DL-148 item 22,
+DL-160); they are kept too for Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
+
+**Tier**:
+One rung of the ladder of Quests, numbered from 1 up, each longer, richer and with more Beats than
+the one below. A Quest template offers consecutive Tiers, and a Quest is posted at one, its
+difficulty in the Tier's band and its Days at the same place in the Tier's, its reward and XP by the
+Tier's factors and its Loot as the Tier says (DL-257 items 1 and 3, DL-262). A Guild whose Fame is
+below the Tier's Fame minimum may not take its Quests (DL-264). The ladder's figures are settings,
+`tiers`, that a template may override. A Guild unlocks a Tier when the mean Level of its four best
+Heroes reaches the Tier's unlock Level, and the one Board offers Tiers up to the highest any Guild in
+play has unlocked, the lower Tiers kept on offer all game (DL-271).
+_Avoid_: Level (a Hero's is another thing), Grade, Rank
+
+**Beat**:
+A line of a Quest template's narrative, with the pool its Encounter is drawn from, by kind, tag or
+name. A Quest plays its Tier's count of Beats in order, the template's first ones, one Encounter
+drawn from each and none twice, a Finale last and counted among them (DL-257 item 2, DL-262).
+_Avoid_: Scene, Step, Encounter (what a Beat draws is another thing)
 
 **Stat demand**:
 A Hero Stat a piece of work asked for, with a weight; a Quest template's or an Encounter's
@@ -331,7 +351,7 @@ weights summed to one (DL-06, DL-42). Gone: a Quest's are shown nowhere and read
 by no rule (DL-148 items 16 and 17, DL-157), an Encounter's went with content's old form
 (DL-192), and a Quest template's and a Quest's too (DL-193). What a Check reads
 is its Query (ADR-0010); the Board shows it.
-_Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
+_Avoid_: Requirement (a Quest's requirements are its least Party and any Class or Skill it needs),
 Weighting
 
 **Quest Engine**:
@@ -348,7 +368,7 @@ kind, `combat`, `travel`, `social`, `arcane`, `stealth` or `lore` (for Intellige
 riddles, records and clues, DL-160), and may carry tags, as a Quest template does. The kind
 is data, written in lower case inside a sentence ("on lore Encounters"); `lore` names a kind of
 Encounter, never a Background.
-_Avoid_: Beat, Scene, Event
+_Avoid_: Scene, Event
 
 **Check**:
 The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
@@ -378,7 +398,7 @@ How a Check came out, read from its roll against its target: a **Triumph**, a Su
 one. An Encounter takes the Degree its pass formula gives: the worst of an `and`, the best of an
 `or`, the k-th best of an `at-least` k; the Check that set it decided it. A strong success needs
 Triumphs (DL-148 item 8, DL-152).
-_Avoid_: Tier, Grade, Result (alone)
+_Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
@@ -409,19 +429,30 @@ protects (DL-148 item 14, DL-155).
 _Avoid_: Defence, Armour (for the whole), Resistance, Save
 
 **Finale**:
-A fixed last Encounter a Quest template names, met after the drawn ones: the Quest's count of
-Encounters is unchanged, its last place the Finale. An Encounter named as a Finale is never drawn
-into a place. On such a Quest Loot also needs the Finale to end a Triumph. The four hardest
-templates are to have one (DL-148 items 22 and 23, DL-160, the four written in
-DL-166).
+A fixed last Encounter a Quest template names, with its line, met after the Beats drawn: one of
+the Beats its Tier plays (DL-262). An Encounter named as a Finale is in no Beat's pool. On such a
+Quest Loot also needs the Finale to end a Triumph. The four hardest templates are to have one
+(DL-148 items 22 and 23, DL-160, the four written in DL-166).
 _Avoid_: Boss, Climax, Final Encounter
+
+**Deadly**:
+The mark on a Quest whose Tier and Encounters can kill a Hero: one of its Encounters has a Death
+chance, and its Tier's Death scale times the Death factor is above 0. It gives no figure. The
+Board shows it (DL-257 item 5, DL-265).
+_Avoid_: Lethal, Dangerous, Fatal
+
+**Death factor**:
+The one setting, `deathFactor`, that scales every Death chance in content, beside each Tier's own
+Death scale, `deathScale`: an Encounter's chance is multiplied by both, and held at 1. The rate of
+Death is tuned by it without code; at 0 no Quest kills (DL-257 item 5, DL-265).
+_Avoid_: Death rate, Mortality, Lethality
 
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
 Encounters the Party came through at Success or better (DL-42). A strong success needs every
 Encounter at Success or better and half of them Triumphs: DL-83's margin, made a share of
 Triumphs (DL-148 item 8, DL-152). By DL-85 it pays a premium (to be built).
-_Avoid_: Result, Grade, Tier
+_Avoid_: Result, Grade, Tier (the one a Quest is posted at is another thing)
 
 **Chance band**:
 The word an estimated chance is shown in: Hopeless below 10%, Unlikely to 35%, Even to 65%, Likely
@@ -437,8 +468,8 @@ _Avoid_: Odds (for the word), Rating, Difficulty
 **Best Party**:
 The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
 first those its Class and Skill requirements take, then whoever most raises the estimated chance of
-success up to its least Party size, then each Hero who raises it by more than the Guild's
-**Party margin** (DL-175), up to its greatest. A Rival sends it, at its Disposition's margin; the Board shows the
+success up to its least Party, then each Hero who raises it by more than the Guild's
+**Party margin** (DL-175), bounded by the free Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
@@ -762,16 +793,16 @@ kept for now only to constrain testing load and to be removed (DL-185, in the ba
 _Avoid_: Transfer window, Trade market
 
 **Fame**:
-A Guild's renown, rising and falling with Quest outcomes; never spent. It orders the Rankings
-and gates which Unattached Heroes will sign for a Guild (R10, pre-M0 review B4); dealings with
-Patrons, Contacts and Inciting Events will move it later. DL-85 accepts it as dormant for now:
-its further uses wait for Scouting and Contacts.
+A Guild's renown, rising and falling with Quest outcomes; never spent. It orders the Rankings,
+gates which Unattached Heroes will sign for a Guild (R10, pre-M0 review B4) and which Tiers' Quests
+it may take (DL-264); dealings with Patrons, Contacts and Inciting Events will move it later.
+DL-85 accepts it as dormant for now: its further uses wait for Scouting and Contacts.
 _Avoid_: Reputation, Prestige, Renown, Standing
 
 **Rankings**:
 Every Guild in play ordered by Fame or by Wealth; a folded Guild is out of them (R10, DL-28).
 Ordering by any other Guild statistic is a later feature (requirements §2).
-_Avoid_: League, Leaderboard, Ladder, Score
+_Avoid_: League, Leaderboard, Ladder (for the Rankings; the Tiers' ladder is another thing), Score
 
 ### Endings
 
@@ -843,8 +874,8 @@ _Avoid_: AI, Bot, Autoplayer
 **Content editor**:
 The owner's local page and commands for changing the content the game ships, `npm run edit`; never
 part of the deployed game, and never touching a saved game. A kind of content is edited as a list
-of keyed rows through its forms; Traits are the first kind (DL-150 items 7 to 12, DL-161). Each
-change is checked with the content's checks and held as a pending edit until "Finish", which writes
+of keyed rows, through its forms or its commands: the Traits (DL-150 items 7 to 12, DL-161), and the
+Quest templates with the Encounters, by commands alone (DL-267). Each change is checked with the content's checks and held as a pending edit until "Finish", which writes
 the files, raises the content version by one and runs the tests, putting every file back if one
 fails. It never commits.
 _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
@@ -853,15 +884,17 @@ _Avoid_: Mod tool, Admin page, Trait editor (for the whole)
 The content editor's pending edits of one kind, from the first edit to "Finish": each checked with the
 kind's checks as it is made and held between commands, and "Finish", which writes the files, raises a
 version, the content's or the config's, by one, runs the tests and puts every file back if one fails.
-A "Finish" cut off is put back by the next command. The Traits are edited in one, and the tuning
-values in another, the same session over two kinds of file (DL-244).
+A "Finish" cut off is put back by the next command. The Traits are edited in one, the Quest templates
+and Encounters together in another, and the tuning values in a third, the same session over two kinds
+of file (DL-244, DL-267).
 _Avoid_: Draft, Transaction (for the whole)
 
 **Content kind**:
-One kind of content, in its module of `content/src/kinds/`: the file it is written in, the shape of
-its rows and how they are read, their defaults, and its rules with their refusals (DL-243). Content is
-read kind by kind and then checked kind by kind, every refusal naming its file or table and key; the
-page reads with the kinds' readers alone. A Trait's effects are each described once by their fields,
+One kind of content, in its module of `content/src/kinds/`: the file it is written in, or the folder
+of one file a row named by its key (DL-260), the shape of its rows and how they are read, their
+defaults, and its rules with their refusals (DL-243). Content is read kind by kind and then checked
+kind by kind, every refusal naming its file or table and key; the page reads with the kinds' readers
+alone. A Trait's effects are each described once by their fields,
 and read, checked and offered in the content editor's forms from that description. The content
 editor's Traits edit two content kinds, the Guildmaster's and the Hero's.
 _Avoid_: Schema (for one kind)

@@ -1,0 +1,49 @@
+{
+  "name": "The cause of the sickness",
+  "kind": "lore",
+  "tags": ["recover","town","study"],
+  "checks": [
+    {
+      "key": "diagnosis",
+      "name": "Diagnosis",
+      "score": ["of",["best",["where","party",["class","healer"]],["stat","knowledge"]],["weighted",[["knowledge",0.7],["intelligence",0.3]]]],
+      "skills": ["herbalism","field-surgery"],
+      "flat": 5.31,
+      "difficultyFactor": 0.133
+    },
+    {
+      "key": "asking",
+      "name": "Asking around",
+      "score": ["max","party",["weighted",[["charisma",0.5],["wits",0.5]]]],
+      "skills": [],
+      "flat": 3.93,
+      "difficultyFactor": 0.098
+    }
+  ],
+  "pass": ["or","diagnosis","asking"],
+  "consequences": {
+    "success": [{"kind":"fame","delta":1}],
+    "triumph": [{"kind":"fame","delta":2}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.05,
+        "count": 1,
+        "exposedBy": ["endurance"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "lung-fever",
+        "chance": 0.12,
+        "count": 1,
+        "exposedBy": ["endurance"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"fame","delta":-1}
+    ]
+  }
+}

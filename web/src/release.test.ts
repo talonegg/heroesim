@@ -213,7 +213,9 @@ describe('the command line', () => {
   });
 });
 
-describe('record, on a repository made here', () => {
+// Each test makes repositories and runs git a dozen times or more, some 4.5 s of Vitest's 5 s default
+// in a full `npm test`, past it on a busy machine (DL-270). The timeout bounds a hang, not the speed.
+describe('record, on a repository made here', { timeout: 30_000 }, () => {
   const place = mkdtempSync(path.join(tmpdir(), 'heroesim-release-test-'));
   afterAll(() => {
     rmSync(place, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });

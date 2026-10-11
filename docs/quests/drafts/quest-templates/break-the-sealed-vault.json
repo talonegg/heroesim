@@ -1,0 +1,19 @@
+{
+  "name": "Break the sealed vault",
+  "sphereKeys": ["scholars"],
+  "tags": ["delve", "dark", "recover", "study"],
+  "tierMin": 4, "tierMax": 5,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 5,
+  "partySizeMin": 3,
+  "skillKeys": ["warding", "runecraft"],
+  "requires": { "classKey": "mage" },
+  "lootTableKey": "greater-loot",
+  "beats": [
+    { "line": "Something uncanny.", "pool": { "kinds": ["arcane"] } },
+    { "line": "Somewhere not to be seen.", "pool": { "kinds": ["stealth"] } },
+    { "line": "A fight on the way.", "pool": { "kinds": ["combat"] } },
+    { "line": "Something to be learned.", "pool": { "kinds": ["lore"] } }
+  ],
+  "finale": "the-wardens-seal", "finaleLine": "The last of it."
+}

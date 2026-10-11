@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
+import { compactContent } from './compact-content';
 import { contentGate } from './content-gate';
 
 // Harvested from v1 (feature/poc, E8-S1) and adapted (M7-S1, DL-64): the build is one classic
@@ -58,27 +59,6 @@ const classicScript: Plugin = {
 
 const contentDir = path.join(repoRoot, 'content');
 
-/**
- * The content's JSON bundled as data, without the indentation and line breaks it is written with
- * (v1.1.3-S7, DL-134 item 9, DL-143): `src/content.ts` takes each file as text, which Vite would
- * bundle as written, about 24 kB of whitespace in an 800 kB script. Only the files of `content/`
- * taken `?raw` are read here, and each is parsed, so a file that is not JSON fails the build. What
- * `parseContent` makes of the text is the same either way (`src/content.test.ts`). The content
- * version's file is bundled with its changelog empty (v1.1.6-S4, DL-186 item 14): the changelog is for
- * the people who read the file, some 5 kB the page never shows.
- */
-const compactContent: Plugin = {
-  name: 'heroesim:compact-content',
-  enforce: 'pre',
-  async load(id) {
-    const [file = '', query] = id.split('?');
-    if (query !== 'raw' || path.extname(file) !== '.json' || path.dirname(path.resolve(file)) !== contentDir) return null;
-    const written = JSON.parse(await readFile(file, 'utf8')) as Record<string, unknown>;
-    const bundled = path.basename(file) === 'version.json' ? { ...written, changelog: [] } : written;
-    return `export default ${JSON.stringify(JSON.stringify(bundled))};`;
-  },
-};
-
 const configFile = path.join(repoRoot, 'engine', 'src', 'config.json');
 
 /**
@@ -121,7 +101,7 @@ export default defineConfig({
   // the filesystem included (M7-S1).
   base: './',
   // The content gate validates the content the script carries, which reads it unchecked (DL-152).
-  plugins: [noNodeBuiltins, contentGate(contentDir), compactContent, compactConfig, react(), classicScript],
+  plugins: [noNodeBuiltins, contentGate(contentDir), compactContent(contentDir), compactConfig, react(), classicScript],
   experimental: {
     // A picture's URL in the script is resolved against the script's address, named once (above),
     // relative to the script, as Vite's own expression resolves it; in the stylesheet and the page,
@@ -149,7 +129,7 @@ export default defineConfig({
   },
   server: {
     fs: {
-      // The content files and the pictures sit beside web/: ../content/*.json (src/content.ts) and
+      // The content files and the pictures sit beside web/: ../content/ (src/content.ts) and
       // ../media/ (src/media.ts).
       allow: [repoRoot],
     },

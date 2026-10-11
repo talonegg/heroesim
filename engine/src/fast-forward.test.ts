@@ -34,9 +34,8 @@ function ofType<Type extends EngineEvent['type']>(events: readonly TurnEvent[], 
  */
 function sendEveryone(document: WorldDocument, deps: EngineDeps): { document: WorldDocument; party: Party } {
   const guild = player(document);
-  const quests = staffableQuests(document.world, guild, deps).filter(
-    (quest) => quest.requirements.partySizeMax >= guild.rosterIds.length,
-  );
+  // Any Quest takes the whole Roster that can staff it: none has a most (DL-266).
+  const quests = staffableQuests(document.world, guild, deps);
   const quest = quests.sort((a, b) => b.durationTurns - a.durationTurns)[0];
   if (quest === undefined) throw new Error('No Quest takes the whole Roster');
   const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: [...guild.rosterIds] }, deps);
@@ -69,8 +68,11 @@ describe('fastForward: a Party returning (always on)', () => {
       // Rival Parties came home earlier and did not stop it.
       const rivalReturns = ofType(result.events, 'quest.resolved').filter((event) => event.payload.guildId !== guildId);
       expect(rivalReturns.some((event) => event.turn < party.returnsOnTurn)).toBe(true);
-      // Every event since the call, in order, as the History holds them.
-      expect(after.history.entries.slice(entries)).toEqual(result.events);
+      // Every event since the call, in order, as the History holds them: all but the Unattached pool's
+      // comings and goings of a Hero no entry names, which it never records (DL-211), and which a Quest
+      // long enough to outlast a pool Hero's stay brings (DL-262).
+      const passage = (event: { type: string }): boolean => event.type === 'hero.generated' || event.type === 'hero.left-pool';
+      expect(after.history.entries.slice(entries).filter((event) => !passage(event))).toEqual(result.events.filter((event) => !passage(event)));
     },
   );
 
@@ -151,12 +153,13 @@ describe('fastForward: a decision needed (always on)', () => {
     const guild = player(document);
     // Two of the four go on the longest Quest a pair can take; two stay at home.
     const pairs = staffableQuests(document.world, guild, deps).filter(
-      (quest) => quest.requirements.partySizeMin <= 2 && quest.requirements.partySizeMax >= 2 && quest.durationTurns >= 12,
+      (quest) => quest.requirements.partySizeMin <= 2 && quest.durationTurns >= 12,
     );
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
+    // The first two the Best Party takes: a pair, as no Quest has a most to stop it (DL-266).
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds.slice(0, 2) ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -240,12 +243,13 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in)', () => {
     const document = created(seed, deps);
     const guild = player(document);
     const pairs = staffableQuests(document.world, guild, deps).filter(
-      (quest) => quest.requirements.partySizeMin <= 2 && quest.requirements.partySizeMax >= 2 && quest.durationTurns >= 12,
+      (quest) => quest.requirements.partySizeMin <= 2 && quest.durationTurns >= 12,
     );
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds ?? null;
+    // The first two the Best Party takes: a pair, as no Quest has a most to stop it (DL-266).
+    const going = bestParties(document.world, guild, deps).party({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available)?.heroIds.slice(0, 2) ?? null;
     if (going === null) throw new Error('No pair for the Quest');
     const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);

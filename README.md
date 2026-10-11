@@ -26,10 +26,11 @@ The Portraits' pictures in `media/portraits/` are converted, registered and chec
 portrait tool, `npm run portraits -- <command>`, described in
 [`tools/portraits/README.md`](tools/portraits/README.md) (DL-135 item 11).
 
-## Traits
+## Traits, Quest templates and Encounters
 
 Traits are added, changed and removed through the content editor, `npm run edit`, a local page with
-commands underneath, described in [`tools/editor/README.md`](tools/editor/README.md) (DL-150).
+commands underneath, described in [`tools/editor/README.md`](tools/editor/README.md) (DL-150); Quest
+templates and Encounters through its `quests` and `encounters` commands (DL-267).
 
 ## Harness
 
@@ -61,5 +62,5 @@ every environment variable the repository reads is in [`docs/environment.md`](do
 - [`harness/README.md`](./harness/README.md), [`tools/editor/README.md`](./tools/editor/README.md), [`tools/portraits/README.md`](./tools/portraits/README.md) — the harness, the content editor, the portrait tool
 - [`docs/images/`](./docs/images/) — the conceptual game-flow diagram this baseline was drawn from, and the runtime architecture
 
-The v1 design and its proof of concept remain in history: the design at commit `059b645`, the
-built game on branch `feature/poc`. v2 starts clean; nothing from v1 is assumed.
+The initial proof of concept remains in history: the design at commit `059b645`, the
+built game on branch `feature/poc`. Current build starts clean; nothing from the poc is assumed.

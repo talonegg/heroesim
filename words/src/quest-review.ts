@@ -24,6 +24,7 @@ import {
   type Encounter,
   type EncounterKind,
   type PassFormula,
+  type QuestTemplate,
   type SetQuery,
   type StatKey,
 } from '@heroesim/engine/content';
@@ -303,11 +304,21 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
     ['A puzzle beaten (lore)', 'Willpower'],
   ];
 
+  /**
+   * A template's Beats in order, each by its pool whole (DL-262): its kinds, or "Any", tagged its tags,
+   * the alternatives to them the Encounters it names (`inBeatPool`), what the page lists of them.
+   */
+  const beatPools = (template: QuestTemplate): string[] =>
+    template.beats.map(({ pool }) => {
+      const criteria = pool.kinds === undefined && pool.tags === undefined ? [] : [`${pool.kinds?.map((kind) => kindNames[kind]).join(' or ') ?? 'Any'}${pool.tags === undefined ? '' : ` tagged ${pool.tags.join(' or ')}`}`];
+      return [...criteria, ...(pool.encounters ?? []).map((key) => nameIn(content.encounters, key))].join(' or ');
+    });
   const templates = Object.values(content.questTemplates).map((template) => {
     const coreTemplate = core.questTemplates[template.key];
     const changes = [
       coreTemplate !== undefined && coreTemplate.tags.join() !== template.tags.join() ? `tags ${coreTemplate.tags.map(capitalised).join(', ')} → ${template.tags.map(capitalised).join(', ')}` : '',
-      coreTemplate !== undefined && coreTemplate.encounterKinds.join() !== template.encounterKinds.join() ? `kinds ${coreTemplate.encounterKinds.map((kind) => kindNames[kind]).join(', ')} → ${template.encounterKinds.map((kind) => kindNames[kind]).join(', ')}` : '',
+      coreTemplate !== undefined && beatPools(coreTemplate).join() !== beatPools(template).join() ? `Beats ${beatPools(coreTemplate).join(', ')} → ${beatPools(template).join(', ')}` : '',
+      coreTemplate !== undefined && `${coreTemplate.tierMin}–${coreTemplate.tierMax}` !== `${template.tierMin}–${template.tierMax}` ? `Tiers ${coreTemplate.tierMin}–${coreTemplate.tierMax} → ${template.tierMin}–${template.tierMax}` : '',
       template.finale === undefined ? '' : `its Finale ${nameIn(content.encounters, template.finale)}`,
     ].filter((it) => it !== '');
     const rows = (calibration.templates.find((it) => it.key === template.key)?.rows ?? []).map((row) => [
@@ -322,7 +333,7 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
     return [
       `<section class="card" id="tpl-${esc(template.key)}">`,
       `<h3>${esc(template.name)} <a class="id" href="#tpl-${esc(template.key)}">#tpl-${esc(template.key)}</a></h3>`,
-      `<p class="meta">Difficulty ${template.difficultyMin}–${template.difficultyMax} · Parties of ${template.partySizeMin} to ${template.partySizeMax} · ${template.encounterKinds.map((kind) => kindNames[kind]).join(', ')} · ${esc(tagWords(template.tags))}</p>`,
+      `<p class="meta">Tiers ${template.tierMin}–${template.tierMax} · Parties of ${template.partySizeMin} or more · Beats ${esc(beatPools(template).join(', '))} · ${esc(tagWords(template.tags))}</p>`,
       changes.length === 0 ? '<p>Unchanged.</p>' : `<p>Changed: ${esc(changes.join('; '))}.</p>`,
       notes.templates?.[template.key] === undefined ? '' : `<p>${esc(notes.templates[template.key] as string)}</p>`,
       table(['Best Party', 'Difficulty', 'Quests', 'Fail', 'Success', 'Strong', 'Its size'], rows, `The best Party of a Roster of ${settings.roster}, if no one falls`),

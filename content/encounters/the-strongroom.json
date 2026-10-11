@@ -1,0 +1,49 @@
+{
+  "name": "The strongroom",
+  "kind": "stealth",
+  "tags": ["recover","town"],
+  "checks": [
+    {
+      "key": "lock",
+      "name": "The lock",
+      "score": ["max",["where","party",["has-skill","lockpicking"]],["stat","dexterity"]],
+      "skills": ["lockpicking"],
+      "flat": 4.97,
+      "difficultyFactor": 0.115
+    },
+    {
+      "key": "watchman",
+      "name": "The watchman",
+      "score": ["min","party",["weighted",[["dexterity",0.5],["wits",0.5]]]],
+      "skills": ["stealth"],
+      "flat": 2.29,
+      "difficultyFactor": 0.053
+    },
+    {
+      "key": "right-chest",
+      "name": "The right chest",
+      "score": ["max","party",["weighted",[["intelligence",0.5],["perception",0.5]]]],
+      "skills": [],
+      "flat": 3.63,
+      "difficultyFactor": 0.084
+    }
+  ],
+  "pass": ["and","lock",["or","watchman","right-chest"]],
+  "consequences": {
+    "success": [{"kind":"wealth","factor":1.1}],
+    "triumph": [{"kind":"wealth","factor":1.25}],
+    "setback": [{"kind":"fame","delta":-1}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.2,
+        "count": 1,
+        "exposedBy": ["perception"],
+        "guardedBy": ["dexterity"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["dexterity"]},
+      {"kind":"fame","delta":-2}
+    ]
+  }
+}

@@ -18,9 +18,12 @@ describe('update', () => {
     return at;
   }
 
-  /** The value at a use's place in the scratch copy's encounters.json. */
+  /** The file of a use's place: `encounters/hold-the-line.json`, an Encounter's own (DL-260). */
+  const fileOf = (at: string): string => at.split(': ')[0] ?? '';
+
+  /** The value at a use's place in the scratch copy's Encounters. */
   function consequenceAt(dir: string, at: string): Record<string, unknown> {
-    let here: unknown = readContentJson(dir, 'encounters.json');
+    let here: unknown = readContentJson(dir, 'encounters/')[fileOf(at).slice('encounters/'.length, -'.json'.length)];
     for (const step of (at.split(': ')[1] ?? '').split('.')) here = (here as Record<string, unknown>)[step];
     return here as Record<string, unknown>;
   }
@@ -41,21 +44,21 @@ describe('update', () => {
 
     const finished = await json<{ changed: string[]; contentVersion: { from: number; to: number } }>(dir, 'traits', 'finish');
     expect(finished.code).toBe(0);
-    expect(finished.json).toMatchObject({ changed: ['encounters.json'], contentVersion: { from: version, to: version + 1 } });
+    expect(finished.json).toMatchObject({ changed: [fileOf(at)], contentVersion: { from: version, to: version + 1 } });
     expect(consequenceAt(dir, at)).toEqual({ ...before, chance: 0.12 });
     expect(readContentVersion(dir)).toBe(version + 1);
     expect(readContentJson<{ changelog: string[] }>(dir, 'version.json').changelog.at(-1)).toMatch(new RegExp(`^${version + 1} from the content editor's Finish of \\d{4}-\\d\\d-\\d\\d \\(1 use updated, of battle-shy\\)\\.$`));
-    expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([' M content/encounters.json', ' M content/version.json']);
-    expect(git(dir, 'diff', '--numstat', '--', 'content/encounters.json').trim()).toBe('1\t1\tcontent/encounters.json');
+    expect(status(dir).split('\n').filter((line) => line !== '').sort()).toEqual([` M content/${fileOf(at)}`, ' M content/version.json']);
+    expect(git(dir, 'diff', '--numstat', '--', `content/${fileOf(at)}`).trim()).toBe(`1\t1\tcontent/${fileOf(at)}`);
   });
 
   test("a use that does not exist is refused, naming the Trait's uses, and nothing is held", async () => {
     const dir = scratch();
-    const refused = await json<Failure>(dir, 'traits', 'update', 'battle-shy', 'encounter-trait', 'encounters.json: ambush-on-the-road.consequences.failure.9', 'chance=0.1');
+    const refused = await json<Failure>(dir, 'traits', 'update', 'battle-shy', 'encounter-trait', 'encounters/ambush-on-the-road.json: consequences.failure.9', 'chance=0.1');
 
     expect(refused.code).toBe(1);
     expect(refused.json.kind).toBe('refused');
-    expect(refused.json.problems[0]).toBe('"battle-shy" has no use in encounter-trait at encounters.json: ambush-on-the-road.consequences.failure.9; its uses:');
+    expect(refused.json.problems[0]).toBe('"battle-shy" has no use in encounter-trait at encounters/ambush-on-the-road.json: consequences.failure.9; its uses:');
     expect(refused.json.problems.slice(1)).toContain(`encounter-trait at ${await battleShy(dir)}`);
     expect(existsSync(pendingPath(dir, 'traits'))).toBe(false);
   });

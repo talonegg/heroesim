@@ -10,6 +10,7 @@ import {
   effectiveStats,
   estimateQuest,
   guildmasterOf,
+  isDeadly,
   judgedHintBands,
   playerGuild,
   potentialHint,
@@ -32,12 +33,16 @@ import { encounterReadings, shownPercent } from './query.js';
 import {
   bestPartyReading,
   boardReading,
+  deadlyWords,
   heroReading,
+  partyFloorWords,
   playerReading,
   poolNote,
   poolReading,
+  questClosed,
   rosterReading,
   signsWords,
+  tierWords,
   type HeroReading,
   type PlayerReading,
 } from './readings.js';
@@ -115,6 +120,33 @@ describe("the player's reading", () => {
     expect(reading.hintBands).toEqual(judgedHintBands(undefined, content, defaultConfig));
     const quest = document.world.quests[document.world.board[0] as Quest['id']] as Quest;
     expect(reading.bestParty(quest)).toBeNull();
+  });
+
+  // DL-264: the Board offers no Party for a Quest the player's Guild may not take.
+  test("a Quest whose Tier's Fame minimum is above the player's Guild's Fame: no Best Party, and the refusal dispatch would give", () => {
+    const document = newGame();
+    const [open, closed] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    open.tier = 1;
+    closed.tier = 2;
+    for (const quest of [open, closed]) quest.requirements = { partySizeMin: 1 };
+    const fame = player(document).fame;
+    const tiers = defaultConfig.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? fame + 3 : 0 }));
+    const reading = playerReading(document, { config: { ...defaultConfig, tiers }, content });
+
+    expect(reading.bestParty(open)).not.toBeNull();
+    expect(questClosed(reading, open)).toBeNull();
+    expect(reading.bestParty(closed)).toBeNull();
+    expect(bestPartyReading(reading, closed)).toBeNull();
+    expect(questClosed(reading, closed)).toEqual({
+      action: 'dispatch',
+      reason: 'fame-below-minimum',
+      guildId: player(document).id,
+      questId: closed.id,
+      tier: 2,
+      fameMinimum: fame + 3,
+      fame,
+    });
+    expect(questClosed(playerReading(document, deps), closed)).toBeNull();
   });
 });
 
@@ -436,7 +468,7 @@ describe("a Quest's reading", () => {
     const document = newGame();
     const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
     if (first === undefined) throw new Error('an empty Board');
-    first.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+    first.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
 
     const quests = boardReading(playerReading(document, deps));
 
@@ -452,13 +484,57 @@ describe("a Quest's reading", () => {
         reward: quest.reward,
         fame: quest.fameEffect,
         partySizeMin: quest.requirements.partySizeMin,
-        partySizeMax: quest.requirements.partySizeMax,
         expiresOnTurn: quest.expiresOnTurn,
         encounters: encounterReadings(quest, content),
+        tier: quest.tier,
+        beats: quest.beatLines,
       });
     }
     expect(quests[0]).toMatchObject({ classRequired: 'Mage', skillRequired: 'Lockpicking' });
     expect(quests[1]).toMatchObject({ classRequired: null, skillRequired: null });
+  });
+
+  // DL-269: the Board's Tier, its Deadly mark and the least Party, worded once for the page and the CLI.
+  test('words a Tier, the Deadly mark with what it means and no figure, and the least Party', () => {
+    expect(tierWords(3)).toBe('Tier 3');
+    expect(deadlyWords).toEqual({ mark: 'Deadly', meaning: 'a Hero may die on this Quest' });
+    expect(partyFloorWords(2)).toBe('A Party of at least 2');
+  });
+
+  test("gives a Quest's Beats' lines in the order it plays them, one for each Encounter, the Finale's last (DL-262)", () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
+    if (first === undefined) throw new Error('an empty Board');
+    Object.assign(first, { encounterKeys: ['past-the-watch', 'ambush-on-the-road'], beatLines: ['The gate at dusk.', 'The road home.'] });
+
+    const reading = boardReading(playerReading(document, deps)).find((it) => it.id === first.id);
+
+    expect(reading?.beats).toEqual(['The gate at dusk.', 'The road home.']);
+    expect(reading?.encounters.map((it) => it.name)).toEqual(['Past the watch', 'Ambush on the road']);
+  });
+
+  test('says a Quest is Deadly when its Tier scales Death above 0 and one of its Encounters has a Death chance (DL-265)', () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest);
+    if (first === undefined) throw new Error('an empty Board');
+    const kills = (key: string): boolean =>
+      Object.values(content.encounters[key]?.consequences ?? {}).some((list) => list?.some((it) => it.kind === 'death' && it.chance > 0) === true);
+    const killer = Object.keys(content.encounters).find(kills);
+    const safe = Object.keys(content.encounters).find((key) => !kills(key));
+    if (killer === undefined || safe === undefined) throw new Error('No Encounter that kills, or none that does not');
+    const deadlyOf = (tier: number, encounterKeys: string[], config: GameConfig = defaultConfig): boolean => {
+      Object.assign(first, { tier, encounterKeys, beatLines: encounterKeys.map(() => 'A line') });
+      // No template in content overrides a Tier's Death scale, so the ladder's is read.
+      const reading = boardReading(playerReading(document, { config, content })).find((it) => it.id === first.id);
+      return reading?.deadly as boolean;
+    };
+
+    expect([1, 2, 3, 4, 5].map((tier) => deadlyOf(tier, [safe, killer]))).toEqual([false, false, false, true, true]);
+    expect(deadlyOf(5, [safe])).toBe(false);
+    expect(deadlyOf(5, [safe, killer], { ...defaultConfig, deathFactor: 0 })).toBe(false);
+    for (const reading of boardReading(playerReading(document, deps))) {
+      expect(reading.deadly).toBe(isDeadly(document.world.quests[reading.id] as Quest, content, defaultConfig));
+    }
   });
 
   test("gives the Skills that help as the Skills its Encounters' Checks read, not its template's (DL-70)", () => {
@@ -478,8 +554,8 @@ describe("a Quest's reading", () => {
   test("gives the Best Party of the player's free Heroes, by name, with the chance it was chosen by; none when no Party meets the requirements", () => {
     const document = newGame();
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
-    first.requirements = { partySizeMin: 1, partySizeMax: 4 };
-    second.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'no-such-class' };
+    first.requirements = { partySizeMin: 1 };
+    second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
     // One Hero away: the Best Party is of the free Heroes only.
     const [away] = heroes(document) as [Hero];
     away.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };

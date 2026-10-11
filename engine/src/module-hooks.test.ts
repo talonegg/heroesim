@@ -205,7 +205,7 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     ['replacing a table', (world) => ((world as { heroes: unknown }).heroes = {})],
     ["writing another module's slice through the world", (world) => ((world.modules as Record<string, unknown>).other = {})],
     ['writing into a row a selector returned', (_world, ctx) => ((ctx.select.unattachedHeroes()[0] as { morale: number }).morale = 0)],
-    ['writing to the rules', (_world, ctx) => ((ctx.config as { boardSize: number }).boardSize = 99)],
+    ['writing to the rules', (_world, ctx) => ((ctx.config as { boardSizeMax: number }).boardSizeMax = 99)],
     ['writing to the content', (_world, ctx) => ((ctx.content as { id: string }).id = 'mine')],
     // DL-77 item 1's other refusals: a define, a prototype change and an extensibility change.
     ["defining a Hero's Morale", (world) => Object.defineProperty(heroIn(world), 'morale', { value: 0 })],
@@ -239,7 +239,7 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'writer', during: 'onAfternoon' });
     expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
     expect(serialise(document)).toBe(before);
-    expect(deps.config.boardSize).toBe(testDeps().config.boardSize);
+    expect(deps.config.boardSizeMax).toBe(testDeps().config.boardSizeMax);
   });
 
   // ADR-0011, DL-203: a write-once row is frozen and shared by the per-Turn copy. The view
@@ -859,7 +859,7 @@ describe('the context createSlice is given', () => {
   });
 
   test.each<[string, (ctx: SliceContext) => void]>([
-    ['the rules', (ctx) => ((ctx.config as { boardSize: number }).boardSize = 99)],
+    ['the rules', (ctx) => ((ctx.config as { boardSizeMax: number }).boardSizeMax = 99)],
     ['the content', (ctx) => ((ctx.content as { id: string }).id = 'mine')],
   ])('holds %s read-only: a write fails createWorld, naming the module, and changes nothing', (_what, write) => {
     const deps: EngineDeps = {
@@ -867,13 +867,13 @@ describe('the context createSlice is given', () => {
       content: structuredClone(testDeps().content),
       modules: [{ ...moduleWith('writer', {}), createSlice: (ctx) => (write(ctx), { calls: 0 }) }],
     };
-    const [boardSize, id] = [deps.config.boardSize, deps.content.id];
+    const [boardSizeMax, id] = [deps.config.boardSizeMax, deps.content.id];
 
     const thrown = thrownBy(() => createWorld('slice-writes', setup, deps));
 
     expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'writer', during: 'createSlice' });
     expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
-    expect([deps.config.boardSize, deps.content.id]).toEqual([boardSize, id]);
+    expect([deps.config.boardSizeMax, deps.content.id]).toEqual([boardSizeMax, id]);
   });
 });
 

@@ -222,9 +222,12 @@ export interface Injury {
   healsOnTurn: Turn;
 }
 
+/**
+ * What a Party must be to take a Quest: at least `partySizeMin` Heroes, with no greatest (DL-257
+ * item 6, DL-266), and any Class and Skill it needs.
+ */
 export interface QuestRequirements {
   partySizeMin: number;
-  partySizeMax: number;
   classKey?: ClassKey;
   skillKey?: SkillKey;
 }
@@ -412,23 +415,29 @@ export interface Patron {
 
 /**
  * The fields copied from the template at generation make a Quest self-contained: a template
- * may change under a live save without altering Quests already offered. A Quest row is removed
- * when it expires or resolves; the History keeps its record.
+ * may change under a live save without altering Quests already offered, but for its overrides of the
+ * Tier's XP factor, Death scale and Fame minimum, read live (`tierFigures`; DL-262, DL-264, DL-265).
+ * A Quest row is removed when it expires or resolves; the History keeps its record.
  */
 export interface Quest {
   id: QuestId;
   templateKey: QuestTemplateKey;
   patronId: PatronId;
+  /** The Tier of the ladder it was drawn at, from 1 (DL-257 item 1, DL-262). */
+  tier: number;
+  /** Drawn inside its Tier's difficulty band. */
   difficulty: number;
   tags: QuestTagKey[];
   reward: number;
   fameEffect: number;
-  /** durationDays × 3, from the template's range. */
+  /** Its Days away × 3, at the place in its Tier's days its difficulty has in its band (DL-262). */
   durationTurns: number;
   /** The template's Skills, kept with the row; the Checks read their Encounters' Skills (DL-42, DL-248). */
   skillKeys: SkillKey[];
   /** Drawn at generation, in the order met: one or more, which the validator holds (DL-248). */
   encounterKeys: EncounterKey[];
+  /** Each Encounter's Beat's line, or its Finale's, beside it: as many as `encounterKeys` (DL-262). */
+  beatLines: string[];
   requirements: QuestRequirements;
   lootTableKey: LootTableKey | null;
   status: QuestStatus;
@@ -488,9 +497,11 @@ export interface Stack {
  * than migrating it (DL-125 item 10.2, DL-130); 6, Heroes' `portraitKey`, `appearance` and
  * `biography`, refusing every older save likewise (DL-135 item 7, DL-142); 7, `meta`'s
  * `configVersion`, taking `schemaVersion`, `configVersion` and `gearSlots` from the config and
- * `demands` from Quests, refusing every older save likewise (DL-193).
+ * `demands` from Quests, refusing every older save likewise (DL-193); 8, Quests' `tier` and
+ * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
+ * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266).
  */
-export const schemaVersion = 7;
+export const schemaVersion = 9;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

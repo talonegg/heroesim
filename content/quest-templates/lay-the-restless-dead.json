@@ -1,0 +1,21 @@
+{
+  "name": "Lay the restless dead",
+  "sphereKeys": ["church"],
+  "tags": ["dark", "fight", "holy"],
+  "tierMin": 3,
+  "tierMax": 5,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 3,
+  "partySizeMin": 2,
+  "skillKeys": ["benediction", "warding"],
+  "requires": { "classKey": "healer" },
+  "lootTableKey": "lesser-loot",
+  "beats": [
+    { "line": "The Party reads the old names on the stones, to learn whom it must lay to rest.", "pool": { "kinds": ["lore"], "tags": ["dark", "holy"] } },
+    { "line": "The dead rise from their graves, and the churchyard is held against them.", "pool": { "kinds": ["combat"], "tags": ["dark", "holy", "fight"] } },
+    { "line": "A narrow stair leads down to the crypt, and the way is old and unsafe.", "pool": { "kinds": ["travel"], "tags": ["dark"] } },
+    { "line": "A restless power stirs in the crypt and bars the way to the last rite.", "pool": { "kinds": ["arcane"], "tags": ["dark", "holy"] } }
+  ],
+  "finale": "the-last-rite",
+  "finaleLine": "The last rite is spoken over the dead, and they rest."
+}

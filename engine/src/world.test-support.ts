@@ -63,6 +63,7 @@ import {
   type PartyId,
   type Patron,
   type PatronId,
+  type Quest,
   type QuestId,
   type RegardEntry,
   type Sex,
@@ -137,29 +138,29 @@ interface Named {
 }
 
 /**
- * Each test template's Encounter kinds and count range, as the core's: kinds a template of
- * its tags would meet, and counts that rise with its difficulty, 2 to 5 (INPUTS 6.1).
+ * Each test template's Beats, by the kind each draws (DL-262), as the core's were converted: its
+ * Encounter kinds in order, cycled until it has a Beat for each kind and as many as its highest Tier
+ * plays at the default ladder.
  */
-const templateEncounters: Readonly<Record<string, [EncounterKind[], number, number]>> = {
-  'clear-the-barrow': [['combat', 'stealth', 'travel'], 2, 4],
-  'hold-the-border-fort': [['combat', 'travel'], 3, 5],
-  'escort-the-tithe': [['travel', 'combat', 'social'], 2, 3],
-  'lay-the-restless-dead': [['combat', 'arcane'], 3, 4],
-  'guard-the-caravan': [['travel', 'combat'], 2, 4],
-  'recover-the-strongbox': [['travel', 'stealth'], 2, 3],
-  'the-beast-of-the-fells': [['travel', 'combat', 'stealth'], 2, 4],
-  'the-sickness-at-the-mill': [['social', 'arcane'], 2, 2],
-  'survey-the-old-workings': [['travel', 'arcane', 'stealth'], 2, 4],
-  'break-the-sealed-vault': [['arcane', 'stealth', 'combat'], 4, 5],
-  'a-quiet-word': [['social', 'stealth'], 2, 3],
-  'the-counting-house-job': [['stealth', 'social'], 3, 5],
+const templateBeats: Readonly<Record<string, EncounterKind[]>> = {
+  'clear-the-barrow': ['combat', 'stealth', 'travel'],
+  'hold-the-border-fort': ['combat', 'travel', 'combat', 'travel'],
+  'escort-the-tithe': ['travel', 'combat', 'social'],
+  'lay-the-restless-dead': ['combat', 'arcane', 'combat', 'arcane'],
+  'guard-the-caravan': ['travel', 'combat', 'travel'],
+  'recover-the-strongbox': ['travel', 'stealth', 'travel'],
+  'the-beast-of-the-fells': ['travel', 'combat', 'stealth', 'travel'],
+  'the-sickness-at-the-mill': ['social', 'arcane'],
+  'survey-the-old-workings': ['travel', 'arcane', 'stealth'],
+  'break-the-sealed-vault': ['arcane', 'stealth', 'combat', 'arcane', 'stealth'],
+  'a-quiet-word': ['social', 'stealth', 'social'],
+  'the-counting-house-job': ['stealth', 'social', 'stealth', 'social'],
 };
 
 /**
  * Each test template's Loot table (DL-52), as the core's were before the M5 close's balance
- * pass (DL-62): the six whose `difficultyMin` is above a `lootDifficultyThreshold` of 25, which the
- * tests that rely on it pin (the default is 35 since DL-62), `lesser-loot` below 45 and
- * `greater-loot` from it; the rest none.
+ * pass (DL-62): six of the harder, `lesser-loot` for the three starting lower and `greater-loot` for
+ * the rest; the rest none. A Quest carries it at a Tier whose `loot` is true (DL-262).
  */
 const templateLoot: Readonly<Record<string, string>> = {
   'clear-the-barrow': 'lesser-loot',
@@ -171,21 +172,20 @@ const templateLoot: Readonly<Record<string, string>> = {
 };
 
 /**
- * A Quest template of `sphere` from its ranges as `[min, max]` and its Skills, a space-separated
- * list. The reward is four Wealth per difficulty
- * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
- * `templateEncounters`', and its Loot table `templateLoot`'s.
+ * A Quest template of `sphere` from the Tiers it offers and its least Party size, and its
+ * Skills, a space-separated list. The reward is four Wealth per difficulty and the Fame effect 2, as
+ * INPUTS 4.2's defaults put them. Its Beats are `templateBeats`', each a line naming its kind and a
+ * pool of that kind, and its Loot table `templateLoot`'s.
  */
 function questTemplate(
   key: string,
   sphere: SphereKey,
-  [difficultyMin, difficultyMax]: [number, number],
-  [durationDaysMin, durationDaysMax]: [number, number],
-  [partySizeMin, partySizeMax]: [number, number],
+  [tierMin, tierMax]: [number, number],
+  partySizeMin: number,
   skills: string,
   requires: QuestTemplateRequires = {},
 ): [string, QuestTemplate] {
-  const [encounterKinds, encountersMin, encountersMax] = templateEncounters[key] ?? [['combat'], 2, 2];
+  const kinds = templateBeats[key] ?? ['combat', 'combat'];
   return [
     key,
     {
@@ -193,20 +193,15 @@ function questTemplate(
       name: title(key),
       sphereKeys: [sphere],
       tags: ['fight'],
-      difficultyMin,
-      difficultyMax,
-      durationDaysMin,
-      durationDaysMax,
+      tierMin,
+      tierMax,
       rewardPerDifficulty: 4,
       fameEffect: 2,
       partySizeMin,
-      partySizeMax,
       skillKeys: skills.split(' '),
       requires,
       lootTableKey: templateLoot[key] ?? null,
-      encounterKinds: [...encounterKinds],
-      encountersMin,
-      encountersMax,
+      beats: kinds.map((kind) => ({ line: `A ${kind} Beat.`, pool: { kinds: [kind] } })),
     },
   ];
 }
@@ -368,6 +363,15 @@ function disposition(
 }
 
 /**
+ * Sets `quest`'s Encounters to a test's own `keys`, with a line for each beside them, as the validator
+ * holds a Quest's Beats' lines to its Encounters (DL-262).
+ */
+export function setEncounters(quest: Pick<Quest, 'encounterKeys' | 'beatLines'>, keys: readonly string[]): void {
+  quest.encounterKeys = [...keys];
+  quest.beatLines = keys.map((key) => `The Beat of ${key}.`);
+}
+
+/**
  * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
  * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
  * structure that shares an object between two places is not walked twice.
@@ -384,11 +388,11 @@ export function deepFreeze<T>(value: T): T {
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
- * two to a Sphere, with simpler demands, four Injury types, the core's four
+ * two to a Sphere, in Tiers and Beats as the core's, four Injury types, the core's four
  * Dispositions and their weights, the core's nine Hall Improvements, the core's twelve
  * Encounter keys, two or more of each kind, the core's six Synergies, the
  * core's twenty Item definitions, so that fixture Items raise no warning, and the core's two
- * Loot tables, named by the six templates above the default Loot threshold.
+ * Loot tables, named by six of the templates.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -453,31 +457,31 @@ export const testContent: ContentSet = deepFreeze({
       ...patronNames('female', 'Orabel Quint'),
     ],
   },
-  // key, Sphere, difficulty, Days and Party size ranges; then Skills, requirements.
+  // key, Sphere, Tiers and least Party; then Skills, requirements.
   questTemplates: Object.fromEntries([
-    questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
+    questTemplate('clear-the-barrow', 'crown', [2, 3], 2,
       'swordcraft benediction'),
-    questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
+    questTemplate('hold-the-border-fort', 'crown', [3, 4], 3,
       'tactics shieldwork', { classKey: 'warrior' }),
-    questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
+    questTemplate('escort-the-tithe', 'church', [1, 1], 1,
       'tactics field-surgery'),
-    questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
+    questTemplate('lay-the-restless-dead', 'church', [3, 4], 2,
       'benediction warding', { classKey: 'healer' }),
-    questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
+    questTemplate('guard-the-caravan', 'merchants', [2, 3], 2,
       'tactics trapcraft'),
-    questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
+    questTemplate('recover-the-strongbox', 'merchants', [2, 3], 1,
       'lockpicking trapcraft'),
-    questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
+    questTemplate('the-beast-of-the-fells', 'villages', [2, 4], 2,
       'swordcraft stealth'),
-    questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
+    questTemplate('the-sickness-at-the-mill', 'villages', [1, 1], 1,
       'herbalism field-surgery'),
-    questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
+    questTemplate('survey-the-old-workings', 'scholars', [2, 3], 2,
       'runecraft trapcraft'),
-    questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
+    questTemplate('break-the-sealed-vault', 'scholars', [4, 5], 3,
       'warding runecraft', { classKey: 'mage' }),
-    questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
+    questTemplate('a-quiet-word', 'underworld', [1, 2], 1,
       'stealth lockpicking'),
-    questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
+    questTemplate('the-counting-house-job', 'underworld', [3, 4], 2,
       'lockpicking stealth', { skillKey: 'lockpicking' }),
   ]),
   // key, Days to heal, the Trait it leaves: some leave a Hero Trait, some none.
@@ -811,6 +815,22 @@ export function withEncounters(
 }
 
 /**
+ * `content` (the test content by default) with every Quest template's Tiers scaling Death at 1 (its
+ * `overrides`' `deathScale`), frozen: for a test whose Deaths land at their Encounters' chance whatever
+ * Tier its Quest was drawn at, as they did before Tiers (DL-265).
+ */
+export function deadlyAtEveryTier(content: ContentSet = testContent): ContentSet {
+  const tiers = defaultConfig.tiers.map((_, index) => String(index + 1));
+  const questTemplates = Object.fromEntries(
+    Object.entries(content.questTemplates).map(([key, row]): [string, QuestTemplate] => [
+      key,
+      { ...structuredClone(row), overrides: Object.fromEntries(tiers.map((tier) => [tier, { ...row.overrides?.[tier], deathScale: 1 }])) },
+    ]),
+  );
+  return deepFreeze({ ...content, questTemplates });
+}
+
+/**
  * `content` (the test content by default) with `weights` set on every Disposition, frozen: for a
  * test that must say what every Rival does whichever Disposition it was dealt (DL-56), as
  * a test once pinned `recruitWealthMultiple` and `buildWealthMultiple` in the config.
@@ -838,16 +858,19 @@ export const harmlessContent: ContentSet = withEncounters({ success: [], failure
 
 /**
  * Every failed Check kills one Hero and then injures one of the living with `broken-arm`, each
- * certainly, so a Party of two or more sent through one failed Encounter loses one Hero and brings
- * one home hurt; a success costs nothing. For tests of harm, which make the Check fail.
+ * certainly, at every Tier (`deadlyAtEveryTier`), so a Party of two or more sent through one failed
+ * Encounter loses one Hero and brings one home hurt; a success costs nothing. For tests of harm, which
+ * make the Check fail.
  */
-export const certainHarmContent: ContentSet = withEncounters({
-  success: [],
-  failure: [
-    { kind: 'death', chance: 1 },
-    { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
-  ],
-});
+export const certainHarmContent: ContentSet = deadlyAtEveryTier(
+  withEncounters({
+    success: [],
+    failure: [
+      { kind: 'death', chance: 1 },
+      { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
+    ],
+  }),
+);
 
 /**
  * An empty world at Turn 0 with a stream for each of `names`, seeded from `seed`: the core's
@@ -1060,6 +1083,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   const quest = () => ({
     templateKey: 'clear-the-barrow',
     patronId: patron,
+    tier: 2,
     difficulty: 30,
     tags: ['undead'],
     reward: 120,
@@ -1067,7 +1091,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     durationTurns: 9,
     skillKeys: ['swordcraft'],
     encounterKeys: ['hold-the-line'],
-    requirements: { partySizeMin: 1, partySizeMax: 3, classKey: 'warrior', skillKey: 'swordcraft' },
+    beatLines: ['A combat Beat.'],
+    requirements: { partySizeMin: 1, classKey: 'warrior', skillKey: 'swordcraft' },
     lootTableKey: null,
   });
   world.quests[takenQuest] = {
@@ -1083,7 +1108,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     id: offeredQuest,
     templateKey: 'escort-the-tithe',
     patronId: secondPatron,
-    requirements: { partySizeMin: 2, partySizeMax: 4 },
+    requirements: { partySizeMin: 2 },
     status: 'offered',
     offeredOnTurn: 39,
     expiresOnTurn: 48,
@@ -1099,9 +1124,9 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     returnsOnTurn: 44,
   };
   (world.heroes[partyHero] as Hero).partyId = party;
-  log(33, 'quest.offered', [takenQuest, patron]);
-  log(36, 'quest.taken', [takenQuest, party, partyHero, playerGuild]);
-  log(39, 'quest.offered', [offeredQuest, secondPatron]);
+  log(33, 'quest.offered', [takenQuest, patron], false, { tier: 2 });
+  log(36, 'quest.taken', [takenQuest, party, partyHero, playerGuild], false, { tier: 2 });
+  log(39, 'quest.offered', [offeredQuest, secondPatron], false, { tier: 2 });
 
   // A Transfer offer for a Rival's Hero.
   const offer = next('offers');

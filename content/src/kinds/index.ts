@@ -5,6 +5,7 @@
 // carries the readers alone.
 
 import type { ContentSet } from '@heroesim/engine/content';
+import type { ContentSource } from '../files.js';
 import { backgroundsKind, backgroundsRules } from './backgrounds.js';
 import { classesKind, classesRules, classOrderKind, classOrderRules } from './classes.js';
 import { descriptionsKind, descriptionsRules } from './descriptions.js';
@@ -61,6 +62,16 @@ const readers: { [Place in ContentPlace]: KindReader<Place, ContentSet[Place]> }
 /** The readers, in the order of the content set's places. */
 export const contentKinds: readonly AnyKindReader[] = Object.values(readers);
 
+/**
+ * Where each kind sits in the content directory, as its kind declares (DL-260): one file, or a folder
+ * of one file a row. In the order of the content set's places, the content version's file last
+ * (DL-186 item 14).
+ */
+export const contentSources: readonly ContentSource[] = [
+  ...contentKinds.filter((kind) => kind.key !== 'version').map((kind) => kind.source),
+  readers.version.source,
+];
+
 /** The rules, in the order of the content set's places; the content version's are its reader's. */
 export const contentRules: readonly KindRules[] = [
   statsRules,
@@ -96,4 +107,16 @@ export function contentFieldNames(): Set<string> {
   };
   for (const kind of contentKinds) kind.holds.forEach(visit);
   return names;
+}
+
+/**
+ * The fields of a row of the table read from `source`, in the order its kind writes them, each with
+ * whether a row may leave it out: for a tool that writes a row whole (the content editor's Quest
+ * templates and Encounters, DL-267). `null` where `source` is no table of one shape.
+ */
+export function rowFields(source: ContentSource): { name: string; optional: boolean }[] | null {
+  const kind = contentKinds.find((each) => each.source === source);
+  const [fields, ...others] = kind?.holds ?? [];
+  if (fields === undefined || others.length > 0) return null;
+  return Object.entries(fields).map(([name, field]) => ({ name, optional: field.optional === true }));
 }

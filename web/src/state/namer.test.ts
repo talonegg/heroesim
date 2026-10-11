@@ -91,7 +91,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
-  'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
+  'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
   'quest.taken': event('quest.taken', [questId, partyId, heroId, otherHeroId, guildId], {
     questId,
@@ -99,6 +99,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId, otherHeroId],
     returnsOnTurn: 23,
+    tier: 2,
     consumables: [{ definitionKey: 'whetstone', quantity: 2 }],
   }),
   'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {

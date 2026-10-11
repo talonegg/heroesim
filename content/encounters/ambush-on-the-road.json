@@ -1,0 +1,57 @@
+{
+  "name": "Ambush on the road",
+  "kind": "combat",
+  "tags": ["escort","wilds"],
+  "checks": [
+    {
+      "key": "steel",
+      "name": "Steel",
+      "score": ["ranked","party",["weighted",[["weaponry",0.6],["strength",0.4]]],[1,0.5,0.25]],
+      "skills": ["swordcraft","tactics"],
+      "flat": 5.73,
+      "difficultyFactor": 0.143
+    },
+    {
+      "key": "nerve",
+      "name": "Nerve",
+      "score": ["min","party",["stat","courage"]],
+      "skills": [],
+      "flat": 1.88,
+      "difficultyFactor": 0.047
+    },
+    {
+      "key": "rally",
+      "name": "Rallying",
+      "score": ["max","party",["stat","leadership"]],
+      "skills": ["tactics"],
+      "flat": 3.39,
+      "difficultyFactor": 0.085
+    }
+  ],
+  "pass": ["and","steel",["or","nerve","rally"]],
+  "consequences": {
+    "success": [{"kind":"xp","factor":1.1}],
+    "triumph": [{"kind":"xp","factor":1.2}],
+    "setback": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.1,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      }
+    ],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "deep-cut",
+        "chance": 0.2,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.03,"guardedBy":["constitution"]}
+    ]
+  }
+}

@@ -4,10 +4,10 @@ The game's tuning values, every setting of `GameConfig` (`engine/src/config.ts`)
 in one data file, `engine/src/config.json` (v1.1.6-S18, DL-186 item 15, DL-204). It holds:
 
 - **`sections`**: the settings grouped by what they tune (`world`, `heroes`, `guildmasters`,
-  `guilds`, `recruitment`, `board`, `quest`, `heroState`, `ageing`, `endings`, `progression`,
-  `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`, `market`). The
-  engine reads them flat, as `defaultConfig`: each setting is in one section, once, and the sections
-  hold every setting of `GameConfig` and nothing else (`engine/src/config.test.ts`).
+  `guilds`, `recruitment`, `board`, `questTiers`, `quest`, `heroState`, `ageing`, `endings`,
+  `progression`, `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`,
+  `market`). The engine reads them flat, as `defaultConfig`: each setting is in one section, once,
+  and the sections hold every setting of `GameConfig` and nothing else (`engine/src/config.test.ts`).
 - **`version`**: the config version, written into each new game's `meta.configVersion`, raised
   whenever a default changes, so that `rebase` can offer a game the new defaults (DL-193).
 - **`changelog`**: a line for each raise, saying why, citing its decision-log entry.
@@ -29,11 +29,18 @@ npm run edit -- config finish --reason "<why> (DL-NNN)"
 
 - **`set`** reads the value as JSON where it is JSON (`25`, `0.5`, `{"female":1,"male":3}`,
   `["strong"]`) and as text where not (`warm`), an object's keys in the file's order whatever order
-  they are given in. Each edit is checked at once with the engine's
+  they are given in. A list is set whole: the Tier ladder as `config set tiers '[{…}, …]'`, every
+  Tier's eleven fields given (DL-262, DL-271). Each edit is checked at once with the engine's
   `checkConfig`, with every pending edit made, and refused, naming the
-  setting, where a rule refuses it: `boardSize is -1; it is a whole number, at least 0`. A setting
-  another's rule reads is named too: a Min set above its Max names the Max. Nothing is written to
-  the file before `finish`; the edits are held in `.editor/config.json`, which git ignores.
+  setting, where a rule refuses it: `boardSizeStart is -1; it is a whole number, at least 0`. A setting
+  another's rule reads is named too: a Min set above its Max names the Max. A Tier ladder changed is
+  held to the Quest templates on disk as well, by the content's own ladder rules: a Tier past the
+  ladder, an override unsound once merged, a Tier playing more Beats than a template has
+  (`questTemplates.x: Tier 1 plays 4 Beats, more than its 3 Beats`; DL-270). Edits pending in the
+  `quests` kind are not read here, nor a pending ladder by `quests doctor`: with both pending, only
+  the second "Finish"'s tests hold them together, so finish one kind before editing the other.
+  Nothing is written to the file before `finish`; the edits are held in
+  `.editor/config.json`, which git ignores.
 - **`finish`** checks the settings again, writes `config.json` in its own layout (only the changed
   values, the version and the changelog's new line change), raises `version` by one with the line
   `<version> from <reason>: <setting> <was> to <value>, ….`, and runs `npm test`. If a test fails, the

@@ -157,6 +157,9 @@ describe("the engine's content entry", () => {
     ...namedFrom('content.ts', 'document.js'),
     ...namedFrom('content.ts', 'generators/draw.js'),
     ...namedFrom('content.ts', 'quest-engine/query/problems.js'),
+    ...namedFrom('content.ts', 'config.js'),
+    ...namedFrom('content.ts', 'config-check.js'),
+    ...namedFrom('content.ts', 'tiers.js'),
   ]);
   /** The production sources of content, the words and the content editor: content's readers. */
   const readers = production.filter((file) => /^(content|words|tools\/editor)\//.test(file));
@@ -165,7 +168,7 @@ describe("the engine's content entry", () => {
 
   test("exports every value of content's types, its lists and queryProblems", () => {
     expect(Object.keys(contentTypes).filter((name) => !Object.hasOwn(contentEntry, name))).toEqual([]);
-    for (const name of ['queryProblems', 'facilityKeys', 'sexes', 'descriptiveAttributeMaxLength', 'biographyTraitSentences', 'heroBiographyTraitSentences']) {
+    for (const name of ['queryProblems', 'tierLadder', 'tierFields', 'tierRowProblems', 'beatsDrawn', 'inBeatPool', 'shortBeats', 'facilityKeys', 'sexes', 'descriptiveAttributeMaxLength', 'biographyTraitSentences', 'heroBiographyTraitSentences']) {
       expect(contentEntry).toHaveProperty(name);
     }
     expect(contentNames.has('ContentSet') && contentNames.has('QueryKeys') && contentNames.has('Sex')).toBe(true);

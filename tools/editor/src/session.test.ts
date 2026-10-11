@@ -91,7 +91,7 @@ const trials: Trial[] = [
     configFile,
     {
       edit: { setting: 'wagePerLevel', value: 25 },
-      failing: { setting: 'boardSize', value: -1 },
+      failing: { setting: 'boardSizeStart', value: -1 },
       pair: [
         { setting: 'rivalRosterMax', value: 12 },
         { setting: 'rivalRosterMin', value: 10 },

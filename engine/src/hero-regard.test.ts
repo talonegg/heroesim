@@ -34,6 +34,7 @@ import {
   testDeps,
   withEncounters,
   withValid,
+  setEncounters,
 } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
@@ -93,8 +94,8 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
 function openQuest(world: World, size: number): Quest | undefined {
   return world.board
     .map((id) => world.quests[id] as Quest)
-    .find(({ requirements: { classKey, skillKey, partySizeMin, partySizeMax } }) =>
-      classKey === undefined && skillKey === undefined && partySizeMin <= size && size <= partySizeMax,
+    .find(({ requirements: { classKey, skillKey, partySizeMin } }) =>
+      classKey === undefined && skillKey === undefined && partySizeMin <= size,
     );
 }
 
@@ -124,7 +125,7 @@ function send(
   if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;
-  if (encounterKeys !== undefined) quest.encounterKeys = [...encounterKeys];
+  if (encounterKeys !== undefined) setEncounters(quest, encounterKeys);
   const party = sent.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
   return { document: withValid(sent.document, deps), party: structuredClone(party), events };
 }

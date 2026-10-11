@@ -48,8 +48,8 @@ export function nightOf(day: number): Turn {
 }
 
 /**
- * How many Days a Quest lasts. A Quest stores `durationTurns`, its template's Days times three
- * (data-model §3.2, pre-M0 review C4), so this is a whole number; one that is not, which only a
+ * How many Days a Quest lasts. A Quest stores `durationTurns`, its Days (its Tier's, DL-262) times
+ * three (data-model §3.2, pre-M0 review C4), so this is a whole number; one that is not, which only a
  * hand-made row could hold, counts a part-Day as a Day.
  */
 export function durationDaysOf(quest: Pick<Quest, 'durationTurns'>): number {

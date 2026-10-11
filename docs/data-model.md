@@ -203,25 +203,38 @@ Guildmasters, and their Regard for a Guild is read through its Guildmaster, neve
 **quests**
 ```
 id, templateKey, patronId
-difficulty, tags, reward, fameEffect
-durationTurns:  integer                     durationDays × 3, from the template's range
+tier:           integer                     from 1: the Tier of the config's ladder it was drawn
+                                            at, among those its template offers (DL-262)
+difficulty:     integer                     drawn inside its Tier's band
+tags, fameEffect
+reward:         integer                     difficulty × the template's rewardPerDifficulty ×
+                                            its Tier's rewardFactor, rounded (DL-262)
+durationTurns:  integer                     its Days away × 3: its Tier's days at the place its
+                                            difficulty has in its band (DL-262)
 skillKeys:      SkillKey[]                  copied from the template; read by no rule, each Check
                                             reading its own Skills (DL-248)
-encounterKeys:  EncounterKey[]              one or more, drawn at generation in the order met,
+encounterKeys:  EncounterKey[]              one or more, drawn at generation in the order met:
+                                            one from each Beat its Tier plays, none twice,
                                             weighted by the tags each shares with the template,
-                                            the last the template's Finale when it names one
-                                            (DL-160, DL-248)
-requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
-lootTableKey:   string | null               the template's, copied at generation when its difficultyMin is
-                                            above lootDifficultyThreshold, else null (DL-52)
+                                            then the template's Finale when it names one
+                                            (DL-160, DL-248, DL-262)
+beatLines:      string[]                    each Encounter's Beat's line, or its Finale's, as
+                                            many as encounterKeys (DL-262)
+requirements:   { partySizeMin, classKey?, skillKey? }   copied from the template: the least
+                                            Party, with no most (DL-257 item 6, DL-266)
+lootTableKey:   string | null               the template's, copied at generation when its Tier's
+                                            loot is true, else null (DL-52, DL-262)
 status:         "offered" | "taken" | "resolved"
 offeredOnTurn, expiresOnTurn
 partyIds:       PartyId[]                   at most one (`maxPartiesPerQuest`); several Guilds'
                                             Parties on one Quest is a candidate (plan.md §3, DL-89)
 ```
 The Board is `world.board: QuestId[]`, ordered, holding the offered Quests. The fields copied from
-the template at generation make a Quest row self-contained: a template may change under a live
-save without altering Quests already offered, and no content migration is needed.
+the template at generation make a Quest row self-contained, but for three of its Tier's figures,
+read from the game's config and the template's overrides as they are needed (`tierFigures`): the XP
+factor as it resolves (DL-262), the Death scale, times `deathFactor`, as it resolves and for its
+Deadly mark (DL-265), and the Fame minimum as a Party is sent (DL-264). Otherwise a template may change
+under a live save without altering Quests already offered, and no content migration is needed.
 
 **parties**
 ```
@@ -334,7 +347,8 @@ checks the entry's type, participants and Turn, and indexes it (`history.ts`):
   is removed.
 - Some types require a payload field, which the validator holds (`entry-field-missing`, DL-246):
   a Guild's founding names its Wealth; an entry caused by a Quest's return names the Quest
-  (`questCauses`); an Encounter names its Degree, the Check that decided it and the Checks rolled.
+  (`questCauses`); an Encounter names its Degree, the Check that decided it and the Checks rolled;
+  a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
 - Appending costs one push to `entries` plus one integer per participant, one per type, and one
   for a Milestone.
 
@@ -396,7 +410,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 
@@ -408,7 +422,7 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 
 | Check | What it refuses |
 | --- | --- |
-| `document-shape` | A section, row or entry missing a field or holding one of the wrong kind; a holder's kind, or a `sex` other than `"female"` or `"male"` (a Patron's may be `null`, DL-133); a Quest with no Encounter (DL-248) |
+| `document-shape` | A section, row or entry missing a field or holding one of the wrong kind; a holder's kind, or a `sex` other than `"female"` or `"male"` (a Patron's may be `null`, DL-133); a Quest with no Encounter (DL-248), a Tier below 1, or a line too many or too few for its Encounters (DL-262) |
 | `json-safe` | A value rule 6 forbids |
 | `id-format`, `counter-range` | An id not of the form `<table>-<six digits>`; a counter past 999,999 or not above every id in use |
 | `dangling-reference` | An id naming no row of its table |

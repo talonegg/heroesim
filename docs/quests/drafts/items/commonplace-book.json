@@ -1,0 +1,9 @@
+{
+  "name": "Commonplace book",
+  "kind": "gear",
+  "unique": false,
+  "slot": "trinket",
+  "statModifiers": {"knowledge":1},
+  "buyPrice": 35,
+  "tags": ["plain"]
+}

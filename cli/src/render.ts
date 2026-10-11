@@ -47,6 +47,7 @@ import {
   chanceWords,
   dateOfDay,
   dateOfTurn,
+  deadlyWords,
   facilityNames,
   kindWords,
   listed,
@@ -56,6 +57,7 @@ import {
   nightOfTurn,
   poolNote,
   poolReading,
+  questClosed,
   readsAsOne,
   rosterReading,
   rowOf,
@@ -71,6 +73,7 @@ import {
   type QuestReading,
   type RosterRowReading,
 } from '@heroesim/words';
+import { refusalLine } from './namer.js';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -626,10 +629,12 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
 
 /**
  * `show board`: the Quests on offer in the Board's order (`boardReading`), each with its template's
- * name, its Patron, its terms, what it requires and the last date it stays on offer; then the Skills
+ * name, its Patron, its Tier, whether it is Deadly ("Yes" or "No", no figure), its Days and reward, as
+ * its card on the page leads with them (DL-269), the rest of its terms, what it requires and the last
+ * date it stays on offer; then the Skills
  * that help in its Encounters' Checks and the kinds of those Encounters; then each Quest's
- * Encounters with each Check's name and what it reads, and the player's Best Party with its chance
- * (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
+ * Encounters with each Check's name and what it reads, whether it is Deadly (DL-265), and the
+ * player's Best Party with its chance (DL-148 items 15 to 17), every Quest asked of the reading's one Best Party module (DL-237).
  */
 export function renderBoard(reading: PlayerReading): string[] {
   const { world, calendar } = reading;
@@ -644,9 +649,11 @@ export function renderBoard(reading: PlayerReading): string[] {
         { heading: 'Id' },
         { heading: 'Quest' },
         { heading: 'Patron' },
-        { heading: 'Difficulty', align: 'right' },
+        { heading: 'Tier', align: 'right' },
+        { heading: 'Deadly' },
         { heading: 'Days', align: 'right' },
         { heading: 'Reward', align: 'right' },
+        { heading: 'Difficulty', align: 'right' },
         { heading: 'Fame', align: 'right' },
         { heading: 'Party' },
         { heading: 'Requires' },
@@ -656,11 +663,13 @@ export function renderBoard(reading: PlayerReading): string[] {
         quest.id,
         quest.name,
         quest.patron ?? quest.patronId,
-        String(quest.difficulty),
+        String(quest.tier),
+        quest.deadly ? 'Yes' : 'No',
         String(quest.days),
         String(quest.reward),
+        String(quest.difficulty),
         String(quest.fame),
-        `${quest.partySizeMin} to ${quest.partySizeMax}`,
+        `${quest.partySizeMin} or more`,
         [quest.classRequired, quest.skillRequired].filter((name) => name !== null).join(', '),
         dateOfTurn(quest.expiresOnTurn, calendar),
       ]),
@@ -676,8 +685,9 @@ export function renderBoard(reading: PlayerReading): string[] {
 
 /**
  * A Quest's Encounters as the Board gives them: each with its kind and each Check's name and what it
- * reads, an Encounter of one Check of its own name on one line; then the Best Party of the player's
- * free Heroes and its chance, if no one falls.
+ * reads, an Encounter of one Check of its own name on one line; then whether it is Deadly, with no
+ * figure (DL-265); then the Best Party of the player's free Heroes and its chance, if no one falls,
+ * or why the player's Guild may not take the Quest.
  */
 function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   const lines = quest.encounters.flatMap((encounter) => {
@@ -686,10 +696,14 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
     return [`  ${encounter.name}${kind}`, ...encounter.checks.map((it) => `    ${it.name}: ${it.reads}`)];
   });
   const row = rowOf(reading.world.quests, quest.id);
+  // A Quest the Guild may not take offers no Party: why, in the refusals' words (DL-264).
+  const closed = row === undefined ? null : questClosed(reading, row);
+  const { world, content, calendar } = reading;
   return [
     `${quest.id}, ${quest.name}`,
     ...lines,
-    `  ${bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
+    ...(quest.deadly ? [`  ${deadlyWords.mark}: ${deadlyWords.meaning}.`] : []),
+    `  ${closed !== null ? refusalLine(closed, { world, content, calendar }) : bestPartyWords(row === undefined ? null : bestPartyReading(reading, row))}`,
   ];
 }
 

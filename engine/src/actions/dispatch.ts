@@ -25,6 +25,7 @@ import {
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
 import { findStack, itemDefinition, moveStack } from '../items.js';
+import { tierFigures } from '../tiers.js';
 import { returnNightOf } from '../time.js';
 import type { Rejection, WorldActionResult } from './result.js';
 
@@ -60,6 +61,18 @@ export interface QuestNotOffered extends Rejection<'dispatch', 'quest-not-offere
   questId: QuestId;
 }
 
+/**
+ * The Guild's Fame is below the Fame minimum of the Quest's Tier (DL-257 item 3, DL-264): it may not
+ * take the Quest, whoever it sends.
+ */
+export interface FameBelowMinimum extends Rejection<'dispatch', 'fame-below-minimum'> {
+  guildId: GuildId;
+  questId: QuestId;
+  tier: number;
+  fameMinimum: number;
+  fame: number;
+}
+
 /** The Hero is not on the Guild's Roster: another Guild's, Unattached, or no Hero at all. */
 export interface HeroNotOnRoster extends Rejection<'dispatch', 'hero-not-on-roster'> {
   heroId: HeroId;
@@ -78,12 +91,12 @@ export interface HeroUnavailable extends Rejection<'dispatch', 'hero-unavailable
 export type RequirementKind = 'party-size' | 'class' | 'skill';
 
 /**
- * One requirement of a Quest a Party misses, named by `requirement`: its size is outside the
- * Quest's bounds (any size within them is accepted), or no Hero in it is of the Class, or holds the
- * Skill, the Quest requires.
+ * One requirement of a Quest a Party misses, named by `requirement`: its size is below the Quest's
+ * least (any size at or above it is accepted, no Quest having a most, DL-257 item 6, DL-266), or no
+ * Hero in it is of the Class, or holds the Skill, the Quest requires.
  */
 export type UnmetRequirement =
-  | { requirement: 'party-size'; size: number; partySizeMin: number; partySizeMax: number }
+  | { requirement: 'party-size'; size: number; partySizeMin: number }
   | { requirement: 'class'; classKey: ClassKey }
   | { requirement: 'skill'; skillKey: SkillKey };
 
@@ -118,6 +131,7 @@ export interface DispatchInsufficientQuantity extends Rejection<'dispatch', 'ins
 export type DispatchRejection =
   | DispatchGuildFolded
   | QuestNotOffered
+  | FameBelowMinimum
   | HeroNotOnRoster
   | HeroUnavailable
   | RequirementUnmet
@@ -128,7 +142,8 @@ export type DispatchRejection =
 /**
  * Sends `heroIds` of `guildId` on `questId`. The checks run in this order, and the first that
  * fails is the rejection (DL-25, DL-31): the Guild has not folded (`guild-folded`); the Quest is
- * on the Board (`quest-not-offered`); each Hero in turn is on the Guild's Roster
+ * on the Board (`quest-not-offered`); the Guild's Fame is at least the Fame minimum of the Quest's
+ * Tier (`fame-below-minimum`, `fameRefusal`, DL-264); each Hero in turn is on the Guild's Roster
  * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, or in a
  * Party); the Party meets the Quest's requirements (`requirement-unmet`, naming each it
  * misses: its size, its required Class, its required Skill; M4-S5, `unmetRequirements`); and each
@@ -191,6 +206,7 @@ export function applyDispatch(
       guildId,
       heroIds: [...heroIds],
       returnsOnTurn,
+      tier: quest.tier,
       reward: quest.reward,
       consumables: consumables.map(({ definitionKey, quantity }) => ({ definitionKey, quantity })),
     },
@@ -208,11 +224,9 @@ export function unmetRequirements(
   quest: Pick<Quest, 'requirements'>,
   party: readonly Pick<Hero, 'classKey' | 'skills'>[],
 ): UnmetRequirement[] {
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const { partySizeMin, classKey, skillKey } = quest.requirements;
   const unmet: UnmetRequirement[] = [];
-  if (party.length < partySizeMin || party.length > partySizeMax) {
-    unmet.push({ requirement: 'party-size', size: party.length, partySizeMin, partySizeMax });
-  }
+  if (party.length < partySizeMin) unmet.push({ requirement: 'party-size', size: party.length, partySizeMin });
   if (classKey !== undefined && !party.some((hero) => hero.classKey === classKey)) {
     unmet.push({ requirement: 'class', classKey });
   }
@@ -272,6 +286,8 @@ function refusal(world: World, guild: Guild, request: DispatchRequest, deps: Eng
   if (quest === undefined || quest.status !== 'offered' || !world.board.includes(questId)) {
     return { action: 'dispatch', reason: 'quest-not-offered', questId };
   }
+  const famed = fameRefusal(guild, quest, deps);
+  if (famed !== null) return famed;
 
   const party: Hero[] = [];
   for (const heroId of heroIds) {
@@ -301,6 +317,23 @@ function refusal(world: World, guild: Guild, request: DispatchRequest, deps: Eng
     }
   }
   return null;
+}
+
+/**
+ * Why `guild` may not take `quest`, or `null` when it may (DL-257 item 3, DL-264): its Fame below the
+ * Fame minimum of the Quest's Tier, the template's own where it overrides the ladder's (`tierFigures`,
+ * read live as the XP factor is). `dispatch` refuses such a Quest whoever is sent, and every chooser
+ * of a Quest for a Guild passes it by: a Rival's, the harness's player's, and the Board's "Your best
+ * Party". Draws nothing.
+ */
+export function fameRefusal(
+  guild: Pick<Guild, 'id' | 'fame'>,
+  quest: Pick<Quest, 'id' | 'templateKey' | 'tier'>,
+  deps: Pick<EngineDeps, 'content' | 'config'>,
+): FameBelowMinimum | null {
+  const { fameMinimum } = tierFigures(rowOf(deps.content.questTemplates, quest.templateKey), quest.tier, deps.config);
+  if (guild.fame >= fameMinimum) return null;
+  return { action: 'dispatch', reason: 'fame-below-minimum', guildId: guild.id, questId: quest.id, tier: quest.tier, fameMinimum, fame: guild.fame };
 }
 
 /**

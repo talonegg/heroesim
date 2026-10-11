@@ -30,6 +30,7 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
+| `v1.2.0` | [Fewer, weightier Quests](./v1.2.0-release.md) | A full `gate`'s correctness and performance lines; DL-83's targets reported, not tuned; the owner's playtest | 19–24 | `v1.1.9` (DL-257) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
 [the archive](../archive/README.md).
@@ -50,8 +51,8 @@ act from M2 with one trivial disposition so nothing is ever tuned against an unc
 the module contract comes last so the pipeline's phases are settled by use before they become an
 interface (ADR-0005 as amended).
 
-Why the middle runs Progression → Quest Engine → Items → Rivals: growth is the pull
-(principle 2), so Levels and Potential land first and are tuned against the stub; the real
+Why the middle runs Progression → Quest Engine → Items → Rivals: Levels and Potential land
+first and are tuned against the stub; the real
 Quest Engine then has Skills and Levels to read; Items and Loot are consumed by the Quest Engine
 so they follow it; Transfers are the last thing the automatic policy needs to be sensible about.
 

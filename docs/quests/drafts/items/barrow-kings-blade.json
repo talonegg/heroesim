@@ -1,0 +1,9 @@
+{
+  "name": "The Barrow King's blade",
+  "kind": "gear",
+  "unique": true,
+  "slot": "weapon",
+  "statModifiers": {"weaponry":4,"strength":2,"courage":1},
+  "buyPrice": null,
+  "tags": ["relic"]
+}

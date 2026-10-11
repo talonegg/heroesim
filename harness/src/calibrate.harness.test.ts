@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
-import { calibrate, calibrationReport, defaultCalibration, defaultTuningAim, draftsDir, formatJson, heroPool, loadDrafts, tunedFactors, type TuningAim } from './calibrate.js';
+import { calibrate, calibrationReport, defaultCalibration, defaultTuningAim, draftsDir, heroPool, loadDrafts, tunedFactors, writeTunedEncounters, type TuningAim } from './calibrate.js';
 import { runConfig } from './play.js';
 import { machine, print, writeReport } from './report.js';
 import { runSettings, settingsSet } from './settings.js';
@@ -10,15 +10,15 @@ import { runSettings, settingsSet } from './settings.js';
 // The calibration (DL-162), collected only by the harness-run project and run only when
 // HEROESIM_PROBE names it: `npm run harness -- calibrate` (main.ts sets the probe from the word), or
 // `HEROESIM_PROBE=calibrate npm run harness`. It calibrates the shipped content, or that content with
-// the drafts of HEROESIM_DRAFTS (a directory of content files, each in place of the core file of its
-// name, such as `docs/quests/drafts`; unset, blank or `none`, the content alone),
+// the drafts of HEROESIM_DRAFTS (a directory of content files and folders, each in place of the core's
+// of its name, a folder whole (DL-260), such as `docs/quests/drafts`; unset, blank or `none`, the content alone),
 // HEROESIM_PARTIES random Parties a cell (120 by default) and HEROESIM_SEEDS seeds a spot-check sample (4,000 by default), and writes
 // `calibration.md` and `calibration.json` beside the drafts' directory (`docs/quests/`), or into
 // HEROESIM_CALIBRATION_OUT.
 //
 // With HEROESIM_TUNE set to a chance (`0.44`), beside HEROESIM_DRAFTS, it first sets every Check's
-// difficulty factor in the drafts' `encounters.json` so that at `defaultTuningAim` (Level 5, difficulty 60) random Parties of 3
-// succeed at each Encounter with that chance (`tunedFactors`), and writes the file back, then
+// difficulty factor in the drafts' `encounters/` so that at `defaultTuningAim` (Level 5, difficulty 60) random Parties of 3
+// succeed at each Encounter with that chance (`tunedFactors`), and writes each file back, then
 // calibrates it; each Finale at the middle of its template's difficulties (`aimOf`). HEROESIM_FLAT, a
 // share from 0 to 1, puts that share of each target at the aim into the Check's flat term (DL-162
 // verification). HEROESIM_CONFIG plays config values in place of the defaults, as a play sweep does.
@@ -40,21 +40,7 @@ test.runIf(probe !== null)('the content is calibrated, and the estimate holds to
     const { content } = loadDrafts(draftDir);
     const deps: EngineDeps = { config: runConfig(configured), content };
     const pool = heroPool(`calibrate-level-${aim.level}`, aim.level, settings.pool, deps);
-    const factors = tunedFactors(pool, aim, settings.parties, deps);
-    const path = join(draftDir, 'encounters.json');
-    const json = JSON.parse(readFileSync(path, 'utf8')) as Record<string, { checks: { key: string; flat?: number; difficultyFactor: number }[] }>;
-    for (const [key, encounter] of Object.entries(json)) {
-      encounter.checks = encounter.checks.map((it) => {
-        const tuning = factors[key]?.[it.key];
-        if (tuning === undefined) return it;
-        // The flat term written before the factor, as a target reads: flat + factor × difficulty; the
-        // other fields after them, in their own order.
-        const after = Object.fromEntries(Object.entries(it).filter(([field]) => !['key', 'name', 'score', 'skills', 'flat', 'difficultyFactor'].includes(field)));
-        const { key: checkKey, name, score, skills } = it as typeof it & { name: unknown; score: unknown; skills: unknown };
-        return { key: checkKey, name, score, skills, ...(tuning.flat === undefined ? {} : { flat: tuning.flat }), difficultyFactor: tuning.difficultyFactor, ...after };
-      });
-    }
-    writeFileSync(path, `${formatJson(json)}\n`, 'utf8');
+    writeTunedEncounters(draftDir, tunedFactors(pool, aim, settings.parties, deps));
   }
 
   const { content, drafted } = loadDrafts(draftDir);

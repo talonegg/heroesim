@@ -1,0 +1,9 @@
+{
+  "name": "Masterwork blade",
+  "kind": "gear",
+  "unique": false,
+  "slot": "weapon",
+  "statModifiers": { "weaponry": 3, "strength": 2 },
+  "buyPrice": 300,
+  "tags": ["masterwork"]
+}

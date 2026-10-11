@@ -1,16 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from '../config.js';
-import type { ContentSet, Encounter, EncounterKind, QuestTemplate } from '../content-types.js';
+import type { ContentSet, Encounter, EncounterKind, QuestBeat, QuestTemplate } from '../content-types.js';
 import type { World } from '../document.js';
 import { sortedRows, streamOf } from '../generators/draw.js';
 import { next, pick } from '../rng.js';
 import { plannedStreams, testContent, testDeps, testWorld } from '../world.test-support.js';
-import { drawSequence, encounterCount, endsWithFinale, finaleKeys, sequenceFor, sequencePlan, tagWeight } from './encounters.js';
+import { beatPlan, drawBeats, endsWithFinale, finaleKeys, sequenceFor, tagWeight } from './encounters.js';
 
-// How many Encounters a Quest has, and how its sequence is drawn, at generation or, for a
-// Quest whose Encounters content no longer defines, when it resolves (DL-42, data-model rule 5). DL-160: the draw within a kind weighted by
-// the tags an Encounter shares with its template, and a template's Finale, always last (DL-148 items
-// 22 and 23).
+// How a Quest's Encounters are drawn by its template's Beats, at generation or, for a Quest whose
+// Encounters content no longer defines, when it resolves (DL-42, DL-262, data-model rule 5): one from
+// each Beat its Tier plays, none twice, weighted by the tags an Encounter shares with its template
+// (DL-160), and a template's Finale, always last (DL-148 items 22 and 23).
 
 const barrow = testContent.questTemplates['clear-the-barrow'] as QuestTemplate;
 const config = { encounterTagWeight: defaultConfig.encounterTagWeight };
@@ -30,86 +30,73 @@ function tagged(key: string, kind: EncounterKind, tags?: string[]): Encounter {
   return { ...structuredClone(ambush), key, name: key, kind, ...(tags === undefined ? {} : { tags }) };
 }
 
-/** The sequence as it was drawn before DL-160: a kind by `pick`, then an Encounter of it by `pick`. */
-function drawnBefore(state: Parameters<typeof pick>[0], template: QuestTemplate, content: ContentSet, count: number): string[] {
-  const pools = template.encounterKinds.map((kind) => sortedRows(content.encounters, (it) => it.kind === kind));
-  return Array.from({ length: count }, () => pick(state, pick(state, pools)).key);
-}
+/** A Beat drawing an Encounter of `kind`, its line `line`. */
+const beatOf = (kind: EncounterKind, line = `A ${kind} Beat.`): QuestBeat => ({ line, pool: { kinds: [kind] } });
 
-describe('encounterCount', () => {
-  const config = { questDifficultyMin: 10, questDifficultyMax: 100 };
-  const template = { ...barrow, difficultyMin: 30, difficultyMax: 70, encountersMin: 2, encountersMax: 4 };
+/** The keys of a kind's Encounters in `content`, in key order. */
+const ofKind = (content: ContentSet, kind: EncounterKind): string[] => sortedRows(content.encounters, (it) => it.kind === kind).map((it) => it.key);
 
-  test("rises with difficulty from encountersMin at the bottom of the template's range to encountersMax at the top (INPUTS 6.1)", () => {
-    expect([30, 39, 40, 50, 59, 60, 70].map((difficulty) => encounterCount(template, difficulty, config))).toEqual([
-      2, 2, 3, 3, 3, 4, 4,
-    ]);
-  });
-
-  test("reads the range the difficulty was drawn over, held inside the config's scale", () => {
-    const narrowed = { questDifficultyMin: 50, questDifficultyMax: 60 };
-    expect(encounterCount(template, 50, narrowed)).toBe(2);
-    expect(encounterCount(template, 55, narrowed)).toBe(3);
-    expect(encounterCount(template, 60, narrowed)).toBe(4);
-  });
-
-  test('gives encountersMin for a range of one value, and never leaves the count range', () => {
-    expect(encounterCount({ ...template, difficultyMin: 40, difficultyMax: 40 }, 40, config)).toBe(2);
-    expect(encounterCount(template, 5, config)).toBe(2);
-    expect(encounterCount(template, 500, config)).toBe(4);
-  });
-});
-
-describe('drawSequence', () => {
-  test('takes two draws an Encounter, a kind of the template then an Encounter of that kind', () => {
-    const deps = testDeps();
-    const world = testWorld('draws', deps);
-    const state = streamOf(world, 'encounters');
+describe('drawBeats', () => {
+  test("takes one draw a Beat played, each Beat's Encounter from its pool, with its line, in order", () => {
+    const state = streamOf(testWorld('draws', testDeps()), 'encounters');
     const twin = structuredClone(state);
 
-    const keys = drawSequence(state, sequencePlan(barrow, testContent), 3, config);
-    for (let draw = 0; draw < 6; draw += 1) next(twin);
+    const { keys, lines } = drawBeats(state, beatPlan(barrow, testContent), 3, config);
+    for (let draw = 0; draw < 3; draw += 1) next(twin);
 
-    expect(keys).toHaveLength(3);
     expect(state).toEqual(twin);
-    for (const key of keys) expect(barrow.encounterKinds).toContain(testContent.encounters[key]?.kind);
+    expect(keys.map((key) => testContent.encounters[key]?.kind)).toEqual(['combat', 'stealth', 'travel']);
+    expect(lines).toEqual(barrow.beats.map((beat) => beat.line));
   });
 
-  test('with no tag shared, draws exactly what the draw before DL-160 drew, a kind then an Encounter by pick, over 20 seeds of every template', () => {
+  test("plays the template's first count Beats, and every one at a count past them", () => {
     const deps = testDeps();
-    for (let seed = 0; seed < 20; seed += 1) {
-      const stream = streamOf(testWorld(`before-${seed}`, deps), 'encounters');
-      for (const template of sortedRows(testContent.questTemplates)) {
-        const state = structuredClone(stream);
-        const twin = structuredClone(state);
-        const count = template.encountersMax;
-        expect(drawSequence(state, sequencePlan(template, testContent), count, config), template.key).toEqual(
-          drawnBefore(twin, template, testContent, count),
-        );
-        expect(state).toEqual(twin);
-      }
+    for (const count of [1, 2, 3, 5]) {
+      const state = streamOf(testWorld(`count-${count}`, deps), 'encounters');
+      const twin = structuredClone(state);
+      const { keys, lines } = drawBeats(state, beatPlan(barrow, testContent), count, config);
+      const played = Math.min(count, barrow.beats.length);
+      expect(keys).toHaveLength(played);
+      expect(lines).toEqual(barrow.beats.slice(0, played).map((beat) => beat.line));
+      for (let draw = 0; draw < played; draw += 1) next(twin);
+      expect(state).toEqual(twin);
     }
   });
 
-  test('tags at encounterTagWeight 1 draw exactly what no tags draw', () => {
-    const content = withRows([tagged('ambush-on-the-road', 'combat', ['fight'])]);
-    const state = streamOf(testWorld('weight-1', testDeps()), 'encounters');
-    const twin = structuredClone(state);
-    const keys = Array.from({ length: 50 }, () => drawSequence(state, sequencePlan(barrow, content), 4, { encounterTagWeight: 1 }));
-    const before = Array.from({ length: 50 }, () => drawnBefore(twin, barrow, content, 4));
-    expect(keys).toEqual(before);
+  test('never draws an Encounter twice, Beats sharing a pool drawing each in turn among those left', () => {
+    // Three Beats of one pool of three: every Quest draws all three, in some order.
+    const content = withRows([tagged('first', 'lore'), tagged('second', 'lore'), tagged('third', 'lore')]);
+    const template: QuestTemplate = { ...barrow, beats: [beatOf('lore'), beatOf('lore'), beatOf('lore')] };
+    const plan = beatPlan(template, content);
+    const orders = new Set<string>();
+    for (let seed = 0; seed < 200; seed += 1) {
+      const { keys } = drawBeats(streamOf(testWorld(`twice-${seed}`, testDeps()), 'encounters'), plan, 3, config);
+      expect([...keys].sort()).toEqual(['first', 'second', 'third']);
+      orders.add(keys.join());
+    }
+    expect(orders.size).toBe(6);
+  });
+
+  test('with no tag shared, draws the Encounter of each Beat that a pick among its pool draws', () => {
+    const deps = testDeps();
+    for (let seed = 0; seed < 20; seed += 1) {
+      const state = streamOf(testWorld(`pick-${seed}`, deps), 'encounters');
+      const twin = structuredClone(state);
+      const { keys } = drawBeats(state, beatPlan(barrow, testContent), 3, { encounterTagWeight: 1 });
+      expect(keys).toEqual((['combat', 'stealth', 'travel'] as const).map((kind) => pick(twin, ofKind(testContent, kind))));
+    }
   });
 
   test('over 20,000 draws, an Encounter sharing one tag with its template is drawn about three times as often as one sharing none', () => {
-    // One kind, three Encounters: `shared` shares `fight` with the template, the other two nothing.
+    // One Beat, three Encounters: `shared` shares `fight` with the template, the other two nothing.
     const content = withRows([tagged('shared', 'lore', ['fight', 'crypt']), tagged('plain', 'lore', ['crypt']), tagged('untagged', 'lore')]);
-    const template: QuestTemplate = { ...barrow, tags: ['fight'], encounterKinds: ['lore'] };
+    const template: QuestTemplate = { ...barrow, tags: ['fight'], beats: [beatOf('lore')] };
     const state = streamOf(testWorld('three-to-one', testDeps()), 'encounters');
-    const plan = sequencePlan(template, content);
+    const plan = beatPlan(template, content);
 
     const counts = new Map<string, number>();
     for (let draw = 0; draw < 20_000; draw += 1) {
-      const [key = ''] = drawSequence(state, plan, 1, config);
+      const [key = ''] = drawBeats(state, plan, 1, config).keys;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
@@ -134,58 +121,70 @@ describe('drawSequence', () => {
     expect(tagWeight(twice, ['fight', 'crypt'], { encounterTagWeight: 1 })).toBe(1);
   });
 
-  test('a Finale is always the last, the count unchanged, and the places before it drawn as before: two draws fewer', () => {
+  test('a Finale is always the last, with its line, after one Beat fewer than the count, drawn as before', () => {
     const vault = tagged('the-vaults-heart', 'arcane');
-    const content = withRows([vault], [{ ...barrow, finale: 'the-vaults-heart' }]);
+    const content = withRows([vault], [{ ...barrow, finale: 'the-vaults-heart', finaleLine: 'The heart of it.' }]);
     const template = content.questTemplates['clear-the-barrow'] as QuestTemplate;
     const deps = testDeps();
     for (let seed = 0; seed < 50; seed += 1) {
       for (const count of [1, 2, 4]) {
         const state = streamOf(testWorld(`finale-${seed}`, deps), 'encounters');
         const twin = structuredClone(state);
-        const keys = drawSequence(state, sequencePlan(template, content), count, config);
-        expect(keys).toHaveLength(count);
-        expect(keys.at(-1)).toBe('the-vaults-heart');
-        expect(keys.slice(0, -1)).toEqual(drawnBefore(twin, barrow, testContent, count - 1));
+        const { keys, lines } = drawBeats(state, beatPlan(template, content), count, config);
+        const before = drawBeats(twin, beatPlan(barrow, testContent), count - 1, config);
+        expect(keys).toEqual([...before.keys, 'the-vaults-heart']);
+        expect(lines).toEqual([...before.lines, 'The heart of it.']);
         expect(state).toEqual(twin);
       }
     }
   });
 
-  test('an Encounter some template names as its Finale is drawn into no place, on that Quest or another', () => {
-    // A combat Finale of one template, which the barrow's combat places would otherwise draw.
+  test('an Encounter some template names as its Finale is in no pool, on that Quest or another', () => {
+    // A combat Finale of one template, which the barrow's combat Beat would otherwise draw.
     const finale = tagged('the-last-stand', 'combat', ['fight']);
     const fort = testContent.questTemplates['hold-the-border-fort'] as QuestTemplate;
-    const content = withRows([finale], [{ ...fort, finale: 'the-last-stand' }]);
+    const content = withRows([finale], [{ ...fort, finale: 'the-last-stand', finaleLine: 'The last of it.' }]);
     expect(finaleKeys(content)).toEqual(new Set(['the-last-stand']));
     const state = streamOf(testWorld('no-finale-drawn', testDeps()), 'encounters');
     const twin = structuredClone(state);
-    const plan = sequencePlan(barrow, content);
-    const drawn = Array.from({ length: 300 }, () => drawSequence(state, plan, 4, config)).flat();
+    const plan = beatPlan(barrow, content);
+    const drawn = Array.from({ length: 300 }, () => drawBeats(state, plan, 3, config).keys).flat();
     expect(drawn).not.toContain('the-last-stand');
     // And the barrow draws as it did before the Finale was written.
-    expect(drawn).toEqual(Array.from({ length: 300 }, () => drawnBefore(twin, barrow, testContent, 4)).flat());
+    expect(drawn).toEqual(Array.from({ length: 300 }, () => drawBeats(twin, beatPlan(barrow, testContent), 3, config).keys).flat());
   });
-
 });
 
-describe('sequencePlan', () => {
-  test("is each kind's Encounters in key order, the template's tags and its Finale, or null", () => {
-    const plan = sequencePlan(barrow, testContent);
-    expect(plan.pools.map((pool) => pool.map((it) => it.key))).toEqual(
-      barrow.encounterKinds.map((kind) => sortedRows(testContent.encounters, (it) => it.kind === kind).map((it) => it.key)),
+describe('beatPlan', () => {
+  test("is each Beat's line and pool in key order, the template's tags, and its Finale with its line, or null", () => {
+    const plan = beatPlan(barrow, testContent);
+    expect(plan.beats.map(({ line, pool }) => [line, pool.map((it) => it.key)])).toEqual(
+      barrow.beats.map(({ line, pool }) => [line, ofKind(testContent, pool.kinds?.[0] as EncounterKind)]),
     );
     expect(plan.tags).toEqual(barrow.tags);
     expect(plan.finale).toBeNull();
-    const content = withRows([], [{ ...barrow, finale: 'hold-the-line' }]);
-    expect(sequencePlan(content.questTemplates['clear-the-barrow'] as QuestTemplate, content).finale).toBe('hold-the-line');
+    const content = withRows([], [{ ...barrow, finale: 'hold-the-line', finaleLine: 'Hold.' }]);
+    expect(beatPlan(content.questTemplates['clear-the-barrow'] as QuestTemplate, content).finale).toEqual({ key: 'hold-the-line', line: 'Hold.' });
   });
 
-  test('throws on a kind with no Encounter but Finales, and on a Finale content does not define', () => {
+  test('pools by kind and tag together, and by name, as inBeatPool holds them', () => {
+    const content = withRows([tagged('wild-ambush', 'combat', ['wilds']), tagged('wild-ford', 'travel', ['wilds'])]);
+    const template: QuestTemplate = {
+      ...barrow,
+      beats: [{ line: 'Out in the wilds.', pool: { kinds: ['combat'], tags: ['wilds'], encounters: ['the-long-march'] } }],
+    };
+    expect(beatPlan(template, content).beats[0]?.pool.map((it) => it.key)).toEqual(['the-long-march', 'wild-ambush']);
+  });
+
+  test('throws on a Beat too small to draw from, an empty one among them, and on a Finale content does not define', () => {
     const lore = tagged('a-riddle', 'lore');
-    const content = withRows([lore], [{ ...barrow, encounterKinds: ['lore'], finale: 'a-riddle' }]);
-    expect(() => sequencePlan(content.questTemplates['clear-the-barrow'] as QuestTemplate, content)).toThrow(/lore/);
-    expect(() => sequencePlan({ ...barrow, finale: 'gone' }, testContent)).toThrow(/gone/);
+    const empty = withRows([lore], [{ ...barrow, beats: [beatOf('lore')], finale: 'a-riddle', finaleLine: 'A riddle.' }]);
+    expect(() => beatPlan(empty.questTemplates['clear-the-barrow'] as QuestTemplate, empty)).toThrow(/Beat 1 may draw 0 Encounters/);
+    // The test content has two arcane Encounters: three arcane Beats are one too many.
+    const three: QuestTemplate = { ...barrow, beats: [beatOf('arcane'), beatOf('arcane'), beatOf('arcane')] };
+    expect(() => beatPlan(three, testContent)).toThrow(/Beat 3 may draw 2 Encounters, none a Finale; it needs 3/);
+    expect(() => beatPlan({ ...barrow, beats: [] }, testContent)).toThrow(/no Beat/);
+    expect(() => beatPlan({ ...barrow, finale: 'gone', finaleLine: 'Gone.' }, testContent)).toThrow(/gone/);
   });
 });
 
@@ -214,7 +213,7 @@ describe('sequenceFor', () => {
     const before = structuredClone(at.rng);
     const keys = ['hold-the-line', 'past-the-watch'];
 
-    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 50, encounterKeys: keys }, deps);
+    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', tier: 3, encounterKeys: keys }, deps);
 
     expect(sequence.map((encounter) => encounter.key)).toEqual(keys);
     expect(at.rng).toEqual(before);
@@ -225,10 +224,12 @@ describe('sequenceFor', () => {
     const twin = world();
     const before = structuredClone(at.rng) as Record<string, unknown>;
 
-    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 70, encounterKeys: ['gone'] }, deps);
+    const sequence = sequenceFor(at, { templateKey: 'clear-the-barrow', tier: 3, encounterKeys: ['gone'] }, deps);
 
-    const expected = drawSequence(streamOf(twin, 'encounters'), sequencePlan(barrow, testContent), 4, deps.config);
-    expect(sequence.map((encounter) => encounter.key)).toEqual(expected);
+    // At Tier 3, the barrow's three Beats (DL-262).
+    const expected = drawBeats(streamOf(twin, 'encounters'), beatPlan(barrow, testContent), deps.config.tiers[2]?.beats ?? 0, deps.config);
+    expect(sequence.map((encounter) => encounter.key)).toEqual(expected.keys);
+    expect(sequence).toHaveLength(3);
     const after = at.rng as Record<string, unknown>;
     for (const name of plannedStreams) {
       if (name === 'encounters') expect(after[name], name).not.toEqual(before[name]);
@@ -238,15 +239,15 @@ describe('sequenceFor', () => {
 
   test('leaves out a stored key content no longer defines, and draws afresh when none is left', () => {
     const at = world();
-    const kept = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 30, encounterKeys: ['gone', 'hold-the-line'] }, deps);
+    const kept = sequenceFor(at, { templateKey: 'clear-the-barrow', tier: 3, encounterKeys: ['gone', 'hold-the-line'] }, deps);
     expect(kept.map((encounter) => encounter.key)).toEqual(['hold-the-line']);
 
-    const drawn = sequenceFor(at, { templateKey: 'clear-the-barrow', difficulty: 30, encounterKeys: ['gone'] }, deps);
-    expect(drawn).toHaveLength(2);
+    const drawn = sequenceFor(at, { templateKey: 'clear-the-barrow', tier: 1, encounterKeys: ['gone'] }, deps);
+    expect(drawn).toHaveLength(deps.config.tiers[0]?.beats ?? 0);
   });
 
   test('for a template content no longer defines, is one Encounter drawn among all of content', () => {
-    const sequence = sequenceFor(world(), { templateKey: 'long-gone', difficulty: 30, encounterKeys: ['gone'] }, deps);
+    const sequence = sequenceFor(world(), { templateKey: 'long-gone', tier: 3, encounterKeys: ['gone'] }, deps);
     expect(sequence).toHaveLength(1);
     expect(Object.keys(testContent.encounters)).toContain(sequence[0]?.key);
   });

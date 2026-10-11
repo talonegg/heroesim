@@ -2,10 +2,9 @@
 // validator of `@heroesim/content`, which judge each row a tool adds or puts in place, whatever its
 // shape.
 
-import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { ContentError, contentFiles, parseContent } from '../index.js';
-import { loadContent } from '../node.js';
+import { ContentError, parseContent } from '../index.js';
+import { loadContent, readContentDir } from '../node.js';
 
 function problemsOf(error: unknown): string[] {
   if (error instanceof ContentError) return [...error.problems];
@@ -22,14 +21,9 @@ export function contentChecks(root: string): { ok: boolean; problems: string[] }
   }
 }
 
-/** The content's files at `root` as text, by name, each of `instead` in place of its own (v1.1.3-S3). */
+/** The content's files at `root` as text, by their path in the content directory, each of `instead` in place of its own. */
 export function contentTexts(root: string, instead: Readonly<Record<string, string>> = {}): Record<string, string> {
-  const files: Record<string, string> = {};
-  for (const name of contentFiles) {
-    const file = path.join(root, 'content', name);
-    if (existsSync(file)) files[name] = readFileSync(file, 'utf8');
-  }
-  return { ...files, ...instead };
+  return { ...readContentDir(path.join(root, 'content')), ...instead };
 }
 
 /** Whether content of these files passes its checks, and each problem where it does not (v1.1.3-S3). */

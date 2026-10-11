@@ -16,18 +16,20 @@ The engine is mechanical first: the pull of the game is growth and management, n
 Story will come through Modules (Scenarios, Campaigns, Contacts) at the moments built for it, not
 over every Quest.
 
-### The five pulls
+### The six pillars
 
-Every system in the game serves at least one of these:
+The game is a Guild, not a Party. The player runs an institution over the Guildmaster's career, and
+a Quest serves that management (DL-256). Every system in the game serves at least one pillar. The
+`v1.2` line's target design is the [Guild Management Design](./management-design.md).
 
-1. **Managing the Guild**: recruiting and transferring the best Heroes, managing team dynamics
-   and Relationships.
-2. **Growing a young Hero** and watching them reach their Potential.
-3. **Harder, richer Quests** as the Guild develops, demanding different Skills, Classes and
-   Synergies.
-4. **Loot** from hard Quests that benefits Heroes or the Guild.
-5. **Campaigns** (later): story, Contacts, Patrons and Factions, scripted events with
-   cathartic pay-offs.
+1. **Recruitment is a gamble**: the player searches for Heroes worth signing, and signs them under uncertainty.
+2. **Development is a decision**: the player decides how a Hero spends their limited time.
+3. **Selection is a dilemma**: the strongest Hero is not always the right one to send.
+4. **Careers matter**: a Hero has a trajectory, not only a Level.
+5. **Reputation matters**: the Guild's success changes what is offered to it.
+6. **History matters**: the Guild remembers what happened.
+
+Loot and Campaigns are kept as features serving Reputation and History.
 
 ## 2. Scope
 
@@ -152,22 +154,28 @@ Every system in the game serves at least one of these:
 
 ### 3.4 Quests
 
-- R21. A Quest carries its Patron, difficulty, tags, duration in Days, reward in Wealth, Fame
-  effect, requirements (Party size, and any Class or Skill it needs), the Encounters drawn for it
-  when it is posted, the Turn its offer expires, and, when its template is hard enough, a Loot
-  table. It copies these from its Quest template, so a changed template never alters a Quest
-  already offered (DL-25).
+- R21. A Quest carries its Patron, its Tier, difficulty, tags, duration in Days, reward in Wealth,
+  Fame effect, requirements (its least Party, and any Class or Skill it needs), the Encounters drawn for
+  it when it is posted with its Beats' lines, the Turn its offer expires, and, when its Tier awards
+  Loot, a Loot table. It copies these from its Quest template, so a changed template never alters a
+  Quest already offered (DL-25). Its Tier is drawn among those its template offers, up to the
+  highest Tier any Guild in play has unlocked by the mean Level of its four best Heroes, the lower
+  Tiers kept on offer (DL-271), and sets its difficulty band, its Days, its Beats, its Loot and its
+  reward and XP factors (DL-257, DL-262).
 - R22. The Board refreshes each morning with Quests drawn from the Patrons, each Patron weighted
-  by their mean Regard for the Guilds in play (DL-43). Every Guild draws from the one Board, the
-  player's first.
+  by their mean Regard for the Guilds in play (DL-43), up to its size, which may grow with the
+  Years to a cap (DL-261). Every Guild draws from the one Board, the player's first.
 - R23. A Party is dispatched from the Roster with Consumables assigned. The Party is
-  unavailable while away.
+  unavailable while away. It is no fewer than its Quest's least Party, two Heroes or more, with
+  no most, and nothing caps the Parties a Guild has out (DL-257 item 6, DL-266). A Guild whose
+  Fame is below the Fame minimum of a Quest's Tier may not take it (DL-257 item 3, DL-264).
 - R24. The Quest Engine assesses a Quest against the Party: its Stats, Skills, Traits, Form,
   Relationship, Synergies and Consumables. It produces the outcome: XP, Injuries or Death, Morale
   and Regard changes, reward or penalty, Fame effect, Loot, and the typed events the front ends
-  narrate and the World Engine feeds back into the world. A Hero's Stats change through the Levels
-  that XP brings, through ageing and through their Traits' effects, and a Hero gains a Trait as R16
-  says (DL-148, DL-150).
+  narrate and the World Engine feeds back into the world. A Death's chance is its Encounter's times
+  the Death factor and the Quest's Tier's Death scale, held at 1, and a Quest that can kill is
+  Deadly (DL-257 item 5, DL-265). A Hero's Stats change through the Levels that XP brings, through
+  ageing and through their Traits' effects, and a Hero gains a Trait as R16 says (DL-148, DL-150).
 - R25. A Quest is a sequence of Encounters met in order, any Finale last. An Encounter holds one
   to four Checks, each a Query over the Party written in content (ADR-0010). Each Check and
   Encounter comes out a Degree, Triumph, Success, Setback or Failure, and the share of Encounters
@@ -195,9 +203,9 @@ Every system in the game serves at least one of these:
 - R31. The Market buys and sells Items; the sell price is below the purchase price. It
   refreshes each morning.
 - R32. Loot is an Item, or a stack of a common one, drawn from a Quest's Loot table and awarded
-  when the Quest ends on a band in `lootOnBands`. Only a Quest whose template's least difficulty is
-  above `lootDifficultyThreshold` carries a table, and on a Quest with a Finale the Finale must end
-  at a Degree in `lootOnFinaleDegrees` (DL-52, DL-202).
+  when the Quest ends on a band in `lootOnBands`. Only a Quest of a Tier whose `loot` is true
+  carries a table, and on a Quest with a Finale the Finale must end at a Degree in
+  `lootOnFinaleDegrees` (DL-52, DL-202, DL-262).
 
 ### 3.7 The Hall
 

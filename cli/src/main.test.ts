@@ -32,7 +32,7 @@ import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { chanceWords, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, playground, rowOf, type Run } from './play.test-support.js';
+import { exitCodes, openToTwo, playground, rowOf, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
@@ -607,18 +607,17 @@ describe('advance --until: fast forward', () => {
   const playDepsOf = (before: WorldDocument) => ({ config: { ...defaultConfig, ...before.meta.config }, content });
 
   /**
-   * Sends two of the player's four Heroes on the demo Board's seven-Day Guard the caravan, open to
-   * any two to four; the other two stay at home, and no decision is needed while the Party is out.
+   * Sends two of the player's four Heroes on the demo Board's longest Quest any two may take
+   * (`openToTwo`); the other two stay at home, and no decision is needed while the Party is out.
    */
-  function sendParty(): { partyId: string; returnsOnTurn: number } {
+  function sendParty(): { partyId: string; returnsOnTurn: number; questName: string } {
     const { world } = document();
-    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
-    if (questId === undefined) throw new Error('The demo Board has changed');
+    const quest = openToTwo(world);
     const roster = world.guilds[playerId]?.rosterIds ?? [];
-    expect(play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    expect(play(['dispatch', '--quest', quest.id, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
     const party = Object.values(document().world.parties)[0];
     if (party === undefined) throw new Error('No Party');
-    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn };
+    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn, questName: content.questTemplates[quest.templateKey]?.name ?? quest.templateKey };
   }
 
   test('party-returns stops on the night the Party comes home, printing why and every event since the last command', () => {
@@ -627,7 +626,7 @@ describe('advance --until: fast forward', () => {
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
     });
-    const { partyId, returnsOnTurn } = sendParty();
+    const { partyId, returnsOnTurn, questName } = sendParty();
     const before = document();
     const expected = fastForward(
       before,
@@ -643,7 +642,7 @@ describe('advance --until: fast forward', () => {
     expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Year 1 Day ${dayOf(returnsOnTurn) + 1}, night).`);
     expect(run.out).toContain(`Stopped: The Test's Party came home: ${partyId}.`);
     expect(run.out).toContain(`Events: ${expected.events.length}, oldest first`);
-    expect(run.out).toContain(`The Test's ${partyId} came home from Guard the caravan (quest-`);
+    expect(run.out).toContain(`The Test's ${partyId} came home from ${questName} (quest-`);
     // Each event's Turn, then its date (DL-206 item 33, DL-210).
     expect(run.out).toMatch(/^Turn\s+Date\s+What happened$/m);
     expect(run.out).toMatch(new RegExp(`^\\s*${returnsOnTurn} {2}Year 1 Day ${dayOf(returnsOnTurn) + 1}, night\\s+The Test's ${partyId} came home`, 'm'));
@@ -845,20 +844,19 @@ describe('dispatch', () => {
     }
   });
 
-  test('refuses a Party larger than the Quest takes, naming its bounds, writing nothing', () => {
+  test('refuses a Party smaller than the Quest takes, naming its least, writing nothing (DL-257 item 6)', () => {
     const { world } = document();
     const roster = world.guilds[playerId]?.rosterIds ?? [];
-    const questId = world.board.find((id) => (world.quests[id]?.requirements.partySizeMax ?? 0) < roster.length);
-    if (questId === undefined) throw new Error('Every Quest on the Board takes the whole Roster');
-    const { partySizeMin, partySizeMax } = (world.quests[questId] as Quest).requirements;
+    const questId = world.board.find((id) => world.quests[id]?.requirements.classKey === undefined && world.quests[id]?.requirements.skillKey === undefined);
+    if (questId === undefined) throw new Error('Every Quest on the Board requires a Class or a Skill');
+    const { partySizeMin } = (world.quests[questId] as Quest).requirements;
+    expect(partySizeMin).toBeGreaterThanOrEqual(2);
     const original = saved();
 
-    const run = play(['dispatch', '--quest', questId, '--heroes', roster.join(',')]);
+    const run = play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 1).join(',')]);
 
     expect(run.code).toBe(exitCodes.refused);
-    expect(run.err).toContain(
-      `(${questId}) needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
-    );
+    expect(run.err).toContain(`(${questId}) needs a Party of at least ${partySizeMin} Heroes (1 named).`);
     expect(saved()).toBe(original);
   });
 
@@ -1131,14 +1129,14 @@ describe('save and load', () => {
   test('a save whose config breaks a rule is refused at load, naming the setting, and left as it was (DL-193)', () => {
     newDemo();
     edit((edited) => {
-      edited.meta.config.boardSize = -2;
+      edited.meta.config.boardSizeStart = -2;
     });
     const original = saved();
 
     for (const argv of [['show'], ['advance'], ['load', current()]]) {
       const run = play(argv);
       expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
-      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSize is -2; it is a whole number, at least 0.
+      expect(run.err).toBe(`Cannot load ${current()}: The game's config is unsound: boardSizeStart is -2; it is a whole number, at least 0.
 `);
     }
     expect(saved()).toBe(original);
@@ -1434,14 +1432,14 @@ describe('show guildmaster, show patrons and preview', () => {
     const others = heroes.filter((hero) => hero.classKey !== 'healer').slice(0, 2);
     if (questId === undefined || healer === undefined || others.length < 2) throw new Error('The demo world has changed');
     edit((edited) => {
-      (edited.world.quests[questId] as Quest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
+      (edited.world.quests[questId] as Quest).requirements = { partySizeMin: 2, classKey: 'healer' };
     });
     const original = saved();
 
     const without = play(['preview', '--quest', questId, '--heroes', others.map((hero) => hero.id).join(',')]);
 
     expect(without).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(without.out).toMatch(/^ {2}A Party of 2 to 4: met \(2 named\)$/m);
+    expect(without.out).toMatch(/^ {2}A Party of at least 2: met \(2 named\)$/m);
     expect(without.out).toMatch(/^ {2}A Healer: missed$/m);
     expect(without.out).toContain('Dispatch would refuse it: it needs a Healer in the Party.');
     expect(saved()).toBe(original);
@@ -1453,6 +1451,27 @@ describe('show guildmaster, show patrons and preview', () => {
     expect(withHealer.out).toMatch(/^Reward agreed on a success: \d+ Wealth, \d+ offered\.$/m);
     expect(withHealer.out).toContain('Dispatch would send this Party.');
     expect(saved()).toBe(original);
+  });
+
+  // DL-269: the Quest's narrative, its Beats' lines in the order it plays them, before its requirements, as the page's Party builder gives it.
+  test("preview gives the Quest's Beats' lines in order, under its heading and before the requirements", () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, 2);
+    if (questId === undefined) throw new Error('The demo world has changed');
+    edit((edited) => {
+      Object.assign(edited.world.quests[questId] as Quest, {
+        encounterKeys: ['past-the-watch', 'ambush-on-the-road', 'the-long-march'],
+        beatLines: ['Past the gate unseen.', 'Steel on the road.', 'The long way home.'],
+      });
+    });
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const lines = run.out.split('\n');
+    expect(lines.slice(2, 8)).toEqual(['', 'Beats', '  Past the gate unseen.', '  Steel on the road.', '  The long way home.', '']);
+    expect(lines[8]).toBe('Requirements');
   });
 
   // DL-148 item 15: each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
@@ -1543,7 +1562,9 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     edit((edited) => {
       const quest = edited.world.quests[questId] as Quest;
       quest.encounterKeys = encounterKeys;
-      quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      // A line for each, as the validator holds a Quest's Beats' lines to its Encounters (DL-262).
+      quest.beatLines = encounterKeys.map(() => 'A Beat.');
+      quest.requirements = { partySizeMin: 1 };
       heroIds.forEach((id, index) => {
         const hero = edited.world.heroes[id] as Hero;
         hero.classKey = classKeys[index] ?? 'warrior';

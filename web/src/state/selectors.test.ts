@@ -13,6 +13,7 @@ import {
   entriesFor,
   estimateQuest,
   guildmasterOf,
+  isDeadly,
   milestoneTypes,
   rankingPlaces,
   rankings,
@@ -35,7 +36,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { capitalised, chanceWords, dateOfTurn, heroReading, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
-import { newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
+import { firstSeedWhere, newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
 import { readingOf } from './reading';
 import { initialGameState, type GameState } from './reducer';
 import {
@@ -234,7 +235,11 @@ describe('boardView', () => {
         lastDay: dayOf(quest.expiresOnTurn),
         // The Board's chip, `Until Year 1 Day 6` (DL-210); `lastDay` stays the Day it sorts by.
         until: `Until ${dateOfTurn(quest.expiresOnTurn, document.meta.config)}`,
-        party: `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax} Heroes`,
+        party: `${quest.requirements.partySizeMin} or more Heroes`,
+        // Its Tier and whether it is Deadly, on the card; its Beats' lines, for the Party builder (DL-269).
+        tier: `Tier ${quest.tier}`,
+        deadly: isDeadly(quest, content, document.meta.config),
+        beats: quest.beatLines,
       });
       expect(card.skills).toEqual(skillsThatHelp(quest, content).map((key) => content.skills[key]?.name));
     }
@@ -280,8 +285,8 @@ describe("the Board's Quest cards (DL-104)", () => {
   test("gives the best Party of the free Heroes, the engine's Best Party, with its estimate's word, or none when no Party meets the requirements", () => {
     const document = board((quests, it) => {
       const [first, second] = quests as [Quest, Quest];
-      first.requirements = { partySizeMin: 1, partySizeMax: 4 };
-      second.requirements = { partySizeMin: 1, partySizeMax: 4, classKey: 'no-such-class' };
+      first.requirements = { partySizeMin: 1 };
+      second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
       // One Hero away: the best Party is of the free Heroes only.
       (heroes(it)[0] as Hero).injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     });
@@ -300,6 +305,25 @@ describe("the Board's Quest cards (DL-104)", () => {
     expect([...best.keys()]).toEqual(document.world.board);
     // Only the Board asks for it; the cards the digest and the stop read carry none.
     expect(Object.keys(boardView(document)[0] ?? {})).not.toContain('best');
+  });
+
+  // DL-264: the Board offers no Party for a Quest the player's Guild may not take, and says why.
+  test("says, in place of a Quest's best Party, that its Tier's Fame minimum is above the Guild's Fame, in the refusal's words", () => {
+    const document = board((quests, it) => {
+      const [first, second] = quests as [Quest, Quest];
+      for (const quest of [first, second]) quest.requirements = { partySizeMin: 1 };
+      first.tier = 1;
+      second.tier = 2;
+      const tiers = defaultConfig.tiers.map((row, index) => ({ ...row, fameMinimum: index === 1 ? 7 : 0 }));
+      it.meta = { ...it.meta, config: { ...it.meta.config, tiers } };
+    });
+    const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
+    const name = content.questTemplates[second.templateKey]?.name;
+
+    const best = bestPartyView(document);
+
+    expect(best.get(first.id)).toMatchObject({ chance: expect.any(String) });
+    expect(best.get(second.id)).toEqual({ refused: `${name} is a Tier 2 Quest, open to a Guild of 7 Fame or more; ${playerOf(document).name} has 0, 7 short.` });
   });
 
   // DL-237: the page's Best Party module lives as long as its document, keyed by the document's world.
@@ -321,8 +345,22 @@ describe("the Board's Quest cards (DL-104)", () => {
   // DL-237: `rebase` makes a new document of the same world under other rules, so a module opened
   // under the old rules answers no question of it.
   test('names, for the document rebase makes of the same world under the current rules, the Best Party by those rules', () => {
-    const document = newDocument('best-rebased');
-    const older: WorldDocument = { ...document, meta: { ...document.meta, configVersion: configVersion - 1, config: { ...document.meta.config, playerPartyMargin: 1 } } };
+    // The first world from best-rebased whose Board has a Quest the two rules staff with different Heroes,
+    // by the engine's own Best Party (DL-273).
+    const older = firstSeedWhere(
+      'best-rebased',
+      (seed): WorldDocument => {
+        const document = newDocument(seed);
+        return { ...document, meta: { ...document.meta, configVersion: configVersion - 1, config: { ...document.meta.config, playerPartyMargin: 1 } } };
+      },
+      (made) => {
+        const guild = playerOf(made);
+        const heroes = availableHeroes(made.world, guild);
+        const staffed = (config: typeof defaultConfig) => made.world.board.map((id) => bestParties(made.world, guild, { config, content }).party(made.world.quests[id] as Quest, heroes)?.heroIds ?? null);
+        return JSON.stringify(staffed(made.meta.config)) !== JSON.stringify(staffed(defaultConfig));
+      },
+      'a Quest the two rules staff with different Heroes',
+    );
     const before = bestPartyView(older);
     const rebased = applyAction(older, { kind: 'rebase' }, deps);
     if (!rebased.ok) throw new Error(rebased.rejection.reason);
@@ -406,8 +444,8 @@ describe("the Board's Quest cards (DL-104)", () => {
   test('names each requirement beyond the Party size, and marks a Quest whose last Day on the Board is today', () => {
     const document = board(([first, second]) => {
       if (first === undefined || second === undefined) throw new Error('expected two Quests');
-      first.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
-      second.requirements = { partySizeMin: 1, partySizeMax: 2 };
+      first.requirements = { partySizeMin: 2, classKey: 'mage', skillKey: 'lockpicking' };
+      second.requirements = { partySizeMin: 1 };
       // The engine's Day 0, the Day in hand: its night is Turn 2.
       second.expiresOnTurn = 2;
       first.expiresOnTurn = 8;
@@ -508,7 +546,7 @@ describe('the Party builder (DL-104)', () => {
   function builder(): { document: WorldDocument; quest: Quest; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
     const document = structuredClone(newDocument('selectors'));
     const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
-    quest.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
+    quest.requirements = { partySizeMin: 1, skillKey: 'herbalism' };
     quest.encounterKeys = ['the-restless-dead', 'a-hostile-reeve'];
     const [bram, liv, cenric, ragnvald] = heroes(document);
     if (bram === undefined || liv === undefined || cenric === undefined || ragnvald === undefined) throw new Error('four Heroes');
@@ -677,13 +715,13 @@ describe('choosing a Party', () => {
     const document = newDocument('selectors');
     const quest = document.world.quests[document.world.board[0] as QuestId];
     if (quest === undefined) throw new Error('no Quest');
-    const party = heroes(document).slice(0, quest.requirements.partySizeMax).map((hero) => hero.id);
+    const party = heroes(document).map((hero) => hero.id);
 
     const preview = previewView(document, quest.id, party, []);
     const nobody = previewView(document, quest.id, [], []);
 
     expect(preview?.requirements[0]).toEqual({
-      words: `A Party of ${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax} (${party.length} chosen)`,
+      words: `A Party of at least ${quest.requirements.partySizeMin} (${party.length} chosen)`,
       met: party.length >= quest.requirements.partySizeMin,
     });
     expect(preview?.synergies.length).toBeGreaterThan(0);
@@ -1116,16 +1154,26 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
 
 describe('heroPage', () => {
   test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s', () => {
-    const document = playedDocument('selectors-played', 90).document;
-    // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
-    const hero = Object.values(document.world.heroes).reduce((most, each) =>
-      entriesFor(document.history, each.id).length > entriesFor(document.history, most.id).length ? each : most,
-    );
+    // A new game's Hero given two Milestones nine Turns apart, planted in its History, so that the test rests
+    // on no play of the content as shipped (DL-272).
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    const guildId = playerOf(document).id;
+    const at = (type: 'hero.trait-gained' | 'hero.trait-lost', payload: object) =>
+      append(document.history, { turn: document.world.turn, type, participants: [hero.id, guildId], labels: { [hero.id]: hero.name }, milestone: milestoneTypes[type], payload } as never);
+    const first = document.world.turn;
+    at('hero.trait-gained', { heroId: hero.id, traitKey: 'lame', questId: 'quest-000900' as QuestId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' });
+    document.world.turn += 9;
+    at('hero.trait-lost', { heroId: hero.id, traitKey: 'lame', replacedBy: 'one-eyed' });
     const all = entriesFor(document.history, hero.id);
     const page = heroPage(document, hero.id);
 
+    expect(page?.milestones.length).toBeGreaterThanOrEqual(2);
     expect(page?.milestones.every((line) => line.milestone)).toBe(true);
     expect(page?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
+    // Newest first: the later of the two, then the earlier.
+    expect(page?.milestones.slice(0, 2).map((line) => line.when)).toEqual([whenOfTurn(first + 9, document.meta.config), whenOfTurn(first, document.meta.config)]);
     expect(page?.milestones[0]?.when).toBe(whenOfTurn(all.find((entry) => entry.milestone)?.turn ?? 0, document.meta.config));
     expect(page).not.toHaveProperty('history');
   });

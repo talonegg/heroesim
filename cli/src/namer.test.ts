@@ -85,7 +85,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
-  'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
+  'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
   'quest.taken': event('quest.taken', [questId, partyId, heroId, guildId], {
     questId,
@@ -93,6 +93,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     returnsOnTurn: 23,
+    tier: 2,
     consumables: [{ definitionKey: 'whetstone', quantity: 2 }],
   }),
   'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {
@@ -364,8 +365,16 @@ describe("the CLI's words for a refusal", () => {
   const { world } = document;
   const player = playerGuild(world) as Guild;
   const hero = world.heroes[player.rosterIds[0] as Hero['id']] as Hero;
+  const [questId] = world.board;
+  const quest = world.quests[questId as QuestId];
+  const questName = quest === undefined ? '' : content.questTemplates[quest.templateKey]?.name;
 
   test.each<[Refusal, string]>([
+    // DL-264: a Quest by its name and the id the commands take.
+    [
+      { action: 'dispatch', reason: 'fame-below-minimum', guildId: player.id, questId: questId as QuestId, tier: 3, fameMinimum: 20, fame: 12 },
+      `${questName} (${questId}) is a Tier 3 Quest, open to a Guild of 20 Fame or more; The Lantern has 12, 8 short.`,
+    ],
     [{ action: 'unequip', reason: 'slot-empty', heroId: hero.id, slot: 'trinket' }, `${hero.name} (${hero.id})'s trinket slot is empty.`],
     [{ action: 'newGame', reason: 'guild-name-blank' }, 'The Guild needs a name: --guild <name>.'],
     [{ action: 'newGame', reason: 'age-out-of-range', age: 51, min: 21, max: 50 }, 'A Guildmaster starts aged 21 to 50, in whole Years; --age 51 is not.'],

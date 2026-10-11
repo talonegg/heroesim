@@ -4,10 +4,11 @@
 // command line without running this suite inside itself; most tests read the same script in this
 // process, `plantedTests`, and a few run it through npm (DL-234).
 
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { ContentFileName } from '@heroesim/content';
+import { isFolder, rowFilesIn, rowFile, type ContentSource } from '@heroesim/content';
+import { readSource } from '@heroesim/content/node';
 import { formatJson } from '@heroesim/content/write';
 import { afterEach, inject } from 'vitest';
 import { run, type Deps } from './cli.js';
@@ -72,14 +73,22 @@ export function plantOutcome(dir: string, outcome: 'pass' | 'fail' | 'hang'): vo
   git(dir, 'commit', '--quiet', '--allow-empty', '-am', `the planted tests ${outcome}`);
 }
 
-/** Reads a content file of a scratch repository as JSON. */
-export function readContentJson<T = Record<string, unknown>>(dir: string, file: ContentFileName): T {
-  return JSON.parse(readFileSync(path.join(dir, 'content', file), 'utf8')) as T;
+/** Reads a content source of a scratch repository as JSON: a file's, or a folder's rows' by key (DL-260). */
+export function readContentJson<T = Record<string, unknown>>(dir: string, file: ContentSource): T {
+  if (!isFolder(file)) return JSON.parse(readFileSync(path.join(dir, 'content', file), 'utf8')) as T;
+  const texts = readSource(path.join(dir, 'content'), file);
+  return Object.fromEntries(rowFilesIn(file, Object.keys(texts)).map(([key, name]) => [key, JSON.parse(texts[name] ?? '')])) as T;
 }
 
-/** Writes a content file of a scratch repository, as the portrait tool lays out a new one. */
-export function writeContentJson(dir: string, file: ContentFileName, value: unknown): void {
-  writeFileSync(path.join(dir, 'content', file), formatJson(value));
+/** Writes a content source of a scratch repository, as the portrait tool lays out a new file: a folder a file a row, the rows it no longer holds removed. */
+export function writeContentJson(dir: string, file: ContentSource, value: unknown): void {
+  if (!isFolder(file)) {
+    writeFileSync(path.join(dir, 'content', file), formatJson(value));
+    return;
+  }
+  const folder = path.join(dir, 'content', file);
+  for (const name of readdirSync(folder)) if (name.endsWith('.json')) rmSync(path.join(folder, name));
+  for (const [key, row] of Object.entries(value as Record<string, unknown>)) writeFileSync(path.join(dir, 'content', ...rowFile(file, key).split('/')), formatJson(row));
 }
 
 /**
@@ -120,13 +129,73 @@ export async function json<T = Record<string, unknown>>(dir: string, ...argv: st
   return { code: result.code, json: JSON.parse(result.out) as T };
 }
 
+/** A planted template's Beat, drawn by `kind` alone. */
+const kindBeat = (line: string, kind: string): Record<string, unknown> => ({ line, pool: { kinds: [kind] } });
+
+/**
+ * The Quest templates the commands' tests read, as they plant them: their Tiers, Beats and Finales
+ * fixed here, each pool drawing by kind alone, so that a test rests on these rows and not on the
+ * templates as shipped (DL-272). Each keeps its shipped key, Spheres and Patron's fields.
+ */
+export const plantedQuests: Readonly<Record<string, Record<string, unknown>>> = {
+  'a-quiet-word': {
+    tierMin: 1,
+    tierMax: 2,
+    beats: [kindBeat('Words to be had.', 'social'), kindBeat('Somewhere not to be seen.', 'stealth'), kindBeat('Words to be had.', 'social')],
+  },
+  'clear-the-barrow': {
+    tierMin: 2,
+    tierMax: 3,
+    beats: [kindBeat('A fight on the way.', 'combat'), kindBeat('Somewhere not to be seen.', 'stealth'), kindBeat('A hard road.', 'travel')],
+  },
+  'escort-the-tithe': {
+    tierMin: 1,
+    tierMax: 1,
+    beats: [kindBeat('A hard road.', 'travel'), kindBeat('A fight on the way.', 'combat'), kindBeat('Words to be had.', 'social')],
+  },
+  'hold-the-border-fort': {
+    tierMin: 3,
+    tierMax: 4,
+    beats: [kindBeat('A fight on the way.', 'combat'), kindBeat('A hard road.', 'travel'), kindBeat('A fight on the way.', 'combat')],
+    finale: 'the-last-assault',
+    finaleLine: 'The last of it.',
+  },
+  'lay-the-restless-dead': {
+    tierMin: 3,
+    tierMax: 4,
+    beats: [kindBeat('A fight on the way.', 'combat'), kindBeat('Something uncanny.', 'arcane'), kindBeat('Something to be learned.', 'lore')],
+    finale: 'the-last-rite',
+    finaleLine: 'The last of it.',
+  },
+  'the-sickness-at-the-mill': {
+    tierMin: 1,
+    tierMax: 1,
+    beats: [kindBeat('Words to be had.', 'social'), kindBeat('Something to be learned.', 'lore')],
+  },
+};
+
+/**
+ * Plants `plantedQuests` in the scratch copy `dir`: each row's Tiers, Beats and Finale as given there,
+ * its override and any other Finale taken out, the rest of the row as shipped; committed, so that
+ * `git status` stays clean.
+ */
+export function plantQuests(dir: string): void {
+  const templates = readContentJson<Record<string, Record<string, unknown>>>(dir, 'quest-templates/');
+  for (const [key, planted] of Object.entries(plantedQuests)) {
+    const row = { ...templates[key] };
+    for (const field of ['finale', 'finaleLine', 'overrides']) Reflect.deleteProperty(row, field);
+    writeFileSync(path.join(dir, 'content', ...rowFile('quest-templates/', key).split('/')), formatJson({ ...row, ...planted }));
+  }
+  git(dir, 'commit', '--quiet', '--allow-empty', '-am', 'the planted Quest templates');
+}
+
 /**
  * Puts an Encounter and a Synergy of the scratch copy in the new form, whose Queries a `has-trait` may
  * filter (DL-151, DL-152): `ambush-on-the-road` one Check scored by the strongest Warrior, and
  * `shield-wall` requiring three Warriors; committed.
  */
 export function plantQueries(dir: string): void {
-  const encounters = readContentJson<Record<string, Record<string, unknown>>>(dir, 'encounters.json');
+  const encounters = readContentJson<Record<string, Record<string, unknown>>>(dir, 'encounters/');
   const ambush = encounters['ambush-on-the-road'] ?? {};
   encounters['ambush-on-the-road'] = {
     name: ambush.name,
@@ -134,7 +203,7 @@ export function plantQueries(dir: string): void {
     checks: [{ key: 'front', name: 'The front', score: ['max', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']], skills: [], difficultyFactor: 0.2 }],
     consequences: ambush.consequences,
   };
-  writeContentJson(dir, 'encounters.json', encounters);
+  writeContentJson(dir, 'encounters/', encounters);
   const synergies = readContentJson<Record<string, Record<string, unknown>>>(dir, 'synergies.json');
   (synergies['shield-wall'] ?? {}).requires = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 3]];
   writeContentJson(dir, 'synergies.json', synergies);

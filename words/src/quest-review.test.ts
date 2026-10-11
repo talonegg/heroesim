@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { contentDir, loadContent, loadDrafts } from '@heroesim/content/node';
-import { degrees, encounterKinds, type Encounter } from '@heroesim/engine/content';
+import { degrees, encounterKinds, type Encounter, type QuestBeat } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consequenceWords, passWords, reviewPage, type ReviewCalibration, type ReviewCell } from './quest-review.js';
 
@@ -17,7 +17,7 @@ const calibration: ReviewCalibration = {
   encounters: Object.values(content.encounters).map((it) => ({ key: it.key, cells: cells(), checks: it.checks.map((check) => ({ key: check.key, adds: [], cells: cells() })) })),
   templates: Object.values(content.questTemplates).map((it) => ({
     key: it.key,
-    rows: [{ level: 5, third: 'high', difficulty: [it.difficultyMax - 5, it.difficultyMax], best: { quests: 3, bands: { fail: 0.25, success: 0.35, strong: 0.4 }, size: 2.5, traitsDrawn: 0.01 } }],
+    rows: [{ level: 5, third: 'high', difficulty: [it.tierMax * 18 + 5, it.tierMax * 18 + 10], best: { quests: 3, bands: { fail: 0.25, success: 0.35, strong: 0.4 }, size: 2.5, traitsDrawn: 0.01 } }],
   })),
   coverage: Object.values(content.stats)
     .filter((it) => it.owner === 'hero')
@@ -77,6 +77,37 @@ describe('the review page', () => {
   test('says a negative earned Trait falls on the Failure Degree only', () => {
     expect(page).toContain('a negative one falls only on a Hero the same Encounter injured at the Degree Failure (not a Setback)');
     expect(page).not.toMatch(/failed Encounter/i);
+  });
+
+  // A Beat's pool may give kinds, tags or named Encounters (DL-262): each read whole, so that a pool of
+  // tags or names alone is listed, and a change of its tags or names is a change (DL-270).
+  test("words each Beat's pool whole, by kinds, tags and names, and names a change of any of them", () => {
+    const [key, template] = Object.entries(content.questTemplates).find(([each]) => Object.hasOwn(core.questTemplates, each)) ?? [];
+    if (key === undefined || template === undefined) throw new Error('no template both in the drafts and the core');
+    const beats: QuestBeat[] = [
+      { line: 'By the water.', pool: { tags: ['water'] } },
+      { line: 'An ambush.', pool: { encounters: ['ambush-on-the-road'] } },
+      { line: 'The wilds.', pool: { kinds: ['combat', 'travel'], tags: ['wilds', 'town'] } },
+      { line: 'Either.', pool: { kinds: ['lore'], encounters: ['hold-the-line'] } },
+    ];
+    const pooled = { ...content, questTemplates: { ...content.questTemplates, [key]: { ...template, beats } } };
+    const words = 'Any tagged water, Ambush on the road, Combat or Travel tagged wilds or town, Lore or Hold the line';
+    const meta = reviewPage({ content: pooled, core: { ...core, questTemplates: { ...core.questTemplates, [key]: { ...template, beats: beats.slice(0, 1) } } }, calibration, notes: {}, made: '2026-10-03' });
+    expect(meta).toContain(` · Beats ${words} · `);
+    expect(meta).toContain(`Beats Any tagged water → ${words}`);
+
+    // The same kinds, a tag changed.
+    const before = [{ line: 'By the water.', pool: { tags: ['town'] } }, ...beats.slice(1)];
+    const retagged = reviewPage({ content: pooled, core: { ...core, questTemplates: { ...core.questTemplates, [key]: { ...template, beats: before } } }, calibration, notes: {}, made: '2026-10-03' });
+    expect(retagged).toContain(`Beats Any tagged town, Ambush on the road, Combat or Travel tagged wilds or town, Lore or Hold the line → ${words}`);
+
+    // A named Encounter's name is escaped in the Beats line, as every name on the page is.
+    const ambush = pooled.encounters['ambush-on-the-road'];
+    if (ambush === undefined) throw new Error('no ambush-on-the-road among the drafts');
+    const marked = { ...pooled, encounters: { ...pooled.encounters, 'ambush-on-the-road': { ...ambush, name: 'Ambush <b>& run' } } };
+    const escaped = reviewPage({ content: marked, core, calibration, notes: {}, made: '2026-10-03' });
+    expect(escaped).toContain(' · Beats Any tagged water, Ambush &lt;b&gt;&amp; run, Combat');
+    expect(escaped).not.toContain('<b>&');
   });
 
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {

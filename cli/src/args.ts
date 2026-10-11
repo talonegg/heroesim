@@ -61,8 +61,9 @@ Commands:
       player's Guild unless given another, and so does hall, each facility's grade and
       what the next grade costs; pool marks the Heroes who will not yet sign for the
       player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
-      board shows the Quests on offer, each Encounter's Checks and what they read, and the
-      best Party of your free Heroes with its chance; rankings orders the Guilds in play
+      board shows the Quests on offer, each with its Tier and whether it is Deadly, each
+      Encounter's Checks and what they read, and the best Party of your free Heroes with
+      its chance; rankings orders the Guilds in play
       by Fame, or by Wealth with --by wealth; guildmaster shows the player's
       Guildmaster, or another Guild's, with their Stats, Traits and Regard; market shows
       what the Market has for sale and at what price, and what the player's Guild holds
@@ -89,11 +90,12 @@ Commands:
       show pool, and print the fee and the new Roster size.
   preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
-      is sent: each requirement met or missed, any Hero who cannot go, the Synergies it
-      would have and on how many of the Quest's Encounters, what its Morale does to the
-      odds, its chances of each Encounter and of the Quest if no one falls, the
-      consumables it would carry, the reward the Guildmaster would agree, and
-      whether dispatch would send it. Changes nothing.
+      is sent: the Quest's Beats, its narrative in the order it plays them; each
+      requirement met or missed, the least Party among them; any Hero who cannot go;
+      the Synergies it would have and on how many of the Quest's Encounters, what its
+      Morale does to the odds, its chances of each Encounter and of the Quest if no one
+      falls, the consumables it would carry, the reward the Guildmaster would agree,
+      and whether dispatch would send it. Changes nothing.
   dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party, the reward agreed and the Day it returns. With

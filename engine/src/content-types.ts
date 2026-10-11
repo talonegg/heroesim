@@ -12,6 +12,7 @@
 // Content is read, never written: nothing in the engine mutates a row.
 
 import type { FacilityKey, Sex } from './document.js';
+import type { TierOverride } from './config.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
 // plain strings: type safety over them comes from content validation at load, not from the
@@ -40,9 +41,9 @@ export type InjuryTypeKey = string;
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
-/** A Loot table (M5-S5, `loot-tables.json`). */
+/** A Loot table (M5-S5, `loot-tables/`). */
 export type LootTableKey = string;
-/** An Item definition, for unique Items and common stacks alike (M5-S1, `items.json`). */
+/** An Item definition, for unique Items and common stacks alike (M5-S1, `items/`). */
 export type ItemDefinitionKey = string;
 /** A tag an Item definition carries (M5-S1): a kebab-case word for display and later rules. */
 export type ItemTagKey = string;
@@ -267,11 +268,13 @@ export interface QuestTemplateRequires {
 }
 
 /**
- * A kind of Quest a Patron offers (R21; `quest-templates.json`, M2-S3). A Patron's templates are
+ * A kind of Quest a Patron offers (R21; `quest-templates/`, M2-S3). A Patron's templates are
  * the ones whose `sphereKeys` hold the Patron's Sphere, looked up when the Board is drawn and
- * never stored (pre-M0 review D3). The Quest Generator copies what a Quest carries from its
- * template, so a template may change under a live save without altering Quests already offered.
- * Every range is inclusive and drawn with `int`.
+ * never stored (pre-M0 review D3). A template offers some consecutive Tiers of the config's ladder,
+ * and a Quest of it is drawn at one of them: its difficulty, Days, Beats, Loot and factors are the
+ * Tier's, with any the template overrides for it (DL-257 items 1 and 2, DL-262). The Quest Generator
+ * copies what a Quest carries from its template, so a template may change under a live save without
+ * altering Quests already offered.
  */
 export interface QuestTemplate {
   key: QuestTemplateKey;
@@ -279,52 +282,69 @@ export interface QuestTemplate {
   /** The Spheres whose Patrons offer it; at least one. */
   sphereKeys: SphereKey[];
   tags: QuestTagKey[];
-  /** Drawn inside the config's difficulty scale (`questDifficultyMin/Max`). */
-  difficultyMin: number;
-  difficultyMax: number;
-  durationDaysMin: number;
-  durationDaysMax: number;
-  /** A Quest's reward is its difficulty times this, rounded to a whole Wealth. */
+  /** The Tiers it offers, from `tierMin` to `tierMax`, each a Tier of the ladder. */
+  tierMin: number;
+  tierMax: number;
+  /** A Quest's reward is its difficulty times this times its Tier's `rewardFactor`, rounded to a whole Wealth. */
   rewardPerDifficulty: number;
   /** The Fame a Quest of this kind moves, won or lost (M2-S5). */
   fameEffect: number;
+  /** The fewest Heroes a Party of it may be, 2 or more; none is the most (DL-257 item 6, DL-266). */
   partySizeMin: number;
-  partySizeMax: number;
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
   /**
    * The Loot table a Quest of this kind awards from on a band in `lootOnBands` (M5-S5, INPUTS 7.4,
-   * DL-52): a table content defines, chosen by the template's difficulty band, or `null` for none.
-   * The Quest Generator copies it onto a Quest only when `difficultyMin` is above
-   * `lootDifficultyThreshold`, so the threshold is config's and the table content's.
+   * DL-52), or `null` for none: copied onto a Quest of a Tier whose `loot` is true, so the Tiers that
+   * award Loot are config's and the table content's (DL-262).
    */
   lootTableKey: LootTableKey | null;
   /**
-   * The kinds of Encounter a Quest of this kind is drawn with (M4-S1): each of its Encounters is
-   * of one of these, at least one listed, none twice, and content holding an Encounter of each.
+   * Its Beats, in the order met (DL-257 item 2): a Quest of a Tier of `beats` k plays the first k of
+   * them, or the first k − 1 and then its Finale, one Encounter drawn from each Beat's pool, none
+   * twice. A higher Tier plays more of them, so later Beats are what the harder Quests add.
    */
-  encounterKinds: EncounterKind[];
+  beats: QuestBeat[];
   /**
-   * How many Encounters a Quest of this kind is drawn with, from `encountersMin` at the bottom of
-   * its difficulty range to `encountersMax` at the top (INPUTS 6.1: 2 to 5 by difficulty); each at
-   * least 1.
+   * Its Finale (DL-148 items 22 and 23): an Encounter content defines, of any kind, always the last of
+   * a Quest's Encounters, after its Beats. An Encounter some template names as its Finale is never
+   * drawn from a pool. On a Quest with one, Loot also needs the Finale to end a Triumph.
    */
-  encountersMin: number;
-  encountersMax: number;
+  finale?: EncounterKey;
+  /** The Finale's narrative line, present exactly when `finale` is. */
+  finaleLine?: string;
+  /**
+   * Figures of the ladder it changes for a Tier it offers, by the Tier's number (`"3"`): any of a
+   * Tier row's but its unlock Level (`TierOverride`, DL-271), the rest the ladder's (`tierFigures`).
+   */
+  overrides?: Record<string, Partial<TierOverride>>;
   /**
    * Its weight in the draw of the Quest template of a new Quest, a number above 0; 1 when absent
    * (v1.1.6-S16, DL-186 item 16, DL-202). Rows all at 1 are drawn as equally likely.
    */
   weight?: number;
+}
 
-  /**
-   * Its Finale (v1.1.4-S8, DL-148 items 22 and 23): an Encounter content defines, of any kind, always
-   * the last of a Quest's Encounters, in the last of its `encounterCount` places, the places before it
-   * drawn as before. An Encounter some template names as its Finale is never drawn into a place. On a
-   * Quest with one, Loot also needs the Finale to end a Triumph.
-   */
-  finale?: EncounterKey;
+/**
+ * One Beat of a Quest template (DL-257 item 2): a narrative line, and the pool its Encounter is drawn
+ * from (`QuestBeatPool`).
+ */
+export interface QuestBeat {
+  /** What the Party meets here, told in the Party builder. */
+  line: string;
+  pool: QuestBeatPool;
+}
+
+/**
+ * The Encounters a Beat may draw (DL-262): each that matches every criterion given among `kinds` (its
+ * kind one of them) and `tags` (it shares one of them), and each named in `encounters`, but never an
+ * Encounter some template names as its Finale. At least one of the three, none of them empty.
+ */
+export interface QuestBeatPool {
+  kinds?: EncounterKind[];
+  tags?: QuestTagKey[];
+  encounters?: EncounterKey[];
 }
 
 /**
@@ -564,7 +584,7 @@ export type Consequence =
 export type ConsequenceKind = Consequence['kind'];
 
 /**
- * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Checks (M4-S2; v1.1.4-S2).
+ * One typed step of a Quest (M4-S1, `encounters/`), resolved by its Checks (M4-S2; v1.1.4-S2).
  * Its `consequences` are applied by its Degree: a Triumph's are `triumph`, or `success` when it has
  * none, and a Setback's `setback`, or `failure` when it has none, so an Encounter written before
  * v1.1.4 runs as it did.
@@ -668,7 +688,7 @@ export interface Disposition {
   /**
    * How much more than this a Hero must raise the estimated chance of success to be added to its
    * Party past the Quest's `partySizeMin`, from 0 to 1 (the Best Party, DL-148 item 17; strictly more,
-   * DL-175): 0 sends every Hero who raises it at all, up to `partySizeMax`; 1 never
+   * DL-175): 0 sends every free Hero who raises it at all, no Quest having a most (DL-266); 1 never
    * more than the fewest the Quest allows.
    */
   partyMargin: number;
@@ -764,7 +784,7 @@ export interface ConsumableDefinition extends ItemDefinitionBase {
 }
 
 /**
- * An Item definition (M5-S1, `items.json`): the row a unique Item or a stack names by
+ * An Item definition (M5-S1, `items/`): the row a unique Item or a stack names by
  * `definitionKey`. Gear has a slot and Stat modifiers and no effect; a consumable an effect and no
  * slot. Content validation refuses a row with the other kind's fields.
  */
@@ -784,7 +804,7 @@ export interface LootEntry {
 }
 
 /**
- * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables.json`): what a Quest whose template names it
+ * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables/`): what a Quest whose template names it
  * may leave behind. The Quest Engine draws one entry on a band in `lootOnBands` and the Guild's
  * holding receives it (`quest-engine/loot.ts`). At least one entry, each definition once.
  */

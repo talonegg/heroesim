@@ -1,19 +1,31 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, parseContent, type ContentFileName } from '../index.js';
-import { contentDir } from '../node.js';
+import { contentSources, isFolder, parseContent, placeOf, rowFile, type ContentSource } from '../index.js';
+import { readContentDir } from '../node.js';
 import { generatedPart, registerDoc, withGeneratedPart, docBegins, docEnds } from './doc.js';
-import { at, pathText, setAt, UseRefusal, type ContentJson } from './json.js';
+import { at, setAt, UseRefusal, type ContentJson } from './json.js';
 import { contentEntries, engineEntriesOf, register, rulesFor, usesOf, type ContentEntry, type TraitUse } from './register.js';
 
 // The register of a Trait's uses (DL-150 item 14): each content entry finds the uses the
 // shipped content holds, adds one where it says how, and takes it out again, the content passing its
 // checks after each. The drift and freshness checks are the editor's (tools/editor).
 
-/** The shipped content as JSON, by file. */
-function shipped(): Record<ContentFileName, unknown> {
-  return Object.fromEntries(contentFiles.map((file) => [file, JSON.parse(readFileSync(join(contentDir, file), 'utf8'))])) as Record<ContentFileName, unknown>;
+/** The shipped content as JSON, by source: a folder's, its rows' by key (DL-260). */
+function shipped(): Record<ContentSource, unknown> {
+  const texts = readContentDir();
+  const rows = (source: `${string}/`): Record<string, unknown> =>
+    Object.fromEntries(Object.entries(texts).flatMap(([name, text]) => (name.startsWith(source) ? [[name.slice(source.length, -'.json'.length), JSON.parse(text)]] : [])));
+  return Object.fromEntries(contentSources.map((source) => [source, isFolder(source) ? rows(source) : JSON.parse(texts[source] ?? '')])) as Record<ContentSource, unknown>;
+}
+
+/** `content` as the text of its files, by their path in the content directory, as `parseContent` takes them. */
+function texts(content: Readonly<Record<ContentSource, unknown>>): Record<string, string> {
+  return Object.fromEntries(
+    contentSources.flatMap((source) =>
+      isFolder(source)
+        ? Object.entries(content[source] as Record<string, unknown>).map(([key, row]) => [rowFile(source, key), JSON.stringify(row)])
+        : [[source, JSON.stringify(content[source])]],
+    ),
+  );
 }
 
 /**
@@ -22,9 +34,9 @@ function shipped(): Record<ContentFileName, unknown> {
  * `shield-wall` requiring three Warriors. The Encounter has no Triumph list of its own, so that its
  * Triumph reads its Success list.
  */
-function withQueries(): Record<ContentFileName, unknown> {
+function withQueries(): Record<ContentSource, unknown> {
   const content = shipped();
-  const encounters = content['encounters.json'] as Record<string, Record<string, unknown>>;
+  const encounters = content['encounters/'] as Record<string, Record<string, unknown>>;
   const ambush = encounters['ambush-on-the-road'] as Record<string, unknown>;
   encounters['ambush-on-the-road'] = {
     name: ambush.name,
@@ -39,12 +51,12 @@ function withQueries(): Record<ContentFileName, unknown> {
 
 /** Whether content of these values passes its checks; throws naming the problems where it does not. */
 function passes(content: ContentJson): true {
-  parseContent(Object.fromEntries(Object.entries(content).map(([file, value]) => [file, JSON.stringify(value)])));
+  parseContent(texts(content as Record<ContentSource, unknown>));
   return true;
 }
 
 /** Each Biography sentence of a key, as its use's place: `descriptions.json: heroBiography.traits.scarred.0`. */
-function sentences(content: Record<ContentFileName, unknown>, place: 'biography' | 'heroBiography', key: string): string[] {
+function sentences(content: Record<ContentSource, unknown>, place: 'biography' | 'heroBiography', key: string): string[] {
   const list = (content['descriptions.json'] as Record<string, { traits: Record<string, string[]> }>)[place]?.traits[key] ?? [];
   return list.map((_, index) => `descriptions.json: ${place}.traits.${key}.${index}`);
 }
@@ -79,7 +91,7 @@ describe('the register', () => {
   // within a use found (the Traits' own rows apart).
   test("finds the shipped content's uses of every Trait, and every place that names it", () => {
     const content = shipped();
-    const keys = ['hero-traits.json', 'guildmaster-traits.json'].flatMap((file) => Object.keys(content[file as ContentFileName] as object));
+    const keys = ['hero-traits.json', 'guildmaster-traits.json'].flatMap((file) => Object.keys(content[file as ContentSource] as object));
     const names = (value: unknown, key: string, file: string, path: (string | number)[] = []): (string | number)[][] => {
       const here = value === key && path.length > 0 ? [path] : [];
       if (Array.isArray(value)) return [...here, ...value.flatMap((item, index) => names(item, key, file, [...path, index]))];
@@ -100,12 +112,12 @@ describe('the register', () => {
       const uses = usesOf(content, key);
       for (const use of uses) {
         const value = at(content[use.file], use.path);
-        if (use.at !== `${use.file}: ${pathText(use.path)}`) problems.push(`${key}: ${use.at} is not where it stands`);
+        if (use.at !== placeOf(use.file, use.path)) problems.push(`${key}: ${use.at} is not where it stands`);
         if (!use.path.includes(key) && !JSON.stringify(value).includes(`"${key}"`)) problems.push(`${key}: ${use.at} does not name it`);
       }
-      for (const file of contentFiles) {
+      for (const file of contentSources) {
         for (const place of names(content[file], key, file)) {
-          if (!uses.some((use) => use.file === file && (prefix(use.path, place) || prefix(place, use.path)))) problems.push(`${key}: ${file}: ${pathText(place)} is no use found`);
+          if (!uses.some((use) => use.file === file && (prefix(use.path, place) || prefix(place, use.path)))) problems.push(`${key}: ${placeOf(file, place)} is no use found`);
         }
       }
     }
@@ -220,14 +232,14 @@ describe('a use added and removed', () => {
     for (const key of ['scarred', 'one-eyed']) next = { ...next, ...entry('encounter-has-trait').add?.apply(next, key, at).change };
     const made = entry('encounter-has-trait').add?.apply(next, 'scarred', at);
 
-    expect(made?.use.at).toBe('encounters.json: ambush-on-the-road.checks.0.score.1.2');
-    expect(usesOf({ ...next, ...made?.change }, 'scarred').map((use) => use.at)).toContain('encounters.json: ambush-on-the-road.checks.0.score.1.1.1.2');
+    expect(made?.use.at).toBe('encounters/ambush-on-the-road.json: checks.0.score.1.2');
+    expect(usesOf({ ...next, ...made?.change }, 'scarred').map((use) => use.at)).toContain('encounters/ambush-on-the-road.json: checks.0.score.1.1.1.2');
   });
 
   test('refuses an Encounter or a Synergy that is not there', () => {
     const content = shipped();
     expect(() => entry('encounter-has-trait').add?.apply(content, 'lame', { encounter: 'no-such-encounter', path: 'checks.0.score.1' })).toThrow(
-      'encounters.json: no-such-encounter is not there',
+      'encounters/no-such-encounter.json is not there',
     );
     expect(() => entry('synergy-has-trait').add?.apply(content, 'lame', { synergy: 'no-such-synergy' })).toThrow('synergies.json: no-such-synergy is not there');
   });
@@ -235,14 +247,14 @@ describe('a use added and removed', () => {
   test("a Triumph's list is copied from the Success's before a positive Trait is added to it", () => {
     const content = withQueries();
     const changed = entry('encounter-trait').add?.apply(content, 'scarred', { encounter: 'ambush-on-the-road', degree: 'triumph', chance: 0.05 }).change;
-    const consequences = (changed?.['encounters.json'] as Record<string, { consequences: Record<string, unknown[]> }>)['ambush-on-the-road']?.consequences;
+    const consequences = (changed?.['encounters/'] as Record<string, { consequences: Record<string, unknown[]> }>)['ambush-on-the-road']?.consequences;
     expect(consequences?.triumph).toEqual([...(consequences?.success ?? []), { kind: 'trait', traitKey: 'scarred', chance: 0.05 }]);
     expect(passes({ ...content, ...changed })).toBe(true);
   });
 
   test('a has-trait taken out of an and, an or and a where, and refused elsewhere', () => {
     const content = withQueries();
-    const encounters = content['encounters.json'] as Record<string, { checks: { score: unknown }[] }>;
+    const encounters = content['encounters/'] as Record<string, { checks: { score: unknown }[] }>;
     const front = encounters['ambush-on-the-road']?.checks[0];
     if (front === undefined) throw new Error('no Check');
     const remove = (score: unknown): unknown => {
@@ -250,7 +262,7 @@ describe('a use added and removed', () => {
       const [use] = usesOf(content, 'scarred').filter((each) => each.entry === 'encounter-has-trait');
       if (use === undefined) throw new Error('no use');
       const changed = entry('encounter-has-trait').remove?.apply(content, use);
-      return (changed?.['encounters.json'] as typeof encounters)['ambush-on-the-road']?.checks[0]?.score;
+      return (changed?.['encounters/'] as typeof encounters)['ambush-on-the-road']?.checks[0]?.score;
     };
     const warriors = ['class', 'warrior'];
     const scarred = ['has-trait', 'scarred'];
@@ -289,14 +301,14 @@ describe('a use changed in place', () => {
     const change = entry('encounter-trait').update?.apply(content, use, { chance: 0.12 });
     const changed = { ...content, ...change };
 
-    expect(Object.keys(change ?? {})).toEqual(['encounters.json']);
-    expect(at(changed['encounters.json'], use.path)).toEqual({ ...(at(content['encounters.json'], use.path) as object), chance: 0.12 });
+    expect(Object.keys(change ?? {})).toEqual(['encounters/']);
+    expect(at(changed['encounters/'], use.path)).toEqual({ ...(at(content['encounters/'], use.path) as object), chance: 0.12 });
     expect(passes(changed)).toBe(true);
     expect(usesOf(changed, 'battle-shy')).toEqual(usesOf(content, 'battle-shy'));
     // Only that value: the file as JSON differs at that place alone.
-    const back = structuredClone(changed['encounters.json']);
-    setAt(back, [...use.path, 'chance'], (at(content['encounters.json'], use.path) as { chance: number }).chance, 'encounters.json');
-    expect(back).toEqual(content['encounters.json']);
+    const back = structuredClone(changed['encounters/']);
+    setAt(back, [...use.path, 'chance'], (at(content['encounters/'], use.path) as { chance: number }).chance, 'encounters/');
+    expect(back).toEqual(content['encounters/']);
   });
 
   test("a trait consequence's among given, and taken out again with null", () => {
@@ -304,10 +316,10 @@ describe('a use changed in place', () => {
     const use = shippedUse(content, 'battle-shy', 'encounter-trait');
     const among = ['where', 'party', ['class', 'warrior']];
     const given = { ...content, ...entry('encounter-trait').update?.apply(content, use, { among }) };
-    expect(at(given['encounters.json'], [...use.path, 'among'])).toEqual(among);
+    expect(at(given['encounters/'], [...use.path, 'among'])).toEqual(among);
     expect(passes(given)).toBe(true);
     const taken = { ...given, ...entry('encounter-trait').update?.apply(given, use, { among: null }) };
-    expect(taken['encounters.json']).toEqual(content['encounters.json']);
+    expect(taken['encounters/']).toEqual(content['encounters/']);
   });
 
   test('a Biography sentence changed in its place, the others standing', () => {
@@ -338,7 +350,7 @@ describe('a use changed in place', () => {
     expect(() => entry('encounter-trait').add?.apply(content, 'battle-shy', { encounter: 'hold-the-line', degree: 'failure', chance })).toThrow(
       `the target's chance is ${chance}; it is above 0 and at most 1`,
     );
-    expect(Object.keys(entry('encounter-trait').update?.apply(content, use, { chance: 1 }) ?? {})).toEqual(['encounters.json']);
+    expect(Object.keys(entry('encounter-trait').update?.apply(content, use, { chance: 1 }) ?? {})).toEqual(['encounters/']);
   });
 
   test('is offered only where a use holds values besides the key', () => {

@@ -1,0 +1,53 @@
+{
+  "name": "The last rite",
+  "kind": "arcane",
+  "tags": ["dark","holy"],
+  "checks": [
+    {
+      "key": "rite",
+      "name": "The rite",
+      "score": ["of",["best",["where","party",["class","healer"]],["stat","spirit"]],["weighted",[["spirit",0.6],["willpower",0.4]]]],
+      "skills": ["benediction"],
+      "flat": 2.93,
+      "difficultyFactor": 0.073,
+      "variance": 0.4
+    },
+    {
+      "key": "holding-off",
+      "name": "Holding them off",
+      "score": ["ranked","party",["stat","weaponry"],[1,0.5,0.25]],
+      "skills": ["swordcraft"],
+      "flat": 5.4,
+      "difficultyFactor": 0.135,
+      "variance": 0.4
+    },
+    {
+      "key": "nerve",
+      "name": "Nerve",
+      "score": ["min","party",["stat","courage"]],
+      "skills": [],
+      "flat": 1.8,
+      "difficultyFactor": 0.045,
+      "variance": 0.4
+    }
+  ],
+  "pass": ["and","rite",["or","holding-off","nerve"]],
+  "consequences": {
+    "success": [{"kind":"fame","delta":2}],
+    "triumph": [{"kind":"fame","delta":3}],
+    "setback": [{"kind":"morale","delta":-2,"steadiedBy":["courage","willpower"]}],
+    "failure": [
+      {
+        "kind": "injury",
+        "typeKey": "broken-arm",
+        "chance": 0.2,
+        "count": 1,
+        "exposedBy": ["dexterity"],
+        "guardedBy": ["constitution"]
+      },
+      {"kind":"death","chance":0.04,"guardedBy":["constitution"]},
+      {"kind":"morale","delta":-3,"steadiedBy":["courage","willpower"]},
+      {"kind":"trait","traitKey":"haunted","chance":0.08}
+    ]
+  }
+}

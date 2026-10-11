@@ -21,6 +21,7 @@ import {
   consumableCounters,
   consumableEffects,
   controllerKinds,
+  carryHighestLevels,
   copiesTimed,
   countByController,
   countedYear,
@@ -53,24 +54,30 @@ import {
   noGrowth,
   noHeroes,
   noPartySize,
+  noTierSide,
   noPortraits,
   noPurchases,
   noSynergies,
   noTransfers,
   noWealth,
   observeFameGate,
+  observeHighestLevels,
   observeHeroes,
   observeSave,
   observeWorld,
   offerCounters,
   offerEndCauses,
   partySizeCounters,
+  pingPongDays,
   patronSilence,
   playerDifficulty,
+  playerWealthMonths,
   playerRanking,
   playerSide,
   portraitCounters,
   progressionCounters,
+  questTierCounters,
+  questWeightCounters,
   questingHeroes,
   questsResolvedByController,
   questsTakenByController,
@@ -79,13 +86,16 @@ import {
   rivalFoldCounters,
   rivalsInPlay,
   rivalTransferWays,
+  rivalsAtFloor,
   rosterCensus,
   saleCauses,
   savedDocumentLength,
   successionCount,
   synergyCounters,
+  tierUnlocks,
   transferCounters,
   transferDirections,
+  transfersShort,
   traitsGainedByKey,
   wealthCounters,
   type ByController,
@@ -93,10 +103,12 @@ import {
   type DifficultyTally,
   type EncounterCounts,
   type FameGate,
+  type FloorTally,
   type GameCounters,
   type GameObservations,
   type HeroesSeen,
   type HeroTally,
+  type HighestLevels,
   type LootTally,
   type MarketTally,
   type PartySizeTally,
@@ -107,7 +119,11 @@ import {
   type RivalTransferWay,
   type RosterCensus,
   type SaveSize,
+  type TierSideTally,
+  type TierTally,
+  type TierUnlocks,
   type TransferDirection,
+  type UnlockTally,
   type TransferTally,
   type WealthFlows,
   type WorldSize,
@@ -163,6 +179,25 @@ export interface GameTotals {
    * timing, not a play counter: the copy's time differs between two runs of one game.
    */
   worlds: WorldYear[];
+  /** The highest Level each side has reached by each year, over the games in which it had a Hero by then (DL-259). */
+  highestLevels: Record<string, LevelYears>;
+  /** Each Disposition's Rivals at the Roster floor, over every year-start (DL-259). */
+  rivalsAtFloor: Record<string, FloorTally>;
+  /** The player's Wealth in months of its Upkeep as each year begins, summed over the games in play then, and how many were (DL-259). */
+  playerWealthMonths: { games: number; months: number }[];
+  /** The Transfers that left a Rival seller below `rivalRosterMin` (DL-259). */
+  transfersShort: number;
+  /** As each year begins, over the games in play then: the Board's top Tier, index k counting the games at Tier k + 1, and each side's best fours (DL-271). */
+  tierUnlocks: ({ games: number; top: number[] } & Pick<TierUnlocks, 'sides'>)[];
+}
+
+/** A side's highest Levels by year, over the games: index k by the end of year k + 1. */
+export interface LevelYears {
+  /** The games in which the side had had a Hero by then. */
+  games: number[];
+  /** Their highest Levels, summed, and the greatest of them. */
+  levels: number[];
+  highest: number[];
 }
 
 /** Rows of a table as a year ended, over the games: each game's live and written once. */
@@ -623,6 +658,63 @@ const rosters: Declared<GameObservations['rosters'], SweepTotals['rosters']> = {
   },
 };
 
+const highestLevels: Declared<HighestLevels, SweepTotals['highestLevels']> = {
+  key: 'highestLevels',
+  kind: 'play',
+  observe() {
+    const highest: HighestLevels = {};
+    return {
+      created: ({ document, deps, events }) => observeHighestLevels(highest, document.world, events, deps.config.turnsPerYear),
+      advanced: ({ after, deps, events }) => observeHighestLevels(highest, after.world, events, deps.config.turnsPerYear),
+      ended: ({ document, deps }) => carryHighestLevels(highest, lastTurnOf(document), deps.config.turnsPerYear),
+      value: () => highest,
+    };
+  },
+  zero: () => ({}),
+  fold: { highest: 'greatest' },
+  total: ({ observations }) =>
+    Object.fromEntries(
+      Object.entries(observations.highestLevels).map(([side, series]) => [side, { games: series.map((level) => (level === null ? null : 1)), levels: series, highest: series }]),
+    ),
+  section: 'progression',
+  // The highest Level reached, which DL-83 item 22's band reads by year 20 (DL-83 item 20).
+  lines(totals: SweepTotals, { deps }) {
+    const sides = [playerSide, ...keysOf(dispositionKeys(totals, deps), totals.highestLevels).filter((side) => side !== playerSide)];
+    const years = Math.max(0, ...sides.map((side) => totals.highestLevels[side]?.games.length ?? 0));
+    const cell = (side: string, year: number): string => {
+      const tally = totals.highestLevels[side];
+      const games = tally?.games[year] ?? 0;
+      return games === 0 ? '—' : `${ratio(tally?.levels[year] ?? 0, games)} (${whole(tally?.highest[year] ?? 0)})`;
+    };
+    return [
+      'The highest Level a Hero of each side has reached by the end of each year (year 1 is the first), on a Roster or levelling on one: ' +
+        'the mean over the games still in play that year in which the side had a Hero by then, the greatest of any game in brackets:',
+      '',
+      markdownTable(
+        ['Year', ...sides.map((side) => capitalised(sideLabel(side)))],
+        Array.from({ length: years }, (_, year) => [whole(year + 1), ...sides.map((side) => cell(side, year))]),
+        ['right', ...sides.map(() => 'right' as const)],
+      ),
+      '',
+    ];
+  },
+};
+
+const wealthMonths: Declared<GameObservations['playerWealthMonths'], SweepTotals['playerWealthMonths']> = {
+  key: 'playerWealthMonths',
+  kind: 'play',
+  observe: () => census(({ document, deps }) => playerWealthMonths(document.world, deps)),
+  zero: () => [],
+  total: ({ observations }) => observations.playerWealthMonths.map((months) => (months === null ? null : { games: 1, months })),
+  section: 'progression',
+  // What DL-83 item 7's band reads after year 2: a month a twelfth of a year's Upkeeps (DL-259).
+  lines: (totals: SweepTotals) => [
+    "The player's Wealth in months of its Upkeep as each year began, a month a twelfth of a year's Upkeeps, by the years played before it " +
+      `(0 is the new world), the mean over the games in play then: ${Array.from(totals.playerWealthMonths, (taken, year) => `${year}: ${ratio(taken?.months ?? 0, taken?.games ?? 0, 1)}`).join(', ')}.`,
+    '',
+  ],
+};
+
 const growthAgainstDecline: Declared<GameCounters['growthAgainstDecline'], SweepTotals['growthAgainstDecline']> = {
   key: 'growthAgainstDecline',
   kind: 'play',
@@ -904,6 +996,100 @@ const partySizes: Declared<GameCounters['partySizes'], SweepTotals['partySizes']
   },
 };
 
+const questTiers: Declared<GameCounters['questTiers'], SweepTotals['questTiers']> = {
+  key: 'questTiers',
+  kind: 'play',
+  read: (document) => questTierCounters(document),
+  zero: () => ({}),
+  section: 'quest-engine',
+  // A Quest's weight by its Tier (DL-257 items 1 and 7, DL-262): the Board's share of each Tier, and
+  // what each Tier's Quests asked of a Party and paid it a Day away, against the neutral factors; and
+  // the Heroes each Tier killed, Death by Tier (DL-257 item 5, DL-265).
+  lines(totals: SweepTotals) {
+    const tiers = Object.keys(totals.questTiers).sort((a, b) => Number(a) - Number(b));
+    const offered = sum(tiers.map((tier) => (totals.questTiers[tier] as TierTally).offered));
+    const rows = controllerKinds.flatMap((kind) => {
+      const sides = tiers.map((tier) => [tier, (totals.questTiers[tier] as TierTally).byController[kind] ?? noTierSide()] as const);
+      const all = noTierSide();
+      for (const [, side] of sides) addInto(all, side);
+      const cells = (side: TierSideTally): string[] => [
+        `${whole(side.taken)} (${percent(side.taken, all.taken)})`,
+        ratio(side.heroes, side.taken),
+        ratio(side.days, side.taken, 1),
+        percent(side.fail, side.resolved),
+        percent(side.strong, side.resolved),
+        ratio(side.wealth, side.resolvedDays, 1),
+        ratio(side.xp, side.resolvedDays, 1),
+        ratio(side.loot, side.resolved),
+        whole(side.deaths),
+        ratio(side.deaths, side.resolved, 3),
+      ];
+      return [
+        ...sides.map(([tier, side]) => {
+          const tally = totals.questTiers[tier] as TierTally;
+          return [`${kindLabel(kind)}: Tier ${tier}`, `${whole(tally.offered)} (${percent(tally.offered, offered)})`, ...cells(side)];
+        }),
+        [`${kindLabel(kind)}: every Tier`, whole(offered), ...cells(all)],
+      ];
+    });
+    return [
+      "Quests by Tier (DL-262): offered (`quest.offered`, every Guild's Board), and taken by the controller's Guilds " +
+        "(`quest.taken`), with the Party sent and the Days away; of those resolved, the bands, the Wealth and the XP the Party took a Day away, the Loot a Quest, " +
+        "and the Heroes who died on them (`quest.resolved`'s `deaths`, DL-265), in all and a Quest:",
+      '',
+      markdownTable(
+        ['Controller: Tier', 'Offered', 'Taken', 'Mean Party', 'Mean Days', 'Failed', 'Strong', 'Wealth a Party-Day', 'XP a Party-Day', 'Loot a Quest', 'Deaths', 'Deaths a Quest'],
+        rows,
+        ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+    ];
+  },
+};
+
+// What sets the Board's Tiers (DL-271): the top Tier, and each side's best four and the Tier it unlocks,
+// as each year begins.
+const unlocks: Declared<GameObservations['tierUnlocks'], SweepTotals['tierUnlocks']> = {
+  key: 'tierUnlocks',
+  kind: 'play',
+  observe: () => census(({ document, deps }) => tierUnlocks(document.world, deps)),
+  zero: () => [],
+  total: ({ observations }) => observations.tierUnlocks.map(({ top, sides }) => ({ games: 1, top: oneHot(top), sides })),
+  section: 'quest-engine',
+  lines(totals: SweepTotals) {
+    const tiers = Math.max(0, ...totals.tierUnlocks.flatMap((year) => [year.top.length, ...Object.values(year.sides).map((side) => side.unlocked.length)]));
+    const tierNumbers = Array.from({ length: tiers }, (_, index) => index + 1);
+    const counted = (counts: readonly number[], of: number): string[] =>
+      tierNumbers.map((tier) => `${whole(counts[tier - 1] ?? 0)} (${percent(counts[tier - 1] ?? 0, of)})`);
+    const meanTier = (counts: readonly number[], of: number): string => ratio(counts.reduce((total, n, index) => total + n * (index + 1), 0), of);
+    const topRows = totals.tierUnlocks.map((year, after) => [whole(after), whole(year.games), meanTier(year.top, year.games), ...counted(year.top, year.games)]);
+    const sideRows = totals.tierUnlocks.flatMap((year, after) => {
+      const sides = Object.keys(year.sides).sort((a, b) => (a === playerSide ? -1 : b === playerSide ? 1 : compareByCodeUnit(a, b)));
+      return sides.map((side) => {
+        const tally = year.sides[side] as UnlockTally;
+        return [whole(after), capitalised(sideLabel(side)), whole(tally.guilds), ratio(tally.levels, tally.guilds), meanTier(tally.unlocked, tally.guilds), ...counted(tally.unlocked, tally.guilds)];
+      });
+    });
+    const tierHeads = tierNumbers.map((tier) => `Tier ${tier}`);
+    return [
+      "The Board's top Tier as each year began (DL-271), by the years played before it (0 is the new world), over the games in play then: " +
+        "the highest Tier any Guild in play had unlocked, the Board offering every Tier up to it; the games at each:",
+      '',
+      markdownTable(['After years', 'Games', 'Mean top Tier', ...tierHeads], topRows, ['right', 'right', 'right', ...tierHeads.map(() => 'right' as const)]),
+      '',
+      "Each side's Guilds in play as each year began: the mean Level of each one's best four (its `unlockHeroes` Heroes of the highest Level, " +
+        'a place its Roster cannot fill at Level 0), the mean of the Tier each had unlocked (the highest whose `unlockLevel` its best four reached), and the Guilds at each:',
+      '',
+      markdownTable(
+        ['After years', 'Side', 'Guilds', 'Best four', 'Mean unlocked Tier', ...tierHeads],
+        sideRows,
+        ['right', 'left', 'right', 'right', 'right', ...tierHeads.map(() => 'right' as const)],
+      ),
+      '',
+    ];
+  },
+};
+
 const traitsByKey: Declared<GameCounters['traitsGainedByKey'], SweepTotals['traitsGainedByKey']> = {
   key: 'traitsGainedByKey',
   kind: 'play',
@@ -1164,6 +1350,13 @@ const questsByDifficulty: Declared<GameCounters['playerQuestsByDifficulty'], Swe
   },
 };
 
+const questWeight: Declared<GameCounters['questWeight'], SweepTotals['questWeight']> = {
+  key: 'questWeight',
+  kind: 'play',
+  read: (document) => questWeightCounters(document),
+  zero: () => ({}),
+};
+
 const questsByYear: Declared<GameCounters['playerQuestsByYear'], SweepTotals['playerQuestsByYear']> = {
   key: 'playerQuestsByYear',
   kind: 'play',
@@ -1326,6 +1519,34 @@ const transfersBack: Declared<number, number> = {
   lines: (totals: SweepTotals) => [`Transfers that took a Hero to a Guild that had sold them before (DL-60's lock): ${whole(totals.transfersBack)}.`, ''],
 };
 
+const transfersBackSoon: Declared<number, number> = {
+  key: 'transfersBackSoon',
+  kind: 'play',
+  read: (document, _deps, seen) => transfersOf(document, seen.afternoons).transfersBackSoon,
+  zero: () => 0,
+  section: 'rivals',
+  lines: (totals: SweepTotals) => [
+    `Of those, fewer than ${whole(pingPongDays)} Days after that Guild's last sale of the Hero (DL-69 item 4's ping-pong): ${whole(totals.transfersBackSoon)}.`,
+    '',
+  ],
+};
+
+const short: Declared<number, number> = {
+  key: 'transfersShort',
+  kind: 'play',
+  observe() {
+    let count = 0;
+    return { advanced: ({ before, events, deps }) => (count += transfersShort(before.world, events, deps.config)), value: () => count };
+  },
+  zero: () => 0,
+  section: 'rivals',
+  lines: (totals: SweepTotals, { deps }) => [
+    `Transfers that left their seller below \`rivalRosterMin\` (${whole(deps.config.rivalRosterMin)}), its Roster followed through the Turn from the world ` +
+      `the Turn began with (DL-69 item 4): ${whole(totals.transfersShort)}.`,
+    '',
+  ],
+};
+
 const transfersBySide: Declared<GameCounters['transfersBySide'], SweepTotals['transfersBySide']> = {
   key: 'transfersBySide',
   kind: 'play',
@@ -1480,6 +1701,19 @@ const rivalYearStarts: Declared<GameObservations['rivalYearStarts'], SweepTotals
   },
 };
 
+const atFloor: Declared<GameObservations['rivalsAtFloor'], SweepTotals['rivalsAtFloor']> = {
+  key: 'rivalsAtFloor',
+  kind: 'play',
+  observe: () => census(({ document, deps }) => rivalsAtFloor(document.world, deps)),
+  zero: () => ({}),
+  // Every year-start of the game at once: DL-69 item 4's line reads each Disposition's over all of them.
+  total: ({ observations }) => {
+    const all: Record<string, FloorTally> = {};
+    for (const year of observations.rivalsAtFloor) for (const [disposition, tally] of Object.entries(year)) addInto((all[disposition] ??= { starts: 0, hoarding: 0 }), tally);
+    return all;
+  },
+};
+
 const rankings: Declared<GameObservations['rankings'], SweepTotals['rankings']> = {
   key: 'rankings',
   kind: 'play',
@@ -1504,21 +1738,25 @@ const rankings: Declared<GameObservations['rankings'], SweepTotals['rankings']> 
           ...placeNumbers.map((place) => `${whole(tally[by][place - 1] ?? 0)} (${percent(tally[by][place - 1] ?? 0, tally.games)})`),
         ];
       });
-      return [
-        ...rows,
-        [
-          'Every year',
-          whole(all.games),
-          ratio(meanPlace(all.counts), all.games),
-          ...placeNumbers.map((place) => `${whole(all.counts[place - 1] ?? 0)} (${percent(all.counts[place - 1] ?? 0, all.games)})`),
-        ],
+      const everyRow = (label: string, tally: { games: number; counts: number[] }): string[] => [
+        label,
+        whole(tally.games),
+        ratio(meanPlace(tally.counts), tally.games),
+        ...placeNumbers.map((place) => `${whole(tally.counts[place - 1] ?? 0)} (${percent(tally.counts[place - 1] ?? 0, tally.games)})`),
       ];
+      const later = { games: 0, counts: [] as number[] };
+      for (const tally of totals.rankings.slice(1)) {
+        later.games += tally.games;
+        addInto(later.counts, tally[by]);
+      }
+      return [...rows, everyRow('Every year', all), everyRow('After 1 year or more', later)];
     };
     const rankingHeader = ['After years', 'Games', 'Mean place', ...placeNumbers.map((place) => `Place ${place}`)];
     const rankingAlign = rankingHeader.map(() => 'right' as const);
     return [
       "The player's Guild's place in the Rankings (the engine's `rankings`, every Guild in play) as each year began, by the years " +
-        'played before it (0 is the new world), by Fame:',
+        "played before it (0 is the new world), by Fame. In the new world every Guild stands at the founding Fame (`foundingFame`), a tie the player's Guild wins " +
+        "by its id; the row 'After 1 year or more' leaves the new world out, as the Targets do (DL-86 item 12):",
       '',
       markdownTable(rankingHeader, rankingRows('fame'), rankingAlign),
       '',
@@ -1876,6 +2114,8 @@ export const gameCounters: readonly Counter[] = [
   levelsGained,
   declines,
   rosters,
+  highestLevels,
+  wealthMonths,
   growthAgainstDecline,
   retirementAges,
   fameGate,
@@ -1886,6 +2126,8 @@ export const gameCounters: readonly Counter[] = [
   encounters,
   synergies,
   partySizes,
+  questTiers,
+  unlocks,
   traitsByKey,
   injuriesByType,
   patronYears,
@@ -1895,14 +2137,18 @@ export const gameCounters: readonly Counter[] = [
   loot,
   questsByDifficulty,
   questsByYear,
+  questWeight,
   consumables,
   gear,
   transfers,
   rivalTransfers,
   transfersBack,
+  transfersBackSoon,
+  short,
   transfersBySide,
   offers,
   rivalYearStarts,
+  atFloor,
   rankings,
   marketPurchases,
   dispositions,

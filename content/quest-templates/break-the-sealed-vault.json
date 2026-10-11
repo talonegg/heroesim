@@ -1,0 +1,21 @@
+{
+  "name": "Break the sealed vault",
+  "sphereKeys": ["scholars"],
+  "tags": ["delve", "dark", "recover", "study"],
+  "tierMin": 3,
+  "tierMax": 5,
+  "rewardPerDifficulty": 4,
+  "fameEffect": 5,
+  "partySizeMin": 3,
+  "skillKeys": ["warding", "runecraft"],
+  "requires": { "classKey": "mage" },
+  "lootTableKey": "greater-loot",
+  "beats": [
+    { "line": "The outer wards stir as the Party draws near.", "pool": { "kinds": ["arcane"] } },
+    { "line": "The vault's old records are read for a way in.", "pool": { "encounters": ["old-records", "a-riddle-at-the-gate"] } },
+    { "line": "The stair down is laid with old traps, and is crossed with care.", "pool": { "kinds": ["stealth"], "tags": ["delve"] } },
+    { "line": "The vault's keepers wake and bar the last stair.", "pool": { "kinds": ["combat"], "tags": ["dark", "guard"] } }
+  ],
+  "finale": "the-wardens-seal",
+  "finaleLine": "The Warden's seal is unbound at last, and the vault stands open."
+}

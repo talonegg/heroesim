@@ -25,16 +25,20 @@ function withParty(world: World, hero: Hero, returnsOnTurn: number): void {
 describe('whether a Hero can be injured and in a Party at once', () => {
   // The Heroes found both are gathered, not each read by an expect, which cost as much as the play (DL-164).
   test('never, in any Hero of any Guild on any of 180 Turns played: an Injury is dealt as the Party comes home, and a module refuses a Hero away', () => {
-    let document = newDocument('availability-both');
     let injured = 0;
     let away = 0;
     const both: string[] = [];
-    for (let turn = 0; turn < 180; turn += 1) {
-      document = advance(document, deps).document;
-      for (const hero of Object.values(document.world.heroes)) {
-        if (hero.injury !== null) injured += 1;
-        if (hero.partyId !== null) away += 1;
-        if (hero.injury !== null && hero.partyId !== null) both.push(`${hero.id} on Turn ${document.world.turn}`);
+    // Games of 180 Turns from availability-both, availability-both-1, …, until Heroes were both injured
+    // and away in them, so that the test is not vacuous whatever the content (DL-272).
+    for (let at = 0; at < 10 && (injured === 0 || away === 0); at += 1) {
+      let document = newDocument(at === 0 ? 'availability-both' : `availability-both-${at}`);
+      for (let turn = 0; turn < 180; turn += 1) {
+        document = advance(document, deps).document;
+        for (const hero of Object.values(document.world.heroes)) {
+          if (hero.injury !== null) injured += 1;
+          if (hero.partyId !== null) away += 1;
+          if (hero.injury !== null && hero.partyId !== null) both.push(`${hero.id} of ${document.meta.seed} on Turn ${document.world.turn}`);
+        }
       }
     }
     expect(both).toEqual([]);

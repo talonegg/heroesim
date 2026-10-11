@@ -93,6 +93,8 @@ import {
   nameIn,
   nightOfDay,
   nightOfTurn,
+  partyFloorWords,
+  questClosed,
   readsAsOne,
   rosterReading,
   rowOf,
@@ -101,6 +103,7 @@ import {
   signsWords,
   statPartsWords,
   statSourcesMoving,
+  tierWords,
   traitEffectWords,
   unavailableChipWords,
   unavailableWords,
@@ -222,11 +225,17 @@ export interface QuestCard {
   questId: QuestId;
   name: string;
   patron: string;
+  /** Its Tier, `Tier 3`: the card's first term, before Deadly, the Days and the reward (DL-257, DL-269). */
+  tier: string;
+  /** Whether it is Deadly (`QuestReading.deadly`, DL-265): the card's mark, with no figure (Q18 b). */
+  deadly: boolean;
+  /** Its narrative, its Beats' lines in the order it plays them (`QuestReading.beats`): the Party builder's, not the card's (DL-269). */
+  beats: string[];
   difficulty: number;
   days: number;
   reward: number;
   fame: number;
-  /** `2 to 4 Heroes`. */
+  /** `2 or more Heroes`: a Party has no most (DL-266). */
   party: string;
   /** The Class and the Skill it requires beyond its Party size, `a Mage`, `a Hero with Lockpicking`: none, often. */
   needs: string[];
@@ -262,9 +271,10 @@ export interface EncounterView extends EncounterReading {
 /**
  * The Party the engine would send from the player's free Heroes (the Best Party, DL-148 item 17), as the card
  * gives it: its chance in a word and the Heroes' names; its chance `null` while the Quest's
- * Encounters are drawn on the way; or, when no Party of them meets the Quest's requirements, `null`.
+ * Encounters are drawn on the way; when the Guild may not take the Quest, why, in the refusal's words
+ * (`questClosed`, DL-264); or, when no Party of them meets the Quest's requirements, `null`.
  */
-export type BestPartyView = { chance: string | null; names: string } | null;
+export type BestPartyView = { chance: string | null; names: string } | { refused: string } | null;
 
 /** A Quest's difficulty placed against the Quests on the Board now, for a meter to draw. */
 export interface DifficultyMeter {
@@ -313,11 +323,14 @@ function questCards(document: WorldDocument): QuestCard[] {
     questId: quest.id,
     name: quest.name,
     patron: quest.patron ?? 'a Patron',
+    tier: tierWords(quest.tier),
+    deadly: quest.deadly,
+    beats: quest.beats,
     difficulty: quest.difficulty,
     days: quest.days,
     reward: quest.reward,
     fame: quest.fame,
-    party: `${quest.partySizeMin} to ${quest.partySizeMax} Heroes`,
+    party: `${quest.partySizeMin} or more Heroes`,
     needs: [...(quest.classRequired === null ? [] : [`a ${quest.classRequired}`]), ...(quest.skillRequired === null ? [] : [`a Hero with ${quest.skillRequired}`])],
     lastDay: dayOf(quest.expiresOnTurn),
     until: `Until ${dateOfTurn(quest.expiresOnTurn, calendar)}`,
@@ -332,8 +345,8 @@ function questCards(document: WorldDocument): QuestCard[] {
 /**
  * "Your best Party" for each Quest on the Board, by Quest id in the Board's order (v1.1.4-S6): the
  * Best Party of the player's free Heroes (`bestPartyReading`), its chance the estimate the rule chose
- * it by, every question asked of the document's reading's one Best Party module (DL-237, DL-241).
- * The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
+ * it by, every question asked of the document's reading's one Best Party module (DL-237, DL-241);
+ * for a Quest the player's Guild may not take, why (`questClosed`, DL-264). The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
  * digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).
  */
 export function bestPartyView(document: WorldDocument): ReadonlyMap<QuestId, BestPartyView> {
@@ -343,6 +356,8 @@ export function bestPartyView(document: WorldDocument): ReadonlyMap<QuestId, Bes
     world.board.flatMap((questId): [QuestId, BestPartyView][] => {
       const quest = rowOf(world.quests, questId);
       if (quest === undefined) return [];
+      const closed = questClosed(reading, quest);
+      if (closed !== null) return [[questId, { refused: rejectionSentence(closed, document, reading.content) }]];
       const best = bestPartyReading(reading, quest);
       if (best === null) return [[questId, null]];
       return [[questId, { chance: best.chance === null ? null : chanceWords[best.chance.band], names: listed(best.names) }]];
@@ -535,7 +550,7 @@ export function previewView(
     requirements: preview.requirements.map((status) => {
       switch (status.requirement) {
         case 'party-size':
-          return { words: `A Party of ${status.partySizeMin} to ${status.partySizeMax} (${status.size} chosen)`, met: status.met };
+          return { words: `${partyFloorWords(status.partySizeMin)} (${status.size} chosen)`, met: status.met };
         case 'class':
           return { words: `A ${nameIn(content.classes, status.classKey)}`, met: status.met };
         case 'skill':
