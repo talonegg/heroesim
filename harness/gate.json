@@ -2,10 +2,10 @@
   "status": "approved",
   "decided": "DL-188",
   "baseline": {
-    "release": "v1.1.8",
-    "report": "harness/reports/v1.1.8-gate-2026-10-09.md",
-    "fingerprint": "5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b",
-    "source": "v1.1.8's closing full gate, run alone on the owner's answer (DL-229), meeting every line: 50 games of 20 years in 8 processes, the replay kept; the same games as v1.1.7's closing gate (5dbfdaf4…, DL-214), v1.1.8 changing no play; moved from v1.1.6's closing full gate (bce997d2…, DL-205)"
+    "release": "v1.2.0",
+    "report": "harness/reports/v1.2.0-gate-2026-10-11.md",
+    "fingerprint": "59d52e71b712bd1721a81d42b41a43fd3f680a7f29003cfe2533d04807c42d11",
+    "source": "v1.2.0's closing full gate, run alone (DL-274), meeting every line: 50 games of 20 years in 8 processes, the replay kept; v1.2.0 changing play (the Tiers, Death by Tier and the Party floor, DL-262, DL-265, DL-266); moved from v1.1.8's closing full gate (5dbfdaf4…, DL-229), whose games v1.1.9 kept (DL-252)"
   },
   "run": {
     "games": 50,
@@ -15,38 +15,38 @@
   "lines": {
     "refusals": {
       "max": 0,
-      "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.1.8's closing full gate (DL-229)"
+      "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.2.0's closing full gate (DL-274)"
     },
     "invalid": {
       "max": 0,
-      "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.1.8's closing full gate (DL-229) was not)"
+      "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.2.0's closing full gate (DL-274) was not)"
     },
     "stopped": {
       "max": 0,
-      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.1.8's closing full gate (DL-229)"
+      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.2.0's closing full gate (DL-274)"
     },
     "unfinished": {
       "max": 0,
-      "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.1.8's closing full gate (DL-229)"
+      "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.2.0's closing full gate (DL-274)"
     },
     "roundTrips": {
       "max": 0,
-      "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.1.8's closing full gate (DL-229)"
+      "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.2.0's closing full gate (DL-274)"
     },
     "replay": {
       "identical": true,
-      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.1.8's closing full gate (DL-229), 142,008,748 characters"
+      "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.2.0's closing full gate (DL-274), 150,701,821 characters"
     },
     "saveGzipped": {
       "meanMiB": 30,
-      "baselineMeanMiB": 17.51,
-      "baselineMaxMiB": 20.64,
-      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.1.8's closing full gate (DL-229): mean 17.51 MiB, max 20.64 MiB gzipped, as v1.1.7's (DL-214)"
+      "baselineMeanMiB": 16.31,
+      "baselineMaxMiB": 22.68,
+      "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.2.0's closing full gate (DL-274): mean 16.31 MiB, max 22.68 MiB gzipped"
     },
     "copyShare": {
       "growth": 0.25,
       "baselineShare": 0.39,
-      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.9's closing full gate (harness/reports/v1.1.9-gate-2026-10-10.md): copy mean 1.438 ms over 1,000 copies, advance mean 3.688 ms, share 0.390, at most 0.4875, anchored there by the owner (DL-252), since advance is 34% faster by design (the Best Party module, DL-237) and copyWorld unchanged"
+      "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.9's closing full gate (harness/reports/v1.1.9-gate-2026-10-10.md): copy mean 1.438 ms over 1,000 copies, advance mean 3.688 ms, share 0.390, at most 0.4875, anchored there by the owner (DL-252), since advance is 34% faster by design (the Best Party module, DL-237) and copyWorld unchanged; v1.2.0's closing full gate (DL-274): copy mean 3.066 ms, advance mean 7.897 ms, share 0.388"
     }
   },
   "estimate": {
@@ -66,6 +66,7 @@
     "v1.1.7-S8 moved the baseline from v1.1.5's closing sweep to v1.1.6's closing full gate, and the sources whose numbers were v1.1.5's with it; no limit changed, each baseline's value the same at both closes, and the copy line as S1 set it (DL-214).",
     "v1.1.8's close moved the baseline from v1.1.6's closing full gate to its own, a clean run of the same games as v1.1.7's close, the one report the spec names; the copy line's anchor kept at S17's 0.253, and no limit changed (DL-229).",
     "v1.1.9's close kept the baseline, v1.1.9 changing no play, and anchored the copy line at its own closing full gate on the owner's answer, the growth unchanged (DL-252).",
-    "v1.2.0 took the player's Bankruptcies out of the lines, at most 3 of 50 since DL-188, for the report's Targets, which set them against DL-83 item 2's band and fail no run: reported, not gated, in v1.2.0 (DL-257 item 7, the owner's answer Q11 a; DL-259)."
+    "v1.2.0 took the player's Bankruptcies out of the lines, at most 3 of 50 since DL-188, for the report's Targets, which set them against DL-83 item 2's band and fail no run: reported, not gated, in v1.2.0 (DL-257 item 7, the owner's answer Q11 a; DL-259).",
+    "v1.2.0's close moved the baseline from v1.1.8's closing full gate to its own, v1.2.0 changing play; the lines' sources name it, the copy line's anchor kept at v1.1.9's 0.390, and no limit changed (DL-274)."
   ]
 }

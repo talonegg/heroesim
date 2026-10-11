@@ -1187,3 +1187,68 @@ be (policy); Tier 5 left untaken (sweep); the steps going on after a stop (reduc
 grief, one Hero's fall said "each" (quest-return, report); a Quest never expiring (Board); Milestones
 oldest first; a reading kept by world whatever its rules (rebase).
 Verified 2026-10-11 at 185f823: the two templates' Tiers and second lines are the batch approved, every Patron's sphere has a Tier 1 template, content 41; the quick run alone reproduces `bf261a18…`, `compare` moving no counter; the tests' rules mutated, each red (the policy's chance order, Morale's form, a mate's Regard, Milestones, a reading kept whatever its rules, red in `reading.test.ts`); of the two said to survive, a choice kept for a Quest gone is red in `party-choices.test.ts` (the Board shows no card for it), and a Party mate counted at home is an equivalent mutant, since `awayAt` leaves out every Hero of the returning Party, whose `quest.taken` comes before the return: no gap, no test added.
+
+## DL-274 — v1.2.0-S13: the close: the Gate line by line
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257, DL-263); the agent's run, as the delivery guide's close and `documentation.md` say
+
+**Context.** The close runs the epic's Gate at `4220f57`, every story built and verified and the
+review's findings fixed (DL-270). Each check and sweep ran alone, in turn, with
+`HEROESIM_WORKERS=8` (the `gate`'s setting; the other sweeps read none).
+
+**Decision.**
+
+1. **The checks:** lint and typecheck clean; `npm test` 6,299 passed, 4 skipped, none failed, but
+   for a timeout (below); `traits doctor` and `quests doctor` clean.
+2. **The full `gate`,** `v1.2.0-gate`, 1,550.9 s, `59d52e71…`: every `gate.json` line met. Refusals,
+   invalid (not validated after every advance), stopped, unfinished and round trips 0; the replay
+   `seed-0001` identical; the save gzipped a mean of 16.31 MiB (max 22.68) under 30; the copy's share
+   0.3882 (3.066 ms over 7.897 ms), at most 0.4875.
+3. **The estimate,** 200 × 20,000: no one falling 1.18 points, within 2, met; Morale in 4.84,
+   within 3, **not met**: estimate-0150's success, 59.40% estimated, 54.56% resolved, S3's sample
+   and figure (DL-263). Its limit and the probe are left for the owner (DL-263 item 1).
+4. **The boxes,** each passing: the twenty-year boxes 6 tests (4,138 s), the boxes kept apart 3, the
+   speed run 2.
+5. **The baseline moves** (`documentation.md`), v1.2.0 changing play: `gate.json`'s baseline is
+   `v1.2.0-gate`, its saves' 16.31 and 22.68 MiB, each line's source naming it; the copy line's anchor
+   stays 0.390 (DL-252); no limit changes. `v1.1.8-gate` leaves the tree (git at `4220f57`); the
+   harness README names the new one.
+6. **The Targets, reported, not tuned** (DL-257 item 7), measured against S2's `v1.2.0-s2-gate`:
+   9 of 17 inside (S2 10). Outside: the player's Bankruptcy 0.0% (5–15; 0.0); first by Fame 31.9%
+   (40–60; 91.2); Quests failed 1.1% (20–30; 6.8); strong 85.2% (≤ 50; 72.7); Deaths 0.24 a game
+   (3–8; 4.28); Wealth 36.57 months (6–12; 36.13); highest Level by year 20 11.04 (14–17; 11.58);
+   Transfers back 16.4% (< 15; 9.0). Inside: first by Wealth 42.2% (95.2); Rival folds 2.18 (2.74);
+   the mean Level at year 10 8.71 (8.34); the four Dispositions at the floor 4.8, 7.0, 0.8, 15.2%;
+   the two "none" Transfer lines 0.
+7. **The Quests.** A Guild-year, the player 189.4 (S2 403.4), a mean Party 2.04 (1.55), 7.18 Days away
+   (3.91); `ambitious`, `miserly`, `reckless`, `steady` 250.4, 163.2, 267.7, 166.3. Offered by Tier 1–5
+   12.3, 20.0, 40.9, 26.8, 0%; the player took 28.0, 32.4, 33.9, 5.8%, the Rivals 5.8, 16.5, 43.4,
+   34.3%. The Board's top Tier at year-starts 0, 1–2, 4–8, 11–20: 1, 2, 3, 4 (2.20 at 3, 3.90 at 10);
+   no Guild unlocked Tier 5. Best four (the player, then the four): year 10 8.98, 8.32, 7.99, 7.68,
+   7.97; year 20 11.01, 10.40, 8.67, 8.02, 9.18.
+8. **R1, the Rivals' Rosters** (DL-270), a mean by Disposition at year-starts 5, 10, 15, 20:
+   `ambitious` 15.8, 29.3, 33.7, 30.5; `miserly` 6.7, 10.7, 12.8, 13.0; `reckless` 31.3, 37.2, 37.3,
+   24.3; `steady` 9.1, 14.3, 16.3, 16.9 (S2 at year 10: 11.0, 5.4, 14.2, 6.2). Every Rival 23.0 at
+   year 10 (S2 7.7 over all year-starts, now 19.1); Wealth 104,149 a Rival at year 10.
+9. **Deaths and Bankruptcies.** The player 12 Deaths (0.24 a game; S2 214), the Rivals 383 (7.66;
+   S2 1,233), every one at Tier 4. The player's Bankruptcies 0 of 50; Rival folds 109, all
+   Bankruptcy (S2 137).
+
+*Judgement calls, for the owner to see.*
+- **The baseline moved with the estimate's Morale-in line failing:** the `gate` met every line it
+  checks, and neither of DL-263's answers (a wider limit, or a probe that accounts for Morale) moves
+  play. Set back if the owner reads the close otherwise.
+- **A timeout, not changed:** `web/src/content.test.ts`'s "fails the build on content the checks
+  refuse…" failed 2 of 4 full `npm test` runs at its 5 s default (5,017 and 5,037 ms; 214 ms alone),
+  the others passing; as DL-270's `release.test.ts`, a likely fix is a longer timeout, the owner's.
+- **S13's first box stays open:** the Morale-in limit is a line of the Gate.
+
+*Open for the owner:* the Morale-in limit (DL-263); R1's Rosters and the Rivals' Wealth (tuning,
+DL-257 item 7); Deaths 0.24 a game, Tier 4 the only Deadly Tier played and Tier 5 never unlocked
+(`unlockLevel` 12); the Targets outside their bands; the timeout; the playtest and the word.
+
+**Consequences.** Every line but the estimate's Morale-in is met; the release awaits the owner's
+answer on it, the playtest and the word (the delivery guide's step 3).
+
+**Evidence.** The commit `v1.2.0-S13 (DL-274)`; `harness/reports/v1.2.0-gate-2026-10-11.md` and its
+JSON, committed; the estimate's report `estimate-2026-10-11` (not committed). The epic's S13 Status.

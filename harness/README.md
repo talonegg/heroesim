@@ -39,8 +39,8 @@ config version 20 and content version 39 is `62fab24b0a9a2f6b868de54cdf072ff5208
 play-neutral story's `--expect` reads. Each changes only with a DL entry, as at a story that changes play or the
 save's shape or raises the content version or the config version, both of which every save records
 (with `meta.config`). The full `gate`'s, 50 × 20, is
-`5dbfdaf460aea084ea1e6a37de78b44f74f32803ab98626ffed4a127b786e62b` (`v1.1.8-gate`, v1.1.8's close, the
-Gate's baseline in `gate.json`, DL-229; the same games as v1.1.7's close, DL-214).
+`59d52e71b712bd1721a81d42b41a43fd3f680a7f29003cfe2533d04807c42d11` (`v1.2.0-gate`, v1.2.0's close, the
+Gate's baseline in `gate.json`, DL-274).
 
 ## Settings
 
@@ -75,7 +75,8 @@ entries cite. The rest leave it at a release's record (DL-223). The baseline is 
 previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's close removed, the
 v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). Those v1.1.9's record
 removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` reference among them, are
-read from git at `fb55a8c`. The 84 committed before 2026-10-08 that nothing live cited are
+read from git at `fb55a8c`. The baseline v1.2.0's close replaced, `v1.1.8-gate`, is read from git at
+`4220f57` (DL-274). The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
 
