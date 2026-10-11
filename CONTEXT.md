@@ -48,14 +48,14 @@ fold disbands it early (DL-28).
 _Avoid_: Team, Squad, Band
 
 **Captain**:
-The one Hero of its Roster a Guild names to lead its Parties: one a Guild, named freely by its
+The one Hero of its Roster a Guild names as its leader: one a Guild, named freely by its
 Guildmaster's controller, the player for the player's Guild and a Disposition for a Rival, and
 changed at a cost to the outgoing Captain's Morale, after which the post is locked for a time. What
-the Captain brings grows with their Leadership: their Party brings more of its Stats to a Check,
-their Heroes come home with more Morale, and the Roster's Morale baseline is higher while they are
-at home. A post left by a Death, a Retirement or a departure is filled without cost or lock. The
-Synergy "Under a strong leader" is another thing, a Party's requirement and not a post (DL-280; to
-be built).
+the Captain brings grows with their Leadership: the Party they go out with brings more of its Stats
+to a Check and its Heroes come home with more Morale, and the Roster's Morale baseline is higher
+while they are at home. A post left by a Death, a Retirement or a departure is filled without cost
+or lock. The Synergy "Under a strong leader" is another thing, a Party's bonus and not a post
+(DL-280; to be built).
 _Avoid_: Leader, Commander, Captaincy (for the Hero), Guildmaster (a different person)
 
 **Patron**:
@@ -305,17 +305,17 @@ _Avoid_: Happiness, Mood, Loyalty
 
 **Fatigue**:
 A Hero's weariness, a State from 0 to 100. It rises each Day a Hero is away on a Quest, by the
-Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters. A
-tired Hero brings less of their Stats to a Check, the Physical and Magical more than the Mental and
-Social, and is injured and killed more often (Form). A Guild may keep its tired Heroes at home by a
-rest band, but Fatigue is never an Unavailability: the player may send anyone (DL-280; to be
-built).
+Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters. The
+wearier a Hero, the less of their Stats they bring to a Check, the Physical and Magical more than
+the Mental and Social, and the more often they are injured and killed (Form). A Guild may keep its
+tired Heroes at home by a rest band, but Fatigue never makes a Hero unavailable: the player may send
+anyone (DL-280; to be built).
 _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 
 **Fatigue band**:
-One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted. A rest band
-names the first a Guild will not send a Hero at or past, and the page and the CLI read a Hero's
-Fatigue by them (DL-280; to be built).
+One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted. A Guild's rest
+band is one of them, and a Hero at or past it is left out when the Guild chooses a Party; the page
+and the CLI read a Hero's Fatigue by them (DL-280; to be built).
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
@@ -428,18 +428,20 @@ _Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: factors on the Stats they add to a
-score, which multiply. Morale's is a line around the Guild's Morale baseline, more above it and
-less below, read from their Morale on the Quest: their Morale as they set out plus the Morale the
-Quest's Encounters have cost or given them so far, their own since a loss may be steadied (DL-155).
-Fatigue's, from their Fatigue on the Day of the Encounter, takes more from the Physical and Magical
-Stats than from the Mental and Social. The hurt's, once they are injured on the Quest, takes the
-whole of its gap from the Physical Stats and half of it from the others, less where a Healer in the
-Party or a heal Item relieves it. The Captain's Party brings more, by the Captain's Leadership.
-Fatigue also raises a Hero's chance of an Injury or a Death. Form never changes their Exposure or
-Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills, Level, age and
-counts read a Hero as they are, and so does a raw Check. The Party builder says in one line what
-the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154). Morale's line,
-Fatigue, the hurt's relief and the Captain are to be built (DL-280).
+score, which multiply. Morale's is a line through `moraleBaseline`, more above it and less below,
+the same for every Guild whatever its quarters and Guildmaster add to its Heroes' Morale, read from
+their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
+cost or given them so far, their own since a loss may be steadied (DL-155). Fatigue's, from their
+Fatigue on the Day of the Encounter, takes more from the Physical and Magical Stats than from the
+Mental and Social. The hurt's, once they are injured on the Quest, takes the whole of its gap from
+the Physical Stats and half of it from the others, less where a Healer in the Party other than the
+hurt Hero, or a heal Item, relieves it. The Captain's Party brings more, by the Captain's
+Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. Form never changes their
+Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
+one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
+Morale's line, Fatigue, the hurt by Stat area and its relief, and the Captain are to be built
+(DL-280); until then Morale's factor is its band's and the hurt's one factor on every Stat.
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:

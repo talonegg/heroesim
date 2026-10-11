@@ -149,20 +149,22 @@ Loot and Campaigns are kept as features serving Reputation and History.
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.
 - R18. States: Injury (a type and Days to heal, faster with an infirmary; some types leave a
-  Trait), Morale, Fatigue (R39), Death (permanent; the Hero stays in the History), and Regard for others.
+  Trait), Morale, Fatigue (R39), Death (permanent; the Hero stays in the History), and Regard for
+  others.
 - R19. Relationship between two entities is computed from their mutual Regard. Relationship
   within a Party scales teamwork in the Quest Engine.
 - R20. Retirement of a Hero is likelier with age and with injury.
 - R39. Fatigue is a State from 0 to 100, 0 for a Hero generated: it rises each Day a Hero is away,
   by the Quest's Tier, and falls each night at home by the Guild's quarters, read Day by Day on a
-  Quest and projected by the estimate. In four named bands, fresh, weary, tired and exhausted, it
-  takes from a Hero's Physical and Magical Stats more than from their Mental and Social, and raises
-  their Injury and Death chances; every Guild keeps its Heroes at or past a rest band at home, by its
-  Disposition's band or the player's, and the player may still send anyone. Every figure is a
-  setting (DL-280; to be built, v1.2.1).
+  Quest and projected by the estimate, and read in four named bands, fresh, weary, tired and
+  exhausted. The higher it is, the more it takes from a Hero's Stats on a Check, from the Physical
+  and Magical more than from the Mental and Social, and the more it raises their Injury and Death
+  chances. A Guild's rest band, its Disposition's or the player's, leaves its Heroes at or past it
+  out of the Parties it chooses, and the player may still send anyone. Every figure is a setting
+  (DL-280; to be built, v1.2.1).
 - R40. A Guild names one Captain from its Roster, freely, by its Guildmaster's controller; changing
   it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
-  filled without either. The Captain's Party brings more of its Stats to a Check, their Heroes come
+  filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come
   home with more Morale, and the Roster's Morale baseline is higher while they are at home, each
   scaled by the Captain's Leadership (DL-280; to be built, v1.2.1).
 

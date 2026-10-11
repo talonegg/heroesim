@@ -340,3 +340,8 @@ Later stories use the three words by these entries.
 **Evidence.** The commit `v1.2.1-S1 (DL-281)`. The epic's S1 boxes. `quests doctor` and
 `traits doctor` read the same before and after; the readings and the checks' counts are in the commit
 message.
+Verified 2026-10-11 at 22b446f: the key's rename is safe (no code, test, fixture or save names it,
+only historic reports and drafts) and the changelog check catches a broken raise; fixed in the words,
+Form claiming the hurt by Stat area as built and drawing Morale's line around the Guild's baseline
+rather than `moraleBaseline`, Fatigue capitalising Unavailability (no glossary term), the Captain
+leading "its Parties", and R39 reading the effect by band.
