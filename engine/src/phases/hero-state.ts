@@ -1,7 +1,7 @@
-// Night: the Hero State Engine — healing, Morale drift, Regard decay and the yearly Retirement
-// check (approach §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29; M4-S4, DL-46). Ageing itself is derived
-// (`ageOf`); the yearly decline is the `ageing` phase's, which runs next on the same nights
-// (ageing.ts, M3-S4, DL-37).
+// Night: the Hero State Engine — healing, Morale drift, Fatigue, Regard decay and the yearly
+// Retirement check (approach §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29; M4-S4, DL-46; DL-282).
+// Ageing itself is derived (`ageOf`); the yearly decline is the `ageing` phase's, which runs next on
+// the same nights (ageing.ts, M3-S4, DL-37).
 //
 // It covers the Heroes on a Roster of a Guild that has not folded, in Guild id order and Roster
 // order, those away on a Quest included; a dead or retired Hero has left the Roster and is never
@@ -21,6 +21,11 @@
 //   Inspiration and Traits, DL-43), and stops there. Drift emits
 //   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
+// - **Fatigue** (fatigue.ts, DL-282). A Hero away on a Quest tires by the Quest's Tier
+//   (`fatigueRiseByTier`), and one at home rests by their Guild's quarters grade
+//   (`fatigueFallByQuarters`), held inside 0 to `fatigueMax`; `hero.fatigue-changed` only on the
+//   night it crosses from one of `fatigueBands` into another. The return night is a night at home:
+//   `questsConclude`, which runs first, has freed the Party.
 // - **Regard decay** (M4-S4, hero-regard.ts). The Hero's Regard for each other Hero with whom they
 //   have not shared a Quest for a whole year moves toward neutral by `regardDecayPerYear` of the
 //   scale's reach a year, an even share each night, and goes at neutral: a drift, emitting
@@ -38,8 +43,9 @@
 // The `heroes` stream is the only one this phase moves.
 
 import type { GameConfig } from '../config.js';
-import { rowOf, type Hero, type HeroId, type History, type Turn, type World } from '../document.js';
+import { requireRow, rowOf, type Hero, type HeroId, type History, type Quest, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
+import { fatigueNight } from '../fatigue.js';
 import { streamOf } from '../generators/draw.js';
 import { decayHeroRegard } from '../hero-regard.js';
 import { moraleBand, moraleBaselineFor, moraleChanged } from '../morale.js';
@@ -69,13 +75,28 @@ export const heroState: PhaseRun = (world, ctx) => {
 export type HeroNightContext = Pick<PhaseContext, 'config' | 'content' | 'turn' | 'emit'>;
 
 /**
- * One night of `hero`'s State before the Retirement check: healing, Morale drift and Regard decay, in
- * that order, as described above. It draws nothing. The chance estimate runs it on copies of a
- * proposed Party for each night they would be away (v1.1.4-S5's verification, estimate.ts); the
- * Retirement check, which draws, is never due for a Hero away on a Quest.
+ * One night of `hero`'s State before the Retirement check: healing, Morale drift, Fatigue and Regard
+ * decay, in that order, as described above. It draws nothing. `awayOn` is the Quest the Hero spends
+ * the night away on, their Party's by default and `null` for a Hero at home. The chance estimate runs
+ * it on copies of a proposed Party, who have no Party, for each night they would be away, giving the
+ * Quest they would be away on (estimate.ts); the Retirement check, which draws, is never due for a
+ * Hero away on a Quest.
  */
-export function heroNight(hero: Hero, world: World, ctx: HeroNightContext): EngineEvent[] {
-  return [...heal(hero, ctx), ...drift(hero, world, ctx), ...decayHeroRegard(hero, world, ctx)];
+export function heroNight(hero: Hero, world: World, ctx: HeroNightContext, awayOn: Pick<Quest, 'tier'> | null = questAwayOn(hero, world)): EngineEvent[] {
+  const night = awayOn === null ? { quarters: quartersOf(hero, world) } : { away: awayOn };
+  return [...heal(hero, ctx), ...drift(hero, world, ctx), ...fatigueNight(hero, night, ctx.config, ctx.emit), ...decayHeroRegard(hero, world, ctx)];
+}
+
+/** The Quest `hero`'s Party is away on, or `null` for a Hero in no Party. */
+function questAwayOn(hero: Hero, world: World): Quest | null {
+  if (hero.partyId === null) return null;
+  return requireRow(world.quests, requireRow(world.parties, hero.partyId).questId);
+}
+
+/** The grade of the quarters of `hero`'s Guild; 0 for a Hero on no Roster, who has none. */
+function quartersOf(hero: Hero, world: World): number {
+  const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
+  return guild?.hall.quarters ?? 0;
 }
 
 /**

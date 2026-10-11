@@ -997,6 +997,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       level: 1,
       injury: null,
       morale: 50,
+      fatigue: 0,
       diedOnTurn: null,
       retiredOnTurn: null,
       transferredOnTurn: null,
@@ -1122,6 +1123,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     heroIds: [partyHero],
     departedOnTurn: 36,
     returnsOnTurn: 44,
+    fatigueAtDispatch: { [partyHero]: 0 },
   };
   (world.heroes[partyHero] as Hero).partyId = party;
   log(33, 'quest.offered', [takenQuest, patron], false, { tier: 2 });

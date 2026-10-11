@@ -305,17 +305,20 @@ _Avoid_: Happiness, Mood, Loyalty
 
 **Fatigue**:
 A Hero's weariness, a State from 0 to 100. It rises each Day a Hero is away on a Quest, by the
-Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters. The
-wearier a Hero, the less of their Stats they bring to a Check, the Physical and Magical more than
-the Mental and Social, and the more often they are injured and killed (Form). A Guild may keep its
-tired Heroes at home by a rest band, but Fatigue never makes a Hero unavailable: the player may send
-anyone (DL-280; to be built).
+Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters
+(DL-280, DL-282). On a Quest, a Hero meets each Encounter with their Fatigue on its Day, the
+Encounters spread evenly over the Quest's Days. The wearier a Hero, the less of their Stats they
+bring to a Check, the Physical and Magical more than the Mental and Social, and the more often they
+are injured and killed (Form). A Guild may keep its tired Heroes at home by a rest band, but Fatigue
+never makes a Hero unavailable: the player may send anyone. Its effect on Form and the rest band
+are to be built (DL-280).
 _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 
 **Fatigue band**:
-One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted. A Guild's rest
-band is one of them, and a Hero at or past it is left out when the Guild chooses a Party; the page
-and the CLI read a Hero's Fatigue by them (DL-280; to be built).
+One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted (DL-282). A
+Guild's rest band is one of them, and a Hero at or past it is left out when the Guild chooses a
+Party; the page and the CLI read a Hero's Fatigue by them. The rest band and the page's and the
+CLI's readings are to be built (DL-280).
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
@@ -577,7 +580,7 @@ _Avoid_: Factory, Spawner
 
 **State Engine**:
 A part of the engine that advances one kind of entity each night: the Hero State Engine
-(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep, the
+(healing, Morale drift, Fatigue, Regard decay, Retirement), the Guild State Engine (Upkeep, the
 Bankruptcy floor and the Fame floor) and the Patron State Engine (Patron Regard recovering
 towards neutral).
 _Avoid_: System, Manager, Updater

@@ -216,6 +216,7 @@ function scene(seed: string, content: ContentSet, keys: string[], classKeys: str
     heroIds: heroes.map((hero) => hero.id),
     departedOnTurn: 0,
     returnsOnTurn: 5,
+    fatigueAtDispatch: Object.fromEntries(heroes.map((hero) => [hero.id, hero.fatigue])),
   };
   return { world, quest, party, deps: sceneDeps };
 }

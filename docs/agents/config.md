@@ -4,7 +4,7 @@ The game's tuning values, every setting of `GameConfig` (`engine/src/config.ts`)
 in one data file, `engine/src/config.json` (v1.1.6-S18, DL-186 item 15, DL-204). It holds:
 
 - **`sections`**: the settings grouped by what they tune (`world`, `heroes`, `guildmasters`,
-  `guilds`, `recruitment`, `board`, `questTiers`, `quest`, `heroState`, `ageing`, `endings`,
+  `guilds`, `recruitment`, `board`, `questTiers`, `quest`, `heroState`, `fatigue`, `ageing`, `endings`,
   `progression`, `regard`, `patrons`, `guildmasterStats`, `guildmasterRegard`, `transfers`, `loot`,
   `market`). The engine reads them flat, as `defaultConfig`: each setting is in one section, once,
   and the sections hold every setting of `GameConfig` and nothing else (`engine/src/config.test.ts`).

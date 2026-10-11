@@ -397,6 +397,10 @@ const sentences: Sentences = {
     const { heroId, before, after, bandAfter } = event.payload;
     return say`${hero(event, heroId)}'s Morale went from ${before} to ${after}, ${bandAfter}.`;
   },
+  'hero.fatigue-changed': (event) => {
+    const { heroId, before, after, bandAfter } = event.payload;
+    return say`${hero(event, heroId)}'s Fatigue went from ${before} to ${after}, ${bandAfter}.`;
+  },
   'hero.healed': (event, content) => {
     const { heroId, typeKey, traitKey } = event.payload;
     const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;

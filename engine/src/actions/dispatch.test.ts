@@ -54,8 +54,10 @@ function rejected(document: WorldDocument, request: DispatchRequest, under: Engi
 }
 
 describe('dispatch', () => {
-  test('sends the Party: a parties row, the Quest taken and off the Board, each Hero in the Party, quest.taken', () => {
+  test("sends the Party: a parties row recording each Hero's Fatigue, the Quest taken and off the Board, each Hero in the Party, quest.taken", () => {
     const { document, ids, rogue, mage } = built();
+    heroOf(document.world, rogue).fatigue = 37;
+    heroOf(document.world, mage).fatigue = 5.5;
     const questId = ids.offeredQuest;
     const quest = questOf(document.world, questId);
     const worldBefore = structuredClone(document.world);
@@ -76,6 +78,8 @@ describe('dispatch', () => {
       heroIds: [rogue, mage],
       departedOnTurn: fixtureTurn,
       returnsOnTurn,
+      // DL-282: the Quest clock reads each Encounter's Fatigue from it.
+      fatigueAtDispatch: { [rogue]: 37, [mage]: 5.5 },
     });
     expect(world.counters.parties).toBe(3);
     expect(questOf(world, questId)).toMatchObject({ status: 'taken', partyIds: [partyId] });

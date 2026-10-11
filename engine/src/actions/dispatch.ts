@@ -154,7 +154,8 @@ export type DispatchRejection =
  * `nightOf(dayOf(turn) + durationDays)`, a night Turn whichever Turn of the Day it left in
  * (pre-M0 review C4); the Quest is `taken`, lists the Party and leaves the Board, and its reward
  * becomes the reward agreed, the Guild's Guildmaster's Negotiation applied (`negotiatedReward`,
- * M4-S5, R8), which the Quest Engine pays on a success; each Hero's `partyId` is the Party's; each
+ * M4-S5, R8), which the Quest Engine pays on a success; the Party records each Hero's Fatigue as
+ * they set out (`fatigueAtDispatch`, DL-282); each Hero's `partyId` is the Party's; each
  * consumable moves from the Guild's holding to the Party's (M5-S3); and `quest.taken`, carrying the
  * reward agreed and the consumables carried, is returned.
  *
@@ -185,6 +186,7 @@ export function applyDispatch(
     heroIds: [...heroIds],
     departedOnTurn: world.turn,
     returnsOnTurn,
+    fatigueAtDispatch: Object.fromEntries(heroIds.map((heroId) => [heroId, (world.heroes[heroId] as Hero).fatigue])),
   };
   quest.status = 'taken';
   quest.partyIds.push(partyId);

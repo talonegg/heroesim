@@ -622,6 +622,7 @@ describe('the Party builder (DL-104)', () => {
       heroIds: [ragnvald.id],
       departedOnTurn: 0,
       returnsOnTurn: 17,
+      fatigueAtDispatch: { [ragnvald.id]: 0 },
     };
     ragnvald.partyId = partyId;
 
@@ -651,6 +652,7 @@ describe('the Party builder (DL-104)', () => {
         heroIds: [hero.id],
         departedOnTurn: 0,
         returnsOnTurn,
+        fatigueAtDispatch: { [hero.id]: 0 },
       };
       hero.partyId = partyId;
     };
@@ -682,6 +684,7 @@ describe('the Party builder (DL-104)', () => {
       heroIds: [cenric.id],
       departedOnTurn: 0,
       returnsOnTurn: 29,
+      fatigueAtDispatch: { [cenric.id]: 0 },
     };
     // Ragnvald and Bram can go; at Level 3, Bram the Healer still follows Ragnvald the Mage.
     bram.level = 3;
@@ -804,6 +807,7 @@ describe('rosterRows and sortedRoster', () => {
       heroIds: [away.id],
       departedOnTurn: 0,
       returnsOnTurn: 14,
+      fatigueAtDispatch: { [away.id]: 0 },
     };
     away.morale = 80;
     home.morale = 50;
@@ -1108,7 +1112,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     const { document, bram, liv, cenric } = sorted();
     bram.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     const partyId = 'party-000009' as PartyId;
-    document.world.parties[partyId] = { id: partyId, questId: 'quest-000001' as QuestId, guildId: playerOf(document).id, heroIds: [cenric.id], departedOnTurn: 0, returnsOnTurn: 14 };
+    document.world.parties[partyId] = { id: partyId, questId: 'quest-000001' as QuestId, guildId: playerOf(document).id, heroIds: [cenric.id], departedOnTurn: 0, returnsOnTurn: 14, fatigueAtDispatch: { [cenric.id]: 0 } };
     cenric.partyId = partyId;
     liv.partyId = 'party-000777' as PartyId;
 

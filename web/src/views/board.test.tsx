@@ -406,7 +406,7 @@ describe('the Party builder', () => {
       const hero = document.world.heroes[guild?.rosterIds[1] ?? ('' as HeroId)] as Hero;
       const questId = document.world.board[5] as QuestId;
       const partyId = 'party-000099' as PartyId;
-      document.world.parties[partyId] = { id: partyId, questId, guildId: guild?.id as GuildId, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn: 17 };
+      document.world.parties[partyId] = { id: partyId, questId, guildId: guild?.id as GuildId, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn: 17, fatigueAtDispatch: { [hero.id]: 0 } };
       hero.partyId = partyId;
       name = hero.name;
     });
@@ -451,7 +451,7 @@ describe('the Party builder', () => {
       // The first to join is injured until Turn 20, the second away until Turn 17, the third injured until Turn 17.
       a.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
       const partyId = 'party-000099' as PartyId;
-      document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17 };
+      document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17, fatigueAtDispatch: { [b.id]: 0 } };
       b.partyId = partyId;
       c.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
       const [early, late] = [b, c].sort(order) as [Hero, Hero];

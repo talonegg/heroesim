@@ -170,6 +170,9 @@ traits:         TraitKey[]                  Hero Traits, none excluding another 
 xp, level
 injury:         { typeKey, healsOnTurn } | null
 morale:         number
+fatigue:        number                      0 to fatigueMax, 0 for a Hero generated; rises each
+                                            night away by the Quest's Tier, falls each night at
+                                            home by the quarters (DL-282)
 diedOnTurn:     integer | null
 retiredOnTurn:  integer | null
 transferredOnTurn: integer | null           the Turn of the Hero's last Transfer; null if never. No
@@ -245,9 +248,11 @@ returnsOnTurn:  integer                     always a night Turn: the night of
                                             dayOf(departedOnTurn) + durationDays; the Quest
                                             resolves in that night phase and the Heroes are
                                             free from the next morning
+fatigueAtDispatch: Record<HeroId, number>   each Hero's Fatigue as the Party set out, from which
+                                            the Quest clock reads each Encounter's (DL-282)
 ```
 A Party's Consumables are the stacks it holds (§3.3). `quest.partyIds` and `party.questId` must
-agree; the validator checks it.
+agree, and `fatigueAtDispatch` name exactly `heroIds`; the validator checks both.
 
 **offers**
 ```
@@ -396,9 +401,9 @@ reads its counters through `byType`, or observes them in play
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
 10. **Discrete changes are entries; nightly drift is not** ([principle 11](./principles.md),
     [R36](./requirements.md)). A Quest outcome, an Injury, a Level, a Transfer, a purchase each
-    appends an entry. Morale drifting toward its baseline and Regard decaying are rules of the
-    config applied at night, recomputable from the entries that bound them, and append an entry
-    only when a value crosses a band; training XP is recorded by the Level it brings. Two discrete
+    appends an entry. Morale drifting toward its baseline, Fatigue rising away and falling at home
+    (DL-282) and Regard decaying are rules of the config applied at night, recomputable from the
+    entries that bound them, and append an entry only when a value crosses a band; training XP is recorded by the Level it brings. Two discrete
     changes also append only on a band crossing: a Regard change by the core's own rules (DL-43
     item 2) and the Morale cost a Transfer lays on the Heroes who stay (DL-57 item 4). The pool's
     comings and goings of a Hero no entry names are emitted, for the Turn's log, the pool's stop
@@ -410,7 +415,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193, DL-262, DL-266). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 
@@ -426,7 +431,7 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 | `json-safe` | A value rule 6 forbids |
 | `id-format`, `counter-range` | An id not of the form `<table>-<six digits>`; a counter past 999,999 or not above every id in use |
 | `dangling-reference` | An id naming no row of its table |
-| `hero-on-two-rosters`, `hero-in-two-parties`, `roster-guild-mismatch`, `party-member-mismatch` | A Hero on two Rosters or in two Parties; a Roster and a Hero's `guildId`, or a Party and a Hero's `partyId`, that disagree |
+| `hero-on-two-rosters`, `hero-in-two-parties`, `roster-guild-mismatch`, `party-member-mismatch` | A Hero on two Rosters or in two Parties; a Roster and a Hero's `guildId`, a Party and a Hero's `partyId`, or a Party's Heroes and those whose Fatigue it recorded at dispatch, that disagree |
 | `unattached-mismatch` | A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither |
 | `guildmaster-guild-mismatch`, `retired-guildmaster-in-office` | A Guildmaster whose `guildId` is not the Guild that names them; a Guild in play naming a retired Guildmaster (DL-102) |
 | `folded-guild-in-play` | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) |

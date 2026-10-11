@@ -9,6 +9,7 @@
 import {
   chanceBandNames,
   defaultConfig,
+  fatigueBandNames,
   moraleBandNames,
   potentialHints,
   questBands,
@@ -150,7 +151,8 @@ function each(keys: readonly string[], spec: NumberSpec): ConfigRule {
 
 /**
  * Bands: a record of exactly `keys`, each a number `spec` allows, rising strictly in `keys`' order,
- * where each band starts (`moraleBands`, `regardBands`, `potentialHintBands`, `chanceBands`).
+ * where each band starts (`moraleBands`, `fatigueBands`, `regardBands`, `potentialHintBands`,
+ * `chanceBands`).
  */
 function bands(keys: readonly string[], spec: NumberSpec): ConfigRule {
   return (value, settings) => {
@@ -221,6 +223,19 @@ const healFactors: ConfigRule = (value) =>
   Array.isArray(value) && value.length >= 1 && value.every((factor) => isNumber(factor) && factor > 0)
     ? undefined
     : 'it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0';
+
+/**
+ * Fatigue's figures a night by a ladder's rung (DL-282): `fatigueRiseByTier`'s by Tier and
+ * `fatigueFallByQuarters`' by quarters grade, at least one, each a finite number of 0 or more, so no
+ * night away rests a Hero nor a night at home tires one. One past the list reads the last, so a
+ * longer ladder or a content release with more grades leaves the list sound (DL-193).
+ */
+function fatigueSteps(each: string, one: string): ConfigRule {
+  return (value) =>
+    Array.isArray(value) && value.length >= 1 && value.every((step) => isNumber(step) && step >= 0)
+      ? undefined
+      : `it is a list of at least one figure, one for each ${each}, a ${one} past the list reading the last, each a finite number of 0 or more`;
+}
 
 /**
  * The Stat areas a decline draws from (M3-S4): any of the Stat areas, none twice. An area content has
@@ -417,6 +432,11 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   heroRetirementInjuredMultiplier: finite({ min: 0 }),
   infirmaryHealFactor: healFactors,
   quartersMoraleBonus: finite({ min: 0 }),
+
+  fatigueMax: whole({ min: 1 }),
+  fatigueBands: bands(fatigueBandNames, { min: 0, max: 'fatigueMax' }),
+  fatigueRiseByTier: fatigueSteps('Tier from 1', 'Tier'),
+  fatigueFallByQuarters: fatigueSteps('quarters grade from 0', 'grade'),
 
   potentialHintBands: bands(potentialHints, { min: 0 }),
   declineAge: whole({ min: 0 }),

@@ -371,6 +371,8 @@ export interface Hero {
   level: number;
   injury: Injury | null;
   morale: number;
+  /** From 0, rested, to `fatigueMax`; 0 for a Hero generated, moved only by the Hero State Engine's night (DL-282). */
+  fatigue: number;
   diedOnTurn: Turn | null;
   retiredOnTurn: Turn | null;
   /**
@@ -456,6 +458,11 @@ export interface Party {
   departedOnTurn: Turn;
   /** Always a night Turn: the night of dayOf(departedOnTurn) + durationDays (pre-M0 review C4). */
   returnsOnTurn: Turn;
+  /**
+   * Each of `heroIds`' Fatigue as the Party set out, by Hero: what the Quest clock reads each
+   * Encounter's Fatigue from, since the Party comes home after every night away has moved it (DL-282).
+   */
+  fatigueAtDispatch: Record<HeroId, number>;
 }
 
 /** A pending Transfer offer (M6); other offer kinds may join a union later. */
@@ -499,9 +506,10 @@ export interface Stack {
  * `configVersion`, taking `schemaVersion`, `configVersion` and `gearSlots` from the config and
  * `demands` from Quests, refusing every older save likewise (DL-193); 8, Quests' `tier` and
  * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
- * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266).
+ * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266); 10, Heroes'
+ * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282).
  */
-export const schemaVersion = 9;
+export const schemaVersion = 10;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

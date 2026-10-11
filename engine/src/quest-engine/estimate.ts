@@ -20,13 +20,13 @@
 //
 // *The night home* (v1.1.4-S5's verification). The resolver meets the Party on the night it comes
 // home (`questsConclude`), not as it sets out: on each night away the Hero State Engine has moved
-// each Hero's Morale toward their baseline, decayed their Regard (so their teamwork), and healed an
-// Injury whose night came, perhaps leaving a Trait; and their age is read on the return night. None
-// of it draws: the Retirement check, which does, is never due for a Hero away. So the estimate reads
-// copies of the Heroes, each night away run on them by the engine's own step (`heroNight`,
-// hero-state.ts), at the Turn of the return night (`returnNightOf`). It reads the Guild as it is when
-// the Party sets out: what the Guild does while it is away (a Hall Improvement built, a new
-// Guildmaster) is not foreseen.
+// each Hero's Morale toward their baseline, raised their Fatigue, decayed their Regard (so their
+// teamwork), and healed an Injury whose night came, perhaps leaving a Trait; and their age is read on
+// the return night. None of it draws: the Retirement check, which does, is never due for a Hero away.
+// So the estimate reads copies of the Heroes, each night away run on them by the engine's own step
+// (`heroNight`, hero-state.ts) as away on the Quest, at the Turn of the return night
+// (`returnNightOf`). It reads the Guild as it is when the Party sets out: what the Guild does while
+// it is away (a Hall Improvement built, a new Guildmaster) is not foreseen.
 //
 // It assumes no one falls (`ifNoOneFalls`): no Hero is hurt or killed on the way, and no Morale an
 // Encounter costs or gives moves anyone's form, so every Encounter is met by the whole Party as it
@@ -36,6 +36,7 @@
 // estimate. A Party of no one meets none of them, and fails.
 
 import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.js';
+import { bandOf } from '../bands.js';
 import { chanceBandNames, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type CheckKey, type Degree, type Encounter, type EncounterKey, type EncounterKind } from '../content-types.js';
 import { compareByCodeUnit, type Hero, type HeroId, type Quest, type Turn, type World } from '../document.js';
@@ -97,11 +98,7 @@ export interface QuestEstimate {
 
 /** The word a chance is shown in (DL-148 item 15): the highest of `chanceBands` whose start it reaches, else `hopeless`. */
 export function chanceBand(chance: number, config: Pick<GameConfig, 'chanceBands'>): ChanceBand {
-  let band: ChanceBand = 'hopeless';
-  for (const name of chanceBandNames.slice(1) as Exclude<ChanceBand, 'hopeless'>[]) {
-    if (chance >= config.chanceBands[name]) band = name;
-  }
-  return band;
+  return bandOf(chanceBandNames, config.chanceBands, chance);
 }
 
 /**
@@ -129,7 +126,7 @@ export function chanceToReach(capable: number, variance: number, x: number): num
  */
 export function estimateQuest(
   world: World,
-  quest: Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns'>,
+  quest: EstimatedQuest,
   heroes: readonly Hero[],
   deps: CheckDeps,
   carried: readonly ConsumableRequest[] = [],
@@ -138,7 +135,7 @@ export function estimateQuest(
 }
 
 /** What the estimate reads of a Quest. */
-export type EstimatedQuest = Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns'>;
+export type EstimatedQuest = Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns' | 'tier'>;
 
 /**
  * `estimateQuest` on `world` for any Party on any Quest, carrying `carried` (none by default).
@@ -270,10 +267,11 @@ function estimateFor(
 /**
  * `heroes`, sent on `quest` now, as they come home on its return night (`returnNightOf`): copies of
  * them, each night away from the first night after `world.turn` run on them by the Hero State
- * Engine's own step (`heroNight`), and a world that holds the copies at the return night's Turn.
+ * Engine's own step (`heroNight`), away on `quest`, and a world that holds the copies at the return
+ * night's Turn.
  * `world` and `heroes` are left as they are.
  */
-function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'durationTurns'>, deps: CheckDeps): { world: World; heroes: Hero[] } {
+function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'durationTurns' | 'tier'>, deps: CheckDeps): { world: World; heroes: Hero[] } {
   const away = heroes.map((hero) => copyOf(hero));
   const home: World = { ...world, heroes: { ...world.heroes, ...Object.fromEntries(away.map((hero) => [hero.id, hero])) } };
   const returns = returnNightOf(world.turn, quest);
@@ -281,7 +279,8 @@ function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'd
   for (let night = first > world.turn ? first : first + turnsPerDay; night < returns; night += turnsPerDay) {
     home.turn = night;
     const ctx = { ...deps, turn: night, emit: eventEmitter(home) };
-    for (const hero of away) heroNight(hero, home, ctx);
+    // The copies are in no Party, so each is marked away on the Quest, or their Fatigue would fall (DL-282).
+    for (const hero of away) heroNight(hero, home, ctx, quest);
   }
   home.turn = returns;
   return { world: home, heroes: away };

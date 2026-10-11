@@ -547,6 +547,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       heroIds: members,
       departedOnTurn: 0,
       returnsOnTurn: nightOf(3),
+      fatigueAtDispatch: Object.fromEntries(members.map((id) => [id, 0])),
     };
     for (const heroId of members) {
       const hero = world.heroes[heroId];

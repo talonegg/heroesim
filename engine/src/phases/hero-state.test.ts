@@ -370,9 +370,13 @@ describe('Retirement', () => {
       milestone: false,
       payload: { questId: makeId('quests', 99), partyId, guildId: guild.id, heroIds: [sent], returnsOnTurn: nightOf(12) },
     });
+    // The Party's row, on a Quest of the Board: the night away reads its Tier for Fatigue (DL-282).
+    const questId = world.board[0] as Quest['id'];
+    world.parties[partyId] = { id: partyId, questId, guildId: guild.id, heroIds: [sent], departedOnTurn: nightOf(10), returnsOnTurn: nightOf(12), fatigueAtDispatch: { [sent]: 0 } };
     hero(world, sent).partyId = partyId;
     at(11);
     hero(world, sent).partyId = null;
+    delete world.parties[partyId];
     const beforeHomecoming = structuredClone(world.rng.heroes);
 
     const events = at(12);

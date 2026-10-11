@@ -3,6 +3,7 @@
 // `hero.morale-changed`; the nightly drift toward the baseline emits it only when it crosses a
 // band (data-model rule 10, pre-M0 review A7). Both night phases that move Morale share this file.
 
+import { bandOf } from './bands.js';
 import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
 import { rowOf, type Hero, type QuestId, type World } from './document.js';
@@ -15,11 +16,7 @@ import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster
  * lowest band for a value below every start. A selector, for the rules and the front ends alike.
  */
 export function moraleBand(morale: number, config: Pick<GameConfig, 'moraleBands'>): MoraleBand {
-  let band: MoraleBand = moraleBandNames[0];
-  for (const name of moraleBandNames) {
-    if (morale >= config.moraleBands[name]) band = name;
-  }
-  return band;
+  return bandOf(moraleBandNames, config.moraleBands, morale);
 }
 
 /**

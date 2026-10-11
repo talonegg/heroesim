@@ -43,7 +43,7 @@ streams and the Turn, so a snapshot is the whole game ([`data-model.md`](./data-
 into the World State and returns its events.
 
 **State Engines** advance one kind of entity each night: the Hero State Engine (healing, Morale
-drift, Regard decay, Retirement), the Guild State Engine (Upkeep, the Bankruptcy floor, the Fame
+drift, Fatigue, Regard decay, Retirement), the Guild State Engine (Upkeep, the Bankruptcy floor, the Fame
 floor) and the Patron State Engine (Patron Regard recovering toward neutral).
 
 **World Engine** owns the Turn pipeline (§2). It calls the Generators, the State Engines, the
@@ -73,7 +73,7 @@ morning    Board refresh (drawing from Patrons) · Market refresh · [modules: o
 afternoon  Rival Controllers act on what the player left · Quests in flight advance
            · [modules: onAfternoon]
 night      Training yard XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
-           Hero State Engine (heal, Morale, Regard decay, Retirement checks) · ageing (Decline
+           Hero State Engine (heal, Morale, Fatigue, Regard decay, Retirement checks) · ageing (Decline
            on those nights) · Gear of the dead and retired back to their Guilds
            Guild State Engine (Upkeep on its Day, the Bankruptcy floor, the Fame floor)
            Transfer Generator (on its Days: Rivals bid for one another's Heroes)

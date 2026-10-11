@@ -1059,7 +1059,9 @@ describe('the Quest named on what its return causes', () => {
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];
-      return createHash('sha256').update(JSON.stringify(events.map(unnamed))).digest('hex');
+      // Fatigue's band crossings, a type of their own that no rule reads yet, are set aside (DL-282).
+      const played = events.filter((event) => event.type !== 'hero.fatigue-changed');
+      return createHash('sha256').update(JSON.stringify(played.map(unnamed))).digest('hex');
     });
     // SHA-256 of each seed's events, which the History holds but for the pool's comings and goings of
     // a Hero never hired (DL-211; the test after this holds the History to them). The stripping above

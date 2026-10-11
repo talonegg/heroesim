@@ -713,6 +713,7 @@ const routineWords: Readonly<Record<string, string>> = {
   'hero.injured': 'Injuries',
   'hero.xp-gained': 'XP',
   'hero.morale-changed': 'Morale',
+  'hero.fatigue-changed': 'Fatigue',
   'hero.healed': 'healing',
   'hero.declined': 'Decline',
   'patron.regard-changed': 'Regard',

@@ -256,6 +256,19 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   heroRetirementInjuredMultiplier: finiteFrom(0),
   infirmaryHealFactor: { refused: [[], [1, 0.5, 0, 0.25], [1, 0.5, Number.NaN, 0.25], [1, Number.POSITIVE_INFINITY], [1, '0.5'], 1], allowed: [[1], [1, 0.5, 0.3], [1, 1, 1, 1], [1, 0.5, 0.3, 0.2, 0.1], [2, 1, 0.5, 0.01]] },
   quartersMoraleBonus: finiteFrom(0),
+  fatigueMax: { refused: [0, 75.5, Number.NaN, Number.POSITIVE_INFINITY], allowed: [75, 200] },
+  fatigueBands: {
+    refused: [
+      { fresh: -1, weary: 25, tired: 50, exhausted: 75 },
+      { fresh: 0, weary: 25, tired: 50, exhausted: 101 },
+      { fresh: 0, weary: 50, tired: 50, exhausted: 75 },
+      { fresh: 0, weary: 50, tired: 25, exhausted: 75 },
+      { fresh: 0, weary: 25, tired: 50 },
+    ],
+    allowed: [{ fresh: 0, weary: 1, tired: 2, exhausted: 100 }],
+  },
+  fatigueRiseByTier: { refused: [[], [4, -1], [4, Number.NaN], [4, Number.POSITIVE_INFINITY], [4, '5'], 4], allowed: [[0], [4, 5, 6, 7, 8], [8, 4], [0.5, 1, 1.5]] },
+  fatigueFallByQuarters: { refused: [[], [5, -1], [5, Number.NaN], [5, Number.POSITIVE_INFINITY], [5, '6'], 5], allowed: [[0], [5, 6, 7, 8], [8, 5], [0.5, 1, 1.5, 2, 2.5]] },
   potentialHintBands: {
     refused: [{ modest: -1, promising: 6, exceptional: 10 }, { modest: 0, promising: 10, exceptional: 6 }, { modest: 0, promising: 6, exceptional: 6 }],
     allowed: [{ modest: 0, promising: 0.5, exceptional: 30 }],
@@ -502,6 +515,11 @@ describe('the bands, in their order', () => {
     expect(broken({ moraleMin: defaultConfig.moraleBaseline + 1 })).toEqual(['moraleBaseline', 'moraleBands']);
   });
 
+  test('the Fatigue bands lie within 0 and fatigueMax (DL-282)', () => {
+    expect(broken({ fatigueMax: defaultConfig.fatigueBands.exhausted - 1 })).toEqual(['fatigueBands']);
+    expect(broken({ fatigueMax: defaultConfig.fatigueBands.exhausted })).toEqual([]);
+  });
+
   test('the Regard bands lie within regardMin and regardMax', () => {
     expect(broken({ regardMin: defaultConfig.regardBands.hostile + 1 })).toEqual(['regardBands']);
     expect(broken({ regardMax: defaultConfig.regardBands.close - 1 })).toEqual(['regardBands']);
@@ -523,6 +541,19 @@ describe('the lists a content release may outgrow: no rule reads the content (DL
     expect(broken({ infirmaryHealFactor: [] })).toEqual(['infirmaryHealFactor']);
     expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] })[0]?.message).toBe(
       'infirmaryHealFactor is []; it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0',
+    );
+  });
+
+  test("Fatigue's rise by Tier and fall by quarters grade are lists of at least one, whatever the ladder or the grades, one past the list reading the last (DL-282)", () => {
+    expect(broken({ fatigueRiseByTier: [4] })).toEqual([]);
+    expect(broken({ fatigueRiseByTier: [4, 5, 6, 7, 8, 9, 10] })).toEqual([]);
+    expect(broken({ fatigueFallByQuarters: [5] })).toEqual([]);
+    expect(broken({ fatigueFallByQuarters: [5, 6, 7, 8, 9, 10] })).toEqual([]);
+    expect(checkConfig({ ...defaultConfig, fatigueRiseByTier: [] })[0]?.message).toBe(
+      "fatigueRiseByTier is []; it is a list of at least one figure, one for each Tier from 1, a Tier past the list reading the last, each a finite number of 0 or more",
+    );
+    expect(checkConfig({ ...defaultConfig, fatigueFallByQuarters: [] })[0]?.message).toBe(
+      "fatigueFallByQuarters is []; it is a list of at least one figure, one for each quarters grade from 0, a grade past the list reading the last, each a finite number of 0 or more",
     );
   });
 

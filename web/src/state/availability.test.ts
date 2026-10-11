@@ -19,7 +19,7 @@ function firstHero(document: WorldDocument): Hero {
 function withParty(world: World, hero: Hero, returnsOnTurn: number): void {
   const id = 'party-000009' as PartyId;
   hero.partyId = id;
-  world.parties[id] = { id, questId: 'quest-000001' as QuestId, guildId: hero.guildId as never, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn };
+  world.parties[id] = { id, questId: 'quest-000001' as QuestId, guildId: hero.guildId as never, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn, fatigueAtDispatch: { [hero.id]: 0 } };
 }
 
 describe('whether a Hero can be injured and in a Party at once', () => {

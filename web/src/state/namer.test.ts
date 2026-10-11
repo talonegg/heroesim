@@ -152,6 +152,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'steady',
     bandAfter: 'low',
   }),
+  'hero.fatigue-changed': event('hero.fatigue-changed', [heroId], { heroId, before: 48, after: 54, bandBefore: 'weary', bandAfter: 'tired' }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
   'hero.trait-gained': event('hero.trait-gained', [heroId, questId], {
     heroId,

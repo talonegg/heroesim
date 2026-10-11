@@ -87,7 +87,7 @@ function scene(
   const offered = world.quests[world.board[0] as Quest['id']] as Quest;
   const quest: Quest = { ...structuredClone(offered), difficulty, durationTurns: 4 * turnsPerDay, encounterKeys: encounters.map((it) => it.key), lootTableKey: null };
   const returnsOnTurn = nightOf(dayOf(world.turn) + 4);
-  const ids: Party = { id: makeId('parties', 99), questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn };
+  const ids: Party = { id: makeId('parties', 99), questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn, fatigueAtDispatch: Object.fromEntries(heroes.map((hero) => [hero.id, hero.fatigue])) };
   for (const [definitionKey, quantity] of carried) addStack(world, definitionKey, quantity, { kind: 'party', id: ids.id });
   return { world, heroes, quest, party: ids, deps, carried: carried.map(([definitionKey, quantity]) => ({ definitionKey, quantity })) };
 }
@@ -96,8 +96,11 @@ function scene(
  * `s`'s world on the night its Party comes home, as `questsConclude` meets it: the Hero State Engine's
  * phase run on each night away, the Party's Heroes in their Party, and the Turn the return night's.
  */
-function homeNight({ world, party, deps }: Scene): World {
+function homeNight({ world, quest, party, deps }: Scene): World {
   const home = structuredClone(world);
+  // The Party and its Quest as rows: a night away reads the Quest's Tier for Fatigue (DL-282).
+  home.parties[party.id] = structuredClone(party);
+  home.quests[quest.id] = structuredClone(quest);
   for (const heroId of party.heroIds) (home.heroes[heroId] as Hero).partyId = party.id;
   for (let night = nightOf(dayOf(home.turn)); night < party.returnsOnTurn; night += turnsPerDay) {
     if (night <= world.turn) continue;

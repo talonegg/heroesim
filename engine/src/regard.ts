@@ -23,6 +23,7 @@
 // Regard between Heroes, and the Relationship read from it, are hero-regard.ts's (M4-S4, DL-46), on
 // this scale and these bands.
 
+import { bandOf } from './bands.js';
 import { regardBandNames, type GameConfig, type RegardBand } from './config.js';
 import type { ContentSet } from './content-types.js';
 import {
@@ -59,11 +60,7 @@ export function regardValue(map: Readonly<RegardMap>, id: EntityId): number {
  * lowest band for a value below every start. A selector, for the rules and the front ends alike.
  */
 export function regardBand(value: number, config: Pick<GameConfig, 'regardBands'>): RegardBand {
-  let band: RegardBand = regardBandNames[0];
-  for (const name of regardBandNames) {
-    if (value >= config.regardBands[name]) band = name;
-  }
-  return band;
+  return bandOf(regardBandNames, config.regardBands, value);
 }
 
 /** The scale's reach from neutral: the larger of `regardMax` and −`regardMin`. */

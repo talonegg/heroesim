@@ -138,6 +138,7 @@ const hero: Hero = {
   level: 1,
   injury: { typeKey: 'broken-arm', healsOnTurn: 60 },
   morale: 60,
+  fatigue: 0,
   diedOnTurn: null,
   retiredOnTurn: null,
   transferredOnTurn: 21,
@@ -183,6 +184,7 @@ const party: Party = {
   heroIds: [heroId],
   departedOnTurn: 30,
   returnsOnTurn: 44,
+  fatigueAtDispatch: { [heroId]: 0 },
 };
 
 const offer: TransferOffer = {

@@ -329,6 +329,29 @@ export interface GameConfig {
    */
   quartersMoraleBonus: number;
 
+  // ── `fatigue`: Fatigue (DL-280 item 2, DL-282) ─────────────────────────────────────────────────
+  /**
+   * Fatigue's scale: from 0, a Hero rested, to this. A Hero is generated at 0, and no night takes
+   * Fatigue below 0 or above this.
+   */
+  fatigueMax: number;
+  /**
+   * Where each Fatigue band starts (`fatigueBand`): a Hero's band is the highest whose start their
+   * Fatigue has reached. The nightly step emits `hero.fatigue-changed` only when it crosses from one
+   * to another, as Morale's drift does; a Guild's rest band is one of them.
+   */
+  fatigueBands: Readonly<Record<FatigueBand, number>>;
+  /**
+   * Fatigue's rise each night a Hero is away on a Quest, by the Quest's Tier, Tier 1's first; a Tier
+   * past the list reads the last, so a longer ladder leaves the list sound (DL-193).
+   */
+  fatigueRiseByTier: readonly number[];
+  /**
+   * Fatigue's fall each night a Hero is at home, by their Guild's quarters grade, grade 0's first; a
+   * grade past the list reads the last, as `infirmaryHealFactor` does.
+   */
+  fatigueFallByQuarters: readonly number[];
+
   // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**
    * Where each Potential hint starts on the gap from a Stat's base to its Potential, in Stat
@@ -622,6 +645,11 @@ export type MoraleBand = (typeof moraleBandNames)[number];
 export const chanceBandNames = ['hopeless', 'unlikely', 'even', 'likely', 'near-certain'] as const;
 
 export type ChanceBand = (typeof chanceBandNames)[number];
+
+/** The named ranges Fatigue falls in, lowest first (DL-280 item 2, `CONTEXT.md` Fatigue band). */
+export const fatigueBandNames = ['fresh', 'weary', 'tired', 'exhausted'] as const;
+
+export type FatigueBand = (typeof fatigueBandNames)[number];
 
 /** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
 export const potentialHints = ['modest', 'promising', 'exceptional'] as const;

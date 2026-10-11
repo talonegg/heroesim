@@ -291,6 +291,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone | item 1 in part by DL-280; item 4 in part by DL-280 | [decision-log](../decision-log.md) |
 | DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … |  | [decision-log](../decision-log.md) |
 | DL-281 | 2026-10-11 | v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a … |  | [decision-log](../decision-log.md) |
+| DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

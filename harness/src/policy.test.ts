@@ -745,7 +745,7 @@ describe('automaticPolicy', () => {
       const [heroId] = guild.rosterIds;
       if (heroId === undefined) throw new Error('An empty Roster');
       const partyId = makeId('parties', 77);
-      document.world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5 };
+      document.world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
       addStack(document.world, 'whetstone', 1, { kind: 'party', id: partyId });
       expect(automaticPolicy(document, deps, policy)).toEqual([]);
 

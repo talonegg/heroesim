@@ -3,7 +3,7 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { MoraleBand, RegardBand } from './config.js';
+import type { FatigueBand, MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
   EncounterKey,
@@ -349,6 +349,16 @@ export type HeroMoraleChanged = Entry<
     bandAfter: MoraleBand;
     moduleId?: ModuleId;
   } & NamingTheQuest<MoraleCause, (typeof questCauses)['hero.morale-changed'][number]>
+>;
+
+/**
+ * A Hero's Fatigue crossed from one of `fatigueBands` to another on a night, away or at home, as
+ * Morale's drift does (DL-282, data-model rule 10): never for a night that stays in its band. Names
+ * the Hero.
+ */
+export type HeroFatigueChanged = Entry<
+  'hero.fatigue-changed',
+  { heroId: HeroId; before: number; after: number; bandBefore: FatigueBand; bandAfter: FatigueBand }
 >;
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
@@ -700,6 +710,7 @@ export type EngineEvent =
   | HeroDied
   | HeroXpGained
   | HeroMoraleChanged
+  | HeroFatigueChanged
   | HeroHealed
   | HeroTraitGained
   | HeroTraitLost
@@ -761,6 +772,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.died': true,
   'hero.xp-gained': false,
   'hero.morale-changed': false,
+  'hero.fatigue-changed': false,
   'hero.healed': false,
   'hero.trait-gained': true,
   'hero.trait-lost': true,

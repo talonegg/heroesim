@@ -40,7 +40,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Turns and Fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills, Traits, States | Yes | Skill growth, Class change |
 | Portraits and Descriptive Attributes | Guildmasters' and Heroes', the Portraits chosen to fit; content has no Hero picture yet | Patron pictures; Guild Banners' heraldry |
-| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | To be built, v1.2.1 (DL-280) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
+| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | The State, its bands and the Quest clock (DL-282); its effect and rest bands to be built, v1.2.1 (DL-280) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
 | The Captain: one a Guild, scaled by Leadership | To be built, v1.2.1 (DL-280) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
 | Progression: XP, Level, Potential, Decline | Yes | The Guildmaster Trait that sharpens Potential hints |
 | Quest Engine | Encounters, Checks, Degrees, Synergies, Relationship, Items | Mid-Quest reports |
@@ -73,7 +73,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   DL-210).
 - R3. Fixed rhythm: the Board and the Market refresh in the morning; the Rivals act in the
   afternoon; at night training, the Quests whose Parties return, Levels, healing, Morale drift,
-  ageing, Upkeep, Transfers, the Unattached pool's refresh and the Ending checks fall, and Random
+  Fatigue, ageing, Upkeep, Transfers, the Unattached pool's refresh and the Ending checks fall, and Random
   Events will fall too. The order is [`approach.md`](./approach.md) §2's.
 - R4. A Guild is to have one Outing per Turn (the Market; later scouting and Patron visits) and
   has unlimited Hall actions (dispatch, recruit, equip, build, and Transfer bids and answers). The
@@ -161,7 +161,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   and Magical more than from the Mental and Social, and the more it raises their Injury and Death
   chances. A Guild's rest band, its Disposition's or the player's, leaves its Heroes at or past it
   out of the Parties it chooses, and the player may still send anyone. Every figure is a setting
-  (DL-280; to be built, v1.2.1).
+  (DL-280; the State, its bands and its Day on a Quest by DL-282, the rest to be built, v1.2.1).
 - R40. A Guild names one Captain from its Roster, freely, by its Guildmaster's controller; changing
   it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
   filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come

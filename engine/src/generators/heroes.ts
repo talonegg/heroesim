@@ -119,6 +119,7 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     level,
     injury: null,
     morale: config.moraleBaseline,
+    fatigue: 0,
     diedOnTurn: null,
     retiredOnTurn: null,
     transferredOnTurn: null,

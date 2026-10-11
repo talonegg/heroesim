@@ -345,3 +345,63 @@ only historic reports and drafts) and the changelog check catches a broken raise
 Form claiming the hurt by Stat area as built and drawing Morale's line around the Guild's baseline
 rather than `moraleBaseline`, Fatigue capitalising Unavailability (no glossary term), the Captain
 leading "its Parties", and R39 reading the effect by band.
+
+## DL-282 — v1.2.1-S2 built: Fatigue, its bands and the Quest clock
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 2 makes Fatigue a State that rises each Day away by Tier and falls each night
+at home by the quarters, read Day by Day on a Quest (Q11 a). The resolver meets a Party on its return
+night, after every night away has run (`pipeline.ts`), so a Hero's stored Fatigue is the Quest's end's
+(the architecture review's candidate 2). Three copies of one band loop stood where Fatigue's band and
+S6's rest band would add more (candidate 6). Nothing reads Fatigue for play until S4.
+
+**Decision.**
+
+1. **The State.** A Hero's `fatigue`, 0 for a Hero generated. A `fatigue` config section after
+   `heroState`: `fatigueMax` 100 (the scale from 0), `fatigueBands` fresh 0, weary 25, tired 50,
+   exhausted 75, `fatigueRiseByTier` 4, 5, 6, 7, 8 and `fatigueFallByQuarters` 5, 6, 7, 8, each with
+   its rule in `configRules`; the config version 22.
+2. **The night.** `heroNight` gains a Fatigue step after Morale's drift (`fatigue.ts`): a Hero away
+   rises by the Party's Quest's Tier, one at home falls by their Guild's quarters grade, held inside 0
+   to `fatigueMax`, with `hero.fatigue-changed` (heroId, before, after, both bands) only when a band
+   is crossed. The return night is a night at home, `questsConclude` having freed the Party first.
+   The estimate's homecoming passes the Quest to `heroNight`, so its copies, in no Party, rise.
+3. **The Party** records each Hero's Fatigue at dispatch, `fatigueAtDispatch`.
+4. **The Quest clock**, `quest-engine/clock.ts`: `questClock(quest, encounters, config)` gives
+   `days`, `encounterDay(i)` and `fatigueAt(i, atDispatch)`. Day k of a Quest comes after k − 1 of
+   its nights away. The first Encounter falls on Day 1, the last on the last Day, the i-th of n on
+   Day 1 + round(i(D − 1) ÷ (n − 1)), half up; a lone Encounter on the last Day. The Fatigue on Day k
+   is the Fatigue at dispatch plus the Tier's rise × (k − 1), held at `fatigueMax`. Nothing reads it
+   yet; S4's form module will, in the resolver and the estimate alike.
+5. **Bands**, `bands.ts`: `bandOf(names, starts, value)` and `atOrPast(names, band, threshold)`.
+   `moraleBand`, `regardBand`, `chanceBand`, `potentialHint` and the new `fatigueBand` are adapters
+   over it; their loops are gone.
+6. **The save:** `schemaVersion` 10, no migration. The validator holds a Hero's `fatigue` a number
+   and a Party's `fatigueAtDispatch` a map of numbers naming exactly its Heroes
+   (`party-member-mismatch`).
+7. **The words:** the event narrated as Morale's is ("…'s Fatigue went from a to b, tired."), routine
+   ("Fatigue"), left out of the player's Guild's History as Morale is, in no World History, never a
+   Milestone. `CONTEXT.md`, `requirements.md`, `data-model.md`, `approach.md` and `config.md` say
+   what is built; the effect on Form and the rest band stay "to be built".
+
+*Judgement calls, for the owner to see.*
+- *The scale* is `fatigueMax` alone, from a fixed 0: a Hero generated is rested, and a floor above 0
+  would mean nothing.
+- *The lists* are not tied to the ladder's length or the content's grades: one past the end reads the
+  last, as `infirmaryHealFactor` does, so a sixth Tier needs no second edit.
+- *The Encounter's Day.* The last on the last Day, so a Finale meets the Party at its most tired;
+  the first on Day 1, at the Fatigue the Hero set out with. A Party sent before the night is away D nights, one more
+  than the last Encounter's Day reads: the walk home, which the stored Fatigue carries.
+- *A fourth loop.* `potentialHint` had the same loop; it is read through `bandOf` too.
+- *The event* names no Quest and has no cause: only a night moves Fatigue.
+- *Not exported* from the engine's entry yet: `fatigueBand` and the clock wait for S4 and S9.
+
+**Consequences.** Play is unchanged: no rule reads Fatigue. Every History gains Fatigue's band
+crossings, and every save the two fields; saves of schema 9 do not load. S4 reads the clock, S6
+`atOrPast`.
+
+**Evidence.** The commit `v1.2.1-S2 (DL-282)`; the epic's S2 boxes. The 120-Day History fingerprints
+of `quests-conclude.test.ts` hold with Fatigue's events set aside. A quick run before the change and
+one after, `compare` moving none of their play counters, and the doctors' readings are in the commit
+message; the reports are not committed.
