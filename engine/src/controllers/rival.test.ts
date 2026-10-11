@@ -12,7 +12,7 @@ import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, 
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
 import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withCaptaincy, withDispositions, withValid } from '../world.test-support.js';
-import { applyGuildAction, type GuildAction } from '../actions/action.js';
+import { applyAction, applyGuildAction, type GuildAction } from '../actions/action.js';
 import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
 import { rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
@@ -962,17 +962,33 @@ describe('a Rival names its Captain', () => {
     expect(rivalChoices(world, rival, testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }))).some((action) => action.kind === 'nameCaptain')).toBe(false);
   });
 
-  test('applied in the afternoon, the post filled with no cost and no lock; a Captain fallen is replaced the next afternoon', () => {
-    const deps = testDeps({ rivalCount: 1 }, withCaptaincy());
+  test('applied in the afternoon, the post filled with no cost and no lock; a Captain gone is replaced the next afternoon', () => {
+    // A Rival that sells whatever it is asked (transferAppetite 1), so the player's Guild can take its Captain.
+    const deps = testDeps({ rivalCount: 1 }, withCaptaincy(withDispositions({ transferAppetite: 1 })));
     let document = createWorld('rival-captain-play', setup, deps).document;
     const rivalId = (rivalsOf(document.world)[0] as Guild).id;
+    const rivalOf = (it: WorldDocument): Guild => it.world.guilds[rivalId] as Guild;
     // The first afternoon, its first.
-    for (let turn = 0; turn < 4 && (document.world.guilds[rivalId] as Guild).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
-    expect((document.world.guilds[rivalId] as Guild).captainId).not.toBeNull();
+    for (let turn = 0; turn < 4 && rivalOf(document).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
+    const first = rivalOf(document).captainId as HeroId;
+    expect(first).not.toBeNull();
     const named = document.history.byType['guild.captain-named'] ?? [];
     expect(named).toHaveLength(1);
     expect(document.history.entries[named[0] as number]).toMatchObject({ payload: { guildId: rivalId, replacedId: null, lockedUntilTurn: null } });
-    expect((document.world.guilds[rivalId] as Guild).captainChangedOnTurn).toBeNull();
+    expect(rivalOf(document).captainChangedOnTurn).toBeNull();
+
+    // The player's Guild takes the Rival's Captain once they are home: the post is empty, and filled the next afternoon, free.
+    while ((document.world.heroes[first] as Hero).partyId !== null) document = withValid(advance(document, deps).document, deps);
+    (playerGuild(document.world) as Guild).wealth = 1_000_000;
+    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first }, deps);
+    if (!taken.ok) throw new Error(taken.rejection.reason);
+    document = withValid(taken.document, deps);
+    expect(rivalOf(document).captainId).toBeNull();
+    for (let turn = 0; turn < 4 && rivalOf(document).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
+    const again = (document.history.byType['guild.captain-named'] ?? []).map((at) => document.history.entries[at]);
+    expect(again).toHaveLength(2);
+    expect(again[1]).toMatchObject({ payload: { guildId: rivalId, replacedId: null, lockedUntilTurn: null } });
+    expect(rivalOf(document).captainId).not.toBe(first);
   });
 });
 

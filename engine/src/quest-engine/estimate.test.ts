@@ -453,6 +453,29 @@ describe('the estimate', () => {
     else expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
   });
 
+  // DL-287: the Captain's lift on the nights away is the Captain's as the Party sets out, so a Captain
+  // the pool brought home, whose own nights away would change them, moves no estimate of a Party
+  // without them: each equals `estimateQuest`'s whatever the pool.
+  test("partyEstimator holds a Captain at home as they stand at setting out, whatever its pool's copy of them becomes on the nights away", () => {
+    // Scarred, which Deep cut leaves, takes Leadership from its least to its most.
+    const scarred = { key: 'scarred', name: 'Scarred', excludes: [], effects: [{ kind: 'statModifiers' as const, modifiers: { leadership: 19 } }] };
+    const content = withCaptaincy({ ...testContent, heroTraits: { ...testContent.heroTraits, scarred }, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, moraleDrift: 1, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5 }, content);
+    const { world } = createWorld('estimate-captain-pool', setup, deps).document;
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
+    const guild = playerGuild(world) as Guild;
+    const [captain, other] = guild.rosterIds.map((id) => world.heroes[id] as Hero) as [Hero, Hero];
+    for (const hero of [captain, other]) Object.assign(hero, { morale: 50, traits: [] });
+    captain.stats['leadership'] = 1;
+    captain.injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(world.turn)) };
+    guild.captainId = captain.id;
+    const quest = { ...structuredClone(world.quests[world.board[0] as Quest['id']] as Quest), durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1 } };
+
+    const alone = estimateQuest(world, quest, [other], deps);
+    expect(partyEstimator(world, deps)(quest, [other], { pool: [captain, other] })).toEqual(alone);
+    expect(partyEstimator(world, deps)(quest, [other], { pool: [other, captain] })).toEqual(alone);
+  });
+
   // DL-284, candidate 8 not adopted: the estimate and the resolver work a Check out twice, so a parity
   // test over fixed Encounters, no one falling, holds them together: every Check's capability on every
   // Encounter, each on its own Day at its own Fatigue, to the last bit, and at no variance its Degree.

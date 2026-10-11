@@ -53,6 +53,7 @@ import { compareByCodeUnit, requireRow, rowOf, type GuildId, type Hero, type Her
 import { eventEmitter } from '../emit.js';
 import { clamp } from '../generators/draw.js';
 import { itemDefinition } from '../items.js';
+import { captainHomeLift } from '../morale.js';
 import { heroNight } from '../phases/hero-state.js';
 import { dayOf, nightOf, returnNightOf, turnsPerDay } from '../time.js';
 import { capability, targetOf, type CheckDeps } from './check.js';
@@ -351,16 +352,19 @@ function homecoming(
   const home: World = { ...world, guilds, heroes: { ...world.heroes, ...Object.fromEntries(away.map((hero) => [hero.id, hero])) } };
   const returns = returnNightOf(world.turn, quest);
   const first = nightOf(dayOf(world.turn));
-  // Each Guild's Captain's lift, kept across the nights and forgotten after the Captain's own (DL-287).
+  // Each Guild's Captain's lift as the Captain stands as the Party sets out, held for every night away
+  // (DL-287): a Captain the pool brought home stays home, so no copy's night moves it, and the estimate
+  // is the same whatever the pool.
   const captainLifts = new Map<GuildId, number>();
+  for (const hero of away) {
+    const guild = hero.guildId === null ? undefined : rowOf(home.guilds, hero.guildId);
+    if (guild !== undefined && !captainLifts.has(guild.id)) captainLifts.set(guild.id, captainHomeLift(guild, home, deps.config, deps.content));
+  }
   for (let night = first > world.turn ? first : first + turnsPerDay; night < returns; night += turnsPerDay) {
     home.turn = night;
     const ctx = { ...deps, turn: night, emit: eventEmitter(home), captainLifts };
     // The copies are in no Party, so each is marked away on the Quest, or their Fatigue would fall (DL-282).
-    for (const hero of away) {
-      heroNight(hero, home, ctx, quest);
-      if (hero.guildId !== null && rowOf(home.guilds, hero.guildId)?.captainId === hero.id) captainLifts.delete(hero.guildId);
-    }
+    for (const hero of away) heroNight(hero, home, ctx, quest);
   }
   home.turn = returns;
   return { world: home, heroes: away };

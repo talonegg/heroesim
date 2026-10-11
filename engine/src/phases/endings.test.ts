@@ -24,7 +24,7 @@ import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
 import { nightOf, retirementTurn, retiresOn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
-import { ofType, plannedStreams, playWith, streamsOutOfPlace, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
+import { ofType, plannedStreams, playWith, streamsOutOfPlace, testContent, testDeps, thriftyRivals, withCaptaincy, withDispositions, withValid } from '../world.test-support.js';
 import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
@@ -593,6 +593,21 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
         else expect(rng[name], name).toEqual(before[name]);
       }
     }
+  });
+
+  test('a fold leaves its post of Captain empty with its Roster (DL-287)', () => {
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 }, withCaptaincy(withDispositions(thriftyRivals)));
+    stillRivalControllers();
+    const start = created('fold-captain', deps);
+    const rival = firstRival(start.world);
+    arrange.bankruptcy(start.world, rival, deps);
+    rival.captainId = rival.rosterIds[0] ?? null;
+    expect(rival.captainId).not.toBeNull();
+
+    // playTo holds the document to the validator, whose captain-off-roster a Captain left behind fails.
+    const { world } = playTo(start, nightOf(0), deps).document;
+
+    expect(guildOf(world, rival.id)).toMatchObject({ foldedOnTurn: nightOf(0), rosterIds: [], captainId: null });
   });
 });
 

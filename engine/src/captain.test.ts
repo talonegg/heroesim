@@ -4,7 +4,7 @@ import { createWorld } from './create.js';
 import type { Guild, Hero, World } from './document.js';
 import { playerGuild } from './selectors.js';
 import { dayOf, turnsPerDay } from './time.js';
-import { testContent, testDeps, withCaptaincy } from './world.test-support.js';
+import { deepFreeze, testContent, testDeps, withCaptaincy } from './world.test-support.js';
 
 // The Captain's reading of the world (DL-280 item 6, DL-287): the captaincy Stat content marks, a
 // Captain's scale on it, the lock a change of Captain sets, a post left empty by a Hero leaving the
@@ -37,6 +37,13 @@ describe('the captaincy Stat', () => {
     expect(captaincyScale({ leadership: 5 }, content)).toBeCloseTo(4 / 19, 12);
     expect(captaincyScale({ leadership: 24 }, content)).toBe(1);
     expect(captaincyScale({ leadership: 0 }, content)).toBe(0);
+  });
+
+  test('scales a Stat whose least is its most to 1 at it or beyond, 0 below', () => {
+    const row = content.stats['leadership'];
+    if (row === undefined) throw new Error('No Leadership');
+    const fixed = deepFreeze({ ...content, stats: { ...content.stats, leadership: { ...row, min: 5, max: 5 } } });
+    expect([4, 5, 6].map((leadership) => captaincyScale({ leadership }, fixed))).toEqual([0, 1, 1]);
   });
 
   test('scales by the Stat content marks alone, 0 where it marks none or a Hero lacks it', () => {
@@ -100,6 +107,18 @@ describe('the Hero a Guild names to an empty post', () => {
     best.injury = { typeKey: 'broken-arm', healsOnTurn: world.turn + 40 };
 
     expect(captainChoice(world, guild, deps)).toEqual({ kind: 'nameCaptain', guildId: guild.id, heroId: best.id });
+  });
+
+  test('reads their effective Stats: a Trait that raises the captaincy Stat counts', () => {
+    // Scarred brings 10 more Leadership here.
+    const scarred = { key: 'scarred', name: 'Scarred', excludes: [], effects: [{ kind: 'statModifiers' as const, modifiers: { leadership: 10 } }] };
+    const traited = testDeps({ rivalCount: 0 }, withCaptaincy(deepFreeze({ ...testContent, heroTraits: { ...testContent.heroTraits, scarred } })));
+    const { world } = createWorld('captain-traited', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, traited).document;
+    const guild = playerGuild(world) as Guild;
+    const heroes = guild.rosterIds.map((id) => world.heroes[id] as Hero);
+    heroes.forEach((hero, at) => Object.assign(hero, { traits: at === 1 ? ['scarred'] : [], stats: { ...hero.stats, leadership: at === 0 ? 12 : 5 } }));
+
+    expect(captainChoice(world, guild, traited)).toEqual({ kind: 'nameCaptain', guildId: guild.id, heroId: heroes[1]?.id });
   });
 
   test('takes the first in Roster order among Heroes tied, drawing nothing', () => {

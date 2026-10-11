@@ -7,7 +7,7 @@ import { bandOf } from './bands.js';
 import { captainOf, captainScale } from './captain.js';
 import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
-import { rowOf, type GuildId, type Hero, type QuestId, type World } from './document.js';
+import { rowOf, type Guild, type GuildId, type Hero, type QuestId, type World } from './document.js';
 import type { Emit } from './emit.js';
 import { namingTheQuest, questCauses, type HeroMoraleChanged, type MoraleCause } from './events.js';
 import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster.js';
@@ -31,8 +31,9 @@ export function moraleBand(morale: number, config: Pick<GameConfig, 'moraleBands
  * for the Hero State Engine and the front ends alike, and for every Guild alike (ADR-0002).
  *
  * `lifts`, given by a night that works out many Heroes' baselines, keeps each Guild's Captain's lift
- * once worked out, since reading the Captain's effective Stats reads the world's gear; the night
- * forgets a Guild's when its Captain's own night may change it (`heroState`).
+ * (`captainHomeLift`) once worked out, since reading the Captain's effective Stats reads the world's
+ * gear, and takes a lift it holds as it is: the night forgets a Guild's when its Captain's own night
+ * may change it (`heroState`), and the estimate holds each as the Party sets out (estimate.ts).
  */
 export function moraleBaselineFor(
   hero: Pick<Hero, 'guildId'>,
@@ -49,8 +50,7 @@ export function moraleBaselineFor(
   const guildmaster = guildmasterOf(guild, world);
   let captainHome = lifts?.get(guild.id);
   if (captainHome === undefined) {
-    const captain = captainOf(guild, world);
-    captainHome = captain === undefined || captain.partyId !== null ? 0 : captainScale(captain, world, content) * config.captainHomeBaselineBonus;
+    captainHome = captainHomeLift(guild, world, config, content);
     lifts?.set(guild.id, captainHome);
   }
   const baseline =
@@ -60,6 +60,22 @@ export function moraleBaselineFor(
     traitMoraleShift(guildmaster, content) +
     captainHome;
   return Math.min(config.moraleMax, Math.max(config.moraleMin, Math.round(baseline)));
+}
+
+/**
+ * What `guild`'s Captain adds to its Roster's Morale baseline (DL-280 item 6, DL-287):
+ * s·`captainHomeBaselineBonus` while the Captain is at home, in no Party, s their captaincy Stat from
+ * its least, 0, to its most, 1 (`captainScale`); 0 while they are away, with the post empty, or where
+ * content marks no captaincy Stat. Unrounded: `moraleBaselineFor` rounds the baseline it joins.
+ */
+export function captainHomeLift(
+  guild: Pick<Guild, 'captainId'>,
+  world: Pick<World, 'guilds' | 'guildmasters' | 'heroes' | 'items' | 'stacks'>,
+  config: Pick<GameConfig, 'captainHomeBaselineBonus'>,
+  content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
+): number {
+  const captain = captainOf(guild, world);
+  return captain === undefined || captain.partyId !== null ? 0 : captainScale(captain, world, content) * config.captainHomeBaselineBonus;
 }
 
 /**

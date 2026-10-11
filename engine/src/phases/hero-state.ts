@@ -58,12 +58,13 @@ import { activeRosterHeroes } from './roster-walk.js';
 
 export const heroState: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
-  // Each Guild's Captain's lift to the baseline, worked out once a night and forgotten when the
-  // Captain's own night, or their Retirement, may change it (DL-287).
+  // Each Guild's Captain's lift to the baseline, kept once worked out and forgotten as the Captain's
+  // own night begins, whose healing, before their drift, may leave a Trait that moves it, and at their
+  // Retirement (DL-287): each Hero's drift reads the Captain as they stand at that Hero's turn.
   const night: HeroNightContext = { ...ctx, captainLifts: new Map() };
   for (const { guild, hero } of activeRosterHeroes(world)) {
-    events.push(...heroNight(hero, world, night));
     if (guild.captainId === hero.id) night.captainLifts?.delete(guild.id);
+    events.push(...heroNight(hero, world, night));
     if (!retirementCheckDue(hero, ctx)) continue;
     const age = ageOf(hero, ctx.turn, ctx.config);
     if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;

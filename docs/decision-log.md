@@ -664,6 +664,7 @@ sends no one on (the architecture review's candidate 3).
 - *The stops follow the pool.* `staffableQuests` is the player's `decision-needed` and
   `quest-staffable` stops' too, so a fast forward no longer stops for a Quest only a tired Hero could
   staff, and stops when a Hero rests out of the band and makes one staffable.
+  *Confirmed 2026-10-11 by the owner (Q19 a): kept as built.*
 - *Stored Fatigue at the choice*, not projected: the two are equal, a Party setting out before the
   night's rise.
 - *The Board's sentence* for no Party still says "free Heroes"; S9 words the pool.
@@ -750,3 +751,11 @@ config version 29, the content version 45 and schema 11.
 **Evidence.** The commit `v1.2.1-S7 (DL-287)`; the epic's S7 boxes. The checks' counts, the
 doctors' readings and the quick run's fingerprint are in the commit message; the report
 `v1.2.1-s7-quick` is not committed.
+Verified 2026-10-12 at 830afea: every way off a Roster empties the post, the lock meets the
+Transfer lock's arithmetic, the factor applies once and only with the Captain present, and the
+quick run's fingerprint holds with both caches off; of 43 mutations nine survived, one equivalent,
+three now killed by new tests (a fold, a Stat whose least is its most, the choice by effective
+Stats) and five on the night's lift, which reached a stale case: a Captain healed of an Injury
+whose Trait moves their captaincy Stat drifted by the lift from before; fixed test first (the lift
+forgotten as the Captain's night begins), the estimate made to hold the lift as the Party sets out,
+the same whatever its pool, and a Rival's Captain bought away shown replaced.
