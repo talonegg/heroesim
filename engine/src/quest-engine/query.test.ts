@@ -4,7 +4,7 @@ import type { Hero, HeroId, SkillRating, World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
-import type { ContentSet } from '../content-types.js';
+import type { Class, ContentSet } from '../content-types.js';
 import { classSkillRequires, demandsCheck, heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
 import { hurtFactor, moraleFactor } from './form.js';
 import { atFatigue, evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryMember, type QueryParty } from './query.js';
@@ -643,6 +643,17 @@ describe("queryParty's relief from the hurt", () => {
   test('several Healers give one relief, not one each', () => {
     const both = testDeps(config, marking('healer', 'mage'));
     expect(taken(['aric', 'cass', 'dara'], { hurt: ['aric'], over: both }).aric?.relief).toBe(0.5);
+  });
+
+  test('a Class marked false relieves nothing, nor a Class content does not define', () => {
+    const unmarked: ContentSet = { ...testContent, classes: { ...testContent.classes, healer: { ...(testContent.classes['healer'] as Class), relievesHurt: false } } };
+    expect(taken(['aric', 'dara'], { hurt: ['aric'], over: testDeps(config, unmarked) }).aric?.relief).toBe(0);
+    const { world, heroes } = scene('relief');
+    const aric = heroes['aric'] as Hero;
+    for (const classKey of ['ghost', 'constructor', '__proto__']) {
+      const stranger = { ...(heroes['dara'] as Hero), classKey };
+      expect(queryParty([aric, stranger], world, healers, { hurt: new Set([aric.id]) }).members[0]?.relief, classKey).toBe(0);
+    }
   });
 
   test('a Healer not among the members on the Encounter, fallen or never sent, relieves no one', () => {

@@ -619,3 +619,10 @@ Every save records the config version 27 and the content version 43.
 **Evidence.** The commit `v1.2.1-S5 (DL-285)`; the epic's S5 boxes. The checks' counts, the
 doctors' readings and the quick run's `compare` against `v1.2.1-s4-verify-quick` are in the commit
 message; the report `v1.2.1-s5-quick` is not committed.
+Verified 2026-10-11 at 7f061c0: the relief is the gap times (1 − relief) in `hurtFactor` alone, read once
+through `queryParty` (the resolver; the Party builder sees no one hurt; the estimate none), a Healer
+present on the Encounter and not the hurt Hero, one relief however many, a heal Item spent at the Injury
+after the infirmary, never twice, its Days kept to the return and lost with a Hero who dies; of 38
+mutations four survived, one equivalent (`relievesHurt`'s own-key guard), and tests were added for
+the rest: a Class marked false relieving nothing, two heals of the same Days spent first by key, and
+a Healer who falls relieving no one after; the DL-50 record's quotes made DL-285 item 3's own words.

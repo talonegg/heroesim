@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
-import type { Class, Consequence, ContentSet, Encounter, EncounterKind, InjuryType, SetQuery } from '../content-types.js';
+import type { Class, Consequence, ContentSet, Encounter, EncounterKind, InjuryType, ItemDefinition, SetQuery } from '../content-types.js';
 import type { Hero, Party, Quest, World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
@@ -335,6 +335,40 @@ describe('a heal', () => {
     expect(after(marked, [])).toBeCloseTo(8 + 8 * 0.8, 9);
     expect(after(content, [['healing-draught', 1]])).toBeCloseTo(8 + 8 * 0.8, 9);
     expect(after(marked, [['healing-draught', 1]])).toBeCloseTo(8 + 8 * 0.9, 9);
+  });
+
+  test('of two heals healing the same Days, spends the first by key', () => {
+    const content = contentWith([hurt('deep-cut', 1)]);
+    const draught = content.items['healing-draught'] as ItemDefinition;
+    const tied: ContentSet = { ...content, items: { ...content.items, 'field-dressing': { ...draught, key: 'field-dressing', name: 'Field dressing' } } };
+    const s = scene('tied', tied, ['hurt-deep-cut'], [['healing-draught', 1], ['field-dressing', 1]], { size: 1 });
+
+    expect(resolveQuest(s.world, s.quest, s.party, s.deps).consumables.map((use) => use.definitionKey)).toEqual(['field-dressing']);
+  });
+
+  // A Healer relieves on each Encounter they are among the living for, not from the Injury on
+  // (DL-285): hurt at the first, the Warrior brings 8 × 0.8 to the second beside the Healer's 8, and
+  // with the Healer fallen there, 8 × 0.6 to the third.
+  test('a Healer relieves only while among the living: one who falls relieves no one after', () => {
+    const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+    const healers: SetQuery = ['where', 'party', ['class', 'healer']];
+    // Arcane, as `lift` is, so that no Synergy of the test content's adds to the capabilities.
+    const cut = encounter('cut', 'arcane', false, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, among: warriors }]);
+    const fall = encounter('fall', 'arcane', false, [{ kind: 'death', chance: 1, among: healers }]);
+    const base = contentWith([cut, fall, lift]);
+    const content: ContentSet = { ...base, classes: { ...base.classes, healer: { ...(base.classes['healer'] as Class), relievesHurt: true } } };
+    const overrides = { hurtCheckFactor: 0.6, healerHurtRelief: 0.5, healItemHurtRelief: 0.5, teamworkRange: 0 };
+    const s = scene('fallen', content, ['cut', 'fall', 'lift'], [], { size: 2, overrides });
+    const [warrior, healer] = s.heroes as [Hero, Hero];
+    warrior.classKey = 'warrior';
+    healer.classKey = 'healer';
+    for (const hero of s.heroes) hero.morale = s.deps.config.moraleBaseline;
+
+    const resolved = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    expect(resolved.outcome.injuries.map((injury) => injury.heroId)).toEqual([warrior.id]);
+    expect(resolved.outcome.deaths).toEqual([healer.id]);
+    expect(resolved.encounters.map((it) => it.checks[0]?.capability)).toEqual([16, expect.closeTo(8 + 8 * 0.8, 9), expect.closeTo(8 * 0.6, 9)]);
   });
 });
 
