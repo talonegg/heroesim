@@ -30,6 +30,7 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
+| `v1.2.1` | [Fatigue and the Captain](./v1.2.1-release.md) | A full `gate`'s correctness and performance lines; Fatigue's lines in bands the owner approves; DL-83's targets reported, not tuned; the owner's playtest | 15–18 | `v1.2.0` (DL-280) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
 [the archive](../archive/README.md).

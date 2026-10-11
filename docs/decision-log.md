@@ -197,6 +197,7 @@ test allow the beacon in a patch, over (a), turning Web Analytics off, and (c), 
 1. **The patch is `v1.2.1`,** built on `v1.2.1-dev`, cut on this machine from `v1.2.0`'s record
    (`cacc87a`) on the owner's answer (a). It carries that record, so no separate "Record (no
    release)" pull request is raised. Like `v1.1.1`, it has no epic and no Gate: no play changes.
+   *Superseded in part by DL-280, 2026-10-11: `v1.2.1` is the epic Fatigue and the Captain, with its Gate, and ships this patch. The record: [superseded/DL-279.md](decisions/archive/superseded/DL-279.md).*
 2. **`leavesThePage(baseURL, url)`** in `web/scripts/deploy.mjs`, beside the addresses it reads,
    decides for `web/e2e/deployed.live.ts` whether a request leaves the page. Any other origin does,
    except the beacon's two origins, `https://static.cloudflareinsights.com` and
@@ -206,6 +207,7 @@ test allow the beacon in a patch, over (a), turning Web Analytics off, and (c), 
    fails the check.
 4. **`plan.md` §3 moves on.** The short term's releases are renumbered: Fatigue and the Captain is
    `v1.2.2`, Rivals who compete `v1.2.3`. `docs/deploy.md` names the allowance.
+   *Superseded in part by DL-280, 2026-10-11: Fatigue and the Captain is `v1.2.1`, Rivals who compete `v1.2.2`. The record: [superseded/DL-279.md](decisions/archive/superseded/DL-279.md).*
 
 *Judgement calls, for the owner to see.*
 - The allowance is by exact origin, so `http:` and look-alike hosts are still refused. It is not
@@ -233,3 +235,55 @@ mutations survived; tests now refuse each.
 *Note, 2026-10-11 (the owner's word).* The owner made `v1.2.0`'s GitHub Release a full release, the
 latest, in place of the pre-release CI had made when the live check failed. Its first line now says
 the check failed on Pages only on the beacon (DL-278); the deploy record beneath it is unchanged.
+
+## DL-280 — v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the Rivals' heal Items
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner, answering Q1–Q16 on
+2026-10-11 and setting Fatigue's, Morale's and the hurt's formulas; the code's shape by the agent,
+from the architecture review of the same day, marked below
+
+**Context.** `v1.2.0`'s playtest said neither of its sentences (DL-276), and its Targets were left
+untuned (DL-277). DL-256 items 13, 19 and 20 put Fatigue, the Captain and the Roster's layers next.
+`v1.2.1` had been planned as DL-279's patch alone; the owner chose to make it this epic instead.
+
+**Decision.**
+
+1. **`v1.2.1` is the epic** [Fatigue and the Captain](planning/epics/v1.2.1-release.md), on
+   `v1.2.1-dev`, shipping DL-279's patch with it (Q1 a). Rivals who compete become `v1.2.2`.
+2. **Fatigue** is a State from 0 to 100, rising each Day away by Tier and falling each night at home
+   by quarters grade (Q2 a), read Day by Day on a Quest and projected by the estimate (Q11 a). With f
+   the Fatigue and FS `fatigueScaling` (0.4, from 0 to 1, no floor; Q13, Q14 c): Physical and Magical
+   Stats × (1 − FS·f/100), Mental and Social × (1 − (FS/2)·f/100); a Hero's Injury chance
+   × (1 + FS·f/100) and Death chance × (1 + (FS/2)·f/100) (Q13 a).
+3. **Morale's form** is 1 + (m − `moraleBaseline`) ÷ (2 × (`moraleMax` − `moraleMin`)) on every Stat,
+   `moraleCheckFactor` removed; `moraleBaseline` 50, the bands' starts 0, 11, 35, 66 and 90,
+   `moraleOnRosterDeath` −20; every other Morale bonus unchanged.
+4. **The hurt:** `hurtCheckFactor` 0.6, its gap taken whole by Physical Stats and half by the others;
+   relieved by half by a Healer in the Party and by half by a heal Item, now spent at the Injury
+   (Q15 a). Field surgery's scaling is in the backlog.
+5. **Rest bands** for every Guild: a Disposition's `restBand`, the player's `playerRestBand` (Q4 a).
+6. **The Captain:** one a Guild, named freely; its effects scaled by Leadership; a change costs the
+   outgoing Captain Morale and locks the post (Q3 c); each figure a setting (Q12).
+7. **The Rivals buy and carry heal Items** (Q16 b), the consumables part of #25.
+8. **The page:** part 11's layers for what exists (Q5 a); the script budget 900 kB (Q6 a).
+9. **Tuning:** Fatigue's settings to bands the owner approves; DL-83's Targets reported (Q8 a).
+   #51's form-factor item closes at the close (Q9). No riders (Q10 d): #41 returns to `plan.md` §3.
+10. **The sentences aimed at:** 1 and 3 (Q7 b).
+
+*Judgement calls, for the owner to see.*
+- The architecture review's candidates 1 to 7 shape the stories (the epic's *How it is built*):
+  a form module of formed Stats by area, a Quest clock shared by the resolver and the estimate, the
+  Party's pool in the Best Party module, consumable choices in the engine, roles marked in content
+  (ADR-0006), one band function, and Roster groups that say their kind. Candidate 8, one Encounter
+  step for the estimate and the resolver, is not adopted; a parity test stands in.
+- Fatigue and the hurt do not move a Hero's Exposure or Guard (`CONTEXT.md` Form).
+- A heal Item spent on a Hero who later dies on the Quest is lost.
+- A post left empty by a Death, a Retirement or a departure is filled without cost or lock.
+- A tired Hero is never an Unavailability: the player may send anyone (DL-256 part 2).
+
+**Consequences.** Sending a Hero costs the next Quest, so a Guild must rotate, and Morale, the Hall's
+quarters and the Guildmaster's Inspiration now move Checks by up to a quarter. Every Target moves; the
+report shows by how much. The saves of `v1.2.0` do not load (schema 10, then 11).
+
+**Evidence.** The epic `docs/planning/epics/v1.2.1-release.md`, its §6 the answers; `plan.md` §3; the
+architecture review of 2026-10-11 (outside the repository).

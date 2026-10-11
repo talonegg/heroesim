@@ -288,7 +288,8 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
 | DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
 | DL-278 | 2026-10-11 | v1.2.0 released; the live check failed on Pages, Cloudflare's Web Analytics beacon; with the owner |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
-| DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone |  | [decision-log](../decision-log.md) |
+| DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone | item 1 in part by DL-280; item 4 in part by DL-280 | [decision-log](../decision-log.md) |
+| DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
