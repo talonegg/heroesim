@@ -201,4 +201,12 @@ describe('the copies gone', () => {
 
     expect(written).toEqual([]);
   });
+
+  test("neither front end writes a Party's form line, its relief or the pool's sentence itself: they are the package's (DL-289)", () => {
+    const written = sources.filter((file) =>
+      /Raises the odds|Makes no difference|Lowers the odds|Heal Items carried|eases? the hurt of the others|Party of your (?:rested|free) Heroes meets/.test(readFileSync(`${root}${file}`, 'utf8')),
+    );
+
+    expect(written).toEqual([]);
+  });
 });

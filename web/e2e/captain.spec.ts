@@ -1,3 +1,4 @@
+import { defaultConfig } from '@heroesim/engine';
 import { expect, test, type Page } from '@playwright/test';
 import { escaped, expectNoHorizontalOverflow, expectTargets, openView, startGame } from './support';
 
@@ -115,7 +116,7 @@ test('naming another Captain says what it costs and locks, and the post then sta
 
   // In another's place: the cost and the lock said before it is done, and after, the lock held.
   await tiles.nth(1).getByRole('button').click();
-  await expect(article.getByText(`Naming ${second} Captain in place of ${first} costs ${first} 10 Morale and locks the post for 30 Days.`)).toBeVisible();
+  await expect(article.getByText(`Naming ${second} Captain in place of ${first} costs ${first} ${-defaultConfig.captainChangeMoraleCost} Morale and locks the post for ${defaultConfig.captainChangeLockDays} Days.`)).toBeVisible();
   await article.getByRole('button', { name: `Name ${second} Captain` }).click();
   await idle(page);
   await expect(article.getByText(new RegExp(`^${escaped(second)} is .+'s Captain\\.$`))).toBeVisible();
@@ -123,6 +124,8 @@ test('naming another Captain says what it costs and locks, and the post then sta
 
   await tiles.nth(0).getByRole('button').click();
   await expect(article.getByRole('button', { name: `Name ${first} Captain` })).toBeDisabled();
+  // The lock’s sentence is the disabled button’s description, so a screen reader hears why.
+  await expect(article.getByRole('button', { name: `Name ${first} Captain` })).toHaveAccessibleDescription(new RegExp(`^${escaped(second)} was named Captain on `));
   await expect(article.getByText(new RegExp(`^${escaped(second)} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`))).toBeVisible();
   await expectNoHorizontalOverflow(page, 'a Hero’s page, the post locked');
   await expectTargets(page, 'a Hero’s page, the post locked');

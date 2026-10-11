@@ -883,3 +883,14 @@ config version stays 30, the content version 45, schema 11.
 
 **Evidence.** The commit `v1.2.1-S9 (DL-289)`; the epic's S9 boxes. The checks' counts, the doctors'
 readings and the e2e count are in the commit message.
+Verified 2026-10-12 at 6a9bee7: the acceptance holds ("Sort by" reads the groups by kind, still right
+with the groups reordered; one home for the form line's words and the bands; the Captain control plays
+`nameCaptain` for the player's Guild, its refusals through the namer; relief reads the engine's
+`relievesHurt` and the kit chosen), and screenshots at 360, 820 and 1280px show no overlap or sideways
+scroll; of 31 mutations one fell through (a vacancy's lock, now pinned). Fixed: the disabled "Name
+Captain" is described by the lock's sentence (`aria-describedby`, with an e2e check); `CONTEXT.md`
+defines the rested Heroes as the pool (free Heroes less those the rest band keeps home) in the Fatigue
+band, Best Party and Fast-forward stop entries; a guard keeps the form line, relief and pool words out
+of both front ends; the Captain's cost and lock in the tests read the config. For the owner: at 1280px
+the Table's State group sits after Items, off screen until scrolled, and on a phone the State tab's
+Fatigue column needs its box scrolled.

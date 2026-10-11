@@ -507,7 +507,7 @@ describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
 });
 
 describe("the Roster's Table (DL-169 items 7 to 9)", () => {
-  test('has Name with its thumbnail pinned, then Class, Level, Age, Morale, where the Hero is, Traits, Items and the 20 Stats', () => {
+  test('has Name with its thumbnail pinned, then Class, Level, Age, where the Hero is, Traits, Items, then Morale and Fatigue, and the 20 Stats', () => {
     renderGame(withPartyOut(started()));
     showAs('Table');
 
@@ -701,7 +701,7 @@ describe('no Potential on the Roster (data-model rule 9)', () => {
 });
 
 describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
-  test('groups its boxes as Hero and the four areas, every column on; a box hides its column, All and None a group, and Reset shows every one; Name always shows', () => {
+  test('groups its boxes as Hero, State and the four areas, every column on; a box hides its column, All and None a group, and Reset shows every one; Name always shows', () => {
     renderGame(started());
     showAs('Table');
     const button = within(section('Roster')).getByRole('button', { name: 'Columns' });

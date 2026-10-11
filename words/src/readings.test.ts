@@ -563,6 +563,7 @@ describe("the Guild's Captain post", () => {
     // A vacancy holds no lock to read, and nobody to pay.
     guild.captainId = null;
     expect(captainPost(playerReading(document, { config, content }))?.captain).toBeNull();
+    expect(captainPost(playerReading(document, { config, content }))?.lock).toBeNull();
     expect(second).toBeDefined();
   });
 

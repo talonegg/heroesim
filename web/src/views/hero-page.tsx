@@ -25,7 +25,7 @@
 // Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type Captaincy, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
@@ -402,14 +402,26 @@ function CaptainPost({
   play: (action: GameAction) => void;
   level: Levels;
 }) {
+  // The lock's sentence describes the disabled button, so a screen reader that reaches it hears why.
+  const lockId = useId();
   return (
     <>
       <Sub level={level}>Captain</Sub>
       <p>{captaincy.words}</p>
-      {captaincy.locked === null ? null : <p className="subtle">{captaincy.locked}</p>}
+      {captaincy.locked === null ? null : (
+        <p id={lockId} className="subtle">
+          {captaincy.locked}
+        </p>
+      )}
       {captaincy.is ? null : (
         <div className="actions">
-          <button type="button" aria-label={`Name ${name} Captain`} disabled={busy || captaincy.locked !== null} onClick={() => play({ kind: 'nameCaptain', heroId })}>
+          <button
+            type="button"
+            aria-label={`Name ${name} Captain`}
+            aria-describedby={captaincy.locked === null ? undefined : lockId}
+            disabled={busy || captaincy.locked !== null}
+            onClick={() => play({ kind: 'nameCaptain', heroId })}
+          >
             Name Captain
           </button>
         </div>

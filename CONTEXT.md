@@ -322,11 +322,13 @@ _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 **Fatigue band**:
 One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted (DL-282). A
 Guild's rest band is one of them or none, its Disposition's or, for the player's Guild, a setting's,
-and a free Hero whose Fatigue is at or past it is left out of the Heroes the Guild chooses a Party
-from (DL-286): its rested Heroes, those at home that the band leaves, whom the Board's "Your best Party" and
-the staffing stops count and the Heroes it keeps home are still sendable by hand. The page and the CLI read
-a Hero's Fatigue by them (DL-289): a Fatigue chip beside Morale's, a column and filters, the Party builder's
-rows, the CLI's tables.
+and a free Hero (at the Hall, unhurt) whose Fatigue is at or past it is kept home: left out of the
+Heroes the Guild chooses a Party from, its pool (`partyPool`, DL-286). The page and the CLI call the
+pool its rested Heroes: its free Heroes less those the band keeps home, every free Hero where it has
+no rest band. The Best Party and the staffing stops count them alone, and a Hero kept home may still
+be sent by hand (DL-289). "Rested" is a plain word, not a term. The page and the CLI read a Hero's
+Fatigue by the bands (DL-289): a Fatigue chip beside Morale's, a column and filters, the Party
+builder's rows, the CLI's tables.
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
@@ -517,10 +519,10 @@ falls", and the numbers stay in the detail (DL-148 item 15, DL-156, DL-157).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
-The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
+The Party the engine would send on a Quest from a Guild's rested Heroes, its pool (`bestParties`, DL-237; `partyPool`, DL-286):
 first those its Class and Skill requirements take, then whoever most raises the estimated chance of
 success up to its least Party, then each Hero who raises it by more than the Guild's
-**Party margin** (DL-175), bounded by the free Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
+**Party margin** (DL-175), bounded by the rested Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
@@ -676,9 +678,9 @@ _Avoid_: Skip, Auto-play, Simulate
 **Fast-forward stop**:
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
-and a module asking; others only when the caller names them: a Quest its free Heroes can staff
+and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
-DL-101). Both staffing stops read the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
+DL-101). Both staffing stops read its rested Heroes, the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:

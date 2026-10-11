@@ -3,7 +3,7 @@
 // for its Tier, Deadly where it can kill (a mark with no figure), the Days it takes and its reward,
 // first as DL-257 and DL-269 set them, then its difficulty, its Fame, its Party size, what else it needs
 // and the Day it leaves the Board, marked when that is today (the review's B2); then "Your best
-// Party" with a chance word, the Party the engine would send from the free Heroes (v1.1.4-S6, DL-148
+// Party" with a chance word, the Party the engine would send from the rested Heroes (v1.1.4-S6, DL-148
 // items 15 and 17), or why the Guild may not take the Quest (DL-264). Its name unfolds it: its Encounters, each Check's name and what it reads, in
 // place of the template's demands (v1.1.4-S6, DL-148 item 16), the Skills that help, and its
 // difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The

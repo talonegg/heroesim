@@ -364,7 +364,11 @@ describe('the Captain', () => {
 
   test('in another’s place says what it costs and locks, then the post stays locked in the refusal’s words, and the one replaced is no Captain', async () => {
     let other = '';
+    let cost = 0;
+    let days = 0;
     const game = changed(started(), (document, player) => {
+      cost = -document.meta.config.captainChangeMoraleCost;
+      days = document.meta.config.captainChangeLockDays;
       player.captainId = player.rosterIds[1] ?? null;
       other = document.world.heroes[player.rosterIds[1] as never]?.name ?? '';
     });
@@ -372,7 +376,7 @@ describe('the Captain', () => {
     const { name, page } = openFirstHero(game);
     expect(
       within(page()).getByText(
-        `Naming ${name} Captain in place of ${other} costs ${other} 10 Morale and locks the post for 30 Days.`,
+        `Naming ${name} Captain in place of ${other} costs ${other} ${cost} Morale and locks the post for ${days} Days.`,
       ),
     ).toBeDefined();
 
@@ -386,7 +390,10 @@ describe('the Captain', () => {
     const locked = within(section('Roster')).getByRole('article');
     const button = within(locked).getByRole('button', { name: `Name ${other} Captain` });
     expect(button.hasAttribute('disabled')).toBe(true);
-    expect(within(locked).getByText(new RegExp(`^${name} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`))).toBeDefined();
+    const lockWords = within(locked).getByText(new RegExp(`^${name} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`));
+    // The disabled button carries its reason, so a screen reader that reaches it hears why (DL-289's verification).
+    expect(button.getAttribute('aria-describedby')).toBe(lockWords.id);
+    expect(lockWords.id).not.toBe('');
     expect(within(within(locked).getByRole('list', { name: `${other}'s State` })).queryByText('Captain')).toBeNull();
     logSays(new RegExp(`^The Lantern named ${name} its Captain in place of ${other}; the post cannot change again before Year 1 Day \\d+\\.$`));
   });
