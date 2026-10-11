@@ -338,6 +338,10 @@ const social = statsOf('social');
 const heroColumns = ['Class', 'Level', 'Age', 'Where', 'Traits', 'Items'];
 // DL-289: Morale and Fatigue are a group of their own, State, after the Hero's.
 const stateColumns = ['Morale', 'Fatigue'];
+// DL-289, the owner's answer (a) to Q21: in the wide Table State follows the Hero's short columns, and Where,
+// Traits and Items, whose cells are long, follow the areas; the Columns panel and the phone's tabs keep the groups.
+const heroFirstColumns = ['Class', 'Level', 'Age'];
+const heroLastColumns = ['Where', 'Traits', 'Items'];
 
 /**
  * A new game whose first Hero is a Warrior carrying an arming sword, holding Lame, Weaponry 10,
@@ -507,11 +511,11 @@ describe('the Roster as Tiles or a Table (DL-169 item 6)', () => {
 });
 
 describe("the Roster's Table (DL-169 items 7 to 9)", () => {
-  test('has Name with its thumbnail pinned, then Class, Level, Age, where the Hero is, Traits, Items, then Morale and Fatigue, and the 20 Stats', () => {
+  test('has Name with its thumbnail pinned, then Class, Level, Age, Morale and Fatigue, the 20 Stats, then where the Hero is, Traits and Items (Q21 a)', () => {
     renderGame(withPartyOut(started()));
     showAs('Table');
 
-    expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
     expect(rosterTable().className).toContain('table--first-sticky');
     for (const name of within(rosterTable()).getAllByRole('rowheader')) {
       expect(within(name).getByTestId('portrait-thumb')).toBeDefined();
@@ -741,7 +745,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     expect(headings()).toEqual(['Name']);
     fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('button', { name: 'Reset the columns' }));
-    expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
     expect(localStorage.getItem('heroesim.rosterColumns')).toBe('');
   });
 
@@ -1240,7 +1244,7 @@ describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () =>
 
       resize(false);
       expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
-      expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
+      expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
 
       expect(listeners.size).toBeGreaterThan(0);
       cleanup();

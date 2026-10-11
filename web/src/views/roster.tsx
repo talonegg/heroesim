@@ -36,6 +36,7 @@ import {
   rosterFacets,
   rosterRows,
   rosterSortChoices,
+  rosterTableColumns,
   sortedRoster,
   type RosterOrder,
   type RosterRow,
@@ -73,6 +74,7 @@ function orderKept(kept: string): RosterOrder {
 export function Roster({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const groups = useMemo(() => rosterColumnGroups(), []);
   const sorts = useMemo(() => rosterSortChoices(), []);
+  const tableColumns = useMemo(() => rosterTableColumns(groups), [groups]);
   const columnKeys = useMemo(() => groups.flatMap((group) => group.columns.map((column) => column.key)), [groups]);
   const [shownAs, setShownAs] = useRemembered(preferences.rosterView);
   const [keptOrderOf, keepOrder] = useRemembered(preferences.rosterOrder);
@@ -133,8 +135,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   const table = (columns: RosterGroupColumns) => (
     <RosterTable rows={rows} columns={columns} order={order} firstDirection={firstDirection} onSort={sortByHeading} onOpen={opened} />
   );
-  const shownColumns = (keys: readonly string[]): RosterGroupColumns =>
-    groups.flatMap((group) => group.columns).filter((column) => keys.includes(column.key) && !hidden.includes(column.key));
+  // In the wide Table's order, State after the Hero's short columns (DL-289, Q21 a); a phone's tab keeps its group's.
+  const shownColumns = (keys: readonly string[]): RosterGroupColumns => tableColumns.filter((column) => keys.includes(column.key) && !hidden.includes(column.key));
   const tabGroup = groups.find((group) => group.key === tab) ?? groups[0];
   const tabColumns = shownColumns(tabGroup?.columns.map((column) => column.key) ?? []);
 

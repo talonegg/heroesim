@@ -870,6 +870,10 @@ review's candidate 7), and "free Heroes" was untrue where a rest band keeps tire
 
 *Judgement calls, for the owner to see.*
 - *Morale moves in the wide Table* from after Age to after Items, since columns follow their groups.
+  *Changed 2026-10-12 by the owner (Q21 a): the State group sits right after the Hero group.* The Table
+  draws Class, Level and Age, State, the areas, then Where, Traits and Items (`rosterTableColumns`); Where
+  too, since at 1280px the box is 664px wide and Where's 192px left Fatigue 61px past it. The groups,
+  the Columns panel and the phone's tabs are as built.
 - *"Rested"*, not "free", as the owner's example had it; it is also said where no rest band is set.
 - *The stop sentence* "a Quest to staff: …'s Heroes at home could go on …" is left as it was: it is true
   of any Hero at home, and not in the story's list.

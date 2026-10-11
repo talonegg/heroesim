@@ -840,7 +840,7 @@ export interface RosterColumnGroup {
 /**
  * The Table's columns after Name, which always shows (DL-169 item 7): Hero (Class, Level, Age, where
  * the Hero is, Traits, Items), State (Morale, Fatigue; DL-289, Q5 a), then the Stats by area, each area a
- * group, in content's order.
+ * group, in content's order. The Table draws them in `rosterTableColumns`' order.
  */
 export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup[] {
   const hero: RosterColumnGroup = {
@@ -873,6 +873,21 @@ export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup
     else area.columns.push(column);
   }
   return [hero, state, ...areas];
+}
+
+/** The columns whose cells are long, the words of where a Hero is and the lists of names, which the wide Table sets last (DL-289, Q21 a). */
+const trailingColumns: readonly string[] = ['where', 'traits', 'items'];
+
+/**
+ * The wide Table's columns after Name, in the order it draws them (DL-289, the owner's answer (a) to Q21):
+ * the Hero group's short columns (Class, Level, Age), then State, then each Stat area, then Where, Traits and
+ * Items, whose cells are long and would push Morale and Fatigue off a 1280px screen. The groups keep Hero,
+ * State, then the areas, so the Columns panel and the phone's tabs are as they were; a phone's tab draws its
+ * own group's columns in this order.
+ */
+export function rosterTableColumns(groups: readonly RosterColumnGroup[]): RosterColumn[] {
+  const columns = groups.flatMap((group) => group.columns);
+  return [...columns.filter((column) => !trailingColumns.includes(column.key)), ...columns.filter((column) => trailingColumns.includes(column.key))];
 }
 
 /**

@@ -1,7 +1,9 @@
 // The Roster as a Table (v1.1.5-S12, DL-169 items 7 to 9): Name with the Portrait's thumbnail, pinned
-// as in the Unattached pool; Class, Level, Age, where the Hero is, Traits and Items; their State, Morale and
-// Fatigue, each with its band (DL-289); and the 20 Stats at their effective values. A Stat a source raises is green with a ▲ after it, one lowered red
-// with a ▼, by the net change; its tooltip and the screen reader's words give the base and each source.
+// as in the Unattached pool; Class, Level and Age; their State, Morale and Fatigue, each with its band
+// (DL-289); the 20 Stats at their effective values; then where the Hero is, Traits and Items, which are long
+// and so stand last, that State shows on a wide screen (the owner's answer (a) to Q21; `rosterTableColumns`). A Stat a
+// source raises is green with a ▲ after it, one lowered red with a ▼, by the net change; its tooltip and the
+// screen reader's words give the base and each source.
 // Traits and Items by name, each effect in a tooltip and the screen reader's words. The Table scrolls in
 // its own box. Its headings sort it, the same sort as "Sort by" (`roster.tsx`). Never a Potential.
 // The row of a Hero who carries a Unique Item glows gold, with no picture: its Items cell names the

@@ -57,6 +57,7 @@ import {
   orderWords,
   reverseOrderName,
   rosterColumnGroups,
+  rosterTableColumns,
   rosterFacets,
   rosterSortChoices,
   rosterRows,
@@ -1139,6 +1140,20 @@ describe("the Roster's sort (DL-169 item 10)", () => {
 });
 
 describe("the Roster's Table's columns (DL-169 item 7)", () => {
+  // DL-289, the owner's answer (a) to Q21: the State group stands right after the Hero group's short
+  // columns, so that Morale and Fatigue show at 1280px; Where, Traits and Items, whose cells are long, follow
+  // the Stat areas. The phone's tabs and the Columns panel keep the groups.
+  test("stand in the wide Table's order: Class, Level, Age, then State, then each area, then Where, Traits and Items", () => {
+    const groups = rosterColumnGroups();
+    const keys = rosterTableColumns(groups).map((column) => column.key);
+    const stats = groups.filter((each) => each.kind === 'stat-area').flatMap((each) => each.columns.map((column) => column.key));
+    expect(keys).toEqual(['class', 'level', 'age', 'morale', 'fatigue', ...stats, 'where', 'traits', 'items']);
+    // The same columns the groups hold, none lost and none twice.
+    expect([...keys].sort()).toEqual(groups.flatMap((each) => each.columns.map((column) => column.key)).sort());
+    // The groups, which the Columns panel and the phone's tabs follow, stay Hero, State, then the areas.
+    expect(groups.map((each) => each.kind)).toEqual(['hero', 'state', 'stat-area', 'stat-area', 'stat-area', 'stat-area']);
+  });
+
   // DL-289 (the architecture review's candidate 7): a group says what kind it is, so the phone's "Sort by"
   // reads the Stat areas by kind and a State group is none of them.
   test('are grouped as Hero, State and the four areas, each group of a kind, each Stat in its area, each column with the sort its heading orders by', () => {

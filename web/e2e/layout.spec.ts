@@ -998,6 +998,17 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
         }
         await tabs.getByRole('tab', { name: 'Hero' }).click();
       } else {
+        // The State group right after the Hero's short columns, then the areas, the long Where, Traits and Items
+        // last (DL-289, the owner's answer (a) to Q21); at 1280px Morale and Fatigue show without a scroll.
+        const headings = await table.getByRole('columnheader').allTextContents();
+        expect(headings.slice(0, 6).map((heading) => heading.trim()), `the Table's first columns, ${at}`).toEqual(['Name', 'Class', 'Level', 'Age', 'Morale', 'Fatigue']);
+        expect(headings.slice(-3).map((heading) => heading.trim()), `the Table's last columns, ${at}`).toEqual(['Where', 'Traits', 'Items']);
+        if (width >= 1280) {
+          const view = await box.boundingBox();
+          const fatigue = await table.getByRole('columnheader', { name: 'Fatigue' }).boundingBox();
+          if (view === null || fatigue === null) throw new Error(`the Table not drawn, ${at}`);
+          expect(fatigue.x + fatigue.width, `Fatigue within the box without a scroll, ${at}`).toBeLessThanOrEqual(view.x + view.width);
+        }
         await expect(raised).toHaveText(/^\d+ ▲/);
         await expect(lowered).toHaveText(/^\d+ ▼/);
         expect(await raised.evaluate(textContrast), `the green on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
