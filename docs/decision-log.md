@@ -268,6 +268,7 @@ untuned (DL-277). DL-256 items 13, 19 and 20 put Fatigue, the Captain and the Ro
 8. **The page:** part 11's layers for what exists (Q5 a); the script budget 900 kB (Q6 a).
 9. **Tuning:** Fatigue's settings to bands the owner approves; DL-83's Targets reported (Q8 a).
    #51's form-factor item closes at the close (Q9). No riders (Q10 d): #41 returns to `plan.md` §3.
+   *Superseded in part by DL-292 items 1 and 2, 2026-10-12: Fatigue's settings tuned to bands the owner approves (S11); now S11 is not built, the bands stay proposed, and `v1.2.1` is held unreleased until an economy release. The record: [superseded/DL-280.md](decisions/archive/superseded/DL-280.md).*
 10. **The sentences aimed at:** 1 and 3 (Q7 b).
 
 *Judgement calls, for the owner to see.*
@@ -994,3 +995,62 @@ sentence on the Hero's page and in the CLI.
 **Evidence.** The commit `v1.2.1-S12 (DL-291)`; its message has the findings, the checks' counts and
 the doctors' readings. The e2e specs whose sentences changed were not run (no build, a machine short
 of memory); S12's close runs them.
+
+## DL-292 — v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c)
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner, answering Q22 on 2026-10-12:
+"q 22 c. document all outcomes from 1.2.1 against 1.2.0 and 1.1.8/9 in a table in an md file for
+tracking later", option (c) being "Stop S11. Record the finding and plan an economy release next, with
+v1.2.1 held unreleased until then."; the record and S12's part without S11 by the agent, marked below
+
+**Context.** S11 was to tune Fatigue's settings to DL-290's bands once the owner approved them (DL-280
+item 9). Its first full `gate`, alone at `3170082` with the settings as built (config 30, content 45,
+schema 11), `v1.2.1-s11-baseline-2026-10-12` (fingerprint `027d238a…`), found the economy broken: the
+player bankrupt in 50 of 50 games, at a mean 9.45 years (v1.2.0: none), so no game reached 20 years and
+the Gate's save line could not be measured; the Rivals folding 10.94 times a game (2.18), failing 22.3%
+of their Quests (5.6%) and recruiting 2.56 Heroes a game (85.6); the player taking 139.9 Quests a
+Guild-year (189.4), its rewards less Upkeep 1,533 a Guild-year (12,797), no longer covering Upkeep. A
+trial with `fatigueFallByQuarters` [10,12,14,16] (shipped [5,6,7,8]),
+`v1.2.1-s11-trial-fall2x-2026-10-12` (`45da60b7…`), left the player bankrupt in 62% of games and the
+Rivals folding 40.58 times a game. A second trial, `fatigueScaling` 0 with the doubled fall, was stopped
+by the system for low memory and not rerun. The quick runs had shown the Rivals recruiting nothing
+since S4 (DL-290), but a 2-year run cannot show a Bankruptcy in year 9.
+
+**Decision.**
+
+1. **S11 is not built** (Q22 c). No setting changes; DL-290 item 5's bands stay proposed, never
+   approved, and are not in `harness/gate.json`.
+2. **`v1.2.1` is held unreleased** on `v1.2.1-dev` until an economy release, planned next (`plan.md`
+   §3), restores the player's solvency, the Rivals' failed Quests, recruiting and folds, and games that
+   reach 20 years so that the save is measured there.
+3. **The outcomes are kept for tracking** in
+   [v1.2.1-outcomes.md](planning/epics/v1.2.1-outcomes.md) (`e45373a`): v1.2.1 at S10 and the trial
+   beside the closing Gates of v1.2.0, v1.1.9 and v1.1.8. A later release adds its column; the file is
+   archived with the epic.
+4. **S12 without S11** (the agent, on the epic's S12). The epic is brought up to date, its Gate's
+   unmet lines noted under it, and every check that needs no sweep run. `hurtCheckFactor`'s 0.6 is the
+   design's value (DL-280 item 4; the config version 25), and `moraleCheckFactor` is removed (DL-283
+   item 2; the config version 23): #51's form-factor item (its item 3) is met, and the issue is ready
+   to close on the owner's word. It is not touched here.
+5. **Not run:** the full `gate`, the estimate's limits, the engine's twenty-year boxes, the boxes kept
+   apart and the speed run. The machine is short of memory, and the game is known broken, so they would
+   measure nothing the outcomes do not; they run at the close after the economy release, as does the
+   owner's playtest.
+
+*Judgement calls, for the owner to see.*
+- *The economy release has no number:* `plan.md` puts it first in the short term, before `v1.2.2`; its
+  plan says whether `v1.2.1` ships with it or before it.
+- *DL-290 is left as it is:* its bands were proposals and remain so. S11's story is kept in the epic,
+  marked stopped, since the tuning it names still waits on the economy.
+- *The Gate at `3170082`* met its correctness lines (refusals, stopped and unfinished games 0, round
+  trips 50 of 50, the replay identical) and the copy's share (0.4743, at most 0.4875), not the save's.
+
+**Consequences.** `v1.2.1-dev` holds S1 to S10, S9's order on Q21 and S12's review, and is not
+released. Fatigue's tuning waits for an economy that a Guild can live in; the economy release starts
+from the baseline's figures. The S11 reports stay untracked, the outcomes file their record.
+
+**Evidence.** The reports `v1.2.1-s11-baseline-2026-10-12` (fingerprint `027d238a8ca957bf…`) and
+`v1.2.1-s11-trial-fall2x-2026-10-12` (`45da60b775cc6ef5…`), untracked; the outcomes file (`e45373a`);
+the epic's S11 and S12 Status lines, its Gate's note and §6's Q22; `plan.md` §3. The commits
+`v1.2.1-S11 (DL-292)` and `v1.2.1-S12 (DL-292)`, whose messages carry the checks' counts and the
+doctors' readings.

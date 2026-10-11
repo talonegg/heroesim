@@ -82,15 +82,24 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
 (#51) is spread across the releases that change what it tunes.
 
 - **Now: [`v1.2.1`, Fatigue and the Captain](./planning/epics/v1.2.1-release.md)** (DL-280), on
-  `v1.2.1-dev`: Fatigue rising away and falling at home, weighing on Stats by area and on harm;
-  Morale's form a line around its baseline; the hurt relieved by a Healer or a heal Item; rest bands
-  for every Guild; one Captain a Guild; the Rivals' heal Items (#25's consumables); the Roster's Tiles,
-  Table and phone views as the design's part 11 sets them; and #51's form factors. It carries
+  `v1.2.1-dev`, built to S10 and held unreleased until the economy release below (DL-292): its first
+  full Gate found every one of the player's games bankrupt before 20 years. It brings Fatigue rising
+  away and falling at home, weighing on Stats by area and on harm; Morale's form a line around its
+  baseline; the hurt relieved by a Healer or a heal Item; rest bands for every Guild; one Captain a
+  Guild; the Rivals' heal Items (#25's consumables); the Roster's Tiles, Table and phone views as the
+  design's part 11 sets them; and #51's form factors. It carries
   `v1.2.0`'s record and DL-279's patch to the live check. `v1.2.0` was released on 2026-10-11 (§2),
   untuned (DL-277): the targets, the unlock Levels, the Death factor and the Rivals' Rosters are tuned
   in a later release (Alongside, below).
 - **Short term: choices that cost something.**
-  1. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
+  1. The economy release, first (DL-292): Guilds that can live with v1.2.1's Fatigue and form,
+     measured in a full Gate against [v1.2.1's outcomes](./planning/epics/v1.2.1-outcomes.md). It
+     restores the player's solvency (bankrupt in every game at v1.2.1, none at v1.2.0), the Rivals'
+     failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their
+     folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save
+     is measured there. Fatigue's tuning to DL-290's bands follows it. Its number, and whether
+     `v1.2.1` ships with it or before it, are set when it is planned.
+  2. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
      upgraded, the surplus sold) and #51's Rival income.
 - **Medium term: the management core,** in this order:
   - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
