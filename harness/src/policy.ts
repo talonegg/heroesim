@@ -90,10 +90,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
  *   Quest on the Board its Party is the one the engine would send from the Guild's pool, its Heroes
- *   still free whom `playerRestBand` does not keep home (`partyPool`, DL-286) (the Best Party: those the requirements take, then whoever most raises the estimated chance of
- *   success up to `partySizeMin`, then while each raises it by more than `playerPartyMargin`,
- *   v1.1.4-S6). Of the Quests it can staff, it sends the one whose Party has the highest chance of
- *   success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
+ *   still free whom `playerRestBand` does not keep home (`partyPool`, DL-286): the Best Party, those
+ *   the requirements take, then whoever most raises the estimated chance of success up to
+ *   `partySizeMin`, then while each raises it by more than `playerPartyMargin` (v1.1.4-S6). Of the
+ *   Quests it can staff, it sends the one whose Party has the highest chance of success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
  *   then chooses again, each Quest's Party and chance asked again of the Heroes left, until no Hero is
  *   left or no Quest can be staffed. A Quest it cannot staff is passed over, and a Quest of a Tier
  *   whose Fame minimum is above the Guild's Fame, which it may not take (`fameRefusal`, DL-264). Each Party **carries one

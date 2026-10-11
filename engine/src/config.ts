@@ -298,7 +298,7 @@ export interface GameConfig {
   chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
   /**
    * The `partyMargin` of a Guild with no Disposition, the player's (DL-148 item 17, DL-157): the
-   * Party the engine would send from its free Heroes (the Best Party), which the Board's card gives as
+   * Party the engine would send from its pool (the Best Party, `partyPool`), which the Board's card gives as
    * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
    * raises the estimated chance of success by more than this (DL-175). A share from 0 to 1.
    */

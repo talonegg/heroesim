@@ -269,7 +269,7 @@ export interface EncounterView extends EncounterReading {
 }
 
 /**
- * The Party the engine would send from the player's free Heroes (the Best Party, DL-148 item 17), as the card
+ * The Party the engine would send from the player's pool (the Best Party, DL-148 item 17; DL-286), as the card
  * gives it: its chance in a word and the Heroes' names; its chance `null` while the Quest's
  * Encounters are drawn on the way; when the Guild may not take the Quest, why, in the refusal's words
  * (`questClosed`, DL-264); or, when no Party of them meets the Quest's requirements, `null`.
@@ -344,7 +344,7 @@ function questCards(document: WorldDocument): QuestCard[] {
 
 /**
  * "Your best Party" for each Quest on the Board, by Quest id in the Board's order (v1.1.4-S6): the
- * Best Party of the player's free Heroes (`bestPartyReading`), its chance the estimate the rule chose
+ * Best Party of the player's pool (`bestPartyReading`, DL-286), its chance the estimate the rule chose
  * it by, every question asked of the document's reading's one Best Party module (DL-237, DL-241);
  * for a Quest the player's Guild may not take, why (`questClosed`, DL-264). The Board's alone, since it estimates many Parties of each Quest: `boardView`'s cards, which the
  * digest and the stop read too, carry none (v1.1.4-S6's verification, DL-157).

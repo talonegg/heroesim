@@ -442,7 +442,7 @@ export function boardReading(reading: PlayerReading): QuestReading[] {
   });
 }
 
-/** The Best Party of the player's free Heroes for a Quest: who, by name in its order, and its chance if no one falls. */
+/** The Best Party of the player's pool for a Quest (`partyPool`, DL-286): who, by name in its order, and its chance if no one falls. */
 export interface BestPartyReading {
   heroIds: HeroId[];
   names: string[];

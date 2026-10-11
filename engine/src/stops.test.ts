@@ -173,6 +173,49 @@ describe('decision-needed', () => {
   });
 });
 
+// DL-286: both staffing stops read the Guild's pool (`staffableQuests`, `partyPool`), so a Quest only
+// a Hero its rest band keeps home could go on stops nothing, and a Hero resting out of the band stops it.
+describe('the staffing stops and the rest band (DL-286)', () => {
+  const resting = testDeps({ rivalCount: 0, playerRestBand: 'tired' });
+  const unbanded = testDeps({ rivalCount: 0, playerRestBand: null });
+
+  /** A copy of `world` with every Hero of the player's Roster at `fatigue`. */
+  function at(world: World, fatigue: number): World {
+    const copy = structuredClone(world);
+    for (const heroId of player(copy).rosterIds) (copy.heroes[heroId] as Hero).fatigue = fatigue;
+    return copy;
+  }
+
+  test("stops for no new Quest when the rest band keeps every Hero home, and for it with no rest band", () => {
+    const { world } = created();
+    const guild = player(world);
+    const [questId] = world.board;
+    if (questId === undefined) throw new Error('An empty Board');
+    const after = at(world, resting.config.fatigueBands.tired);
+    const before = structuredClone(after);
+    before.board = before.board.filter((id) => id !== questId);
+
+    expect(staffableQuests(after, guild, resting)).toEqual([]);
+    expect(decisionNeededStop(before, after, guild.id, resting)).toBeNull();
+    expect(questStaffableStop(before, after, guild.id, resting)).toBeNull();
+    expect(decisionNeededStop(before, after, guild.id, unbanded)).toEqual({ kind: 'decision-needed', guildId: guild.id, questIds: [questId] });
+  });
+
+  test('stops when the Heroes rest out of the band, for the Quests on the Board they now could staff', () => {
+    const { world } = created();
+    const guild = player(world);
+    const before = at(world, resting.config.fatigueBands.tired);
+    const after = at(world, resting.config.fatigueBands.tired - 1);
+    const now = staffableQuests(after, guild, resting).map((quest) => quest.id);
+    expect(now.length).toBeGreaterThan(0);
+
+    expect(decisionNeededStop(before, after, guild.id, resting)).toEqual({ kind: 'decision-needed', guildId: guild.id, questIds: now });
+    expect(questStaffableStop(before, after, guild.id, resting)).toEqual({ kind: 'quest-staffable', guildId: guild.id, questIds: now });
+    // With no rest band, the same Heroes could staff them all along: nothing new to stop for.
+    expect(decisionNeededStop(before, after, guild.id, unbanded)).toBeNull();
+  });
+});
+
 describe('below-floor (DL-85 item 6)', () => {
   const below = (guildId: string, dueDay: number) =>
     ({ type: 'guild.below-floor', turn: 5, payload: { guildId, wealth: -3, floor: 0, dueDay } }) as unknown as EngineEvent;

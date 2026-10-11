@@ -680,3 +680,9 @@ still recruit no one and two fold to Bankruptcy (none before). Every save record
 **Evidence.** The commit `v1.2.1-S6 (DL-286)`; the epic's S6 boxes. The checks' counts, the
 doctors' readings and the quick run's fingerprint are in the commit message; the report
 `v1.2.1-s6-quick` is not committed.
+Verified 2026-10-11 at c67173d: no production chooser builds its own pool, a tired Hero is refused by
+no dispatch path, each band edge and `null` keep home whom they should, the re-recorded fingerprints
+return exactly with the rest-band filter off, and the stops follow the pool as the epic's candidate 3
+names `staffableQuests`; of 21 mutations none survived the suite, and the staffing stops gained tests
+of their own for the rest band; stale "free Heroes" comments made the pool's, and S9 given the words a
+player reads.
