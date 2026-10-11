@@ -405,3 +405,12 @@ crossings, and every save the two fields; saves of schema 9 do not load. S4 read
 of `quests-conclude.test.ts` hold with Fatigue's events set aside. A quick run before the change and
 one after, `compare` moving none of their play counters, and the doctors' readings are in the commit
 message; the reports are not committed.
+Verified 2026-10-11 at e22e4f1: the clock's Days hold against play (a Party sent before the night
+is away its Days in nights, its last Encounter one rise short of the stored Fatigue, the walk home;
+one sent at night a night fewer, the two equal; the return night rests), the band readers are the
+old loops exactly, and the save grows by the band crossings alone (+26 KB gzipped a game in two
+years, 2%; some 0.3 MiB on the Gate's 16.31 MiB mean at twenty years, under 30); of 30 mutations
+one survives, the estimate's copies marked away, unseen until S4 reads Fatigue (which must take
+the set-out Fatigue from the Heroes proposed, not the brought-home copies, cached by return night
+whatever the Tier); tests added for a Quest played against the clock, a Hero generated rested and
+a Quest of no Days.

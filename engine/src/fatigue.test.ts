@@ -1,11 +1,16 @@
 import { describe, expect, test } from 'vitest';
+import { applyAction } from './actions/action.js';
+import { advance } from './advance.js';
 import type { GameConfig } from './config.js';
-import { requireRow, type Guild, type Hero, type World } from './document.js';
+import { createWorld } from './create.js';
+import { requireRow, type Guild, type Hero, type Party, type Quest, type World, type WorldDocument } from './document.js';
 import { eventEmitter } from './emit.js';
-import { fatigueBand } from './fatigue.js';
+import { fatigueBand, fatigueFall, fatigueRise } from './fatigue.js';
 import { heroNight } from './phases/hero-state.js';
-import { nightOf } from './time.js';
-import { buildDocument, ofType, testDeps } from './world.test-support.js';
+import { questClock } from './quest-engine/clock.js';
+import { playerGuild } from './selectors.js';
+import { durationDaysOf, nightOf, timeOfDay } from './time.js';
+import { buildDocument, harmlessContent, ofType, setup, testDeps, withValid } from './world.test-support.js';
 
 // Fatigue (DL-280 item 2, DL-282): a State from 0 to `fatigueMax`, rising each night a Hero is away by
 // the Quest's Tier, falling each night at home by the quarters grade, read in bands. The Hero State
@@ -126,5 +131,57 @@ describe('fatigueBand', () => {
       'exhausted',
       'exhausted',
     ]);
+  });
+});
+
+describe('a Quest played, against the Quest clock (the verification of DL-282)', () => {
+  // No Rivals, and Encounters that harm no one, so the Party comes home whole.
+  const played = testDeps({ rivalCount: 0 }, harmlessContent);
+  /** `value` held inside 0 to `fatigueMax`, as a night holds it. */
+  const held = (value: number): number => Math.min(played.config.fatigueMax, Math.max(0, value));
+
+  /**
+   * A created world played to `sendAt`, two of the player's Heroes at Fatigue 0 sent then on the first
+   * Quest of the Board two may take, and played on to the return night (the Party freed, the Hero
+   * State Engine's night not yet run, as the resolver meets them) and through it.
+   */
+  function quest(sendAt: number) {
+    let document: WorldDocument = withValid(createWorld('fatigue-clock', setup, played).document, played);
+    while (document.world.turn < sendAt) document = withValid(advance(document, played).document, played);
+    const guild = playerGuild(document.world) as Guild;
+    const heroIds = guild.rosterIds.slice(0, 2);
+    for (const id of heroIds) requireRow(document.world.heroes, id).fatigue = 0;
+    const open = document.world.board.map((id) => requireRow(document.world.quests, id)).find(({ requirements }) => requirements.classKey === undefined && requirements.skillKey === undefined && requirements.partySizeMin <= 2);
+    if (open === undefined) throw new Error('No open Quest for two on the Board');
+    const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: open.id, heroIds }, played);
+    if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
+    document = withValid(sent.document, played);
+    const taken = requireRow(document.world.quests, open.id) as Quest;
+    const party = requireRow(document.world.parties, taken.partyIds[0] as Party['id']);
+    expect(party.fatigueAtDispatch).toEqual(Object.fromEntries(heroIds.map((id) => [id, 0])));
+    while (document.world.turn < party.returnsOnTurn - 1) document = withValid(advance(document, played).document, played);
+    const beforeReturn = heroIds.map((id) => requireRow(document.world.heroes, id).fatigue);
+    document = withValid(advance(document, played).document, played);
+    const afterReturn = heroIds.map((id) => requireRow(document.world.heroes, id).fatigue);
+    const clock = questClock(taken, taken.encounterKeys.length, played.config);
+    const rise = fatigueRise(taken.tier, played.config);
+    const fall = fatigueFall(requireRow(document.world.guilds, guild.id).hall.quarters, played.config);
+    return { days: durationDaysOf(taken), encounters: taken.encounterKeys.length, clock, rise, fall, beforeReturn, afterReturn, heroIds, document };
+  }
+
+  test("sent before the night, the Party is away its Quest's Days in nights: the last Encounter's Fatigue one rise short of the stored, the walk home; the return night rests", () => {
+    const { days, encounters, clock, rise, fall, beforeReturn, afterReturn } = quest(0);
+    expect(timeOfDay(0)).toBe('morning');
+    expect(clock.days).toBe(days);
+    expect(clock.encounterDay(encounters - 1)).toBe(days);
+    expect(beforeReturn).toEqual(Array(2).fill(held(days * rise)));
+    expect(beforeReturn).toEqual(Array(2).fill(held(clock.fatigueAt(encounters - 1, 0) + rise)));
+    expect(afterReturn).toEqual(Array(2).fill(held(held(days * rise) - fall)));
+  });
+
+  test("sent after the night, the Party is away one night fewer: the last Encounter's Fatigue is the stored one", () => {
+    const { days, encounters, clock, rise, beforeReturn } = quest(nightOf(1));
+    expect(beforeReturn).toEqual(Array(2).fill(held((days - 1) * rise)));
+    expect(beforeReturn).toEqual(Array(2).fill(clock.fatigueAt(encounters - 1, 0)));
   });
 });

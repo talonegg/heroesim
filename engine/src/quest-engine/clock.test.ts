@@ -59,6 +59,11 @@ describe("an Encounter's Day", () => {
     expect(questClock(quest(7), 3, config).days).toBe(7);
   });
 
+  test('a Quest of no Days, which only a hand-made row could hold, is met in one Day', () => {
+    const clock = questClock(quest(0), 2, config);
+    expect([clock.days, clock.encounterDay(0), clock.encounterDay(1)]).toEqual([1, 1, 1]);
+  });
+
   test('an Encounter outside the sequence, or a sequence of none, is a programming error', () => {
     const clock = questClock(quest(6), 3, config);
     for (const index of [-1, 3, 1.5]) expect(() => clock.encounterDay(index)).toThrow(RangeError);

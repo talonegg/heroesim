@@ -41,7 +41,7 @@ function bareGuild(world: World): Guild {
 }
 
 describe('generateHero', () => {
-  test('makes an Unattached Level 1 Hero with no XP, Injury, Traits or Regard, at the Morale baseline', () => {
+  test('makes an Unattached Level 1 Hero with no XP, Injury, Traits or Regard, at the Morale baseline and rested', () => {
     const deps = testDeps();
     const world = testWorld('fresh', deps);
     world.turn = 7;
@@ -55,6 +55,8 @@ describe('generateHero', () => {
       injury: null,
       traits: [],
       morale: deps.config.moraleBaseline,
+      // DL-282: a Hero generated is rested.
+      fatigue: 0,
       diedOnTurn: null,
       retiredOnTurn: null,
       regard: {},
