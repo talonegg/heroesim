@@ -133,7 +133,7 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
     item 10).
 - **Alongside, their place decided as each release closes:**
   - The economy pass, deferred by the owner (DL-293): Guilds that can live with v1.2.1's Fatigue and
-    form, measured in a full Gate against [v1.2.1's outcomes](./planning/epics/v1.2.1-outcomes.md).
+    form, measured in a full Gate against [v1.2.1's outcomes](./planning/epics/gate-outcomes-monitoring.md).
     It restores the player's solvency (bankrupt in every game at v1.2.1, none at v1.2.0), the Rivals'
     failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their
     folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save

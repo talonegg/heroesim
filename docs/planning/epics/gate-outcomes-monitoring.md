@@ -1,15 +1,18 @@
-# v1.2.1 outcomes against v1.2.0, v1.1.9 and v1.1.8
+# Gate outcomes: v1.2.1 against v1.2.0, v1.1.9 and v1.1.8
 
-A record kept for tracking: the harness's outcomes of v1.2.1 as built to S10 (config 30, content 45, commit
-`3170082`) beside the closing full Gates of v1.2.0, v1.1.9 and v1.1.8, so that a later release adds a column.
+A record kept for tracking: the harness's full Gate outcomes of v1.2.1 as built to S10 (config 30, content 45, commit
+`3170082`) beside the closing full Gates of v1.2.0, v1.1.9 and v1.1.8, and of v1.2.1 as released.
 The owner asked for it on 2026-10-12: "document all outcomes from 1.2.1 against 1.2.0 and 1.1.8/9 in a table
 in an md file for tracking later". It lives beside [the epic](v1.2.1-release.md) and is archived with it.
 
 Why now. S11 was to tune Fatigue against the bands DL-290 proposed. Its full run, at today's settings, showed the
 economy broken since S4: all 50 of the player's games ended in Bankruptcy, at a mean 9.45 years, and none ran
-20 years. On the owner's answer to Q22 (c), 2026-10-12, S11's tuning stopped. v1.2.1 is held unreleased on
-`v1.2.1-dev`, and an economy release is planned next. These are sweep figures, so they stand as a record, not as a
-live page (`docs/agents/documentation.md`); the reports are the source and a row here is only ever read from one.
+20 years. On the owner's answer to Q22 (c), 2026-10-12, S11's tuning stopped. The owner then released v1.2.1 as it
+stands, the economy pass deferred (DL-293): PR #66, merged as `72d14e9`, tag `v1.2.1`, on 2026-10-12.
+
+This file tracks the Gate's outcomes release by release (`docs/agents/documentation.md`). The reports are the source,
+and a row here is only ever read from one. A later release's full Gate adds a run to the table below, and a column
+only where its play differs.
 
 ## The runs
 
@@ -23,6 +26,7 @@ processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores
 | v1.2.0 | `v1.2.0-gate-2026-10-11`, in the tree; committed in `cbd0723` (DL-274) | 2026-10-11 11:03 | v1.2.0's close | 21, 41, 9 | `59d52e71b712bd1721a81d42b41a43fd3f680a7f29003cfe2533d04807c42d11` |
 | v1.2.1 baseline | `v1.2.1-s11-baseline-2026-10-12`, untracked | 2026-10-12 04:31 | `3170082`, S1 to S10 built and verified, today's settings | 30, 45, 11 | `027d238a8ca957bfb0326c4e0cd514b5becc49c712ce7a2664fd321ad42e9306` |
 | v1.2.1 trial (fall ×2) | `v1.2.1-s11-trial-fall2x-2026-10-12`, untracked | 2026-10-12 04:37 | `3170082`, with `HEROESIM_CONFIG={"fatigueFallByQuarters":[10,12,14,16]}` (the shipped values are [5,6,7,8]) | 30, 45, 11 | `45da60b775cc6ef52c1fa475ed9d6e21551147f0c5682d1919ca9e54196138b1` |
+| v1.2.1 closing Gate (the release) | `v1.2.1-close-gate-2026-10-12`, in the tree; committed in `95f2b57` | 2026-10-12 08:04 | after S12, the play of `3170082` | 30, 45, 11 | `027d238a…`, the baseline's |
 
 - **v1.1.8 has a full run of its own**: `v1.1.8-gate`, its closing Gate (DL-229), whose report left the tree at
   v1.2.0's close and is read from git at `4220f57`. It was not a `neutral --expect` alone.
@@ -30,6 +34,10 @@ processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores
   in timings and in the Gate's copy line. v1.1.9 changed no play.
 - **v1.2.0 changed play** (the Tiers, DL-262; Death by Tier, DL-265; the Party floor, DL-266), so the step from
   its two earlier columns is v1.2.0's, not v1.2.1's.
+- **The closing Gate is the baseline's play.** Its fingerprint, config, content, schema and every Target are the
+  baseline's; only the per-Turn copy line differs, in timing. So the outcomes table has no column for it: read the
+  baseline's. Its Gate fails the same line, the save after 20 years (see below). The release went ahead on the owner's
+  word (DL-293), not blocked by it.
 - **† marks a Target counted from another report.** Eight of the Targets read counters the harness added with DL-259, so
   the v1.1.8 and v1.1.9 reports hold none for them. `v1.2.0-s2-gate-2026-10-10` (read from git at `240de81`)
   played the same 50 games, with the same fingerprint as v1.1.8, and counted them; their values are its.

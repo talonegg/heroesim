@@ -1025,7 +1025,7 @@ since S4 (DL-290), but a 2-year run cannot show a Bankruptcy in year 9.
    reach 20 years so that the save is measured there.
    *Superseded in part by DL-293 items 1 and 2, 2026-10-12: `v1.2.1` held unreleased until an economy release planned next; now it is released as is and the economy pass deferred. The record: [superseded/DL-292.md](decisions/archive/superseded/DL-292.md).*
 3. **The outcomes are kept for tracking** in
-   [v1.2.1-outcomes.md](planning/epics/v1.2.1-outcomes.md) (`e45373a`): v1.2.1 at S10 and the trial
+   [gate-outcomes-monitoring.md](planning/epics/gate-outcomes-monitoring.md) (`e45373a`): v1.2.1 at S10 and the trial
    beside the closing Gates of v1.2.0, v1.1.9 and v1.1.8. A later release adds its column; the file is
    archived with the epic.
 4. **S12 without S11** (the agent, on the epic's S12). The epic is brought up to date, its Gate's
@@ -1083,4 +1083,4 @@ policy; the page's players meet Fatigue and the Captain on an economy not yet tu
 owner's playtest follows the economy pass. #51's form-factor item waits on the owner's word.
 
 **Evidence.** `harness/reports/v1.2.1-close-gate-2026-10-12` (fingerprint `027d238a…`); the
-outcomes, `docs/planning/epics/v1.2.1-outcomes.md`; `plan.md` §3.
+outcomes, `docs/planning/epics/gate-outcomes-monitoring.md`; `plan.md` §3.
