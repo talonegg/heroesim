@@ -62,6 +62,7 @@
 // as each year begins, and the Transfers that left their seller below `rivalRosterMin`.
 
 import {
+  availableHeroes,
   baseStat,
   bestFourLevel,
   boardTopTier,
@@ -72,8 +73,10 @@ import {
   dispositionOf,
   encounterKinds,
   facilityKeys,
+  fatigueBand,
   isEngineEvent,
   isId,
+  partyPool,
   playerGuild,
   portraitRowOf,
   questBands,
@@ -81,6 +84,8 @@ import {
   regardBandCounts,
   regardBandNames,
   relationshipBandCounts,
+  relievesHurt,
+  restBandOf,
   timeOfDay,
   turnsPerDay,
   unlockedTier,
@@ -96,6 +101,7 @@ import {
   type Entry,
   type EventType,
   type FacilityKey,
+  type FatigueBand,
   type GearReturnCause,
   type Guild,
   type GuildId,
@@ -111,6 +117,7 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
+import { fatigueBandNames } from '@heroesim/words';
 
 /** Whose choices a Guild's are: the player's or a Rival's Disposition's (ADR-0002). */
 export type ControllerKind = Controller['kind'];
@@ -363,6 +370,11 @@ export interface GameCounters {
   // v1.1.3-S5's (DL-134 item 9).
   /** Every Guildmaster who entered play and their Portraits, by their Guild's controller. */
   portraits: Record<ControllerKind, PortraitTally>;
+  // Fatigue's lines (DL-290).
+  /** The Days Heroes take to recover at home after a Quest (`recoveryCounters`), by the controller of the Guild that sent them. */
+  fatigueRecovery: Record<ControllerKind, Recovery>;
+  /** `hero.injured` on a Quest, by the relief of the hurt in play (`reliefCounters`), by the controller of the Hero's Guild then. */
+  hurtRelief: Record<ControllerKind, ReliefTally>;
 }
 
 /** The Guildmasters who entered play, and how their Portraits fit them (v1.1.3-S5, DL-134 item 9). */
@@ -1540,6 +1552,10 @@ export interface GameObservations {
   tierUnlocks: TierUnlocks[];
   /** The Transfers that left a Rival seller's Roster below `rivalRosterMin` (`transfersShort`, DL-259). */
   transfersShort: number;
+  /** The Parties sent, by the Fatigue of their Heroes as they set out and whether the Captain went (`observeDispatches`, DL-290). */
+  dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
+  /** The free Heroes a rest band left out of their Guild's pool, sampled once a Day (`observeRestKept`, DL-290). */
+  restKept: Record<ControllerKind, RestKept>;
 }
 
 /** Every Hero generated in a game, and their Portraits and texts (v1.1.3-S6; DL-134 item 9, DL-135 item 6). */
@@ -2226,4 +2242,289 @@ export function transfersShort(before: World, events: readonly Entry[], config: 
     }
   }
   return short;
+}
+
+// ── Fatigue's lines (DL-290) ─────────────────────────────────────────────────────
+// Read from the History or the World State, drawing nothing, so that play is as it was without them
+// (DL-239): the Party's Fatigue and Captain as it set out are the world's, which no entry records.
+
+/** The lowest Fatigue band the lines call "tired or worse": the band a Disposition's or the player's rest band is by default (DL-286). */
+export const tiredBand: FatigueBand = 'tired';
+
+const bandRank = (band: FatigueBand): number => fatigueBandNames.indexOf(band);
+
+/** The Parties a kind of Guild sent, with the Fatigue of their Heroes as each set out and whether the Guild's Captain went (DL-290). */
+export interface DispatchFatigue {
+  parties: number;
+  /** Of those, the Parties with a Hero at `tiredBand` or past it as they set out. */
+  tired: number;
+  /** The Parties by the band of their most tired Hero. */
+  byWorstBand: Record<FatigueBand, number>;
+  /** The Heroes sent, and their Fatigue as they set out, summed: the mean Fatigue at dispatch. */
+  heroes: number;
+  fatigue: number;
+  /** The Parties of a Guild with a Captain named as they set out, and of those the Parties that included the Captain. */
+  captainNamed: number;
+  captained: number;
+}
+
+export const noDispatchFatigue = (): DispatchFatigue => ({
+  parties: 0,
+  tired: 0,
+  byWorstBand: { fresh: 0, weary: 0, tired: 0, exhausted: 0 },
+  heroes: 0,
+  fatigue: 0,
+  captainNamed: 0,
+  captained: 0,
+});
+
+/**
+ * Tallies into `taken`, by the controller of the Guild, each Party in `world` not in `seen`, and adds
+ * it to `seen`: its `fatigueAtDispatch` (DL-282) read by `fatigueBand`, and whether its Guild's Captain
+ * is among its Heroes. Told after each `advance`, it meets a Party the Turn it set out: the player's
+ * from the policy's actions before the Turn, a Rival's from its afternoon in it, and a Party stays out
+ * a Day at least. The Guild's Captain is as that Turn left it, which no night of it changes.
+ */
+export function observeDispatches(
+  taken: Record<ControllerKind, DispatchFatigue>,
+  seen: Set<string>,
+  world: World,
+  config: EngineDeps['config'],
+): void {
+  for (const party of Object.values(world.parties)) {
+    if (seen.has(party.id)) continue;
+    seen.add(party.id);
+    const guild = Object.hasOwn(world.guilds, party.guildId) ? world.guilds[party.guildId] : undefined;
+    if (guild === undefined) continue;
+    const tally = taken[guild.controller.kind];
+    let worst = 0;
+    for (const heroId of party.heroIds) {
+      const fatigue = party.fatigueAtDispatch[heroId] ?? 0;
+      tally.heroes += 1;
+      tally.fatigue += fatigue;
+      worst = Math.max(worst, bandRank(fatigueBand(fatigue, config)));
+    }
+    tally.parties += 1;
+    tally.byWorstBand[fatigueBandNames[worst] as FatigueBand] += 1;
+    if (worst >= bandRank(tiredBand)) tally.tired += 1;
+    if (guild.captainId !== null) {
+      tally.captainNamed += 1;
+      if (party.heroIds.includes(guild.captainId)) tally.captained += 1;
+    }
+  }
+}
+
+/** The free Heroes of the Guilds in play, and how many a rest band left out of their pool (`partyPool`), sampled once a Day (DL-290). */
+export interface RestKept {
+  /** Guild-Days sampled, and of those the ones on which the rest band left at least one free Hero out. */
+  guildDays: number;
+  guildDaysKept: number;
+  /** The free Heroes (`availableHeroes`) over the samples, and of them those left out of the pool. */
+  free: number;
+  kept: number;
+}
+
+export const noRestKept = (): RestKept => ({ guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 });
+
+/**
+ * Samples into `taken`, once a Day, each Guild in play: on the Turn before an afternoon, which is the
+ * world a morning's choice of the player and the afternoon's Rivals both read, a Guild's free Heroes
+ * and the ones its rest band leaves out of its pool. Any other Turn adds nothing.
+ */
+export function observeRestKept(taken: Record<ControllerKind, RestKept>, world: World, deps: Pick<EngineDeps, 'config' | 'content'>): void {
+  if (timeOfDay(world.turn + 1) !== 'afternoon') return;
+  for (const guild of guildsInPlay(world)) {
+    const free = availableHeroes(world, guild).length;
+    const kept = free - partyPool(world, guild, deps).length;
+    const tally = taken[guild.controller.kind];
+    tally.guildDays += 1;
+    tally.free += free;
+    tally.kept += kept;
+    if (kept > 0) tally.guildDaysKept += 1;
+  }
+}
+
+/** Recoveries to one band: spells begun at a homecoming, and how each ended (DL-290). */
+export interface RecoveryTally {
+  /** Homecomings at or past the band the spell ends below. */
+  spells: number;
+  /** Spells that ended as Fatigue fell below it, and the Days they took, summed. */
+  done: number;
+  doneDays: number;
+  /** Spells cut short as the Hero was sent again first, and the Days they had run, summed. */
+  sent: number;
+  sentDays: number;
+  /** Spells still running when the game stopped. */
+  open: number;
+}
+
+export const noRecoveryTally = (): RecoveryTally => ({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, open: 0 });
+
+/** A kind of Guild's Heroes' recoveries at home: to below their Guild's rest band, and to fresh. */
+export interface Recovery {
+  toRest: RecoveryTally;
+  toFresh: RecoveryTally;
+}
+
+export const noRecovery = (): Recovery => ({ toRest: noRecoveryTally(), toFresh: noRecoveryTally() });
+
+/** A recovery running: where it began and what ends it. */
+interface Spell {
+  tally: RecoveryTally;
+  since: number;
+  /** The band rank Fatigue must fall below. */
+  below: number;
+}
+
+/**
+ * The Days Heroes take to recover at home (DL-290), from `hero.fatigue-changed` (the band a Hero is
+ * in, which a night records only on crossing one), `quest.taken` and `quest.resolved`, in the order
+ * of the History. A recovery begins when a Hero comes home alive from a Quest in a band at or past
+ * the one it ends below, for the Guild that sent them; it ends when a night takes them below it, or is
+ * cut short when they are sent again, or is left open at the game's end. The two bands are the Guild's
+ * rest band (`restBandOf`; a Guild with none begins none) and fresh. The Days are the Turns between
+ * the Quest's return and the night that ends it, over `turnsPerDay`: 0 for a night the Hero fell on
+ * the very night they came home, as the Hero State Engine runs after the Quest concludes.
+ */
+export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps, 'config' | 'content'>): Record<ControllerKind, Recovery> {
+  const counts = { player: noRecovery(), rival: noRecovery() };
+  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved'] as const)
+    .flatMap((type) => positionedEntriesOf(document, type))
+    .sort((a, b) => a.position - b.position);
+  const bands = new Map<string, number>();
+  const running = new Map<string, Spell[]>();
+  const days = (from: number, to: number): number => (to - from) / turnsPerDay;
+  for (const { entry, position } of events) {
+    const what = `${entry.type} entry ${position}`;
+    if (entry.type === 'hero.fatigue-changed') {
+      const heroId = payloadField(entry, 'heroId');
+      const after = fatigueBandNames.indexOf(payloadField(entry, 'bandAfter') as FatigueBand);
+      if (typeof heroId !== 'string' || after < 0) throw new Error(`${what} has no heroId or no bandAfter`);
+      bands.set(heroId, after);
+      const left = (running.get(heroId) ?? []).filter((spell) => {
+        if (after >= spell.below) return true;
+        spell.tally.done += 1;
+        spell.tally.doneDays += days(spell.since, entry.turn);
+        return false;
+      });
+      running.set(heroId, left);
+    } else if (entry.type === 'quest.taken') {
+      const heroIds = payloadField(entry, 'heroIds');
+      if (!Array.isArray(heroIds)) throw new Error(`${what} has no heroIds`);
+      for (const heroId of heroIds as string[]) {
+        for (const spell of running.get(heroId) ?? []) {
+          spell.tally.sent += 1;
+          spell.tally.sentDays += days(spell.since, entry.turn);
+        }
+        running.delete(heroId);
+      }
+    } else {
+      const heroIds = payloadField(entry, 'heroIds');
+      if (!Array.isArray(heroIds)) throw new Error(`${what} has no heroIds`);
+      const deaths = payloadField(entry, 'deaths');
+      const dead = new Set<unknown>(Array.isArray(deaths) ? deaths : []);
+      const guild = guildOf(document, entry, `${position}`);
+      const recovery = counts[guild.controller.kind];
+      const restBand = restBandOf(guild, deps);
+      const begin = (tally: RecoveryTally, below: number, band: number, heroId: string): void => {
+        if (band < below) return;
+        tally.spells += 1;
+        running.set(heroId, [...(running.get(heroId) ?? []), { tally, since: entry.turn, below }]);
+      };
+      for (const heroId of heroIds as string[]) {
+        if (dead.has(heroId)) continue;
+        const band = bands.get(heroId) ?? 0;
+        if (restBand !== null) begin(recovery.toRest, bandRank(restBand), band, heroId);
+        begin(recovery.toFresh, 1, band, heroId);
+      }
+    }
+  }
+  for (const spells of running.values()) for (const spell of spells) spell.tally.open += 1;
+  return counts;
+}
+
+/** The Injuries taken on a Quest and the hurt's relief in play for each: by a Healer, by a heal Item, by both, or by neither (DL-290). */
+export interface ReliefTally {
+  injuries: number;
+  healer: number;
+  item: number;
+  both: number;
+  neither: number;
+  /** Of those, the Injuries taken at the last Encounter the Quest reached, with none after it for the relief to ease. */
+  atLast: number;
+}
+
+export const noRelief = (): ReliefTally => ({ injuries: 0, healer: 0, item: 0, both: 0, neither: 0, atLast: 0 });
+
+/** What a Quest's `quest.encounter` entries say of whom they harmed. */
+interface QuestHarm {
+  /** The last Encounter reached. */
+  last: number;
+  /** The Encounters each Hero was injured at, in order. */
+  injured: Map<string, number[]>;
+  /** The Encounter each Hero died at. */
+  died: Map<string, number>;
+}
+
+/**
+ * Each `hero.injured` of a Quest, by the controller of the Hero's Guild then, classed by the relief
+ * of the hurt it brought (DL-285, DL-290): relieved by a Healer when another Hero of the Party, of a
+ * Class content marks `relievesHurt` (`relievesHurt`), had not died by the end of the Encounter the
+ * Injury was taken at, and by a heal Item when an `item.expended` heal names the Hero, the Quest and
+ * that Encounter. The Encounter is the first `quest.encounter` of the Quest whose `injured` names the
+ * Hero, not yet matched to an earlier Injury of theirs. The relief eases the hurt from the next
+ * Encounter on, so an Injury at the Quest's last Encounter reached is counted too, and in `atLast`.
+ * An Injury off a Quest (`questId` null) is none of a Party's, and is left out.
+ */
+export function reliefCounters(document: WorldDocument, deps: Pick<EngineDeps, 'content'>): Record<ControllerKind, ReliefTally> {
+  const counts = { player: noRelief(), rival: noRelief() };
+  const parties = new Map<string, string[]>();
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    const [questId, heroIds] = [payloadField(entry, 'questId'), payloadField(entry, 'heroIds')];
+    if (typeof questId !== 'string' || !Array.isArray(heroIds)) throw new Error(`quest.taken entry ${index} has no questId or heroIds`);
+    parties.set(questId, heroIds as string[]);
+  });
+  const harm = new Map<string, QuestHarm>();
+  entriesOf(document, 'quest.encounter').forEach((entry, index) => {
+    const what = `quest.encounter entry ${index}`;
+    const questId = payloadField(entry, 'questId');
+    const [injured, died] = [payloadField(entry, 'injured'), payloadField(entry, 'died')];
+    if (typeof questId !== 'string' || !Array.isArray(injured) || !Array.isArray(died)) throw new Error(`${what} has no questId, injured or died`);
+    const at = numberField(entry, 'index', what);
+    const quest = harm.get(questId) ?? { last: -1, injured: new Map(), died: new Map() };
+    quest.last = Math.max(quest.last, at);
+    for (const heroId of injured as string[]) quest.injured.set(heroId, [...(quest.injured.get(heroId) ?? []), at]);
+    for (const heroId of died as string[]) quest.died.set(heroId, quest.died.get(heroId) ?? at);
+    harm.set(questId, quest);
+  });
+  const healed = new Set<string>();
+  for (const entry of entriesOf(document, 'item.expended')) {
+    if (payloadField(entry, 'effect') !== 'heal') continue;
+    healed.add(`${String(payloadField(entry, 'questId'))}|${String(payloadField(entry, 'heroId'))}|${String(payloadField(entry, 'encounterIndex'))}`);
+  }
+  const { heroes } = document.world;
+  const isHealer = (heroId: string): boolean =>
+    Object.hasOwn(heroes, heroId) && relievesHurt((heroes[heroId as HeroId] as Hero).classKey, deps.content);
+  entriesOf(document, 'hero.injured').forEach((entry, index) => {
+    const [heroId, questId] = [payloadField(entry, 'heroId'), payloadField(entry, 'questId')];
+    // An Injury off a Quest has no Party to relieve it.
+    if (typeof heroId !== 'string' || typeof questId !== 'string') return;
+    const party = parties.get(questId) ?? [];
+    const quest = harm.get(questId);
+    // The engine writes an Encounter for every Injury; one without (a test's) was relieved by neither.
+    const at = quest?.injured.get(heroId)?.shift();
+    const byHealer =
+      quest !== undefined &&
+      at !== undefined &&
+      party.some((other) => other !== heroId && isHealer(other) && (quest.died.get(other) ?? Number.POSITIVE_INFINITY) > at);
+    const byItem = at !== undefined && healed.has(`${questId}|${heroId}|${at}`);
+    const tally = counts[guildOf(document, entry, `${index}`).controller.kind];
+    tally.injuries += 1;
+    if (byHealer && byItem) tally.both += 1;
+    else if (byHealer) tally.healer += 1;
+    else if (byItem) tally.item += 1;
+    else tally.neither += 1;
+    if (quest !== undefined && at !== undefined && at >= quest.last) tally.atLast += 1;
+  });
+  return counts;
 }

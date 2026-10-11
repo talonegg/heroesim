@@ -105,6 +105,27 @@ The play loop (`src/play.ts`) tells its observers each moment of a game: the wor
 before the policy chooses, each action applied, each `advance`, each year's end, and the game's end.
 The replay plays with none.
 
+### Fatigue's lines
+
+The report's `## Fatigue and the Captain` section (DL-290) states, the player's Guild and the Rivals apart, the lines the
+Gate's "Fatigue felt" reads. Each is read from the History or the World State and draws nothing, so play is as it was without them.
+
+- **Quests sent with a Hero tired or worse** (`dispatchFatigue`): the share of Parties sent in which any Hero's Fatigue, from the
+  Party's `fatigueAtDispatch`, is in the `tired` band or the `exhausted`, read by `fatigueBand`. Parties are met in `advance`'s
+  `after` world the Turn they set out; the mean Fatigue at dispatch is over the Heroes sent.
+- **Free Heroes a rest band kept home** (`restKept`): once a Day, on the Turn before an afternoon (the world the player's morning
+  and a Rival's afternoon both choose from), each Guild in play's free Heroes (`availableHeroes`) and the ones `partyPool` leaves
+  out; the share of free Heroes, and of Guild-Days with at least one kept.
+- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken` and `quest.resolved`. A recovery begins when a
+  Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or past fresh, and ends when a night takes them
+  below it; it is cut short if they are sent again first. The mean is over the recoveries that ended, in whole Days from the
+  return (both ends fall on a night); the report also gives how many were cut short, after how many Days, and how many were still running when the game stopped.
+  The mean to fresh is biased low by the cut-short ones, which a rest band below fresh makes most of them.
+- **Quests a Captain led** (`dispatchFatigue`): the share of Parties sent that included the Guild's Captain as the Turn left it.
+- **Hurt relief used** (`hurtRelief`): each `hero.injured` on a Quest, as relieved by a Healer of the Party (a Class content marks
+  `relievesHurt`) who had not died by the Encounter it was taken at, by a heal Item spent on the Hero at that Encounter, by both, or by
+  neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
+
 ## The Gate
 
 `harness/gate.json` declares what a release's closing sweep must meet, line by line, with each line's

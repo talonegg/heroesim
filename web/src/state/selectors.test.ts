@@ -3,6 +3,7 @@ import {
   addStack,
   advance,
   applyAction,
+  availableHeroes,
   bankruptcyCountdown,
   bestParties,
   captainLock,
@@ -32,7 +33,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, availableHeroes, createItem, nightOf } from '@heroesim/engine/testing';
+import { append, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { capitalised, chanceWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';

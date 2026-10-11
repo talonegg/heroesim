@@ -6,7 +6,6 @@
 // ESLint bars this entry from production code (eslint.config.js; engine/src/boundary.test.ts proves
 // the rule fires), and engine/src/testing.test.ts holds every package's production code to it.
 
-export { availableHeroes } from './best-party.js';
 export { chanceBandNames, potentialHints } from './config.js';
 export { describeHero } from './descriptions.js';
 export { makeId } from './document.js';

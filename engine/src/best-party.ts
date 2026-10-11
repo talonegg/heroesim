@@ -14,7 +14,7 @@
 
 import { unavailability } from './actions/dispatch.js';
 import { atOrPast } from './bands.js';
-import { fatigueBandNames, type EngineDeps, type GameConfig } from './config.js';
+import { fatigueBandNames, type EngineDeps, type FatigueBand, type GameConfig } from './config.js';
 import type { Disposition } from './content-types.js';
 import { chooser } from './controllers/chooser.js';
 import { compareByCodeUnit, rowOf, type Guild, type Hero, type HeroId, type Quest, type World } from './document.js';
@@ -204,6 +204,15 @@ export function partyPool(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'cont
   const restBand = guildSetting(guild, 'restBand', deps);
   if (restBand === null) return available;
   return available.filter((hero) => !atOrPast(fatigueBandNames, fatigueBand(hero.fatigue, deps.config), restBand));
+}
+
+/**
+ * The Fatigue band at or past which `guild` keeps a free Hero home (`partyPool`): its Disposition's
+ * `restBand`, or for a Guild with none `playerRestBand`; `null` keeps no one home (DL-286). Read by
+ * the harness's Fatigue lines, which count the Days a Hero takes to clear it (DL-290).
+ */
+export function restBandOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 'config' | 'content'>): FatigueBand | null {
+  return guildSetting(guild, 'restBand', deps);
 }
 
 /** The settings a Guild's Disposition gives it, each read for a Guild with none from the player's in the configuration. */

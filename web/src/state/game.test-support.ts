@@ -5,10 +5,11 @@
 // helpers the state tests share. Never imported by the page, so never bundled.
 
 import {
-  bestParties,
   addStack,
   advance,
   applyAction,
+  availableHeroes,
+  bestParties,
   configVersion,
   createWorld,
   dayOf,
@@ -47,7 +48,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, availableHeroes, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
+import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
 import { expect } from 'vitest';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';

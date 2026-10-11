@@ -894,3 +894,38 @@ band, Best Party and Fast-forward stop entries; a guard keeps the form line, rel
 of both front ends; the Captain's cost and lock in the tests read the config. For the owner: at 1280px
 the Table's State group sits after Items, off screen until scrolled, and on a phone the State tab's
 Fatigue column needs its box scrolled.
+
+## DL-290 — v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280; the bands in item 5 are proposals, awaiting the owner's approval
+
+**Context.** The Gate's "Fatigue felt" (Q8 a, DL-280 item 9) asks the report for Fatigue's lines, and S11 tunes against bands the owner approves first. S6 and S7 had measured Fatigue with throwaway scripts.
+
+**Decision.**
+
+1. **The report's `## Fatigue and the Captain` section**, the player's Guild and the Rivals apart, from four counters declared in `game-counters.ts` (play kind, so `compare` lists them): `dispatchFatigue` and `restKept`, observed; `fatigueRecovery` and `hurtRelief`, read from the History. They draw nothing. Their definitions are in `harness/README.md`; tests derive each over a hand-built History or World State (`fatigue-counters.test.ts`, `sweep.test.ts`).
+2. **Sent tired or worse, mean Fatigue, Captain led:** each Party met in `advance`'s `after` world the Turn it set out: its `fatigueAtDispatch` by `fatigueBand`, and whether its Guild's Captain is among its Heroes.
+3. **Kept home:** once a Day, on the Turn before an afternoon (the world a morning's choice of the player and a Rival's afternoon both read), each Guild's free Heroes (`availableHeroes`) and those `partyPool` leaves out.
+4. **Days recovering:** from a Hero's homecoming, alive, in a band at or past the Guild's rest band (`restBandOf`), to the night a crossing takes them below it; likewise to fresh. A Hero sent first cuts it short. **Hurt relief:** each Injury on a Quest by a Healer of the Party not dead by that Encounter, by a heal Item spent there, both, or neither.
+5. **Proposed bands (proposed; awaiting the owner's approval), not in `gate.json`.** Measured in the quick run `v1.2.1-s10-quick` (4 games, 2 years); v1.2.0 had no Fatigue, Captain or relief, so 0 or none.
+
+| Line | Now: player / Rivals | Proposed: player / Rivals | Reasoning |
+| --- | --- | --- | --- |
+| Quests sent with a Hero tired or worse | 0.0% / 47.1% | 0–5% / 25–45% | "I can't send her": the policy's rest band keeps the player's home (0 by construction); the Rivals who rest no one (`reckless`) or only the exhausted (`ambitious`) carry the rest |
+| Free Heroes a rest band kept home | 88.2% / 51.7% | 45–70% / 35–55% | the cost seen on most days, with fresh Heroes left to send; at 88% the player took a quarter fewer Quests than at v1.2.0 (1,733 against 2,322, all of v1.2.1 together) |
+| Days recovering, below the rest band | 2.03 / 2.59 | 1.5–3.0 / 1.5–3.5 | "give him a chance": back within a Quest's length (4.5 Days away), not at once |
+| Quests a Captain led | 25.6% / 34.5% | 25–45% / 30–50% | about the share a random Hero goes (Party 2.05 of a Roster near 6); the Captain neither idled by Fatigue nor on every Quest |
+| Injuries relieved by a Healer or an Item | 57% (8 of 14) / 79% (119 of 150) | 50–85% both, read in the full gate | relief common enough to matter; the player's 14 are too few to read |
+
+The mean Fatigue at dispatch, 43.5 and 56.9, has no band, and S11 reads it.
+
+*Judgement calls, for the owner to see.*
+- *The sampling point, the recovery's definition and the relief's classes* are the agent's (items 3 and 4); the mean Days to fresh reads low, since 98% and 96% are sent again first, so the band is for the rest band's.
+- *`availableHeroes` and `restBandOf`* are exported from the engine's entry (`availableHeroes` leaves the testing entry); no rule changed.
+- *An Injury with no Encounter* in a hand-built History counts as relieved by neither.
+- *A 2-year, 4-game run* is Tier 1 and early rosters; S11 re-reads the bands in a full `gate`.
+- *The player's tired share* is 0 by construction, so S11 cannot tune it; the band holds it there.
+
+**Consequences.** The report shows Fatigue's cost. The Rivals, against v1.2.0's quick run: failed Quests 8.2% to 22.0%, strong successes 55.5% to 31.9%, recruits 17 to 0, Wealth a Rival at the third year-start 22,011 to 6,940, a Rival folding once. They have recruited nothing since S4: Wealth stays under `recruitThreshold` Upkeeps. Config 30, content 45, schema 11 as before.
+
+**Evidence.** The commit `v1.2.1-S10 (DL-290)`; the report `v1.2.1-s10-quick` (not committed), fingerprint `290b6d18…`, the same as S8's `v1.2.1-s8-quick`: play is unchanged. S9 ran no quick run. The epic's S10 counters box.

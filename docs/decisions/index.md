@@ -299,6 +299,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-287 | 2026-10-11 | v1.2.1-S7 built: the Captain |  | [decision-log](../decision-log.md) |
 | DL-288 | 2026-10-12 | v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine |  | [decision-log](../decision-log.md) |
 | DL-289 | 2026-10-12 | v1.2.1-S9 built: the page, the CLI and the words |  | [decision-log](../decision-log.md) |
+| DL-290 | 2026-10-12 | v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
