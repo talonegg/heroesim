@@ -307,7 +307,8 @@ _Avoid_: Happiness, Mood, Loyalty
 A Hero's weariness, a State from 0 to 100. It rises each Day a Hero is away on a Quest, by the
 Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters
 (DL-280, DL-282). On a Quest, a Hero meets each Encounter with their Fatigue on its Day, the
-Encounters spread evenly over the Quest's Days. The wearier a Hero, the less of their Stats they
+Encounters spread evenly over its first two thirds, the last on Day ceil(2D/3) of a Quest of D Days,
+and the Days after it the trip home, on which Fatigue still rises. The wearier a Hero, the less of their Stats they
 bring to a Check, the Physical and Magical more than the Mental and Social, and the more often they
 are injured and killed (Form). A Guild may keep its tired Heroes at home by a rest band, but Fatigue
 never makes a Hero unavailable: the player may send anyone. Its effect on Form and the rest band

@@ -4,7 +4,8 @@ import { turnsPerDay } from '../time.js';
 import { questClock } from './clock.js';
 
 // The Quest clock (DL-280 item 2, the architecture review's candidate 2; DL-282): the Day of the Quest
-// each Encounter falls on, spread evenly over its Days, and a Hero's Fatigue on it, from the Fatigue
+// each Encounter falls on, spread evenly from Day 1 to Day ceil(2D/3) of its D Days, the Days after
+// it the trip home (the owner's word, DL-282 item 4), and a Hero's Fatigue on it, from the Fatigue
 // their Party recorded at dispatch. A pure module: the resolver and the estimate read it, since the
 // resolver meets the Party on the return night, after every night away has moved its stored Fatigue.
 
@@ -20,35 +21,49 @@ const daysOf = (days: number, encounters: number): number[] => {
 };
 
 describe("an Encounter's Day", () => {
-  test('the first falls on Day 1 and the last on the last Day, the rest evenly between, rounded half up', () => {
-    expect(daysOf(6, 3)).toEqual([1, 4, 6]);
-    expect(daysOf(5, 3)).toEqual([1, 3, 5]);
-    expect(daysOf(12, 4)).toEqual([1, 5, 8, 12]);
-    expect(daysOf(20, 5)).toEqual([1, 6, 11, 15, 20]);
-    expect(daysOf(3, 2)).toEqual([1, 3]);
+  test('the last falls on Day ceil(2D/3) of a Quest of D Days, the Days after it the trip home', () => {
+    const days = [1, 2, 3, 4, 5, 6, 9, 10];
+    expect(days.map((d) => daysOf(d, 1)[0])).toEqual([1, 2, 2, 3, 4, 4, 6, 7]);
+    expect(days.map((d) => daysOf(d, 3).at(-1))).toEqual([1, 2, 2, 3, 4, 4, 6, 7]);
+    expect(days.map((d) => questClock(quest(d), 3, config).lastEncounterDay)).toEqual([1, 2, 2, 3, 4, 4, 6, 7]);
+    // A Quest of no Days, which only a hand-made row could hold, is one Day.
+    expect(questClock(quest(0), 1, config).lastEncounterDay).toBe(1);
   });
 
-  test('as many Encounters as Days fall one a Day', () => {
-    expect(daysOf(4, 4)).toEqual([1, 2, 3, 4]);
+  test('the first falls on Day 1 and the last on Day ceil(2D/3), the rest evenly between, rounded half up', () => {
+    expect(daysOf(6, 3)).toEqual([1, 3, 4]);
+    expect(daysOf(5, 3)).toEqual([1, 3, 4]);
+    expect(daysOf(9, 3)).toEqual([1, 4, 6]);
+    expect(daysOf(10, 4)).toEqual([1, 3, 5, 7]);
+    expect(daysOf(12, 4)).toEqual([1, 3, 6, 8]);
+    expect(daysOf(20, 5)).toEqual([1, 4, 8, 11, 14]);
+    expect(daysOf(3, 2)).toEqual([1, 2]);
+    expect(daysOf(4, 2)).toEqual([1, 3]);
   });
 
-  test('more Encounters than Days share them, in order', () => {
+  test('as many Encounters as Days to the last fall one a Day', () => {
+    expect(daysOf(6, 4)).toEqual([1, 2, 3, 4]);
+  });
+
+  test('more Encounters than Days to the last share them, in order', () => {
+    expect(daysOf(4, 4)).toEqual([1, 2, 2, 3]);
     expect(daysOf(2, 5)).toEqual([1, 1, 2, 2, 2]);
     expect(daysOf(1, 3)).toEqual([1, 1, 1]);
   });
 
-  test('a lone Encounter, the Quest\'s last, falls on its last Day', () => {
-    expect(daysOf(5, 1)).toEqual([5]);
+  test('a lone Encounter, the Quest\'s last, falls on Day ceil(2D/3)', () => {
+    expect(daysOf(5, 1)).toEqual([4]);
+    expect(daysOf(6, 1)).toEqual([4]);
     expect(daysOf(1, 1)).toEqual([1]);
   });
 
-  test("on every Tier's Days and Beats, first on Day 1, last on the last Day, never falling back", () => {
+  test("on every Tier's Days and Beats, first on Day 1, last on Day ceil(2D/3), never falling back", () => {
     for (const { daysMin, daysMax, beats } of defaultConfig.tiers) {
       for (let days = daysMin; days <= daysMax; days += 1) {
         for (const encounters of [1, beats, beats + 1]) {
           const met = daysOf(days, encounters);
           if (encounters > 1) expect(met[0]).toBe(1);
-          expect(met.at(-1)).toBe(days);
+          expect(met.at(-1)).toBe(Math.ceil((2 * days) / 3));
           expect(met.every((day, index) => index === 0 || day >= (met[index - 1] as number))).toBe(true);
         }
       }
@@ -75,7 +90,7 @@ describe('a Hero\'s Fatigue on an Encounter\'s Day', () => {
   test("is their Fatigue at dispatch, risen by the Quest's Tier for each Day before it", () => {
     for (const [tier, rise] of [[1, 4], [3, 6], [5, 8], [6, 8]] as const) {
       const clock = questClock(quest(6, tier), 3, config);
-      expect([0, 1, 2].map((index) => clock.fatigueAt(index, 10))).toEqual([10, 10 + 3 * rise, 10 + 5 * rise]);
+      expect([0, 1, 2].map((index) => clock.fatigueAt(index, 10))).toEqual([10, 10 + 2 * rise, 10 + 3 * rise]);
     }
   });
 
@@ -86,6 +101,6 @@ describe('a Hero\'s Fatigue on an Encounter\'s Day', () => {
   test('is held at fatigueMax', () => {
     const clock = questClock(quest(20, 5), 5, config);
     expect(clock.fatigueAt(4, 50)).toBe(100);
-    expect(clock.fatigueAt(1, 50)).toBe(90);
+    expect(clock.fatigueAt(1, 50)).toBe(74);
   });
 });

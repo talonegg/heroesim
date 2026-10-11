@@ -6,9 +6,11 @@
 // from the Fatigue a proposed Party would set out with. Pure: it reads the config and nothing else.
 //
 // - *An Encounter's Day.* The Quest's Days are counted from 1, Day k coming after k − 1 of its nights
-//   away. The first Encounter falls on Day 1 and the last on the last Day, the rest evenly between,
-//   each on Day 1 + round(i × (D − 1) ÷ (n − 1)), rounded half up, for the i-th of n Encounters, from 0,
-//   on a Quest of D Days; a lone Encounter, the Quest's last, falls on its last Day.
+//   away. On a Quest of D Days the last Encounter falls on Day L = ceil(2D ÷ 3), and the Days after
+//   it are the trip home, on which Fatigue rises as on any night away (the owner's word, DL-282 item
+//   4). The first falls on Day 1, the rest evenly between, each on Day 1 + round(i × (L − 1) ÷ (n − 1)),
+//   rounded half up, for the i-th of n Encounters, from 0; a lone Encounter, the Quest's last, falls
+//   on Day L.
 // - *The Fatigue on it.* A Hero's Fatigue at dispatch, risen by the Quest's Tier (`fatigueRise`) for
 //   each Day before the Encounter's, held at `fatigueMax`: what the nights away have made it by then.
 
@@ -21,6 +23,8 @@ import { durationDaysOf } from '../time.js';
 export interface QuestClock {
   /** The Quest's Days away, from 1. */
   readonly days: number;
+  /** The Day of its last Encounter, ceil(2 × `days` ÷ 3); the Days after it are the trip home. */
+  readonly lastEncounterDay: number;
   /** The Day of the Quest, from 1, the `index`th Encounter, from 0, falls on. */
   encounterDay(index: number): number;
   /** The Fatigue on the `index`th Encounter's Day of a Hero whose Fatigue at dispatch was `atDispatch`. */
@@ -39,18 +43,21 @@ export function questClock(
 ): QuestClock {
   if (!Number.isSafeInteger(encounters) || encounters < 1) throw new RangeError(`A Quest meets one Encounter or more, not ${encounters}`);
   const days = Math.max(1, durationDaysOf(quest));
+  // ceil(2D ÷ 3) in whole numbers, so no rounding of a third can misplace it.
+  const lastEncounterDay = Math.floor((2 * days + 2) / 3);
   const rise = fatigueRise(quest.tier, config);
   const encounterDay = (index: number): number => {
     if (!Number.isSafeInteger(index) || index < 0 || index >= encounters) {
       throw new RangeError(`Encounter ${index} is not one of the ${encounters} the Quest meets`);
     }
-    if (encounters === 1) return days;
-    // round(i × (D − 1) ÷ (n − 1)), half up, in whole numbers.
+    if (encounters === 1) return lastEncounterDay;
+    // round(i × (L − 1) ÷ (n − 1)), half up, in whole numbers.
     const gaps = encounters - 1;
-    return 1 + Math.floor((2 * index * (days - 1) + gaps) / (2 * gaps));
+    return 1 + Math.floor((2 * index * (lastEncounterDay - 1) + gaps) / (2 * gaps));
   };
   return {
     days,
+    lastEncounterDay,
     encounterDay,
     fatigueAt: (index, atDispatch) => Math.min(config.fatigueMax, Math.max(0, atDispatch + rise * (encounterDay(index) - 1))),
   };

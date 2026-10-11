@@ -169,19 +169,21 @@ describe('a Quest played, against the Quest clock (the verification of DL-282)',
     return { days: durationDaysOf(taken), encounters: taken.encounterKeys.length, clock, rise, fall, beforeReturn, afterReturn, heroIds, document };
   }
 
-  test("sent before the night, the Party is away its Quest's Days in nights: the last Encounter's Fatigue one rise short of the stored, the walk home; the return night rests", () => {
+  test("sent before the night, the Party is away its Quest's Days in nights: the last Encounter, on Day ceil(2D/3), short of the stored Fatigue by the trip home's rises; the return night rests", () => {
     const { days, encounters, clock, rise, fall, beforeReturn, afterReturn } = quest(0);
     expect(timeOfDay(0)).toBe('morning');
     expect(clock.days).toBe(days);
-    expect(clock.encounterDay(encounters - 1)).toBe(days);
+    const last = Math.ceil((2 * days) / 3);
+    expect(clock.encounterDay(encounters - 1)).toBe(last);
     expect(beforeReturn).toEqual(Array(2).fill(held(days * rise)));
-    expect(beforeReturn).toEqual(Array(2).fill(held(clock.fatigueAt(encounters - 1, 0) + rise)));
+    expect(beforeReturn).toEqual(Array(2).fill(held(clock.fatigueAt(encounters - 1, 0) + (days - last + 1) * rise)));
     expect(afterReturn).toEqual(Array(2).fill(held(held(days * rise) - fall)));
   });
 
-  test("sent after the night, the Party is away one night fewer: the last Encounter's Fatigue is the stored one", () => {
+  test("sent after the night, the Party is away one night fewer, the trip home a rise shorter", () => {
     const { days, encounters, clock, rise, beforeReturn } = quest(nightOf(1));
+    const last = Math.ceil((2 * days) / 3);
     expect(beforeReturn).toEqual(Array(2).fill(held((days - 1) * rise)));
-    expect(beforeReturn).toEqual(Array(2).fill(clock.fatigueAt(encounters - 1, 0)));
+    expect(beforeReturn).toEqual(Array(2).fill(held(clock.fatigueAt(encounters - 1, 0) + (days - last) * rise)));
   });
 });

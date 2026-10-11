@@ -374,6 +374,11 @@ S6's rest band would add more (candidate 6). Nothing reads Fatigue for play unti
    Day 1 + round(i(D − 1) ÷ (n − 1)), half up; a lone Encounter on the last Day. The Fatigue on Day k
    is the Fatigue at dispatch plus the Tier's rise × (k − 1), held at `fatigueMax`. Nothing reads it
    yet; S4's form module will, in the resolver and the estimate alike.
+   *Changed 2026-10-11 by the owner: the last Encounter falls on Day L = ceil(2D ÷ 3), worked out in
+   whole numbers as (2D + 2) div 3, a lone one there too, and the i-th of n on Day
+   1 + round(i(L − 1) ÷ (n − 1)); the Days after L are the Heroes' trip home, Fatigue rising on them
+   as on any night away. The clock gives `lastEncounterDay`. This replaces the judgement call below
+   that put the last Encounter on the last Day; the 2/3 is the clock's, no setting.*
 5. **Bands**, `bands.ts`: `bandOf(names, starts, value)` and `atOrPast(names, band, threshold)`.
    `moraleBand`, `regardBand`, `chanceBand`, `potentialHint` and the new `fatigueBand` are adapters
    over it; their loops are gone.
