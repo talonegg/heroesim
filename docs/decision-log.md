@@ -1311,3 +1311,21 @@ for the owner: no Guild unlocks Tier 5 in twenty years and the player's Deaths a
 item 11). The owner's word to release is a separate answer.
 
 **Evidence.** The epic's S13 box. DL-274's Gate and Targets.
+
+## DL-277 — v1.2.0: the owner's word to release, as is
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
+
+**Context.** Every story S1–S14 is built and verified and every Gate line met (DL-274, DL-275); the
+playtest said neither of the release's sentences (DL-276). Offered (a) release as is, the tuning
+left to `plan.md` §3; (b) hold and tune the Deadly Tiers first; (c) hold for something else.
+
+**Decision.**
+
+1. **Release v1.2.0 as is** (the owner: "a"), by DL-124: `v1.2.0-dev` pushed, `v1.2-release`
+   fast-forwarded to it and pushed, CI's pull request to `main` merged by the owner.
+
+**Consequences.** The structure ships untuned; the targets, the unlock Levels, the Death factor and
+the Rivals' Rosters are tuned in a later release (DL-257 item 11, `plan.md` §3).
+
+**Evidence.** The epic's S13 boxes.
