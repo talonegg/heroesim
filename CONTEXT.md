@@ -47,6 +47,17 @@ Quest's least Party, two Heroes or more, and no most; nothing caps the Parties a
 fold disbands it early (DL-28).
 _Avoid_: Team, Squad, Band
 
+**Captain**:
+The one Hero of its Roster a Guild names to lead its Parties: one a Guild, named freely by its
+Guildmaster's controller, the player for the player's Guild and a Disposition for a Rival, and
+changed at a cost to the outgoing Captain's Morale, after which the post is locked for a time. What
+the Captain brings grows with their Leadership: their Party brings more of its Stats to a Check,
+their Heroes come home with more Morale, and the Roster's Morale baseline is higher while they are
+at home. A post left by a Death, a Retirement or a departure is filled without cost or lock. The
+Synergy "Under a strong leader" is another thing, a Party's requirement and not a post (DL-280; to
+be built).
+_Avoid_: Leader, Commander, Captaincy (for the Hero), Guildmaster (a different person)
+
 **Patron**:
 A person or body that offers Quests to Guilds. A Patron who is a person has a sex, which comes
 with their name when it is drawn and which their Portrait follows; a Patron that is a body has none
@@ -275,8 +286,8 @@ a lost point back; by DL-83 Decline lowers Potential too, so it cannot (to be bu
 _Avoid_: Ageing (for the loss itself), Deterioration
 
 **State**:
-A transient condition of a Hero: an Injury, Morale, Death, and the Regard the Hero holds for
-others.
+A transient condition of a Hero: an Injury, Morale, Fatigue, Death, and the Regard the Hero holds
+for others.
 _Avoid_: Status, Condition, Flag
 
 **Injury**:
@@ -291,6 +302,21 @@ _Avoid_: Loss, Removal, Casualty
 **Morale**:
 A Hero's contentment.
 _Avoid_: Happiness, Mood, Loyalty
+
+**Fatigue**:
+A Hero's weariness, a State from 0 to 100. It rises each Day a Hero is away on a Quest, by the
+Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters. A
+tired Hero brings less of their Stats to a Check, the Physical and Magical more than the Mental and
+Social, and is injured and killed more often (Form). A Guild may keep its tired Heroes at home by a
+rest band, but Fatigue is never an Unavailability: the player may send anyone (DL-280; to be
+built).
+_Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
+
+**Fatigue band**:
+One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted. A rest band
+names the first a Guild will not send a Hero at or past, and the page and the CLI read a Hero's
+Fatigue by them (DL-280; to be built).
+_Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
 One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
@@ -401,13 +427,19 @@ Triumphs (DL-148 item 8, DL-152).
 _Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
-How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
-score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
-their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
-cost or given them so far, their own since a loss may be steadied (DL-155). Form never changes
-their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
-Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
-one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
+How much of themselves a Hero brings to a Check on a Quest: factors on the Stats they add to a
+score, which multiply. Morale's is a line around the Guild's Morale baseline, more above it and
+less below, read from their Morale on the Quest: their Morale as they set out plus the Morale the
+Quest's Encounters have cost or given them so far, their own since a loss may be steadied (DL-155).
+Fatigue's, from their Fatigue on the Day of the Encounter, takes more from the Physical and Magical
+Stats than from the Mental and Social. The hurt's, once they are injured on the Quest, takes the
+whole of its gap from the Physical Stats and half of it from the others, less where a Healer in the
+Party or a heal Item relieves it. The Captain's Party brings more, by the Captain's Leadership.
+Fatigue also raises a Hero's chance of an Injury or a Death. Form never changes their Exposure or
+Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills, Level, age and
+counts read a Hero as they are, and so does a raw Check. The Party builder says in one line what
+the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154). Morale's line,
+Fatigue, the hurt's relief and the Captain are to be built (DL-280).
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:
@@ -499,7 +531,9 @@ _Avoid_: Drop table, Treasure table
 An authored bonus that applies when a Party meets its requirements: conditions on the Party
 written as Queries, every one of which must hold, such as at least one Warrior and one Healer
 (DL-148 item 20, DL-151, the old list of Classes and Skills loading into
-them). Relationship between members scales teamwork separately.
+them). Relationship between members scales teamwork separately. "Under a strong leader" is the
+Synergy for a Party of three or more with a Hero of high Leadership; the Captain is a post a Guild
+names, not a Synergy.
 _Avoid_: Combo, Bonus (alone), Chemistry
 
 **Campaign**:

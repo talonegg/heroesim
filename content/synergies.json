@@ -40,8 +40,8 @@
     "bonus": { "flat": 2 },
     "kinds": ["lore", "arcane"]
   },
-  "under-a-captain": {
-    "name": "Under a captain",
+  "under-a-strong-leader": {
+    "name": "Under a strong leader",
     "requires": [[">=", ["max", "party", ["stat", "leadership"]], 14], [">=", ["count", "party"], 3]],
     "bonus": { "factor": 1.1 },
     "kinds": ["combat", "travel"]

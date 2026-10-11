@@ -40,6 +40,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Turns and Fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills, Traits, States | Yes | Skill growth, Class change |
 | Portraits and Descriptive Attributes | Guildmasters' and Heroes', the Portraits chosen to fit; content has no Hero picture yet | Patron pictures; Guild Banners' heraldry |
+| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | To be built, v1.2.1 (DL-280) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
+| The Captain: one a Guild, scaled by Leadership | To be built, v1.2.1 (DL-280) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
 | Progression: XP, Level, Potential, Decline | Yes | The Guildmaster Trait that sharpens Potential hints |
 | Quest Engine | Encounters, Checks, Degrees, Synergies, Relationship, Items | Mid-Quest reports |
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
@@ -147,10 +149,22 @@ Loot and Campaigns are kept as features serving Reputation and History.
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.
 - R18. States: Injury (a type and Days to heal, faster with an infirmary; some types leave a
-  Trait), Morale, Death (permanent; the Hero stays in the History), and Regard for others.
+  Trait), Morale, Fatigue (R39), Death (permanent; the Hero stays in the History), and Regard for others.
 - R19. Relationship between two entities is computed from their mutual Regard. Relationship
   within a Party scales teamwork in the Quest Engine.
 - R20. Retirement of a Hero is likelier with age and with injury.
+- R39. Fatigue is a State from 0 to 100, 0 for a Hero generated: it rises each Day a Hero is away,
+  by the Quest's Tier, and falls each night at home by the Guild's quarters, read Day by Day on a
+  Quest and projected by the estimate. In four named bands, fresh, weary, tired and exhausted, it
+  takes from a Hero's Physical and Magical Stats more than from their Mental and Social, and raises
+  their Injury and Death chances; every Guild keeps its Heroes at or past a rest band at home, by its
+  Disposition's band or the player's, and the player may still send anyone. Every figure is a
+  setting (DL-280; to be built, v1.2.1).
+- R40. A Guild names one Captain from its Roster, freely, by its Guildmaster's controller; changing
+  it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
+  filled without either. The Captain's Party brings more of its Stats to a Check, their Heroes come
+  home with more Morale, and the Roster's Morale baseline is higher while they are at home, each
+  scaled by the Captain's Leadership (DL-280; to be built, v1.2.1).
 
 ### 3.4 Quests
 

@@ -287,3 +287,56 @@ report shows by how much. The saves of `v1.2.0` do not load (schema 10, then 11)
 
 **Evidence.** The epic `docs/planning/epics/v1.2.1-release.md`, its §6 the answers; `plan.md` §3; the
 architecture review of 2026-10-11 (outside the repository).
+
+## DL-281 — v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a strong leader"
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 6 and Q3 make the Captain a post a Guild names. The content already had a
+Synergy "Under a captain", for a Party of three or more with a Hero of Leadership 14 or more, which
+would give one word two meanings. The glossary and the requirements had no Fatigue, Fatigue band or
+Captain (the epic's S1; principle 13, the words first).
+
+**Decision.**
+
+1. `CONTEXT.md` gains **Fatigue** (a State, 0 to 100, rising each Day away by Tier, falling each night
+   at home by the quarters, never an Unavailability), **Fatigue band** (fresh, weary, tired,
+   exhausted; the names a rest band and the page read) and **Captain** (one a Guild, named freely by
+   its Guildmaster's controller, a change costing Morale and locking the post, a vacancy filled
+   free). **State** lists Fatigue. **Form** is rewritten as factors that multiply: Morale's line
+   around the baseline, Fatigue's by Stat area, the hurt's gap by area and its relief, the Captain's,
+   and Fatigue's raising of the Injury and Death chances, leaving Exposure and Guard alone. The new
+   parts say "to be built" until the stories that build them remove it. **Synergy** says the Captain
+   is a post, not a Synergy.
+2. The Synergy is renamed "Under a strong leader" and its key `under-a-captain` becomes
+   `under-a-strong-leader`, in `content/synergies.json`, in place (its order, requirements, bonus and
+   kinds unchanged). The content editor has no Synergy kind (its kinds are Traits, config, Quest
+   templates and Encounters), so the file was edited by hand and the content version raised by hand
+   to 42 with a changelog line in the form `content/version.json` keeps.
+3. `requirements.md`: §2 rows for Fatigue and the Captain, "To be built, v1.2.1 (DL-280)"; §3.3 R39
+   (Fatigue) and R40 (the Captain), new numbers and no renumbering; R18 lists Fatigue.
+4. The epic: S1's boxes ticked, its Status set, the key named.
+
+*Judgement calls, for the owner to see.*
+- *The key changed with the name.* The epic and the brief leaned to keeping `under-a-captain`. I
+  changed it because identifiers use the glossary exactly (`CONTEXT.md`) and a key reading
+  `captain` would be found by every search for the post S7 builds. Nothing but the file reads the
+  key (no code, test, doc or save cites it), so the change costs nothing; the key can be put back
+  with one edit if the owner prefers it kept.
+- *Hand edit of a Synergy.* No editor command covers Synergies, so neither the rule that Traits,
+  Quest templates and Encounters change only through the editor nor `quests doctor` applies; the
+  doctors were run before and after all the same.
+- *"To be built" marks* in the glossary and the requirements follow the glossary's own convention
+  for a decision the build does not carry yet. S2 to S7 each remove the marks for what they build.
+- *Left as they are:* `docs/quests/drafts/synergies.json` and `notes.json` (v1.1.4-S9's review
+  drafts, historic, already unlike the content in layout), the harness reports, the archived entries
+  and the epic's §5 fact about v1.2.0, all of which name the old Synergy as it was.
+- The **Morale band** entry still says Form reads the bands; S3 rewrites it with the line.
+
+**Consequences.** A Party meeting the Synergy's requirements gets the bonus it did. The play is
+unchanged; the content version is 42, so a game created under 41 differs only in that name.
+Later stories use the three words by these entries.
+
+**Evidence.** The commit `v1.2.1-S1 (DL-281)`. The epic's S1 boxes. `quests doctor` and
+`traits doctor` read the same before and after; the readings and the checks' counts are in the commit
+message.
