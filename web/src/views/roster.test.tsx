@@ -725,6 +725,8 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     fireEvent.click(within(panel).getByRole('checkbox', { name: 'Traits' }));
     expect(headings()).not.toContain('Strength');
     expect(headings()).not.toContain('Traits');
+    // The columns left keep the wide Table's order, State after Age and Where and Items last (DL-289, Q21 a).
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical.filter((stat) => stat !== 'Strength'), ...mental, ...magical, ...social, 'Where', 'Items']);
     expect(localStorage.getItem('heroesim.rosterColumns')).toBe('traits,strength');
 
     fireEvent.click(within(panel).getByRole('button', { name: 'None of the Mental columns' }));

@@ -898,6 +898,10 @@ band, Best Party and Fast-forward stop entries; a guard keeps the form line, rel
 of both front ends; the Captain's cost and lock in the tests read the config. For the owner: at 1280px
 the Table's State group sits after Items, off screen until scrolled, and on a phone the State tab's
 Fatigue column needs its box scrolled.
+Verified 2026-10-12 at e44c85a: Q21's order holds at 820 and 1280px (Morale and Fatigue after Age, inside
+the 1280px box; Where, Traits and Items last), the phone's tabs and "Sort by" by kind unchanged, sorting by
+a heading, a hidden column and Reset keeping the order; of 8 mutations of `rosterTableColumns` and its
+reader one fell through (the order once a column is hidden), now pinned.
 
 ## DL-290 — v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed
 
