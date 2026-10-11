@@ -400,6 +400,9 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   strongTriumphShare: share,
   // A wound never helps (DL-154).
   hurtCheckFactor: finite({ above: 0, max: 1 }),
+  // Relief never widens the gap nor turns it past closed (DL-285).
+  healerHurtRelief: share,
+  healItemHurtRelief: share,
   // No weight in the draw of who is hit falls below 1 (DL-155).
   exposureRange: finite({ min: 0 }),
   // A guard never raises a chance nor turns it below 0 (DL-155).

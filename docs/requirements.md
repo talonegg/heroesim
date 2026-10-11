@@ -216,7 +216,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R30. Items are Gear or Consumables. A Hero carries Gear in three slots, weapon, armour and
   trinket, one Item to a slot, and it changes their Stats. Consumables are assigned to a Party at
   dispatch and expended by the Quest Engine: a bonus to an Encounter's Checks, a reroll of a
-  failed Encounter, or healing (DL-50). There is no trade-goods economy.
+  failed Encounter, or healing, spent at an Injury as it is taken, easing it for the rest of the
+  Quest and shortening it (DL-50, DL-285). There is no trade-goods economy.
 - R31. The Market buys and sells Items; the sell price is below the purchase price. It
   refreshes each morning.
 - R32. Loot is an Item, or a stack of a common one, drawn from a Quest's Loot table and awarded

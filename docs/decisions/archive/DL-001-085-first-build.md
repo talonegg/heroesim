@@ -3379,6 +3379,7 @@ words. DL-48's primitives (`moveStack`, `removeFromStack`, `holdings`) are what 
    (`Resolution.consumables`, not in `QuestOutcome`, so `quest.resolved`'s payload is unchanged).
    A stack whose definition content lacks, or is not a consumable, is carried and used for nothing
    (data-model rule 5), and goes home.
+   *Superseded in part by DL-285 item 3, 2026-10-11: `resolve.ts` asking the kit "for the heals after the sequence"; now a heal is asked for at each Injury as it lands. The record: [superseded/DL-50.md](superseded/DL-50.md).*
 4. **`bonus`.** Before each Check, each carried bonus definition with an Item left whose `kinds`
    hold the Encounter's kind gives one Item and its `flat`, added to the capability after the
    teamwork scalar and before the roll (S1's reading: "added to the capability of the first Check").
@@ -3393,13 +3394,7 @@ words. DL-48's primitives (`moveStack`, `removeFromStack`, `holdings`) are what 
    carried, and a further Item waits for the next failed Encounter of its kinds. The consequences
    are the second roll's outcome's. So a Party carrying no reroll draws exactly as M4 did (DL-42
    item 12), and a reroll shifts the later draws of its own Quest by one.
-6. **`heal`.** After the sequence, when the Injuries are final (a Hero who died has none), the heal
-   Items carried are given out one at a time, the definition healing most Days first (ties by key),
-   each to **the Injury with the most Days** among those not yet treated (ties to the one taken
-   first), shortening it by the definition's `days` **to no fewer than 1 Day** — the Injury is
-   shortened, not cured, so `hero.injured`, its night and any Trait it leaves on healing still
-   follow (DL-29). The Days shortened are those after the infirmary (DL-29 item 8). **One Item per
-   Injury**; an Injury at 1 Day takes none; Items left over go home. No draw.
+6. **`heal`.** *Superseded by DL-285 item 3, 2026-10-11; its text is in [superseded/DL-50.md](superseded/DL-50.md).*
 7. **Expended and sent home.** `questsConclude`, after the Quest's `quest.encounter` entries and
    before its `quest.resolved`, removes each Item used from its stack (`removeFromStack`) and emits
    one **`item.expended`** an Item, in the order used; then, as the Party's row goes, `sendHome`
@@ -3416,6 +3411,7 @@ words. DL-48's primitives (`moveStack`, `removeFromStack`, `holdings`) are what 
    the second); `heal` with `heroId` and `days` (the Days it took off). It names the Quest, the
    Party, the Guild and, for a heal, the Hero. `stackId` names a stack that may since have gone, as
    the History keeps other removed rows' ids.
+   *Superseded in part by DL-285 item 3, 2026-10-11: a `heal`'s payload, `heroId` and `days`; now also `encounterIndex`, the Encounter the Injury was taken at, and `days` 0 for an Injury at 1 Day. The record: [superseded/DL-50.md](superseded/DL-50.md).*
 9. **CLI.** `dispatch` and `preview` take `--consumables <key:n,...>` (a kebab-case key and a whole
    number from 1, joined by commas, each key once). `dispatch` prints what the Party carries; each
    new rejection is put into words. `preview` gains a Consumables section: for each asked, how many,

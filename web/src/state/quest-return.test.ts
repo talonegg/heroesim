@@ -444,7 +444,7 @@ describe('the entry reads its Hero lines without building the whole report (DL-1
     const written = withReturn(base, {
       band: 'fail',
       encounters: [{ outcome: 'success' }, { outcome: 'failure', injured: [1] }],
-      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2 }],
+      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2, encounterIndex: 1 }],
       injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 9999 }],
     });
     const key = { partyId: written.party.partyId, questId: written.party.questId };
@@ -511,7 +511,7 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
     const written = withReturn(base, {
       band: 'fail',
       encounters: [{ outcome: 'failure', injured: [1], died: [0] }],
-      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2 }],
+      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2, encounterIndex: 0 }],
       injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 9999 }],
       deaths: [0],
       loot: [{ definitionKey: 'whetstone', quantity: 1 }],

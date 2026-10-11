@@ -118,3 +118,33 @@ describe("a Class's icon", () => {
     expect(refusalOf(() => parse(files)).message).toContain('rogue.icon is 3; expected a string');
   });
 });
+
+// DL-285 (the architecture review's candidate 5): the Class whose member relieves the hurt is marked in
+// content, `relievesHurt` on its own row, so the mark can name no Class but its own and the engine names
+// none (ADR-0006). A malformed mark, or one misspelt, is refused, naming the Class.
+describe("a Class's mark as relieving the hurt", () => {
+  test('is on the shipped Healer and on no other Class, and a Class without it reads as having none', () => {
+    const set = parse(realFiles());
+    expect(Object.values(set.classes).filter((it) => it.relievesHurt === true).map((it) => it.key)).toEqual(['healer']);
+    expect(set.classes['warrior']?.relievesHurt).toBeUndefined();
+  });
+
+  test.each([true, false])('is accepted as %s on any Class', (relievesHurt) => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['rogue'] as object, { relievesHurt }));
+    expect(parse(files).classes['rogue']?.relievesHurt).toBe(relievesHurt);
+  });
+
+  test.each([
+    ['a text', 'yes', 'rogue.relievesHurt is "yes"; expected true or false'],
+    ['a number', 1, 'rogue.relievesHurt is 1; expected true or false'],
+    ['null', null, 'rogue.relievesHurt is null; expected true or false'],
+  ])('that is %s is refused, naming the Class', (_name, relievesHurt, problem) => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['rogue'] as object, { relievesHurt }));
+    expect(refusalOf(() => parse(files)).message).toContain(problem);
+  });
+
+  test('misspelt, it is a field no Class has, refused naming the Class', () => {
+    const files = withJson('classes.json', (json) => void Object.assign(json['healer'] as object, { relievesHurts: true }));
+    expect(refusalOf(() => parse(files)).message).toMatch(/healer.*relievesHurts.*not a field of a Class/);
+  });
+});

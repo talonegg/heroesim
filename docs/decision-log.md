@@ -563,3 +563,59 @@ come from untuned Fatigue with no rest band yet (both sides' Heroes set out at a
 survived, and tests were added for them: an Injury's chance held at 1 before the guard, the Party
 builder's line reading Fatigue, `formDecided`'s raw roll carrying the bonus, and the probe's drawn
 Fatigue.
+
+## DL-285 — v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the Injury
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 4 (Q15 a) relieves the hurt's gap, 1 − `hurtCheckFactor` (DL-284), by a
+Healer in the Party and by a heal Item, now spent at the Injury, the two multiplying. The engine names
+no Class (ADR-0006), so the Healer is a mark in content (the architecture review's candidate 5).
+Heal Items were spent after the sequence, longest Injury first (DL-50 item 6).
+
+**Decision.**
+
+1. **The relief** (form.ts): `hurtFactor(area, { hurt, relief })` takes the gap × (1 − relief), the
+   Physical Stats the whole of what is left and the others half; `hurtRelief({ healer, item })` is
+   1 − (1 − `healerHurtRelief`) × (1 − `healItemHurtRelief`). `queryParty` gives each member
+   `relief`, 0 unhurt; `atFatigue` keeps it.
+2. **The Healer:** a Class's `relievesHurt`, true or false on its own row (`classes.json`), read by
+   `relievesHurt(classKey, content)`. A member of a marked Class among the members on the Encounter,
+   other than the hurt Hero, relieves; several give one relief. The content's checks refuse a mark not
+   true or false and a misspelt one (a field no Class has). The Healer is marked by hand (the editor
+   has no Class kind); the content version 43. A test holds the engine's source to no Class key.
+3. **A heal Item at the Injury:** the kit reaches the Injury's step (`Applying.kit`); as an Injury
+   lands, the infirmary applied, `kit.heal(injury, index)` spends the heal definition healing most
+   Days (ties by key), one an Injury while any is left, shortening it to no fewer than 1 Day, which
+   the return applies, and the Hero joins `OnQuest.relieved` for the rest of the Quest. Spent on a
+   Hero who then dies, it is lost. `item.expended` for a heal names its Encounter, `encounterIndex`.
+4. **Config:** `healerHurtRelief` and `healItemHurtRelief`, 0.5 each, shares (`checkConfig`), in the
+   `quest` section by hand; the config version 27.
+5. **The estimate** is unchanged: it assumes no one is hurt, so relief moves nothing there.
+6. **The words:** the History says where a heal Item was spent and that it eased the Injury; the heal's
+   effect words say so; `CONTEXT.md` (Form, Class) and R30 say what is built.
+7. **The script budget** 900 kB (DL-280 item 8, Q6 a), S9's first item brought forward: this story's
+   build came to 850,413 bytes, over 850 kB (the epic's §4: the budget rises first).
+8. **Superseded:** DL-50 item 6 in full, items 3 and 8 in part, with the stub, notes and record.
+
+*Judgement calls, for the owner to see.*
+- *The mark* is a boolean on the Class's row, as the review drew it, not a list of roles (the glossary
+  avoids Role for a Class). It can name no Class but its own, so the acceptance's "a role on an
+  unknown Class" cannot arise; the checks refuse a malformed or misspelt mark instead.
+- *The Healer must be present:* among the members on that Encounter, so a Healer who died relieves
+  nothing after. A hurt Healer relieves others, never themself. Several Healers do not stack.
+- *An Injury at 1 Day* still takes a heal Item, for its relief, taking 0 Days off (the epic: spent at
+  the moment of an Injury); before, it took none.
+- *The test content* marks no Class, so the scenes with a Healer keep their numbers; the relief
+  tests mark the Class they read, a Warrior among them.
+- *The budget* was raised here rather than bytes cut; S9 keeps the rest of its items.
+
+**Consequences.** A hurt Hero with a Healer beside them, or a heal Item spent, keeps 0.8 of a
+Physical Stat rather than 0.6, both 0.9. The Rivals carry no heal Item until S8. In a quick run
+(4 × 2 years) against aaed35a's, play moves by the noise of changed draws: the player's strong
+successes 55.5% to 54.3%, failed Quests 9.2% to 9.5%; the Rivals' strong successes 26.0% to 26.9%.
+Every save records the config version 27 and the content version 43.
+
+**Evidence.** The commit `v1.2.1-S5 (DL-285)`; the epic's S5 boxes. The checks' counts, the
+doctors' readings and the quick run's `compare` against `v1.2.1-s4-verify-quick` are in the commit
+message; the report `v1.2.1-s5-quick` is not committed.

@@ -188,6 +188,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     effect: 'heal',
     heroId,
     days: 1,
+    encounterIndex: 1,
   }),
   'item.equipped': event('item.equipped', [heroId, guildId, stackId], { heroId, guildId, slot: 'weapon', definitionKey: 'arming-sword', itemId: null, stackId }),
   'item.unequipped': event('item.unequipped', [heroId, guildId, itemId], { heroId, guildId, slot: 'trinket', definitionKey: 'lantern-of-stannary', itemId, stackId: null }),
@@ -300,7 +301,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   // A Hero a Guildmaster's Regard is for is a Hero slot (DL-209); a Patron or a Guildmaster a name.
   'guildmaster.regard-changed': `${osric}'s Regard for ${brenna} rose from neutral to warm.`,
   'hero.regard-changed': `${brenna}'s Regard for ${aldred} rose from warm to close through a Module.`,
-  'item.expended': `${kestrel}'s <party:${partyId}> used one ${named(content.items, 'healing-draught')} on ${brenna}: their Injury heals 1 Day sooner.`,
+  'item.expended': `${kestrel}'s <party:${partyId}> used one ${named(content.items, 'healing-draught')} on ${brenna} at Encounter 2, easing their Injury: it heals 1 Day sooner.`,
   'item.equipped': `${kestrel} put ${named(content.items, 'arming-sword')}<ids:${stackId}> in ${brenna}'s weapon slot.`,
   'item.unequipped': `${kestrel} took ${named(content.items, 'lantern-of-stannary')}<ids:${itemId}> from ${brenna}'s trinket slot.`,
   'item.returned': `${named(content.items, 'mail-shirt')}<ids:${stackId}> went back to ${kestrel} from ${brenna} as the Guild folded.`,
@@ -370,7 +371,8 @@ describe('the variations of a sentence', () => {
     // the narration's sentences; the front ends hold one sentence end to end each).
     ['a Quest that failed', varied('quest.resolved', { band: 'fail', wealthDelta: 0, fameDelta: -2, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and failed: Wealth 0, Fame -2.`],
     ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded: Wealth +120, Fame +3.`],
-    ['an Injury healed 5 Days sooner', varied('item.expended', { days: 5 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna}: their Injury heals 5 Days sooner.`],
+    ['an Injury healed 5 Days sooner', varied('item.expended', { days: 5 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna} at Encounter 2, easing their Injury: it heals 5 Days sooner.`],
+    ['an Injury at 1 Day eased, healed no sooner', varied('item.expended', { days: 0, encounterIndex: 0 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna} at Encounter 1, easing their Injury.`],
     ["a Patron's Regard after a Quest of theirs failed", varied('patron.regard-changed', { cause: 'quest-failure', questId } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool after a Quest of theirs failed.`],
     ["a Patron's Regard through a Module", varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool through a Module.`],
     ["a Hero's Regard after a Quest together", varied('hero.regard-changed', { cause: 'shared-quest', questId } as never), `${brenna}'s Regard for ${aldred} rose from warm to close after a Quest together.`],

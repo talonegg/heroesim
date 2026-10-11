@@ -4,7 +4,8 @@ import type { Hero, HeroId, SkillRating, World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
-import { classSkillRequires, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
+import type { ContentSet } from '../content-types.js';
+import { classSkillRequires, demandsCheck, heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
 import { hurtFactor, moraleFactor } from './form.js';
 import { atFatigue, evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryMember, type QueryParty } from './query.js';
 
@@ -400,7 +401,7 @@ describe('form: what it scales, and what it does not', () => {
     return queryParty(all, world, deps, { hurt: new Set([(heroes['aric'] as Hero).id]) });
   })();
   /** Aric's hurt factor on `statKey`, by its area in content. */
-  const aric = (statKey: string): number => hurtFactor(areaOf(statKey), true, deps.config);
+  const aric = (statKey: string): number => hurtFactor(areaOf(statKey), { hurt: true, relief: 0 }, deps.config);
   const dara = moraleFactor(20, deps.config);
   const scaled = (query: NumQuery): number => evaluate(query, formed, true);
   const scaledVal = (query: ValQuery, name: string): number => valueOf(query, member(name, formed), formed.content, true);
@@ -600,6 +601,85 @@ describe("queryParty's formed Stats by area", () => {
   });
 });
 
+// DL-280 item 4, Q15 a; DL-285: a member of a Class content marks to relieve the hurt (`relievesHurt`),
+// other than the hurt Hero and among the members on the Encounter, relieves `healerHurtRelief` of a
+// hurt Hero's gap, however many there are; a heal Item spent on them (`relieved`) relieves
+// `healItemHurtRelief`; the two multiply on the gap. The engine names no Class (ADR-0006): the test
+// content marks none, and these tests mark the Class they read.
+describe("queryParty's relief from the hurt", () => {
+  /** The test content with each of `classKeys` marked to relieve the hurt. */
+  const marking = (...classKeys: string[]): ContentSet => ({
+    ...testContent,
+    classes: Object.fromEntries(Object.entries(testContent.classes).map(([key, it]) => [key, classKeys.includes(key) ? { ...it, relievesHurt: true } : it])),
+  });
+  const config = { hurtCheckFactor: 0.6, healerHurtRelief: 0.5, healItemHurtRelief: 0.5 };
+  const healers = testDeps(config, marking('healer'));
+  /** `names` of the Party (aric and bryn warriors, cass a mage, dara a healer, edda a rogue) as `over` reads them, `hurt` and `relieved` by name. */
+  const taken = (names: string[], { hurt = [] as string[], relieved = [] as string[], over = healers } = {}): Record<string, QueryMember> => {
+    const { world, heroes } = scene('relief');
+    const ids = (list: string[]) => new Set(list.map((name) => (heroes[name] as Hero).id));
+    const party = queryParty(names.map((name) => heroes[name] as Hero), world, over, { hurt: ids(hurt), relieved: ids(relieved) });
+    return Object.fromEntries(party.members.map((it) => [it.hero.name, it]));
+  };
+  /** What a member's Physical Stat keeps of itself at `relief`, and a Mental one: written out, apart from form.ts. */
+  const kept = (it: QueryMember) => ({ strength: (it.formed['strength'] ?? 0) / (it.stats['strength'] ?? 1) / moraleFactor(it.morale, healers.config), wits: (it.formed['wits'] ?? 0) / (it.stats['wits'] ?? 1) / moraleFactor(it.morale, healers.config) });
+
+  test('a Healer in the Party relieves half the gap of another member hurt: a Physical Stat keeps 0.8, a Mental 0.9', () => {
+    const { aric, dara } = taken(['aric', 'dara'], { hurt: ['aric'] });
+    expect(aric?.relief).toBe(0.5);
+    expect(kept(aric as QueryMember)).toEqual({ strength: expect.closeTo(0.8, 12), wits: expect.closeTo(0.9, 12) });
+    // Dara, unhurt, has no gap to relieve.
+    expect(dara?.relief).toBe(0);
+    expect(dara?.formed).toEqual(Object.fromEntries(Object.entries(dara?.stats ?? {}).map(([key, value]) => [key, value * moraleFactor(20, healers.config)])));
+  });
+
+  test('a Healer does not relieve their own hurt, but another Healer does', () => {
+    expect(taken(['aric', 'dara'], { hurt: ['dara'] }).dara?.relief).toBe(0);
+    const both = testDeps(config, marking('healer', 'mage'));
+    expect(taken(['cass', 'dara'], { hurt: ['dara'], over: both }).dara?.relief).toBe(0.5);
+    expect(taken(['cass', 'dara'], { hurt: ['cass', 'dara'], over: both })).toMatchObject({ cass: { relief: 0.5 }, dara: { relief: 0.5 } });
+  });
+
+  test('several Healers give one relief, not one each', () => {
+    const both = testDeps(config, marking('healer', 'mage'));
+    expect(taken(['aric', 'cass', 'dara'], { hurt: ['aric'], over: both }).aric?.relief).toBe(0.5);
+  });
+
+  test('a Healer not among the members on the Encounter, fallen or never sent, relieves no one', () => {
+    expect(taken(['aric', 'bryn'], { hurt: ['aric'] }).aric?.relief).toBe(0);
+    expect(kept(taken(['aric', 'bryn'], { hurt: ['aric'] }).aric as QueryMember)).toEqual({ strength: expect.closeTo(0.6, 12), wits: expect.closeTo(0.8, 12) });
+  });
+
+  test("the relief is read from the Class's mark, not its key: unmarked, a Healer relieves nothing; marked, a Warrior does", () => {
+    expect(taken(['aric', 'dara'], { hurt: ['aric'], over: testDeps(config) }).aric?.relief).toBe(0);
+    expect(taken(['aric', 'bryn', 'dara'], { hurt: ['aric'], over: testDeps(config, marking('warrior')) }).aric?.relief).toBe(0.5);
+    expect(taken(['aric', 'bryn'], { hurt: ['aric'], over: testDeps(config, marking('warrior')) }).aric?.relief).toBe(0.5);
+    expect(taken(['aric', 'cass'], { hurt: ['aric'], over: testDeps(config, marking('warrior')) }).aric?.relief).toBe(0);
+  });
+
+  test('the gap with neither, either and both: a heal Item spent relieves half, and with a Healer the two multiply to three quarters', () => {
+    const at = (names: string[], relieved: string[]) => taken(names, { hurt: ['aric'], relieved }).aric as QueryMember;
+    expect([at(['aric', 'bryn'], []), at(['aric', 'dara'], []), at(['aric', 'bryn'], ['aric']), at(['aric', 'dara'], ['aric'])].map((it) => it.relief)).toEqual([0, 0.5, 0.5, 0.75]);
+    expect(kept(at(['aric', 'dara'], ['aric']))).toEqual({ strength: expect.closeTo(0.9, 12), wits: expect.closeTo(0.95, 12) });
+    // Relieved by an Item and not hurt is no Hero the resolver makes; it relieves nothing.
+    expect(taken(['aric', 'bryn'], { relieved: ['aric'] }).aric?.relief).toBe(0);
+  });
+
+  test('reads the settings: at relief 0 a Healer and an Item change nothing, and other shares multiply as theirs', () => {
+    const none = testDeps({ ...config, healerHurtRelief: 0, healItemHurtRelief: 0 }, marking('healer'));
+    expect(taken(['aric', 'dara'], { hurt: ['aric'], relieved: ['aric'], over: none }).aric?.relief).toBe(0);
+    const other = testDeps({ ...config, healerHurtRelief: 0.2, healItemHurtRelief: 0.4 }, marking('healer'));
+    expect(taken(['aric', 'dara'], { hurt: ['aric'], relieved: ['aric'], over: other }).aric?.relief).toBeCloseTo(1 - 0.8 * 0.6, 12);
+  });
+
+  test('atFatigue keeps the relief, and reads the formed Stats again with it', () => {
+    const { aric } = taken(['aric', 'dara'], { hurt: ['aric'], relieved: ['aric'] });
+    const later = atFatigue(aric as QueryMember, 60, healers);
+    expect(later.relief).toBe(0.75);
+    expect(later.formed['strength']).toBeCloseTo((aric?.stats['strength'] ?? 0) * moraleFactor(60, healers.config) * (1 - (healers.config.fatigueScaling * 60) / healers.config.fatigueMax) * 0.9, 12);
+  });
+});
+
 describe("queryParty's Morale on the Quest", () => {
   /** Whether each of `party`'s members' formed Stats are their raw ones times Morale's factor at their Morale on the Quest (rested, unhurt). */
   const formedByMorale = (party: QueryParty): void => {
@@ -634,7 +714,7 @@ describe("queryParty's Morale on the Quest", () => {
     for (const [at, morale] of [[0, 90], [1, 70]] as const) {
       const it = taken.members[at] as QueryMember;
       for (const statKey of heroStatKeys) {
-        expect(it.formed[statKey]).toBe((it.stats[statKey] ?? 0) * (moraleFactor(morale, deps.config) * 1 * hurtFactor(areaOf(statKey), true, deps.config)));
+        expect(it.formed[statKey]).toBe((it.stats[statKey] ?? 0) * (moraleFactor(morale, deps.config) * 1 * hurtFactor(areaOf(statKey), { hurt: true, relief: 0 }, deps.config)));
       }
     }
     expect(taken.members.map((it) => it.hurt)).toEqual([true, true, false, false, false]);

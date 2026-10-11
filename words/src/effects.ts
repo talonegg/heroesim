@@ -61,14 +61,14 @@ export function consumableEffectWords(effect: ConsumableEffect): string {
     case 'reroll':
       return `a failed Check on ${listed(effect.kinds)} Encounters rolled again, one a Check`;
     case 'heal':
-      return `an Injury taken on the Quest heals ${effect.days} Days sooner, one an Injury`;
+      return `an Injury taken on the Quest weighs less on the rest of it and heals ${effect.days} Days sooner, one an Injury`;
   }
 }
 
 /**
  * What an Item does, as the Market's cell says it, standing alone: Gear's Stat modifiers, `Weaponry
  * +2`, or a Consumable's effect, `+2 on a combat Encounter`, `Rolls a failed combat or travel
- * Encounter again`, `An Injury on the Quest heals 3 Days sooner`.
+ * Encounter again`, `An Injury on the Quest weighs less and heals 3 Days sooner`.
  */
 export function itemEffectWords(definition: ItemDefinition, names: Pick<ContentSet, 'stats'>): string {
   if (definition.kind === 'gear') return modifierWords(definition, names);
@@ -79,7 +79,7 @@ export function itemEffectWords(definition: ItemDefinition, names: Pick<ContentS
     case 'reroll':
       return capitalised(`rolls a failed ${effect.kinds.join(' or ')} Encounter again`);
     case 'heal':
-      return capitalised(`an Injury on the Quest heals ${effect.days} Days sooner`);
+      return capitalised(`an Injury on the Quest weighs less and heals ${effect.days} Days sooner`);
   }
 }
 

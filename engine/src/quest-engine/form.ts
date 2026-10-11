@@ -8,8 +8,12 @@
 //   and Magical Stats times 1 − FS·f ÷ `fatigueMax`, the Mental and Social times 1 − (FS ÷ 2)·f ÷
 //   `fatigueMax`, FS being `fatigueScaling`;
 // - the hurt's, once they are injured on the Quest: the gap 1 − `hurtCheckFactor` taken whole by the
-//   Physical Stats and half by every other area.
-// A Stat's area is content's (`stats.json`), so the engine names no Stat (ADR-0006). Each Hero's own
+//   Physical Stats and half by every other area, less its relief (`hurtRelief`, DL-285): a share
+//   relieved by a Healer, a member of a Class content marks `relievesHurt` other than the hurt Hero
+//   among the Party on the Encounter, and a share by a heal Item spent at their Injury, the two
+//   multiplying on the gap.
+// A Stat's area is content's (`stats.json`), and the Healer is a Class's mark (`classes.json`), so the
+// engine names no Stat and no Class (ADR-0006; the architecture review's candidate 5). Each Hero's own
 // state sets their own form, not the Party's mean (DL-148 item 9). query.ts reads it once for each
 // member of a Party taken for an Encounter (`queryParty`), and the operators read the formed Stats
 // for a Check's score alone (DL-148 item 11).
@@ -51,6 +55,14 @@ export interface FormState {
   fatigue: number;
   /** Whether they are hurt on the Quest. */
   hurt: boolean;
+  /** The share of their hurt's gap relieved on the Encounter (`hurtRelief`), from 0 to 1; read only when they are hurt. */
+  relief: number;
+}
+
+/** What relieves a hurt Hero on an Encounter (DL-285): a Healer among the rest of the Party, a heal Item spent at their Injury. */
+export interface ReliefBy {
+  healer: boolean;
+  item: boolean;
 }
 
 /** The areas Fatigue takes FS from; it takes half of it from the others (DL-280 item 2). A record, so that `tsc` asks for an area `StatArea` gains. */
@@ -86,19 +98,38 @@ export function fatigueFactor(area: StatArea, fatigue: number, config: FatigueFa
 }
 
 /**
- * The hurt's factor on a Stat of `area` (DL-280 item 4, DL-284): for a Hero `hurt` on the Quest,
- * `hurtCheckFactor` on the Physical Stats and 1 − (1 − `hurtCheckFactor`) ÷ 2 on every other area; 1
- * for a Hero unhurt.
+ * The hurt's factor on a Stat of `area` (DL-280 item 4, DL-284, DL-285): for a Hero hurt on the Quest,
+ * the gap 1 − `hurtCheckFactor` less the share `relief` relieves, taken whole from the Physical Stats
+ * and half from every other area; 1 for a Hero unhurt.
  */
-export function hurtFactor(area: StatArea, hurt: boolean, config: Pick<GameConfig, 'hurtCheckFactor'>): number {
-  if (!hurt) return 1;
-  return area === 'physical' ? config.hurtCheckFactor : 1 - (1 - config.hurtCheckFactor) / 2;
+export function hurtFactor(area: StatArea, state: Pick<FormState, 'hurt' | 'relief'>, config: Pick<GameConfig, 'hurtCheckFactor'>): number {
+  if (!state.hurt) return 1;
+  const gap = (1 - config.hurtCheckFactor) * (1 - state.relief);
+  return area === 'physical' ? 1 - gap : 1 - gap / 2;
+}
+
+/**
+ * The share of a hurt Hero's gap relieved (DL-280 item 4, Q15 a; DL-285): `healerHurtRelief` by a
+ * Healer, `healItemHurtRelief` by a heal Item, multiplying on the gap, so both leave
+ * (1 − `healerHurtRelief`) × (1 − `healItemHurtRelief`) of it; 0 by neither.
+ */
+export function hurtRelief(by: ReliefBy, config: Pick<GameConfig, 'healerHurtRelief' | 'healItemHurtRelief'>): number {
+  const left = (by.healer ? 1 - config.healerHurtRelief : 1) * (by.item ? 1 - config.healItemHurtRelief : 1);
+  return 1 - left;
+}
+
+/**
+ * Whether a Hero of `classKey` relieves the hurt of another member of their Party (DL-285): their
+ * Class's `relievesHurt` mark in content. A Class content no longer defines relieves nothing.
+ */
+export function relievesHurt(classKey: string, content: Pick<ContentSet, 'classes'>): boolean {
+  return Object.hasOwn(content.classes, classKey) && content.classes[classKey]?.relievesHurt === true;
 }
 
 /**
  * A Hero's formed Stats on an Encounter (DL-284): each of `stats`, their effective Stats, times
- * Morale's factor at `state.morale`, Fatigue's at `state.fatigue` and the hurt's, by the Stat's area
- * in content, the factors multiplied. A Stat content does not define, which no effective Stats hold,
+ * Morale's factor at `state.morale`, Fatigue's at `state.fatigue` and the hurt's after its relief
+ * (DL-285), by the Stat's area in content, the factors multiplied. A Stat content does not define, which no effective Stats hold,
  * is times Morale's alone. With every factor 1, each Stat as it is.
  */
 export function formedStats(stats: StatValues, state: FormState, deps: FormDeps): StatValues {
@@ -108,7 +139,7 @@ export function formedStats(stats: StatValues, state: FormState, deps: FormDeps)
   const factorOf = (area: StatArea): number => {
     let factor = byArea.get(area);
     if (factor === undefined) {
-      factor = morale * fatigueFactor(area, state.fatigue, config) * hurtFactor(area, state.hurt, config);
+      factor = morale * fatigueFactor(area, state.fatigue, config) * hurtFactor(area, state, config);
       byArea.set(area, factor);
     }
     return factor;
@@ -150,7 +181,7 @@ export function formFigure(state: FormState, deps: FormDeps): number {
   let counted = 0;
   for (const stat of Object.values(content.stats)) {
     if (stat.owner !== 'hero') continue;
-    total += fatigueFactor(stat.area, state.fatigue, config) * hurtFactor(stat.area, state.hurt, config);
+    total += fatigueFactor(stat.area, state.fatigue, config) * hurtFactor(stat.area, state, config);
     counted += 1;
   }
   return moraleFactor(state.morale, config) * (counted === 0 ? 1 : total / counted);

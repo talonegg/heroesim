@@ -208,6 +208,8 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   },
   strongTriumphShare: share,
   hurtCheckFactor: { refused: [0, -0.5, 1.01, Number.NaN, Number.POSITIVE_INFINITY], allowed: [0.01, 1] },
+  healerHurtRelief: share,
+  healItemHurtRelief: share,
   exposureRange: { refused: [-1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 2] },
   guardRange: { refused: [-0.1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 1] },
   chanceBands: {

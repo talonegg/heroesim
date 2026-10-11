@@ -372,7 +372,7 @@ export interface ReturnTold {
     died?: readonly number[];
   }[];
   /** Consumables used, each a bonus to an Encounter's Check, or a heal of a Hero's Injury. */
-  used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number })[];
+  used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number; encounterIndex: number })[];
   /** The Loot the return leaves: one at most, as the Quest Engine draws. */
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
@@ -485,7 +485,7 @@ function preparedFor(state: GameState, told: ReturnTold, party: ReturningParty):
     // The consumables used, each in the Party's packs.
     for (const use of told.used ?? []) {
       const stackId = addStack(world, use.definitionKey, 1, { kind: 'party', id: partyId });
-      uses.push('heal' in use ? { stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days } : { stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
+      uses.push('heal' in use ? { stackId, definitionKey: use.definitionKey, effect: 'heal', heroId: hero(use.heal), days: use.days, encounterIndex: use.encounterIndex } : { stackId, definitionKey: use.definitionKey, effect: 'bonus', encounterIndex: use.encounterIndex, flat: 2 });
     }
     // A told crossing of Regard: the value just short of the band it moves into, or the floor of the band it leaves.
     const shortOf = (before: RegardBand, after: RegardBand): number =>

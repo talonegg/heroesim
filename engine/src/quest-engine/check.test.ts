@@ -266,7 +266,7 @@ describe.each(['check.ts', 'query.ts', 'form.ts', 'query/operators.ts', 'query/p
 });
 
 describe('query.ts', () => {
-  test("imports as values only effectiveStats, ageOf and the form module's two, and otherwise only types: content's, the document's and the config's", () => {
+  test("imports as values only effectiveStats, ageOf and the form module's four, and otherwise only types: content's, the document's and the config's", () => {
     const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
     const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
       from,
@@ -277,7 +277,7 @@ describe('query.ts', () => {
     expect(imports.filter((it) => !it.typeOnly)).toEqual([
       { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
       { from: '../time.js', names: ['ageOf'], typeOnly: false },
-      { from: './form.js', names: ['formedStats', 'workingMorale'], typeOnly: false },
+      { from: './form.js', names: ['formedStats', 'hurtRelief', 'relievesHurt', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
   });

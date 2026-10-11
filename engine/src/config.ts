@@ -265,6 +265,19 @@ export interface GameConfig {
    */
   hurtCheckFactor: number;
   /**
+   * The share of a hurt Hero's gap, 1 − `hurtCheckFactor`, that a Healer relieves (DL-280 item 4,
+   * Q15 a; DL-285): a member of a Class content marks `relievesHurt`, other than the hurt Hero, among
+   * the Party on the Encounter; one relief however many there are. It multiplies on the gap with
+   * `healItemHurtRelief` (form.ts, `hurtRelief`). A share from 0 to 1.
+   */
+  healerHurtRelief: number;
+  /**
+   * The share of a hurt Hero's gap that a heal Item spent on their Injury relieves for the rest of the
+   * Quest (DL-280 item 4, Q15 a; DL-285), multiplying on the gap with `healerHurtRelief`. A share from
+   * 0 to 1.
+   */
+  healItemHurtRelief: number;
+  /**
    * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
    * (DL-148 item 14, DL-155): their weight in the draw of who is hit is 1 + this × (1 − their
    * mean share of those Stats' content range). At 2, the weakest is hit three times as often as the

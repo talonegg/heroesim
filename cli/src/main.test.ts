@@ -924,7 +924,7 @@ describe('dispatch', () => {
         [
           'Consumables',
           `  Whetstone ×1, of 1 the Guild holds: +3 to a Check on combat Encounters, one a Check; ${combat} of this Quest's ${kinds.length}.`,
-          '  Healing draught ×2, of 3 the Guild holds: an Injury taken on the Quest heals 5 Days sooner, one an Injury.',
+          '  Healing draught ×2, of 3 the Guild holds: an Injury taken on the Quest weighs less on the rest of it and heals 5 Days sooner, one an Injury.',
         ].join('\n'),
       );
       expect(carrying.out).toContain('Dispatch would send this Party.');

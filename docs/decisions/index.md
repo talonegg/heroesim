@@ -59,7 +59,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-47 | 2026-09-26 | Merging M3's close into M4: both version-4 defaults kept, `configVersion` 5 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-48 | 2026-09-26 | Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1) | item 2 in part by DL-49; in part by DL-49 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-49 | 2026-09-26 | Equip and unequip, gear in effective Stats, gear going back to its Guild, and the controllers … | item 7 in part by DL-54 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-50 | 2026-09-26 | Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-50 | 2026-09-26 | Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3) | item 3 in part by DL-285; item 6 by DL-285; item 8 in part by DL-285 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-51 | 2026-09-26 | The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the … | item 6 in part by DL-54; item 8 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-52 | 2026-09-26 | Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-53 | 2026-09-26 | M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -294,6 +294,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [decision-log](../decision-log.md) |
 | DL-283 | 2026-10-11 | v1.2.1-S3 built: Morale's form made continuous, a line through the baseline | item 1 in part by DL-284 | [decision-log](../decision-log.md) |
 | DL-284 | 2026-10-11 | v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm |  | [decision-log](../decision-log.md) |
+| DL-285 | 2026-10-11 | v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

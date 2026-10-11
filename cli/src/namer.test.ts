@@ -221,6 +221,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     effect: 'heal',
     heroId,
     days: 5,
+    encounterIndex: 1,
   }),
   'item.equipped': event('item.equipped', [heroId, guildId, stackId], {
     heroId,

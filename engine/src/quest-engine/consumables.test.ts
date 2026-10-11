@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
-import type { Consequence, ContentSet, Encounter, EncounterKind, InjuryType } from '../content-types.js';
+import type { Class, Consequence, ContentSet, Encounter, EncounterKind, InjuryType, SetQuery } from '../content-types.js';
 import type { Hero, Party, Quest, World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
 import { demandsCheck, encounterCapability as capability, testContent, testDeps, withFactor } from '../world.test-support.js';
-import { resolveQuest } from './resolve.js';
+import { resolveQuest, type QuestInjury } from './resolve.js';
 import { scene as sharedScene } from './resolve.test-support.js';
 
 // DL-50: the consumables a Party carries, used as the Quest Engine resolves its sequence. A
@@ -220,12 +220,17 @@ describe('a bonus', () => {
   });
 });
 
+// DL-280 item 4, Q15 a; DL-285: a heal Item is spent at the moment of an Injury, the one healing most
+// Days first, and relieves `healItemHurtRelief` of the hurt's gap for the rest of the Quest; it still
+// shortens the Injury, which the return applies.
 describe('a heal', () => {
   const graze: InjuryType = { key: 'graze', name: 'Graze', healDaysMin: 1, healDaysMax: 1, leavesTrait: null };
-  const hurt = (typeKey: string, count: number): Encounter =>
-    encounter(`hurt-${typeKey}`, 'combat', false, [{ kind: 'injury', typeKey, chance: 1, count }]);
+  const hurt = (typeKey: string, count: number, among?: SetQuery): Encounter =>
+    encounter(`hurt-${typeKey}`, 'combat', false, [{ kind: 'injury', typeKey, chance: 1, count, ...(among === undefined ? {} : { among }) }]);
+  /** An arcane Encounter, which no Synergy of the test content's touches, of the Party's summed Strength, which no Party of 8s meets and which harms no one. */
+  const lift = encounter('lift', 'arcane', false);
 
-  test('shortens the longest Injury by its Days, the strongest heal first, to no fewer than 1, one Item an Injury, and draws nothing', () => {
+  test('is spent at each Injury as it is taken, the strongest heal first, one Item an Injury, naming its Encounter, and draws nothing', () => {
     const content = contentWith([hurt('deep-cut', 3)]);
     const bare = scene('heal', content, ['hurt-deep-cut'], []);
     const kept = scene('heal', content, ['hurt-deep-cut'], [
@@ -237,32 +242,41 @@ describe('a heal', () => {
     const { outcome, consumables } = resolveQuest(kept.world, kept.quest, kept.party, kept.deps);
 
     expect(before).toHaveLength(3);
-    // Longest first, ties to the first taken: the kit's 10 Days on it, the draught's 5 on the next.
-    const ranked = before.map((injury, order) => ({ ...injury, order })).sort((a, b) => b.healDays - a.healDays || a.order - b.order);
-    const [longest, next2, last] = ranked as [(typeof ranked)[number], (typeof ranked)[number], (typeof ranked)[number]];
-    const expected = before.map((injury) => ({ ...injury }));
-    (expected[longest.order] as { healDays: number }).healDays = Math.max(1, longest.healDays - 10);
-    (expected[next2.order] as { healDays: number }).healDays = Math.max(1, next2.healDays - 5);
-    expect(outcome.injuries).toEqual(expected);
-    expect(outcome.injuries[last.order]).toEqual(before[last.order]);
+    // In the order taken: the kit's 10 Days on the first, the draught's 5 on the second, none left for the third.
+    const [first, second, third] = before as [QuestInjury, QuestInjury, QuestInjury];
+    expect(outcome.injuries).toEqual([
+      { ...first, healDays: Math.max(1, first.healDays - 10) },
+      { ...second, healDays: Math.max(1, second.healDays - 5) },
+      third,
+    ]);
     expect(consumables).toEqual([
-      { stackId: stackOf(kept, 'physicians-kit').id, definitionKey: 'physicians-kit', effect: 'heal', heroId: longest.heroId, days: longest.healDays - Math.max(1, longest.healDays - 10) },
-      { stackId: stackOf(kept, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: next2.heroId, days: next2.healDays - Math.max(1, next2.healDays - 5) },
+      { stackId: stackOf(kept, 'physicians-kit').id, definitionKey: 'physicians-kit', effect: 'heal', heroId: first.heroId, days: first.healDays - Math.max(1, first.healDays - 10), encounterIndex: 0 },
+      { stackId: stackOf(kept, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: second.heroId, days: second.healDays - Math.max(1, second.healDays - 5), encounterIndex: 0 },
     ]);
     expect(streamOf(kept.world, 'quests')).toEqual(streamOf(bare.world, 'quests'));
   });
 
-  test('is kept when no Injury is left to shorten: none taken, each treated already, or one at 1 Day', () => {
-    const content = contentWith([hurt('deep-cut', 1), hurt('graze', 1), ambush], [graze]);
+  test('is spent at the Encounter of the Injury, a later Injury taking the next', () => {
+    const content = contentWith([hurt('deep-cut', 1), lift]);
+    const s = scene('later', content, ['lift', 'hurt-deep-cut', 'lift', 'hurt-deep-cut'], [['healing-draught', 3]], { size: 2 });
+
+    const { outcome, consumables } = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    expect(outcome.injuries).toHaveLength(2);
+    expect(consumables.map((use) => use.effect === 'heal' && [use.heroId, use.encounterIndex])).toEqual(outcome.injuries.map((injury, at) => [injury.heroId, [1, 3][at]]));
+  });
+
+  test('is kept when no Injury is taken, and spent on one at 1 Day for its relief, taking no Day off', () => {
+    const content = contentWith([hurt('graze', 1), ambush], [graze]);
     const unhurt = scene('none', content, ['ambush'], [['healing-draught', 2]]);
-    const once = scene('once', content, ['hurt-deep-cut'], [['healing-draught', 3]], { size: 1 });
     const grazed = scene('grazed', content, ['hurt-graze'], [['healing-draught', 1]], { size: 1 });
 
     expect(resolveQuest(unhurt.world, unhurt.quest, unhurt.party, unhurt.deps).consumables).toEqual([]);
-    expect(resolveQuest(once.world, once.quest, once.party, once.deps).consumables).toHaveLength(1);
     const graze1 = resolveQuest(grazed.world, grazed.quest, grazed.party, grazed.deps);
     expect(graze1.outcome.injuries).toMatchObject([{ typeKey: 'graze', healDays: 1 }]);
-    expect(graze1.consumables).toEqual([]);
+    expect(graze1.consumables).toEqual([
+      { stackId: stackOf(grazed, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: grazed.heroes[0]?.id, days: 0, encounterIndex: 0 },
+    ]);
   });
 
   test('leaves an Injury shorter than its Days at 1 Day, not 0, and records the Days it took off', () => {
@@ -274,11 +288,11 @@ describe('a heal', () => {
 
     expect(outcome.injuries).toMatchObject([{ typeKey: 'bruise', healDays: 1 }]);
     expect(consumables).toEqual([
-      { stackId: stackOf(s, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: s.heroes[0]?.id, days: 2 },
+      { stackId: stackOf(s, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: s.heroes[0]?.id, days: 2, encounterIndex: 0 },
     ]);
   });
 
-  test('shortens an Injury after the infirmary, and never the Injury of a Hero who then died', () => {
+  test('shortens an Injury after the infirmary; spent on a Hero who then dies, it is lost with them (DL-280)', () => {
     const deadly = encounter('deadly', 'combat', false, [{ kind: 'death', chance: 1 }]);
     const content = contentWith([hurt('broken-arm', 1), deadly]);
     const bare = scene('after', content, ['hurt-broken-arm'], [], { size: 1 });
@@ -292,8 +306,35 @@ describe('a heal', () => {
     const dead = resolveQuest(killed.world, killed.quest, killed.party, killed.deps);
 
     expect(healed?.healDays).toBe(Math.max(1, (infirmed?.healDays ?? NaN) - 5));
+    expect(dead.outcome.deaths).toEqual([killed.heroes[0]?.id]);
     expect(dead.outcome.injuries).toEqual([]);
-    expect(dead.consumables).toEqual([]);
+    expect(dead.consumables).toEqual([expect.objectContaining({ definitionKey: 'healing-draught', effect: 'heal', heroId: killed.heroes[0]?.id, encounterIndex: 0 })]);
+  });
+
+  // The gap with neither, either and both, as the resolver meets it: a Warrior hurt at the first
+  // Encounter brings 8 × 0.6, 8 × 0.8, 8 × 0.8 or 8 × 0.9 Strength to the next, beside a Healer's 8.
+  test("relieves half the hurt's gap for the rest of the Quest, and with a Healer in the Party the two multiply", () => {
+    const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+    const content = contentWith([hurt('deep-cut', 1, warriors), lift]);
+    const marked: ContentSet = { ...content, classes: { ...content.classes, healer: { ...(content.classes['healer'] as Class), relievesHurt: true } } };
+    // No teamwork, so the capability is the summed formed Strength alone.
+    const overrides = { hurtCheckFactor: 0.6, healerHurtRelief: 0.5, healItemHurtRelief: 0.5, teamworkRange: 0 };
+    /** The capability of the Encounter after the Injury, for a Warrior and a Healer, under `over`'s content, carrying `carried`. */
+    const after = (over: ContentSet, carried: [string, number][]) => {
+      const s = scene('relief', over, ['hurt-deep-cut', 'lift'], carried, { size: 2, overrides });
+      const [warrior, healer] = s.heroes as [Hero, Hero];
+      warrior.classKey = 'warrior';
+      healer.classKey = 'healer';
+      for (const hero of s.heroes) hero.morale = s.deps.config.moraleBaseline;
+      const resolved = resolveQuest(s.world, s.quest, s.party, s.deps);
+      expect(resolved.outcome.injuries.map((injury) => injury.heroId)).toEqual([warrior.id]);
+      return resolved.encounters[1]?.checks[0]?.capability ?? NaN;
+    };
+
+    expect(after(content, [])).toBeCloseTo(8 + 8 * 0.6, 9);
+    expect(after(marked, [])).toBeCloseTo(8 + 8 * 0.8, 9);
+    expect(after(content, [['healing-draught', 1]])).toBeCloseTo(8 + 8 * 0.8, 9);
+    expect(after(marked, [['healing-draught', 1]])).toBeCloseTo(8 + 8 * 0.9, 9);
   });
 });
 

@@ -200,7 +200,8 @@ _Avoid_: Keyword, Tag, Mark, Trait
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its
 leading Stats, sets how each Level grows Stats, gates Skills and is the first input to
-Synergies.
+Synergies. What a Class does that a rule reads is marked in content, so the engine names none: the
+Healer's member relieves the hurt of the rest of their Party (Form; DL-285).
 _Avoid_: Role, Job, Type, Archetype
 
 **Stat**:
@@ -442,13 +443,16 @@ their Morale on the Quest: their Morale as they set out plus the Morale the Ques
 cost or given them so far, their own since a loss may be steadied (DL-155). Fatigue's, from their
 Fatigue on the Day of the Encounter, takes more from the Physical and Magical Stats than from the
 Mental and Social. The hurt's, once they are injured on the Quest, takes the whole of its gap from
-the Physical Stats and half of it from the others, less where a Healer in the Party other than the
-hurt Hero, or a heal Item, relieves it. The Captain's Party brings more, by the Captain's
+the Physical Stats and half of it from the others, less what is relieved: a share of the gap by a
+Healer, a member of a Class content marks as relieving the hurt, in the Party on the Encounter other
+than the hurt Hero, one relief however many there are; a share by a heal Item, spent at the Injury
+itself, the one healing most Days first, for the rest of the Quest; the two multiplying on the gap
+(DL-285). The Captain's Party brings more, by the Captain's
 Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. The areas are content's,
 each Stat's own (DL-284). Form never changes their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
-Fatigue and the hurt by Stat area are built (DL-284); the hurt's relief and the Captain are to be
+Fatigue, the hurt by Stat area (DL-284) and its relief (DL-285) are built; the Captain is to be
 built (DL-280).
 _Avoid_: Condition, Fitness, Mood
 

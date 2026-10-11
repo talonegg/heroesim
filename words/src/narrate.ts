@@ -508,8 +508,11 @@ const sentences: Sentences = {
         return say`${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
       case 'reroll':
         return say`${used} to try Encounter ${payload.encounterIndex + 1} again.`;
-      case 'heal':
-        return say`${used} on ${hero(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
+      case 'heal': {
+        // Spent at the Injury's Encounter (DL-285): it eases the Injury for the rest of the Quest, and shortens it unless it was at 1 Day.
+        const sooner = payload.days === 0 ? '' : `: it heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner`;
+        return say`${used} on ${hero(event, payload.heroId)} at Encounter ${payload.encounterIndex + 1}, easing their Injury${sooner}.`;
+      }
     }
   },
 };

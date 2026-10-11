@@ -131,6 +131,12 @@ export interface Class {
    * that it is in the set is `validateContent`'s rule, which names the Class.
    */
   icon?: string;
+  /**
+   * Whether a member of this Class relieves the hurt of another member of their Party on a Quest, by
+   * `healerHurtRelief` of the gap (DL-280 item 4, Q15 a; DL-285): the Healer's mark, the engine naming
+   * no Class (ADR-0006; the architecture review's candidate 5). Absent or false, it relieves nothing.
+   */
+  relievesHurt?: boolean;
 }
 
 /** A Skill, rated 1 to 5 on a Hero (R15; `skills.json`). */
@@ -737,7 +743,8 @@ export type ItemKind = 'gear' | 'consumable';
  *   rolled again, once (v1.1.4-S2);
  * - `bonus`: `flat` is added to the capability of every Check of the first Encounter of one of
  *   `kinds` (v1.1.4-S2, DL-148 item 13);
- * - `heal`: an Injury taken on the Quest heals `days` Days sooner.
+ * - `heal`: spent at an Injury taken on the Quest, it relieves the hurt for the rest of the Quest
+ *   (`healItemHurtRelief`, DL-285) and the Injury heals `days` Days sooner.
  *
  * `kinds` holds one or more Encounter kinds, none twice; `flat` is above 0; `days` a whole number
  * from 1.

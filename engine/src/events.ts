@@ -535,8 +535,9 @@ export type HeroRegardChanged = Entry<
  * One consumable a Party carried was used on its Quest and expended from its stack (M5-S3, DL-50):
  * a `bonus` added `flat` to each Check of Encounter `encounterIndex`; a `reroll` had that failed
  * Encounter's Checks short of Success rolled again, `firstRoll` the deciding Check's failed roll (its
- * `quest.encounter` records the second rolls; v1.1.4-S2); a `heal`
- * took `days` Days off `heroId`'s Injury. One entry an Item, in the order used, after the Quest's
+ * `quest.encounter` records the second rolls; v1.1.4-S2); a `heal`, spent at Encounter
+ * `encounterIndex` where `heroId`'s Injury was taken, relieved its hurt for the rest of the Quest and
+ * took `days` Days off it, 0 for an Injury at 1 Day (DL-285). One entry an Item, in the order used, after the Quest's
  * `quest.encounter` entries and before its `quest.resolved`. Names the Quest, the Party, the Guild
  * and, for a heal, the Hero. Not a Milestone.
  */
