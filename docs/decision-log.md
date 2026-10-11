@@ -1036,6 +1036,11 @@ since S4 (DL-290), but a 2-year run cannot show a Bankruptcy in year 9.
    apart and the speed run. The machine is short of memory, and the game is known broken, so they would
    measure nothing the outcomes do not; they run at the close after the economy release, as does the
    owner's playtest.
+   *Changed 2026-10-12 on the owner's word ("run Gate to record results but don't block release"):
+   the full `gate` was run alone at `10f2ffb`, report `v1.2.1-close-gate-2026-10-12`, fingerprint
+   `027d238a…`, the same as the baseline's. Seven of its eight lines pass; the save after 20 years
+   fails, no game reaching it (50 of 50 bankrupt, mean 9.45 years; Rival folds 10.94 a game). The
+   result is recorded and does not block the release.*
 
 *Judgement calls, for the owner to see.*
 - *The economy release has no number:* `plan.md` puts it first in the short term, before `v1.2.2`; its
