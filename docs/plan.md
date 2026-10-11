@@ -65,7 +65,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.1.7` | 2026-10-07 | #58 | `25f8fa0` | DL-206 to DL-214 | [v1.1.7](./planning/archive/v1.1.7-release.md) |
 | `v1.1.8` | 2026-10-09 | #59 | `10f17aa` | DL-215 to DL-230 | [v1.1.8](./planning/archive/v1.1.8-release.md) |
 | `v1.1.9` | 2026-10-10 | #60 | `4fa8d0e` | DL-231 to DL-254 | [v1.1.9](./planning/archive/v1.1.9-release.md) |
-| `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, open with the owner (DL-278) |
+| `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, on Cloudflare's beacon (DL-278), allowed from `v1.2.1` (DL-279) |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -81,15 +81,15 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
 (#51) is spread across the releases that change what it tunes.
 
-- **Now: none open.** `v1.2.0` was released on 2026-10-11 (§2), untuned (DL-277): every DL-83 target
-  is reported against `v1.1.9`'s, and the targets, the unlock Levels, the Death factor and the
-  Rivals' Rosters are tuned in a later release (Alongside, below). Its live check failed on
-  Pages, on Cloudflare's Web Analytics beacon, and is with the owner (DL-278). The next release is
-  the first of the short term, `v1.2.1`, when the owner says.
+- **Now: `v1.2.1`, the live check on Pages** (DL-279), on `v1.2.1-dev`: the live check allows
+  Cloudflare's Web Analytics beacon on Pages alone, and the release carries `v1.2.0`'s record. No
+  epic, as `v1.1.1` had none: no play changes. `v1.2.0` was released on 2026-10-11 (§2), untuned
+  (DL-277): every DL-83 target is reported against `v1.1.9`'s, and the targets, the unlock Levels,
+  the Death factor and the Rivals' Rosters are tuned in a later release (Alongside, below).
 - **Short term: choices that cost something.**
-  1. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
+  1. `v1.2.2`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
      part 11 sets them, and #51's form factors. It takes in #41.
-  2. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
+  2. `v1.2.3`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
      income.
 - **Medium term: the management core,** in this order:
   - Contracts: #51's wage, and the harness's policy deciding renewals (#20).

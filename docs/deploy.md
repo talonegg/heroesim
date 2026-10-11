@@ -139,7 +139,8 @@ for when CI cannot run:
    Worker's part, the record of the attempt.
 4. **After each deploy:** `npm run e2e:live -w web` plays a game on both addresses, each in
    Chromium at a phone's width and a desktop's (four tests), saves it in IndexedDB, reloads and
-   loads it, and fails if the page asks anything of another origin (DL-75). With
+   loads it, and fails if the page asks anything of another origin (DL-75), but on Pages
+   Cloudflare's Web Analytics beacon, which Pages adds at the edge (DL-279). With
    `HEROESIM_LIVE_URL` set to one address it checks that address alone (two tests): for a Worker
    that wrangler reported at another address, checked there and then on pages.dev before the
    address here and in `web/scripts/deploy.mjs` is corrected.

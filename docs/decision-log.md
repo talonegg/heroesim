@@ -180,3 +180,46 @@ above.
 for Items); the model page is the Guild Management Design, `docs/management-design.md` (the glossary
 avoids Model for the World State); and item 20's area scores are a summary figure for each Stat area,
 named when the tile is designed.
+
+## DL-279 — v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner, answering on 2026-10-11 (b)
+on DL-278's failure and (a) on how the patch is cut; the test's shape by the agent, marked below
+
+**Context.** v1.2.0's live check failed on Pages (DL-278): with Web Analytics on, Pages adds
+Cloudflare's beacon at the edge, and the page then asks `static.cloudflareinsights.com` for its
+script and reports to `cloudflareinsights.com`. The test's rule that nothing leaves the page's
+origin (DL-75) cannot tell the beacon from the page's own requests. The owner chose (b), to let the
+test allow the beacon in a patch, over (a), turning Web Analytics off, and (c), leaving it recorded.
+
+**Decision.**
+
+1. **The patch is `v1.2.1`,** built on `v1.2.1-dev`, cut on this machine from `v1.2.0`'s record
+   (`cacc87a`) on the owner's answer (a). It carries that record, so no separate "Record (no
+   release)" pull request is raised. Like `v1.1.1`, it has no epic and no Gate: no play changes.
+2. **`leavesThePage(baseURL, url)`** in `web/scripts/deploy.mjs`, beside the addresses it reads,
+   decides for `web/e2e/deployed.live.ts` whether a request leaves the page. Any other origin does,
+   except the beacon's two origins, `https://static.cloudflareinsights.com` and
+   `https://cloudflareinsights.com`, when the page is on Pages, its production address or a
+   deployment's subdomain of it.
+3. **The Worker stays strict.** The beacon there, or any other origin on either address, still
+   fails the check.
+4. **`plan.md` §3 moves on.** The short term's releases are renumbered: Fatigue and the Captain is
+   `v1.2.2`, Rivals who compete `v1.2.3`. `docs/deploy.md` names the allowance.
+
+*Judgement calls, for the owner to see.*
+- The allowance is by exact origin, so `http:` and look-alike hosts are still refused. It is not
+  by path, so a change of the beacon's file name passes.
+- A Pages deployment's own address (`<id>.heroesims.pages.dev`) counts as Pages. It is what
+  `HEROESIM_LIVE_URL` may name.
+- The scheduled watch of 2026-10-10 had failed on Pages with 2-minute timeouts. This patch does not
+  address them; the run named below met none.
+
+**Consequences.** The live check proves the page's own requests stay at home on both addresses,
+and Pages may keep its analytics. Merging `v1.2.1` tags and deploys it, a page no player can tell
+from `v1.2.0`'s, and the live check runs again on both addresses. Dependabot's `target-branch` stays
+on `v1.2.0-dev` until the owner's word moves it.
+
+**Evidence.** The commit `v1.2.1 (DL-279)`. Its tests are in `web/src/deploy.test.ts`'s "the live
+check". `npm run e2e:live -w web` against the deployed `v1.2.0` passed all four projects, where CI's
+release run 38109053584 had failed both Pages projects.

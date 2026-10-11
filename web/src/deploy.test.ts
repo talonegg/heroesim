@@ -8,6 +8,7 @@ import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import {
   addresses,
   deploy,
+  leavesThePage,
   wranglerCommands,
   type DeployOptions,
   type Spawn,
@@ -219,6 +220,42 @@ describe('the live check', () => {
     const { default: config } = await import('../playwright.live.config');
 
     expect([config.testDir, config.testMatch]).toEqual(['./e2e', '**/*.live.ts']);
+  });
+
+  // Pages adds Cloudflare's Web Analytics beacon at the edge; the owner's answer (b) lets the
+  // live check allow it on Pages alone, the Worker kept strict (DL-279).
+  const beacon = 'https://static.cloudflareinsights.com/beacon.min.js';
+  const report = 'https://cloudflareinsights.com/cdn-cgi/rum';
+
+  test("counts every request to another origin as leaving the page, and none to the page's own", () => {
+    expect(leavesThePage(addresses.worker, `${addresses.worker}/assets/index.js`)).toBe(false);
+    expect(leavesThePage(addresses.pages, `${addresses.pages}/`)).toBe(false);
+    expect(leavesThePage(addresses.worker, `${addresses.pages}/`)).toBe(true);
+    expect(leavesThePage(addresses.worker, 'https://example.com/x.js')).toBe(true);
+    expect(leavesThePage(addresses.pages, 'https://example.com/x.js')).toBe(true);
+  });
+
+  test("allows Cloudflare's Web Analytics beacon and its report on Pages and its deployments, never on the Worker (DL-279)", () => {
+    for (const url of [beacon, report]) {
+      expect(leavesThePage(addresses.pages, url)).toBe(false);
+      expect(leavesThePage('https://ac36e981.heroesims.pages.dev', url)).toBe(false);
+      expect(leavesThePage(addresses.worker, url)).toBe(true);
+      expect(leavesThePage('https://heroesim.elsewhere.workers.dev', url)).toBe(true);
+    }
+  });
+
+  test("allows only the beacon's two origins, over https, and no look-alike", () => {
+    for (const url of [
+      'http://static.cloudflareinsights.com/beacon.min.js',
+      'https://cloudflareinsights.com.example.com/cdn-cgi/rum',
+      'https://evil-cloudflareinsights.com/cdn-cgi/rum',
+      'https://other.cloudflareinsights.com/x.js',
+      'https://heroesims.pages.dev.example.com/',
+    ]) {
+      expect(leavesThePage(addresses.pages, url)).toBe(true);
+    }
+    expect(leavesThePage('https://heroesims.pages.dev.example.com', beacon)).toBe(true);
+    expect(leavesThePage('https://notheroesims.pages.dev', beacon)).toBe(true);
   });
 });
 
