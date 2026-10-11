@@ -1023,6 +1023,7 @@ since S4 (DL-290), but a 2-year run cannot show a Bankruptcy in year 9.
 2. **`v1.2.1` is held unreleased** on `v1.2.1-dev` until an economy release, planned next (`plan.md`
    §3), restores the player's solvency, the Rivals' failed Quests, recruiting and folds, and games that
    reach 20 years so that the save is measured there.
+   *Superseded in part by DL-293 items 1 and 2, 2026-10-12: `v1.2.1` held unreleased until an economy release planned next; now it is released as is and the economy pass deferred. The record: [superseded/DL-292.md](decisions/archive/superseded/DL-292.md).*
 3. **The outcomes are kept for tracking** in
    [v1.2.1-outcomes.md](planning/epics/v1.2.1-outcomes.md) (`e45373a`): v1.2.1 at S10 and the trial
    beside the closing Gates of v1.2.0, v1.1.9 and v1.1.8. A later release adds its column; the file is
@@ -1059,3 +1060,27 @@ from the baseline's figures. The S11 reports stay untracked, the outcomes file t
 the epic's S11 and S12 Status lines, its Gate's note and §6's Q22; `plan.md` §3. The commits
 `v1.2.1-S11 (DL-292)` and `v1.2.1-S12 (DL-292)`, whose messages carry the checks' counts and the
 doctors' readings.
+
+## DL-293 — v1.2.1: the owner's word to release, as is; the economy pass deferred
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner
+
+**Context.** S1–S10 are built and verified; S11's tuning was skipped (Q22 c) and S12 closed, its
+full Gate run and recorded, not blocking (DL-292): seven of eight lines pass, the save after 20 years
+unmeasured, every game of the player's bankrupt before it. DL-292 held the release for an economy
+release next.
+
+**Decision.**
+
+1. **Release v1.2.1 as is** (the owner: "push local commits and release"), by DL-124: `v1.2.1-dev`
+   pushed, `v1.2-release` fast-forwarded to it and pushed, CI's pull request to `main` merged by the
+   owner. This supersedes in part DL-292's hold.
+2. **The economy pass deferred** (the owner: "defer economic pass"): it leaves `plan.md` §3's short
+   term for its Alongside list, its place decided as each release closes; `v1.2.2` is next.
+
+**Consequences.** The released game's Guilds go bankrupt within about ten years under the automatic
+policy; the page's players meet Fatigue and the Captain on an economy not yet tuned to them. The
+owner's playtest follows the economy pass. #51's form-factor item waits on the owner's word.
+
+**Evidence.** `harness/reports/v1.2.1-close-gate-2026-10-12` (fingerprint `027d238a…`); the
+outcomes, `docs/planning/epics/v1.2.1-outcomes.md`; `plan.md` §3.

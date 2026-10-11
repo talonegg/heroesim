@@ -301,7 +301,8 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-289 | 2026-10-12 | v1.2.1-S9 built: the page, the CLI and the words |  | [decision-log](../decision-log.md) |
 | DL-290 | 2026-10-12 | v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed |  | [decision-log](../decision-log.md) |
 | DL-291 | 2026-10-12 | v1.2.1-S12 (part): the release's commits reviewed to S10 |  | [decision-log](../decision-log.md) |
-| DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) |  | [decision-log](../decision-log.md) |
+| DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [decision-log](../decision-log.md) |
+| DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
