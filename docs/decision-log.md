@@ -905,17 +905,17 @@ Fatigue column needs its box scrolled.
 
 1. **The report's `## Fatigue and the Captain` section**, the player's Guild and the Rivals apart, from four counters declared in `game-counters.ts` (play kind, so `compare` lists them): `dispatchFatigue` and `restKept`, observed; `fatigueRecovery` and `hurtRelief`, read from the History. They draw nothing. Their definitions are in `harness/README.md`; tests derive each over a hand-built History or World State (`fatigue-counters.test.ts`, `sweep.test.ts`).
 2. **Sent tired or worse, mean Fatigue, Captain led:** each Party met in `advance`'s `after` world the Turn it set out: its `fatigueAtDispatch` by `fatigueBand`, and whether its Guild's Captain is among its Heroes.
-3. **Kept home:** once a Day, on the Turn before an afternoon (the world a morning's choice of the player and a Rival's afternoon both read), each Guild's free Heroes (`availableHeroes`) and those `partyPool` leaves out.
-4. **Days recovering:** from a Hero's homecoming, alive, in a band at or past the Guild's rest band (`restBandOf`), to the night a crossing takes them below it; likewise to fresh. A Hero sent first cuts it short. **Hurt relief:** each Injury on a Quest by a Healer of the Party not dead by that Encounter, by a heal Item spent there, both, or neither.
-5. **Proposed bands (proposed; awaiting the owner's approval), not in `gate.json`.** Measured in the quick run `v1.2.1-s10-quick` (4 games, 2 years); v1.2.0 had no Fatigue, Captain or relief, so 0 or none.
+3. **Kept home:** once a Day, in the world each Guild sends its Parties from, its free Heroes (`availableHeroes`) and those `partyPool` leaves out: the player's on a night's Turn, before the policy sends the Heroes the night brought home; a Rival's on a morning's, which its afternoon reads.
+4. **Days recovering:** from a Hero's homecoming, alive, in a band at or past the Guild's rest band (`restBandOf`), to the night a crossing takes them below it; likewise to fresh. A Hero sent first cuts it short. **Hurt relief:** each Injury on a Quest by a Healer of the Party not dead by that Encounter with an Encounter after it (the engine eases from the next on), by a heal Item spent there, both, or neither.
+5. **Proposed bands (proposed; awaiting the owner's approval), not in `gate.json`.** Measured in the quick run `v1.2.1-s10-quick` (4 games, 2 years), the kept-home and relief lines in `v1.2.1-s10v-quick` as the verification corrected them; v1.2.0 had no Fatigue, Captain or relief, so 0 or none.
 
 | Line | Now: player / Rivals | Proposed: player / Rivals | Reasoning |
 | --- | --- | --- | --- |
 | Quests sent with a Hero tired or worse | 0.0% / 47.1% | 0–5% / 25–45% | "I can't send her": the policy's rest band keeps the player's home (0 by construction); the Rivals who rest no one (`reckless`) or only the exhausted (`ambitious`) carry the rest |
-| Free Heroes a rest band kept home | 88.2% / 51.7% | 45–70% / 35–55% | the cost seen on most days, with fresh Heroes left to send; at 88% the player took a quarter fewer Quests than at v1.2.0 (1,733 against 2,322, all of v1.2.1 together) |
+| Free Heroes a rest band kept home | 59.3% / 51.7% | 45–70% / 35–55% | the cost seen on most days, with fresh Heroes left to send; the player took a quarter fewer Quests than at v1.2.0 (1,733 against 2,322, all of v1.2.1 together) |
 | Days recovering, below the rest band | 2.03 / 2.59 | 1.5–3.0 / 1.5–3.5 | "give him a chance": back within a Quest's length (4.5 Days away), not at once |
 | Quests a Captain led | 25.6% / 34.5% | 25–45% / 30–50% | about the share a random Hero goes (Party 2.05 of a Roster near 6); the Captain neither idled by Fatigue nor on every Quest |
-| Injuries relieved by a Healer or an Item | 57% (8 of 14) / 79% (119 of 150) | 50–85% both, read in the full gate | relief common enough to matter; the player's 14 are too few to read |
+| Injuries relieved by a Healer or an Item | 57% (8 of 14) / 75% (112 of 150) | 50–85% both, read in the full gate | relief common enough to matter; the player's 14 are too few to read |
 
 The mean Fatigue at dispatch, 43.5 and 56.9, has no band, and S11 reads it.
 
@@ -928,4 +928,4 @@ The mean Fatigue at dispatch, 43.5 and 56.9, has no band, and S11 reads it.
 
 **Consequences.** The report shows Fatigue's cost. The Rivals, against v1.2.0's quick run: failed Quests 8.2% to 22.0%, strong successes 55.5% to 31.9%, recruits 17 to 0, Wealth a Rival at the third year-start 22,011 to 6,940, a Rival folding once. They have recruited nothing since S4: Wealth stays under `recruitThreshold` Upkeeps. Config 30, content 45, schema 11 as before.
 
-**Evidence.** The commit `v1.2.1-S10 (DL-290)`; the report `v1.2.1-s10-quick` (not committed), fingerprint `290b6d18…`, the same as S8's `v1.2.1-s8-quick`: play is unchanged. S9 ran no quick run. The epic's S10 counters box.
+**Evidence.** The commit `v1.2.1-S10 (DL-290)`; the report `v1.2.1-s10-quick` (not committed), fingerprint `290b6d18…`, the same as S8's `v1.2.1-s8-quick`: play is unchanged. S9 ran no quick run. The epic's S10 counters box. Verified 2026-10-12 at 59de016: each counter re-derived against the engine and every mutation red; it found `restKept` reading the player's pool on the morning, after the policy had sent the Heroes the night brought home (88.2%, 59.3% sampled on the night's Turn it sends from), and a Healer counted for an Injury at the last Encounter, which the engine never eases, and fixed both test first, with tests of a hurt Healer and a Hero who died, the Fatigue section moved from under `gameCounters`' comment and `partyPool` reading `restBandOf`; `v1.2.1-s10v-quick`, the same fingerprint.

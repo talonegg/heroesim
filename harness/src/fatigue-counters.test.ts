@@ -156,10 +156,11 @@ describe('observeRestKept: the free Heroes a rest band keeps home', () => {
       if (guild.id === player.id || guild.id === rival.id) continue;
       for (const hero of heroesOf(document, guild)) hero.fatigue = 0;
     }
-    // Turn 3 is a morning, and the next Turn an afternoon.
-    document.world.turn = 3;
+    // Turn 2 is a night, the player's sample; Turn 3 a morning, before the Rivals' afternoon.
     const taken = { player: { guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 }, rival: { guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 } };
-
+    document.world.turn = 2;
+    observeRestKept(taken, document.world, deps);
+    document.world.turn = 3;
     observeRestKept(taken, document.world, deps);
 
     const guilds = Object.values(document.world.guilds);
@@ -171,24 +172,28 @@ describe('observeRestKept: the free Heroes a rest band keeps home', () => {
     expect(taken.rival.kept).toBe(1);
   });
 
-  test('a Hero away in a Party is not free; a night or a morning adds nothing', () => {
+  test('a Hero away in a Party is not free; the player is sampled only on a night, the Rivals only on a morning', () => {
     const { document, player } = fixture('fatigue-rest-away');
     const [away] = heroesOf(document, player);
     if (away === undefined) throw new Error('Roster too short');
     away.partyId = makeId('parties', 1);
     for (const hero of heroesOf(document, player)) hero.fatigue = 60;
     const taken = { player: { guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 }, rival: { guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 } };
+    const rivals = Object.values(document.world.guilds).filter((guild) => guild.controller.kind === 'rival').length;
 
-    document.world.turn = 3;
-    observeRestKept(taken, document.world, deps);
-    expect(taken.player).toEqual({ guildDays: 1, guildDaysKept: 1, free: 3, kept: 3 });
-
-    // Turns 4 and 5 are followed by a night and a morning.
-    document.world.turn = 4;
-    observeRestKept(taken, document.world, deps);
+    // The player's policy sends its Parties from the world a night leaves, as its Heroes come home and rest.
     document.world.turn = 5;
     observeRestKept(taken, document.world, deps);
+    expect(taken.player).toEqual({ guildDays: 1, guildDaysKept: 1, free: 3, kept: 3 });
+    expect(taken.rival.guildDays).toBe(0);
+
+    // A morning is the world a Rival's afternoon chooses from, after the player has sent its Parties; an afternoon adds nothing.
+    document.world.turn = 6;
+    observeRestKept(taken, document.world, deps);
+    document.world.turn = 7;
+    observeRestKept(taken, document.world, deps);
     expect(taken.player.guildDays).toBe(1);
+    expect(taken.rival.guildDays).toBe(rivals);
   });
 });
 
@@ -230,6 +235,23 @@ describe('recoveryCounters: the Days a Hero spends recovering at home', () => {
     expect(fatigueRecovery.player.toRest).toEqual({ spells: 2, done: 1, doneDays: 4, sent: 1, sentDays: 3, open: 0 });
     expect(fatigueRecovery.player.toFresh).toEqual({ spells: 3, done: 1, doneDays: 7, sent: 1, sentDays: 3, open: 1 });
     expect(fatigueRecovery.rival.toRest).toEqual({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, open: 0 });
+  });
+
+  test('a Hero who died on the Quest begins no recovery, though the night before left them as tired as the one who came home', () => {
+    const { document, player } = fixture('fatigue-recovery-dead');
+    const [a, b] = player.rosterIds;
+    if (a === undefined || b === undefined) throw new Error('Roster too short');
+    taken(document, 3, player, 1, [a, b]);
+    crossed(document, 9, a, 'fresh', 'tired');
+    crossed(document, 9, b, 'fresh', 'tired');
+    resolved(document, 11, player, 1, [a, b], [b]);
+    crossed(document, 17, a, 'tired', 'fresh');
+    document.world.turn = 20;
+
+    const { fatigueRecovery } = countGame(document, deps, undefined, undefined, only('fatigueRecovery'));
+
+    expect(fatigueRecovery.player.toRest).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, open: 0 });
+    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, open: 0 });
   });
 
   test("a Rival's rest band is its Disposition's, and a Guild with none begins no recovery to it", () => {
@@ -315,6 +337,42 @@ describe('reliefCounters: the hurt relieved at each Injury taken on a Quest', ()
 
     expect(hurtRelief.player).toEqual({ injuries: 4, healer: 1, item: 0, both: 1, neither: 2, atLast: 1 });
     expect(hurtRelief.rival).toEqual({ injuries: 2, healer: 0, item: 1, both: 0, neither: 1, atLast: 2 });
+  });
+
+  test('a hurt Healer is not relieved by themselves, only by another Healer of the Party', () => {
+    const { document, player } = fixture('relief-healer-hurt');
+    warriors(document, player);
+    const [a, b, c] = player.rosterIds;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('Roster too short');
+    (document.world.heroes[a] as Hero).classKey = 'healer';
+    (document.world.heroes[c] as Hero).classKey = 'healer';
+    // Quest 1: the Healer a hurt beside a Warrior (neither); Quest 2: a hurt beside the Healer c (a Healer).
+    taken(document, player, 1, [a, b]);
+    taken(document, player, 2, [a, c]);
+    encounter(document, player, 1, 0, [a]);
+    encounter(document, player, 1, 1, []);
+    encounter(document, player, 2, 0, [a]);
+    encounter(document, player, 2, 1, []);
+    injured(document, 6, player, a, 1);
+    injured(document, 12, player, a, 2);
+
+    expect(countGame(document, deps, undefined, undefined, only('hurtRelief')).hurtRelief.player).toEqual({ injuries: 2, healer: 1, item: 0, both: 0, neither: 1, atLast: 0 });
+  });
+
+  test("a Healer relieves nothing of an Injury at the Quest's last Encounter reached, as the engine eases the next one on; a heal Item spent there still counts", () => {
+    const { document, player } = fixture('relief-at-last');
+    warriors(document, player);
+    const [a, b, c] = player.rosterIds;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('Roster too short');
+    (document.world.heroes[c] as Hero).classKey = 'healer';
+    // Quest 1, of one Encounter: a and b hurt there, the Healer c beside them, an Item spent on b.
+    taken(document, player, 1, [a, b, c]);
+    encounter(document, player, 1, 0, [a, b]);
+    healed(document, player, b, 1, 0);
+    injured(document, 6, player, a, 1);
+    injured(document, 6, player, b, 1);
+
+    expect(countGame(document, deps, undefined, undefined, only('hurtRelief')).hurtRelief.player).toEqual({ injuries: 2, healer: 0, item: 1, both: 0, neither: 1, atLast: 2 });
   });
 
   test('counts an Injury no Encounter names as relieved by neither, as a hand-built History may give one', () => {

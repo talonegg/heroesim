@@ -2097,11 +2097,6 @@ const worlds: Declared<WorldSize[], WorldYear[]> = {
   },
 };
 
-/**
- * The core's counters (DL-239), in the play report's order, which is the totals' order: each section's
- * lines in it, and the Summary's rows. A counter shown in another's table (the Heroes table's, the
- * by-year table's) gives no lines of its own.
- */
 // ── Fatigue's lines (DL-290) ──────────────────────────────────────────────────────
 
 const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals['dispatchFatigue']> = {
@@ -2126,11 +2121,13 @@ const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals
     ];
     return [
       "Fatigue's lines (DL-290), the player's Guild and the Rivals apart. A Party is read as it set out: its Heroes' `fatigueAtDispatch` " +
-        "by `fatigueBand`, and whether its Guild's Captain is among them. The pool is sampled once a Day, on the Turn before an afternoon, " +
-        "which is the world the player's morning and the Rivals' afternoon choose from: the free Heroes (`availableHeroes`) and those " +
-        "`partyPool` leaves out. A recovery runs from a Hero's homecoming, alive, in a band at or past the one it ends below, to the night " +
+        "by `fatigueBand`, and whether its Guild's Captain is among them. The pool is sampled once a Day in the world each Guild sends " +
+        "its Parties from, the player's on a night's Turn, before the policy sends the Heroes the night brought home, and a Rival's on a morning's, " +
+        "which its afternoon reads: the free Heroes (`availableHeroes`) and those `partyPool` leaves out. " +
+        "A recovery runs from a Hero's homecoming, alive, in a band at or past the one it ends below, to the night " +
         'a crossing takes their Fatigue below it, or is cut short when they are sent again; its Days are counted from the return. ' +
-        'Relief is classed at each Injury taken on a Quest (a Healer of the Party who had not died by then; a heal Item spent on the Hero at that Encounter).',
+        'Relief is classed at each Injury taken on a Quest (a Healer of the Party who had not died by then, with an Encounter after it to ease; ' +
+        'a heal Item spent on the Hero at that Encounter).',
       '',
       markdownTable(
         ['Line', ...controllerKinds.map(kindLabel)],
@@ -2188,6 +2185,11 @@ const hurtRelief: Declared<GameCounters['hurtRelief'], SweepTotals['hurtRelief']
   zero: () => ({ player: noRelief(), rival: noRelief() }),
 };
 
+/**
+ * The core's counters (DL-239), in the play report's order, which is the totals' order: each section's
+ * lines in it, and the Summary's rows. A counter shown in another's table (the Heroes table's, the
+ * by-year table's) gives no lines of its own.
+ */
 export const gameCounters: readonly Counter[] = [
   games,
   questsTaken,

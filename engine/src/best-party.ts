@@ -201,15 +201,16 @@ export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild,
  */
 export function partyPool(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'controller' | 'rosterIds'>, deps: Pick<EngineDeps, 'config' | 'content'>): Hero[] {
   const available = availableHeroes(world, guild);
-  const restBand = guildSetting(guild, 'restBand', deps);
+  const restBand = restBandOf(guild, deps);
   if (restBand === null) return available;
   return available.filter((hero) => !atOrPast(fatigueBandNames, fatigueBand(hero.fatigue, deps.config), restBand));
 }
 
 /**
  * The Fatigue band at or past which `guild` keeps a free Hero home (`partyPool`): its Disposition's
- * `restBand`, or for a Guild with none `playerRestBand`; `null` keeps no one home (DL-286). Read by
- * the harness's Fatigue lines, which count the Days a Hero takes to clear it (DL-290).
+ * `restBand`, or for a Guild with none `playerRestBand`; `null` keeps no one home (DL-286). The pool
+ * and the harness's Fatigue lines, which count the Days a Hero takes to clear it, read it here, so the
+ * band the lines measure is the band the pool keeps (DL-290).
  */
 export function restBandOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 'config' | 'content'>): FatigueBand | null {
   return guildSetting(guild, 'restBand', deps);

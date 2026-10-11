@@ -113,9 +113,10 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
 - **Quests sent with a Hero tired or worse** (`dispatchFatigue`): the share of Parties sent in which any Hero's Fatigue, from the
   Party's `fatigueAtDispatch`, is in the `tired` band or the `exhausted`, read by `fatigueBand`. Parties are met in `advance`'s
   `after` world the Turn they set out; the mean Fatigue at dispatch is over the Heroes sent.
-- **Free Heroes a rest band kept home** (`restKept`): once a Day, on the Turn before an afternoon (the world the player's morning
-  and a Rival's afternoon both choose from), each Guild in play's free Heroes (`availableHeroes`) and the ones `partyPool` leaves
-  out; the share of free Heroes, and of Guild-Days with at least one kept.
+- **Free Heroes a rest band kept home** (`restKept`): once a Day, in the world each Guild in play sends its Parties from, its free
+  Heroes (`availableHeroes`) and the ones `partyPool` leaves out; the share of free Heroes, and of Guild-Days with at least one kept.
+  The player's is read on a night's Turn, before the policy sends the Heroes the night brought home and rested (a morning would
+  read its pool after that sending, the rested gone and the kept left); a Rival's on a morning's, which its afternoon reads.
 - **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken` and `quest.resolved`. A recovery begins when a
   Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or past fresh, and ends when a night takes them
   below it; it is cut short if they are sent again first. The mean is over the recoveries that ended, in whole Days from the
@@ -123,8 +124,9 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
   The mean to fresh is biased low by the cut-short ones, which a rest band below fresh makes most of them.
 - **Quests a Captain led** (`dispatchFatigue`): the share of Parties sent that included the Guild's Captain as the Turn left it.
 - **Hurt relief used** (`hurtRelief`): each `hero.injured` on a Quest, as relieved by a Healer of the Party (a Class content marks
-  `relievesHurt`) who had not died by the Encounter it was taken at, by a heal Item spent on the Hero at that Encounter, by both, or by
-  neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
+  `relievesHurt`, the hurt Hero not their own) who had not died by the Encounter it was taken at, with an Encounter after it, since
+  the engine eases the hurt from the next Encounter on; by a heal Item spent on the Hero at that Encounter, which shortens the Injury
+  even at the last; by both; or by neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
 
 ## The Gate
 

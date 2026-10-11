@@ -113,6 +113,7 @@ import {
   type RankingMeasure,
   type RegardBand,
   type RegardMap,
+  type TimeOfDay,
   type TransferOfferEndCause,
   type World,
   type WorldDocument,
@@ -2326,14 +2327,20 @@ export interface RestKept {
 
 export const noRestKept = (): RestKept => ({ guildDays: 0, guildDaysKept: 0, free: 0, kept: 0 });
 
+/** The Turn each kind of Guild's pool is sampled on, by its time of day (`observeRestKept`). */
+const restSampledOn: Record<ControllerKind, TimeOfDay> = { player: 'night', rival: 'morning' };
+
 /**
- * Samples into `taken`, once a Day, each Guild in play: on the Turn before an afternoon, which is the
- * world a morning's choice of the player and the afternoon's Rivals both read, a Guild's free Heroes
- * and the ones its rest band leaves out of its pool. Any other Turn adds nothing.
+ * Samples into `taken`, once a Day, each Guild in play in the world it sends its Parties from (DL-290):
+ * the player's on a night's Turn, as the policy chooses after the night has brought its Heroes home and
+ * rested them, before it sends them; a Rival's on a morning's, the world its afternoon reads. A morning
+ * would read the player's pool after the night's sending, the rested gone and the kept left. A Guild's
+ * free Heroes and the ones its rest band leaves out of its pool; any other Turn adds nothing.
  */
 export function observeRestKept(taken: Record<ControllerKind, RestKept>, world: World, deps: Pick<EngineDeps, 'config' | 'content'>): void {
-  if (timeOfDay(world.turn + 1) !== 'afternoon') return;
+  const now = timeOfDay(world.turn);
   for (const guild of guildsInPlay(world)) {
+    if (restSampledOn[guild.controller.kind] !== now) continue;
     const free = availableHeroes(world, guild).length;
     const kept = free - partyPool(world, guild, deps).length;
     const tally = taken[guild.controller.kind];
@@ -2470,10 +2477,12 @@ interface QuestHarm {
  * Each `hero.injured` of a Quest, by the controller of the Hero's Guild then, classed by the relief
  * of the hurt it brought (DL-285, DL-290): relieved by a Healer when another Hero of the Party, of a
  * Class content marks `relievesHurt` (`relievesHurt`), had not died by the end of the Encounter the
- * Injury was taken at, and by a heal Item when an `item.expended` heal names the Hero, the Quest and
- * that Encounter. The Encounter is the first `quest.encounter` of the Quest whose `injured` names the
- * Hero, not yet matched to an earlier Injury of theirs. The relief eases the hurt from the next
- * Encounter on, so an Injury at the Quest's last Encounter reached is counted too, and in `atLast`.
+ * Injury was taken at and an Encounter followed it, since the engine eases the hurt from the next
+ * Encounter on with the Healers then alive; and by a heal Item when an `item.expended` heal names the
+ * Hero, the Quest and that Encounter, which shortens the Injury whether or not one follows. The
+ * Encounter is the first `quest.encounter` of the Quest whose `injured` names the Hero, not yet
+ * matched to an earlier Injury of theirs. An Injury at the Quest's last Encounter reached is counted
+ * in `atLast` too.
  * An Injury off a Quest (`questId` null) is none of a Party's, and is left out.
  */
 export function reliefCounters(document: WorldDocument, deps: Pick<EngineDeps, 'content'>): Record<ControllerKind, ReliefTally> {
@@ -2516,6 +2525,7 @@ export function reliefCounters(document: WorldDocument, deps: Pick<EngineDeps, '
     const byHealer =
       quest !== undefined &&
       at !== undefined &&
+      at < quest.last &&
       party.some((other) => other !== heroId && isHealer(other) && (quest.died.get(other) ?? Number.POSITIVE_INFINITY) > at);
     const byItem = at !== undefined && healed.has(`${questId}|${heroId}|${at}`);
     const tally = counts[guildOf(document, entry, `${index}`).controller.kind];
