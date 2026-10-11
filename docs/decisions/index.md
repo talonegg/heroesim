@@ -297,6 +297,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-285 | 2026-10-11 | v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the … |  | [decision-log](../decision-log.md) |
 | DL-286 | 2026-10-11 | v1.2.1-S6 built: rest bands and the Party's pool |  | [decision-log](../decision-log.md) |
 | DL-287 | 2026-10-11 | v1.2.1-S7 built: the Captain |  | [decision-log](../decision-log.md) |
+| DL-288 | 2026-10-12 | v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

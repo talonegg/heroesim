@@ -101,6 +101,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   rivalRosterMin: { refused: [-1, 0.5], allowed: [0, defaultConfig.rivalRosterMax] },
   rivalRosterMax: maxOf('rivalRosterMin', 'rivalRosterMax'),
   rivalHireReserveUpkeeps: finiteFrom(0),
+  rivalHealItemStock: wholeFrom(0),
   rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, defaultConfig.rivalStartingWealthMax] },
   rivalStartingWealthMax: maxOf('rivalStartingWealthMin', 'rivalStartingWealthMax'),
   patronCount: wholeFrom(1),

@@ -848,10 +848,10 @@ export function withCaptaincy(content: ContentSet = testContent, statKey = 'lead
 }
 
 /**
- * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
- * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
- * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
- * did; `gearThreshold` from DL-58).
+ * Rivals who never recruit, build or buy gear or heal Items, whatever their Wealth, but still equip and
+ * take Quests as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth
+ * and must not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of
+ * 1,000,000 once did; `gearThreshold` from DL-58, the heal Items' budget too from DL-288).
  */
 export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 } as const;
 

@@ -91,8 +91,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
 
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a Controller. The player controls
   theirs; each Rival is controlled by one of four Dispositions (`content/dispositions.json`), whose
-  weights and thresholds decide the Quests it takes, whom it recruits, what it builds and buys, how
-  it bids for Heroes, its Party margin and its rest band (DL-56, DL-286).
+  weights and thresholds decide the Quests it takes, whom it recruits, what it builds and buys, the
+  heal Items it buys and carries, how it bids for Heroes, its Party margin and its rest band (DL-56,
+  DL-286, DL-288).
 - R8. The Guildmaster has Attributes (name, sex and age), three Descriptive Attributes no rule
   reads (Birthplace, Appearance and Biography), a Portrait, five Stats and Traits that buff or
   penalise the Guild or a Class (DL-88, DL-100). The Stats bear on the Guild alone: Negotiation

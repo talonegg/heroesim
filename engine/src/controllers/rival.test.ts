@@ -4,14 +4,15 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, facilityKeys, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { addStack, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withCaptaincy, withDispositions, withValid } from '../world.test-support.js';
+import type { TurnEvent } from '../events.js';
+import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withCaptaincy, withDispositions, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction, applyGuildAction, type GuildAction } from '../actions/action.js';
 import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
 import { rivalChoices, staffableQuests } from './rival.js';
@@ -1289,5 +1290,161 @@ describe('buying gear at the Market', () => {
 
     expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'buy']);
     expect(world).toEqual(expected);
+  });
+});
+
+// ── Heal Items: bought in the gear step after any wearable, carried on dispatch (DL-288) ──────
+
+describe('heal Items: a Rival buys them in its gear step and carries them on dispatch', () => {
+  /** No hiring, no building and no Transfer, so that the gear step is the afternoon's purchase. */
+  const healing = (gearThreshold: number, config: Partial<EngineDeps['config']> = {}, content: ContentSet = testContent): EngineDeps =>
+    testDeps(
+      { negotiationRange: 0, ...config },
+      withDispositions({ gearThreshold, buildThreshold: 1_000_000, recruitThreshold: 1_000_000, transferAppetite: 0 }, content),
+    );
+  /** A `disposition` Rival, rich, with the Market holding `stacks` alone. */
+  function stocked(seed: string, deps: EngineDeps, stacks: readonly (readonly [string, number])[], disposition: DispositionKey = 'steady'): Scene {
+    const found = scene(seed, deps, disposition);
+    found.rival.wealth = 100_000;
+    stockMarket(found.world, stacks);
+    return found;
+  }
+  const buysOf = (world: World, guild: Guild, deps: EngineDeps): string[] =>
+    rivalChoices(world, guild, deps).flatMap((action) => (action.kind === 'buy' ? [`${action.definitionKey}×${action.quantity}`] : []));
+  const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
+
+  test("each Disposition buys them only while its Wealth is above its row's gearThreshold times their cost: rivalHealItemStock of each, the draught first", () => {
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ buildThreshold: 1_000_000, recruitThreshold: 1_000_000, transferAppetite: 0 }));
+    const stock = deps.config.rivalHealItemStock;
+    expect(stock).toBeGreaterThan(0);
+    for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady'] as const) {
+      const { world, rival } = stocked(`heal-means-${disposition}`, deps, [['healing-draught', 5], ['physicians-kit', 5]], disposition);
+      const { gearThreshold } = rowOf(rival, deps);
+      const bought = () => buysOf(world, rival, deps);
+
+      rival.wealth = gearThreshold * 30 * stock;
+      expect(bought(), disposition).toEqual([]);
+      rival.wealth = gearThreshold * 30 * stock + 1;
+      expect(bought(), disposition).toEqual([`healing-draught×${stock}`]);
+      addStack(world, 'healing-draught', stock, vaultOf(rival));
+      rival.wealth = gearThreshold * 70 * stock;
+      expect(bought(), disposition).toEqual([]);
+      rival.wealth = gearThreshold * 70 * stock + 1;
+      expect(bought(), disposition).toEqual([`physicians-kit×${stock}`]);
+      addStack(world, 'physicians-kit', stock, vaultOf(rival));
+      expect(bought(), disposition).toEqual([]);
+    }
+  });
+
+  test('keeps rivalHealItemStock of each, counting what its Parties carry; 0 keeps none', () => {
+    const { world, rival } = stocked('heal-stock', healing(3), [['healing-draught', 5]]);
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 3 }))).toEqual(['healing-draught×3']);
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 0 }))).toEqual([]);
+    const [heroId] = rival.rosterIds as [HeroId];
+    const partyId = makeId('parties', 99);
+    world.parties[partyId] = { id: partyId, questId: makeId('quests', 99), guildId: rival.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
+    addStack(world, 'healing-draught', 2, { kind: 'party', id: partyId });
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 3 }))).toEqual(['healing-draught×1']);
+  });
+
+  test('buys no consumable but a heal Item', () => {
+    const { world, rival } = stocked('heal-only', healing(3), [['whetstone', 5], ['grappling-line', 5], ['lockpicks', 5], ['blessed-candle', 5]]);
+    expect(buysOf(world, rival, healing(3))).toEqual([]);
+  });
+
+  test('follows a wearable: the gear step buys a piece while a Hero lacks one it can afford, then heal Items', () => {
+    const deps = healing(3);
+    const { world, rival } = stocked('heal-after-gear', deps, [['padded-jack', 20], ['healing-draught', 5]]);
+    const heroes = rival.rosterIds.length;
+    const bought: string[] = [];
+    for (let afternoon = 0; afternoon < heroes + 3; afternoon += 1) {
+      const [buy] = rivalChoices(world, rival, deps).filter((action) => action.kind === 'buy');
+      if (buy === undefined) break;
+      expect(applyGuildAction(world, buy, deps)).toMatchObject({ ok: true });
+      bought.push(`${buy.definitionKey}×${buy.quantity}`);
+    }
+    expect(bought).toEqual([...Array<string>(heroes).fill('padded-jack×1'), `healing-draught×${deps.config.rivalHealItemStock}`]);
+  });
+
+  test('one purchase an afternoon: a heal purchase takes the place of the recruit after it, which waits until it is stocked', () => {
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ buildThreshold: 1_000_000, gearThreshold: 3, recruitThreshold: 1, transferAppetite: 0 }));
+    const { world, rival } = stocked('heal-then-recruit', deps, [['healing-draught', 5]]);
+    const purchase = () =>
+      rivalChoices(world, rival, deps)
+        .filter((action) => !['dispatch', 'equip', 'nameCaptain'].includes(action.kind))
+        .map((action) => action.kind);
+
+    expect(purchase()).toEqual(['buy']);
+    addStack(world, 'healing-draught', deps.config.rivalHealItemStock, vaultOf(rival));
+    expect(purchase()).toEqual(['recruit']);
+  });
+
+  test('carries one of each heal Item it holds on its dispatch, and nothing else it holds', () => {
+    const deps = healing(1_000_000);
+    const { world, rival } = scene('heal-carry', deps);
+    openBoard(world, [10, 20, 30]);
+    expect(dispatchOf(world, rival, deps)).not.toHaveProperty('consumables');
+
+    addStack(world, 'whetstone', 3, vaultOf(rival));
+    addStack(world, 'physicians-kit', 1, vaultOf(rival));
+    addStack(world, 'healing-draught', 2, vaultOf(rival));
+    const dispatch = dispatchOf(world, rival, deps) as DispatchAction;
+    expect(dispatch.consumables).toEqual([
+      { definitionKey: 'healing-draught', quantity: 1 },
+      { definitionKey: 'physicians-kit', quantity: 1 },
+    ]);
+    expect(dispatchRefusal(world, dispatch, deps)).toBeNull();
+  });
+
+  test('changes nothing in the world but the rivals stream when it buys and carries them, which only its dispatch draws from', () => {
+    const deps = healing(3);
+    const { world, rival } = stocked('heal-pure', deps, [['healing-draught', 5]]);
+    addStack(world, 'physicians-kit', 1, vaultOf(rival));
+    const expected = frozenButRivals(world);
+
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices.map((action) => action.kind)).toEqual(['dispatch', 'buy']);
+    expect(choices[0]).toHaveProperty('consumables', [{ definitionKey: 'physicians-kit', quantity: 1 }]);
+    expect(world).toEqual(expected);
+  });
+
+  test("played: the heal Items its Party carries are spent at its Heroes' Injuries, and what is left comes home", () => {
+    // Every Encounter, passed or failed, injures one Hero, and none dies: a Party meets an Injury on its first.
+    const injury = { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 } as const;
+    const deps = healing(1_000_000, { rivalCount: 1 }, withEncounters({ success: [injury], failure: [injury] }));
+    let document = createWorld('heal-spent', setup, deps).document;
+    const rival = rivalsOf(document.world)[0] as Guild;
+    addStack(document.world, 'healing-draught', 2, vaultOf(rival));
+    addStack(document.world, 'physicians-kit', 1, vaultOf(rival));
+
+    const events: TurnEvent[] = [];
+    const payloadOf = (event: TurnEvent | undefined) => (event?.payload ?? {}) as Record<string, unknown>;
+    const ofRival = (type: string) => events.filter((event) => event.type === type && payloadOf(event)['guildId'] === rival.id);
+    const firstQuest = () => payloadOf(ofRival('quest.taken')[0])['questId'];
+    const home = () => ofRival('quest.resolved').some((event) => payloadOf(event)['questId'] === firstQuest());
+    for (let turn = 0; turn < 300 && !home(); turn += 1) {
+      const result = advance(document, deps);
+      document = withValid(result.document, deps);
+      events.push(...result.events);
+    }
+    expect(home()).toBe(true);
+
+    expect(payloadOf(ofRival('quest.taken')[0])['consumables']).toEqual([
+      { definitionKey: 'healing-draught', quantity: 1 },
+      { definitionKey: 'physicians-kit', quantity: 1 },
+    ]);
+    const spent = ofRival('item.expended').map((event) => payloadOf(event) as { questId: string; effect: string; definitionKey: string; heroId: HeroId });
+    // Its first Party's first Injury took the kit, healing most Days (DL-285); every use a heal, at an
+    // Injury of one of the Rival's own Heroes.
+    expect(spent.find((use) => use.questId === firstQuest())).toMatchObject({ effect: 'heal', definitionKey: 'physicians-kit' });
+    for (const use of spent) expect(use.effect).toBe('heal');
+    for (const use of spent) expect(document.world.guilds[rival.id]?.rosterIds).toContain(use.heroId);
+    // What was not spent is the Guild's still, at home or carried by a Party away.
+    const parties = Object.values(document.world.parties).filter((party) => party.guildId === rival.id);
+    const holders = [vaultOf(rival), ...parties.map((party) => ({ kind: 'party', id: party.id }) as const)];
+    const left = (key: string) =>
+      holders.flatMap((holder) => holdings(document.world, holder).stacks).reduce((sum, stack) => sum + (stack.definitionKey === key ? stack.quantity : 0), 0);
+    expect(left('healing-draught')).toBe(2 - spent.filter((use) => use.definitionKey === 'healing-draught').length);
+    expect(left('physicians-kit')).toBe(0);
   });
 });

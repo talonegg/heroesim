@@ -52,6 +52,13 @@ export interface GameConfig {
    * choice of a Disposition that hires above its threshold.
    */
   rivalHireReserveUpkeeps: number;
+  /**
+   * The heal Items of each definition a Rival keeps, at home and carried by its Parties together,
+   * buying toward it in its gear step, after any wearable, by its Disposition's `gearThreshold`, and
+   * carrying one of each it holds on each dispatch (DL-280 item 7, Q16 b; DL-288): the harness's
+   * policy's stock of each consumable. 0 keeps none.
+   */
+  rivalHealItemStock: number;
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;

@@ -338,6 +338,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   rivalRosterMin: whole({ min: 0 }),
   rivalRosterMax: drawnMax('rivalRosterMin'),
   rivalHireReserveUpkeeps: finite({ min: 0 }),
+  rivalHealItemStock: whole({ min: 0 }),
   rivalStartingWealthMin: whole({ min: 0 }),
   rivalStartingWealthMax: drawnMax('rivalStartingWealthMin'),
   patronCount: whole({ min: 1 }),

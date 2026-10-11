@@ -1085,11 +1085,12 @@ describe('the Quest named on what its return causes', () => {
     // and 6378c240…); and the owner's Morale values, the baseline 50, the bands' starts 0, 11, 35, 66
     // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…); and
     // the rest bands, every Guild choosing its Parties from its pool (DL-286; d675f275…, a1ad6174… and
-    // 3796609d…).
+    // 3796609d…); and the Rivals' heal Items, bought in the gear step and carried (DL-288; 95fad3af…,
+    // ab51c1f9… and d7713b5c…, which `rivalHealItemStock` 0 gives again).
     expect(fingerprints).toEqual([
-      '95fad3afe4a160108d27223effbac5d86efd37c07b0f8f1a85d42acf0ac570dd',
-      'ab51c1f920821fb01c5145d7c1e30009d1f004e840ff50a854e05104d96e9635',
-      'd7713b5c3550d764b86d8a2b412f1fbb29fa59d58a6286b8af2fd0987b1193e7',
+      'fbab43fa5add419d813f2587dc39fecc358a2beceeb8b41a41915b55c94191c0',
+      'bea70df3352d6200ea5b54a24f62d82f8a982a5af5b685484d0691b07d01c392',
+      '036f603172c38bb26d0210d0ee4b05afc8acfd6721f87c1bde133511b7d44424',
     ]);
   });
 

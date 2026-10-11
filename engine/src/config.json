@@ -1,5 +1,5 @@
 {
-  "version": 29,
+  "version": 30,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -29,7 +29,8 @@
     "26 from the owner's Morale values (DL-280 item 3, DL-283 item 4; Q18): moraleBaseline 60 to 50, moraleBands {\"wretched\":0,\"low\":20,\"steady\":40,\"high\":75,\"elated\":90} to {\"wretched\":0,\"low\":11,\"steady\":35,\"high\":66,\"elated\":90}, moraleOnRosterDeath -10 to -20.",
     "27 from v1.2.1-S5, which adds `healerHurtRelief`, 0.5, the share of a hurt Hero's gap a Healer in the Party relieves, and `healItemHurtRelief`, 0.5, the share a heal Item spent at their Injury relieves for the rest of the Quest, the two multiplying on the gap (DL-280 item 4, DL-285).",
     "28 from v1.2.1-S6, which adds `playerRestBand`, tired, the Fatigue band at or past which the player's Best Party and the automatic policy leave a free Hero home, as a Disposition's `restBand` does a Rival's (DL-280 item 5, DL-286).",
-    "29 from v1.2.1-S7, which adds the Captain's settings, each effect scaled by the Captain's captaincy Stat: `captainFormFactor` 1.05, `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5, `captainChangeMoraleCost` -10 and `captainChangeLockDays` 30 (DL-280 item 6, Q12 a; DL-287)."
+    "29 from v1.2.1-S7, which adds the Captain's settings, each effect scaled by the Captain's captaincy Stat: `captainFormFactor` 1.05, `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5, `captainChangeMoraleCost` -10 and `captainChangeLockDays` 30 (DL-280 item 6, Q12 a; DL-287).",
+    "30 from v1.2.1-S8, which adds `rivalHealItemStock`, 2, the heal Items of each definition a Rival keeps, at home and carried together, bought in its gear step after any wearable by its Disposition's `gearThreshold` and carried one of each on each dispatch (DL-280 item 7, Q16 b; DL-288)."
   ],
   "sections": {
     "world": {
@@ -40,6 +41,7 @@
       "rivalRosterMin": 4,
       "rivalRosterMax": 8,
       "rivalHireReserveUpkeeps": 3,
+      "rivalHealItemStock": 2,
       "rivalStartingWealthMin": 300,
       "rivalStartingWealthMax": 700,
       "patronCount": 12,

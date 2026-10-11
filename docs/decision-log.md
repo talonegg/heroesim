@@ -759,3 +759,62 @@ Stats) and five on the night's lift, which reached a stale case: a Captain heale
 whose Trait moves their captaincy Stat drifted by the lift from before; fixed test first (the lift
 forgotten as the Captain's night begins), the estimate made to hold the lift as the Party sets out,
 the same whatever its pool, and a Rival's Captain bought away shown replaced.
+
+## DL-288 — v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 7 (Q16 b) has the Rivals buy and carry heal Items, the consumables part of
+#25. What to buy and carry was the harness's policy's alone (`consumablesFor`, `consumablePurchase`,
+DL-62); a Rival bought wearables and carried nothing, so the heal Item spent at the Injury (DL-285)
+reached the player's Parties only. The architecture review's candidate 4 lifts both into the engine.
+
+**Decision.**
+
+1. **The choices in the engine,** `consumable-choices.ts` beside `gear.ts`, each reading and drawing
+   nothing: `consumablesToCarry(world, guild, effects, deps)` gives each Party sent one of each
+   consumable of `effects` the Guild holds that could serve its Quest, in key order, taking it from
+   what is left; `consumablePurchase(world, guild, keeping, deps)` buys toward `stock` of each,
+   counting the holding and the Guild's Parties, the one it has fewest of, the lowest key among
+   equals, as many as it lacks and the Market has, while Wealth is above `wealthMultiple` times the
+   cost and covers it, and above `reserveUpkeeps` Upkeeps once paid where one is given.
+2. **The policy unchanged:** the harness's two functions are gone; the policy passes every effect and
+   its own `consumableStock`, `buyWealthMultiple` and `consumableReserveUpkeeps`. The move alone, the
+   Rivals as they were, played `v1.2.1-s7-verify-quick`'s fingerprint `89c4c91f…` exactly.
+3. **A Rival buys heal Items in its gear step,** when `gearPurchase` names no wearable:
+   `consumablePurchase` for `heal` alone, by its Disposition's `gearThreshold` as gear is bought (Wealth
+   above that many times the cost, and covering it), no reserve. No new `purchaseSteps` member.
+4. **How many:** `rivalHealItemStock`, 2 of each heal definition, at home and carried together (the
+   policy's stock), a setting by hand in the `world` section beside the Rivals' others, whole and at
+   least 0, 0 keeping none; the config version 30.
+5. **A Rival carries** one of each heal Item it holds on its dispatch, its Best Party chosen carrying
+   nothing as the policy's is; the kit spends them at its Heroes' Injuries (DL-285).
+6. **Draws:** neither choice draws from any stream. The Rival's own, `rivals` (ADR-0009), moves only
+   because an afternoon that buys heal Items does not reach the `transfer` step and its draw.
+7. **The words:** R7.
+
+*Judgement calls, for the owner to see.*
+- *One setting, not a Disposition field:* every Rival keeps the policy's 2; a Disposition's character
+  is in its `gearThreshold`, which prices them as it prices gear.
+- *It follows a wearable,* not competing with one: armour first keeps Heroes alive (DL-58), and the gear
+  step stays one purchase. A Rival makes one purchase an afternoon (`rivalChoices`), so an afternoon
+  that buys heal Items tries no Transfer, recruit or debt Transfer after it (`purchaseSteps`' order);
+  it comes again only as Items are spent.
+- *No reserve:* a Rival's heal budget is gear's, as the story says, not the policy's 20 Upkeeps.
+- *Heal Items alone,* bought and carried: a bonus or a reroll a Rival holds from Loot stays home.
+- *Beside `gear.ts`, not in it:* a consumable is no Gear (`CONTEXT.md`), and `gear.ts` reading
+  `upkeep` would close an import cycle through `selectors.ts`.
+
+**Consequences.** In a quick run (4 × 2 years) against `v1.2.1-s7-verify-quick`: the Rivals carry
+1.41 consumables a Quest (none before) and spend 103 heal Items (93 kits, 10 draughts); their Market
+purchases 309 to 462 and the Items' cost 17,860 to 28,415, about 330 a Guild-year of the 16,400 they
+spend; their Heroes injured 188 to 150, failed Quests 22.6% to 22.0%; their Wealth a Guild at the
+second year's start 6,343 to 6,940; still no recruit, since their Wealth stays far below
+`recruitThreshold` times their Upkeep, heal Items or none (the S6 finding, untuned Fatigue's). One
+Bankruptcy fold, as before. The player's counters move through the Board and the Market they share.
+The History fingerprints in `quests-conclude.test.ts` are re-recorded; `rivalHealItemStock` 0 gives
+the old ones. Every save records the config version 30.
+
+**Evidence.** The commit `v1.2.1-S8 (DL-288)`; the epic's S8 boxes. The checks' counts, the doctors'
+readings, the quick runs' fingerprints and the twenty-year boxes' result are in the commit message;
+the reports `v1.2.1-s8-move-quick` and `v1.2.1-s8-quick` are not committed.

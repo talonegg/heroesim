@@ -158,6 +158,7 @@ export {
   type ClassIcon,
   type ClassKey,
   type Consequence,
+  type ConsumableEffectKind,
   type ContentSet,
   type Degree,
   type Encounter,
@@ -187,6 +188,7 @@ export {
 } from './controllers/rival.js';
 export { captainChoice, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
+export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export * from './create.js';
 export {
   describeGuildmaster,
