@@ -436,6 +436,7 @@ DL-154, DL-168 item 9), with the owner's Morale values: `moraleBaseline` 50, the
    Guild. `formOf` is it, times `hurtCheckFactor` once hurt; `queryParty`, so the resolver, the
    estimate and the Party builder, reads it there and nowhere else. The Morale bands' rule keeps the
    scale it divides by wider than 0.
+   *Superseded in part by DL-284 items 1 and 2, 2026-10-11: `formOf`, Morale's factor times `hurtCheckFactor` once hurt; now `formedStats`, Morale's factor on every Stat times Fatigue's and the hurt's by area. The record: [superseded/DL-283.md](decisions/archive/superseded/DL-283.md).*
 2. **`moraleCheckFactor` removed** from `GameConfig`, `config.json`, `configRules` and the tests, by
    hand as `config.md` says for a setting removed; the config version 23 with its changelog line.
 3. **The Party builder's line** keeps its meaning: "lowers a little" down to the line's value at the
@@ -482,3 +483,64 @@ the rule change without weakening, and all 21 mutations of the line, the hurt, `
 thresholds and the bands' guard go red; DL-154 items 5 and 7 (the factors' rule, the builder's
 thresholds) gained their supersession notes and records, and a stale test comment and two lines'
 wrapping were fixed.
+
+## DL-284 — v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 items 2 and 4 make Fatigue and the hurt act by Stat area, with no floor (Q13,
+Q14 c, Q15), and Fatigue raise a Hero's Injury and Death chances (Q13 a). Form was one number a Hero
+carried into a Check (DL-283); the architecture review's candidate 1 puts each member's formed Stats
+in one module, read where `queryParty` builds the member, from the Quest clock's Fatigue (DL-282).
+
+**Decision.**
+
+1. **The form module**, `quest-engine/form.ts`: `formedStats(stats, { morale, fatigue, hurt }, deps)`
+   is each Stat times Morale's factor, Fatigue's by its area (1 − FS·f ÷ `fatigueMax` on the Physical
+   and Magical, half that on the Mental and Social) and the hurt's by its area (`hurtCheckFactor` on
+   the Physical, 1 − (1 − it) ÷ 2 on the rest), multiplied; the area is content's. `fatigueHarm(f)`
+   gives the Injury's 1 + FS·f ÷ `fatigueMax` and the Death's 1 + (FS ÷ 2)·f ÷ `fatigueMax`.
+2. **The member.** `queryParty` gives each `formed` beside `stats`, and `fatigue`, the Day's from
+   `OnQuest.fatigueByHero`, else the stored. `statOf` reads `formed` with form; the scalar `form`,
+   `formOf` and the operators' multiplication are gone. `atFatigue` reads a member at another Day's.
+3. **The resolver** gives each Encounter its Day's Fatigue from the clock and `fatigueAtDispatch`.
+   `strike` takes the chosen Hero's chance: an Injury's times Fatigue's, held at 1; a Death's times
+   the Death scale and Fatigue's, held at 1 once, both before the guard. `formDecided` compares the
+   formed roll with the raw Stats' roll.
+4. **The estimate** takes one Party a distinct Day, each Hero at the clock's Fatigue from the
+   proposed Heroes' own (not the brought-home copies'); members kept by return night, Hero and
+   Fatigue; a Day's Party meets its `base`'s Synergies, which read no formed Stat.
+5. **Config:** `fatigueScaling` 0.4, a share (`checkConfig`), by hand; the config version 24. Then
+   `hurtCheckFactor` 0.6, the owner's, through `config set` and `config finish`, every test passing
+   at it; the config version 25.
+6. **The guards** (`check.test.ts`): `query.ts` imports as values `effectiveStats`, `ageOf`,
+   `formedStats` and `workingMorale`; `form.ts` imports only types, the config's, content's and the
+   document's.
+7. **The estimate probe** counts the Heroes whose Morale moved (`moraleMoved`), any Morale moving
+   form; each Hero sets out at a Fatigue drawn from a stream of its own, the rest of a sample as it was.
+8. **Superseded in part:** DL-148 item 10 and DL-154 items 1 and 2 (the hurt one factor; form one
+   number), DL-168 item 9 (`hurtCheckFactor` 0.93, provisional) and DL-283 item 1 (`formOf`), with
+   their notes and records.
+
+*Judgement calls, for the owner to see.*
+- *The scale.* f is read over `fatigueMax`, the owner's f ÷ 100 at the default scale of 100.
+- *An Injury's chance* is held at 1 too, before the guard, as a Death's is.
+- *The Party builder's line* reads each Hero's form as one figure, `formFigure`: Morale's factor
+  times the mean over content's Hero Stats of Fatigue's and the hurt's, so a tired Party's line
+  lowers; rested and unhurt, Morale's factor exactly, as before.
+- *A Stat content does not define* takes Morale's factor alone.
+- *Tests not about Fatigue* set `fatigueScaling` 0 through their config (the resolver's and the
+  consumables' scenes, the estimate's reroll and drift tests, the Best Party margin test), so they
+  hold what they held; the 120-Day History fingerprints are re-recorded, the old in their comment.
+- *The Synergies of a Day's Party* are its base's, worked out once.
+
+**Consequences.** A Hero brings less to each Encounter as a Quest's Days pass, and is hurt and
+killed more often. Before S11 tunes Fatigue, play moves a long way: in a quick run (4 × 2 years)
+against 4040242's, the player's failed Quests rise from 1.7% to 9.2% and strong successes fall from
+78.9% to 55.5%; the Rivals' from 5.8% to 26.2% and from 62.9% to 26.0%, their Injuries fivefold,
+and, poorer, they recruit no one. A Turn's mean `advance` 1.63 to 1.67 ms. Every save records the
+config version 25 and `fatigueScaling`.
+
+**Evidence.** The commit `v1.2.1-S4 (DL-284)`; the epic's S4 boxes. The checks' counts, the
+doctors' readings, the quick runs and `compare`, the estimate probe's two lines and the mutations
+are in the commit message; the reports are not committed.

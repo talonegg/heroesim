@@ -6,36 +6,40 @@
 // functions, exported here, walk; this file takes the Party they read.
 //
 // Each Hero's effective Stats are read once, through `effectiveStats`, when the Party is taken for
-// an Encounter, with their Morale on the Quest, their age, whether they are hurt and their form
-// (v1.1.4-S3, form.ts). It reads only the Party's own Heroes and their state on the Quest: never the
-// Guild's leader nor the Guild's dealings (M4's third risk; the Check's test reads this file to hold
-// it so), nor Regard between particular Heroes (DL-148 item 5).
+// an Encounter, with their Morale on the Quest, their Fatigue on the Encounter's Day, their age,
+// whether they are hurt, and their formed Stats, which the form module works out from those (form.ts,
+// DL-284). It is the one place a member is built: the resolver, the estimate and the Party builder
+// all take the Party here. It reads only the Party's own Heroes and their state on the Quest: never
+// the Guild's leader nor the Guild's dealings (M4's third risk; the Check's test reads this file to
+// hold it so), nor Regard between particular Heroes (DL-148 item 5).
 
 import type { EngineDeps } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import type { Hero, HeroId, StatValues, World } from '../document.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
-import { formOf, workingMorale } from './form.js';
+import { formedStats, workingMorale } from './form.js';
 
 export { evaluate, heroOf, holds, is, membersOf, valueOf } from './query/operators.js';
 
 /** One member of the Party as a Query reads them on an Encounter. */
 export interface QueryMember {
   hero: Hero;
-  /** Their effective Stats (`effectiveStats`), read once when the Party is taken. */
+  /** Their effective Stats (`effectiveStats`), read once when the Party is taken: what every read but a Check's score reads. */
   stats: StatValues;
+  /** Their formed Stats on the Encounter (`formedStats`, DL-284): what a Check's score reads of each Stat they add into it. */
+  formed: StatValues;
   /** Their Morale on the Quest (`workingMorale`): what `["morale"]` reads, and what Morale's factor in their form reads. */
   morale: number;
+  /** Their Fatigue on the Encounter's Day (the Quest clock, clock.ts): what Fatigue's factors in their form and on their harm read. */
+  fatigue: number;
   /** Their age in whole years at the Turn the Party is taken (`ageOf`). */
   age: number;
   /** Whether they are hurt on this Quest: what `["hurt"]` reads. */
   hurt: boolean;
-  /** Their form (v1.1.4-S3, `formOf`): the factor on the Stat values they add into a Check's score. */
-  form: number;
 }
 
-/** What has happened to the Party on the Quest so far, as the Queries read it (v1.1.4-S3). */
+/** What has happened to the Party on the Quest so far, and the Day it has come to, as the Queries read it (v1.1.4-S3). */
 export interface OnQuest {
   /** The Heroes hurt earlier on the Quest; none when absent. */
   hurt?: ReadonlySet<HeroId>;
@@ -44,6 +48,11 @@ export interface OnQuest {
    * `steadiedBy` their Stats being less for some (harm.ts). 0 for a Hero absent, and for all when absent.
    */
   moraleByHero?: Readonly<Record<HeroId, number>>;
+  /**
+   * Each Hero's Fatigue on the Encounter's Day, by id, from the Quest clock (`questClock`'s
+   * `fatigueAt`, DL-282 item 4). A Hero absent reads their stored Fatigue, as they set out.
+   */
+  fatigueByHero?: Readonly<Record<HeroId, number>>;
 }
 
 /** What a Query reads of content: whether a key it names is still defined. */
@@ -53,14 +62,21 @@ export type QueryContent = Pick<ContentSet, 'skills' | 'classes' | 'backgrounds'
 export interface QueryParty {
   members: readonly QueryMember[];
   content: QueryContent;
+  /**
+   * The Party this one is on another Day of the same Quest (the estimate's, `atFatigue`): its members
+   * the same but for their Fatigue and formed Stats, which no Synergy's requirement reads, so it meets
+   * that Party's Synergies (synergy.ts). Absent for a Party taken afresh.
+   */
+  base?: QueryParty;
 }
 
 /**
  * `heroes`, the members still in the sequence in Party order, as Queries read them on one Encounter:
  * each Hero's effective Stats read once (`effectiveStats`); their Morale on the Quest, their stored
- * Morale plus their own of `onQuest.moraleByHero` held to the scale (`workingMorale`); their age at `world.turn`;
- * whether `onQuest.hurt` holds their id; and their form from those two (`formOf`, v1.1.4-S3). With
- * nothing `onQuest`, the Party as it sets out.
+ * Morale plus their own of `onQuest.moraleByHero` held to the scale (`workingMorale`); their Fatigue
+ * on the Encounter's Day, `onQuest.fatigueByHero`'s or else their stored Fatigue; their age at
+ * `world.turn`; whether `onQuest.hurt` holds their id; and their formed Stats from those
+ * (`formedStats`, DL-284). With nothing `onQuest`, the Party as it sets out.
  */
 export function queryParty(
   heroes: readonly Hero[],
@@ -69,21 +85,34 @@ export function queryParty(
   onQuest: OnQuest = {},
 ): QueryParty {
   const { config, content } = deps;
-  const { hurt = new Set(), moraleByHero = {} } = onQuest;
+  const { hurt = new Set(), moraleByHero = {}, fatigueByHero = {} } = onQuest;
   return {
     members: heroes.map((hero) => {
       const delta = Object.hasOwn(moraleByHero, hero.id) ? (moraleByHero[hero.id] ?? 0) : 0;
       const morale = workingMorale(hero.morale, delta, config);
+      const fatigue = Object.hasOwn(fatigueByHero, hero.id) ? (fatigueByHero[hero.id] ?? hero.fatigue) : hero.fatigue;
       const isHurt = hurt.has(hero.id);
+      const stats = effectiveStats(hero, world, content);
       return {
         hero,
-        stats: effectiveStats(hero, world, content),
+        stats,
+        formed: formedStats(stats, { morale, fatigue, hurt: isHurt }, deps),
         morale,
+        fatigue,
         age: ageOf(hero, world.turn, config),
         hurt: isHurt,
-        form: formOf(morale, isHurt, config),
       };
     }),
     content,
   };
+}
+
+/**
+ * `member` on another Day of the same Quest (DL-284): as they are but for their Fatigue, `fatigue`, and
+ * their formed Stats read again at it (`formedStats`); the same member when their Fatigue is unchanged.
+ * What the estimate takes for each Day of a Quest its Encounters fall on (estimate.ts).
+ */
+export function atFatigue(member: QueryMember, fatigue: number, deps: Pick<EngineDeps, 'config' | 'content'>): QueryMember {
+  if (fatigue === member.fatigue) return member;
+  return { ...member, fatigue, formed: formedStats(member.stats, { morale: member.morale, fatigue, hurt: member.hurt }, deps) };
 }

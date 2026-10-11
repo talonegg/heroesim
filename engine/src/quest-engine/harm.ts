@@ -133,10 +133,11 @@ export function narrowed<Hero extends { id: HeroId }>(pool: readonly Hero[], amo
  * one draw from no one when there is no one to hit. Its pool is an Injury's the unhurt living, so
  * that no Hero carries two Injuries from a Quest, and a Death's the living Party, since a wound makes
  * no one safer (v1.1.5-S4, DL-178); of it those its `among` names, read over the pool, or all of it
- * when it names none of them (`narrowed`). It lands when the first draw is below the chance times the
- * chosen Hero's guard by `guardedBy`. `party`, the living as the Queries read them, is asked for only
- * when it reads one of the fields; with none, the draws are `chance`'s and `pick`'s. `undefined` when
- * it lands on no one.
+ * when it names none of them (`narrowed`). It lands when the first draw is below the chosen Hero's
+ * chance, `chanceOf`'s for them (the consequence's own by default; the resolver's times Fatigue's on
+ * the Day and a Death's the Quest's Death scale too, held at 1, DL-265, DL-284), times their guard by
+ * `guardedBy`. `party`, the living as the Queries read them, is asked for only when it reads one of
+ * the fields; with none, the draws are `chance`'s and `pick`'s. `undefined` when it lands on no one.
  */
 export function strike<Hero extends { id: HeroId }>(
   consequence: InjuryConsequence | DeathConsequence,
@@ -144,6 +145,7 @@ export function strike<Hero extends { id: HeroId }>(
   party: () => QueryParty,
   stream: Stream,
   deps: HarmDeps,
+  chanceOf: (hero: Hero) => number = () => consequence.chance,
 ): Hero | undefined {
   const u = next(stream);
   const pool = consequence.kind === 'injury' ? candidates.living.filter((hero) => !candidates.hurt.has(hero.id)) : candidates.living;
@@ -163,7 +165,7 @@ export function strike<Hero extends { id: HeroId }>(
   const hero = weightedPick(stream, within, within.map(weightOf));
   const member = byHero?.get(hero.id);
   const guarded = member === undefined ? 1 : guard(member, guardedBy, deps.content, deps.config);
-  return u < consequence.chance * guarded ? hero : undefined;
+  return u < chanceOf(hero) * guarded ? hero : undefined;
 }
 
 /** Whom an earned Trait falls on (`chooseEarner`), and whether it is a positive one. */

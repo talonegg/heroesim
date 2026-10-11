@@ -102,7 +102,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
 
   test('holds the estimate near the resolver over a few samples, met on the night home, and reports both measures', () => {
     const samples = estimateProbe(6, 2_000, deps);
-    expect(samples.some((sample) => sample.bandsMoved > 0)).toBe(true);
+    expect(samples.some((sample) => sample.moraleMoved > 0)).toBe(true);
     const most = widest(samples);
     expect(most?.gap).toBeLessThan(0.04);
     // The second measure: the same chances, compared with the resolver's rate with Morale in.
@@ -165,7 +165,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   // and a gap of exactly the limit is beyond it, as the check's strict `<` holds. The owner's answer
   // (2026-10-04): the Morale check holds the Quest's chances only; each Encounter's are reported.
   test("reads each measure's own gaps: the widest, its report and the chances beyond its limit", () => {
-    const sample = (seed: string, compared: Compared[], moraleIn: Compared[]): Sample => ({ seed, heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
+    const sample = (seed: string, compared: Compared[], moraleIn: Compared[]): Sample => ({ seed, heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared, moraleIn });
     const at = (what: string, estimate: number, rate: number): Compared => ({ of: 0, what, estimate, rate });
     const quest = (what: string, estimate: number, rate: number): Compared => ({ of: 'quest', what, estimate, rate });
     const samples = [
@@ -190,7 +190,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   });
 
   test("holds the Morale check to the Quest's chances: an Encounter's gap above 5 points does not fail it, the Quest's does", () => {
-    const sample = (moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared: [], moraleIn });
+    const sample = (moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared: [], moraleIn });
     const encounter: Compared[] = [
       { of: 0, what: 'failure', estimate: 0.1, rate: 0.4 },
       { of: 0, what: 'succeeded', estimate: 0.5, rate: 0.45 },
@@ -207,7 +207,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   // scopes and strict `<` fail here, not only in a probe's run; and the report's held and reported lines
   // read a gap of exactly the limit, 5 points (DL-275), as beyond, as the check does.
   test("makes the probe's two checks: no one falls on every chance below 2 points, Morale in on the Quest's below 5, each strictly", () => {
-    const sample = (compared: Compared[], moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
+    const sample = (compared: Compared[], moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared, moraleIn });
     const at = (of: Compared['of'], what: string, gap: number): Compared => ({ of, what, estimate: 0, rate: gap });
     const within = [sample([at(0, 'failure', 0.019), at('quest', 'fail', 0.019)], [at(0, 'failure', 0.3), at('quest', 'succeeded', 0.049)])];
     expect(estimateChecks(within)).toEqual({

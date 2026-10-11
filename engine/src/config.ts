@@ -259,10 +259,9 @@ export interface GameConfig {
    */
   strongTriumphShare: number;
   /**
-   * A Hero's form on a Quest (DL-148 items 9 to 11, `CONTEXT.md` Form), Morale's factor on the Stat
-   * values they add into a Check's score, is a line through `moraleBaseline` across Morale's scale
-   * (`moraleFactor`, DL-283), and is also multiplied by this once they are hurt on the Quest (DL-148
-   * item 10, DL-154). Provisional: to be revisited in the economy pass (#51, DL-168 item 9).
+   * What a Hero hurt on a Quest keeps of their Stats in a Check (DL-148 item 10, DL-280 item 4,
+   * DL-284; `CONTEXT.md` Form): their Physical Stats are times this, and every other area's times
+   * 1 − (1 − this) ÷ 2, the gap taken whole by the Physical and half by the rest (form.ts).
    */
   hurtCheckFactor: number;
   /**
@@ -351,6 +350,14 @@ export interface GameConfig {
    * grade past the list reads the last, as `infirmaryHealFactor` does.
    */
   fatigueFallByQuarters: readonly number[];
+  /**
+   * FS, how much Fatigue takes from a Hero on a Quest (DL-280 item 2, Q13; DL-284): with f their
+   * Fatigue on an Encounter's Day, their Physical and Magical Stats are times 1 − FS·f ÷ `fatigueMax`
+   * and their Mental and Social times 1 − (FS ÷ 2)·f ÷ `fatigueMax`; their Injury chance times
+   * 1 + FS·f ÷ `fatigueMax` and their Death chance times 1 + (FS ÷ 2)·f ÷ `fatigueMax` (form.ts). A
+   * share from 0 to 1, so no Stat is taken below nothing; no floor beyond that (Q14 c).
+   */
+  fatigueScaling: number;
 
   // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**

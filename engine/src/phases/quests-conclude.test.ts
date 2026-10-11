@@ -1058,7 +1058,7 @@ describe('the Quest named on what its return causes', () => {
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];
-      // Fatigue's band crossings, a type of their own that no rule reads yet, are set aside (DL-282).
+      // Fatigue's band crossings, a type of their own, are set aside (DL-282).
       const played = events.filter((event) => event.type !== 'hero.fatigue-changed');
       return createHash('sha256').update(JSON.stringify(played.map(unnamed))).digest('hex');
     });
@@ -1080,11 +1080,13 @@ describe('the Quest named on what its return causes', () => {
     // Parties grow past it; and the Board's Tiers unlocked by each Guild's best four (DL-271; bcbd90c0…,
     // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew; and Morale's form made
     // a line (DL-283; 4aa6fab2…, d59db236… and 88664527…, with every form factor 1 before it), which
-    // no setting can make 1 for every Hero.
+    // no setting can make 1 for every Hero; and the formed Stats by area, Fatigue on form and harm and
+    // the hurt's gap whole on the Physical Stats and half on the others (DL-284; cfa59f20…, b44dee00…
+    // and 6378c240…).
     expect(fingerprints).toEqual([
-      'cfa59f20b6baa249fdcbf12b4c41a057ec7cb8ada7d380be52f0ce594701bfeb',
-      'b44dee00ea1bff2d903ff26e35f1dc6ccb2ada333b5f98e8613e8a39e81594c4',
-      '6378c240678f1d283289727cf672915edf6c1917a5c518eede77cfc47e5fdb8c',
+      'aade1bc6d0efcf4ed11edaac1ea9964e93d5bc156352328c846d3bb460d2f377',
+      '63d230cfb61fb72675da16609f8ae635f111881f03780d00876b04731333d9fa',
+      '75219227352daf1195c7cf6492046461e1a31bcbbe8e801f2ade66bfe5d749a6',
     ]);
   });
 

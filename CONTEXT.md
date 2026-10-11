@@ -311,8 +311,8 @@ Encounters spread evenly over its first two thirds, the last on Day ceil(2D/3) o
 and the Days after it the trip home, on which Fatigue still rises. The wearier a Hero, the less of their Stats they
 bring to a Check, the Physical and Magical more than the Mental and Social, and the more often they
 are injured and killed (Form). A Guild may keep its tired Heroes at home by a rest band, but Fatigue
-never makes a Hero unavailable: the player may send anyone. Its effect on Form and the rest band
-are to be built (DL-280).
+never makes a Hero unavailable: the player may send anyone. Its effect on Form and harm is built
+(DL-284); the rest band is to be built (DL-280).
 _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 
 **Fatigue band**:
@@ -444,12 +444,12 @@ Fatigue on the Day of the Encounter, takes more from the Physical and Magical St
 Mental and Social. The hurt's, once they are injured on the Quest, takes the whole of its gap from
 the Physical Stats and half of it from the others, less where a Healer in the Party other than the
 hurt Hero, or a heal Item, relieves it. The Captain's Party brings more, by the Captain's
-Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. Form never changes their
-Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. The areas are content's,
+each Stat's own (DL-284). Form never changes their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
-Fatigue, the hurt by Stat area and its relief, and the Captain are to be built (DL-280); until
-then the hurt's is one factor on every Stat.
+Fatigue and the hurt by Stat area are built (DL-284); the hurt's relief and the Captain are to be
+built (DL-280).
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:

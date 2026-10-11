@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { applyAction, applyGuildAction } from './actions/action.js';
 import { bestParties } from './best-party.js';
-import type { EngineDeps } from './config.js';
+import type { EngineDeps, GameConfig } from './config.js';
 import { availableHeroes } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import { compareByCodeUnit, type Guild, type Hero, type Quest, type World, type WorldDocument } from './document.js';
@@ -63,8 +63,8 @@ interface Scene {
 }
 
 /** A new world and its first Rival, by Guild id, every Quest on the Board open to a Party of one or more at the difficulties given. */
-function scene(seed: string, difficulties: readonly number[] = [40, 60, 80, 90, 95, 99], partyMargin = 0.02): Scene {
-  const deps = testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }, withDispositions({ partyMargin }));
+function scene(seed: string, difficulties: readonly number[] = [40, 60, 80, 90, 95, 99], partyMargin = 0.02, overrides: Partial<GameConfig> = {}): Scene {
+  const deps = testDeps({ rivalRosterMin: 6, rivalRosterMax: 8, ...overrides }, withDispositions({ partyMargin }));
   const { document } = createWorld(seed, setup, deps);
   const { world } = document;
   const [rival] = Object.values(world.guilds)
@@ -196,7 +196,8 @@ describe('the Best Party module (DL-237)', () => {
   test('adds each Hero past partySizeMin while they raise the chance by more than the margin, and stops at the margin, bounded by the Heroes free alone', () => {
     let largest = 0;
     for (const margin of [0, 0.02, 0.05, 0.1]) {
-      const { world, rival, quests, deps } = scene(`best-margin-${margin}`, [70, 80, 90, 95, 99, 100], margin);
+      // No Fatigue on form, so that a Quest this hard calls for more than five of the Rival's Heroes (DL-284).
+      const { world, rival, quests, deps } = scene(`best-margin-${margin}`, [70, 80, 90, 95, 99, 100], margin, { fatigueScaling: 0 });
       const available = availableHeroes(world, rival);
       const module = bestParties(world, rival, deps);
       for (const quest of quests) {

@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import type { HeroQuery, NumQuery, PartyCondition, PredQuery, SetQuery, ValQuery } from '../content-types.js';
+import type { HeroQuery, NumQuery, PartyCondition, PredQuery, SetQuery, StatArea, ValQuery } from '../content-types.js';
 import type { Hero, HeroId, SkillRating, World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
 import { classSkillRequires, demandsCheck, heroStatKeys, testDeps, testWorld } from '../world.test-support.js';
-import { moraleFactor } from './form.js';
-import { evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryParty } from './query.js';
+import { hurtFactor, moraleFactor } from './form.js';
+import { atFatigue, evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryMember, type QueryParty } from './query.js';
 
 // The Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
 // given the Stats, Skills, Traits and facts each test reads; every other Hero Stat is 10. The owner's
@@ -67,6 +67,8 @@ const member = (name: string, over: QueryParty = party) => over.members.find((it
 const val = (query: ValQuery, name: string): number => valueOf(query, member(name), party.content);
 const pred = (query: PredQuery): string[] => party.members.filter((it) => is(query, it, party.content)).map((it) => it.hero.name);
 const nobody: SetQuery = ['where', 'party', ['class', 'paladin']];
+/** The area content gives the Stat `statKey`, which the form module reads it by (ADR-0006). */
+const areaOf = (statKey: string): StatArea => deps.content.stats[statKey]?.area ?? expect.fail(statKey);
 
 describe("the owner's examples (DL-148)", () => {
   test("the strongest Warrior's Strength: SELECT MAX(strength) FROM party WHERE class = 'warrior'", () => {
@@ -387,73 +389,77 @@ describe('queryParty', () => {
   });
 });
 
-// DL-148 items 9 to 11, DL-154, DL-283: a Hero's form scales only the Stat values they add into a
-// Check's score (`withForm`). Aric is hurt on the Quest at the baseline (so `hurtCheckFactor`), Dara
-// is at Morale 20, below it (Morale's factor there), and the rest are at the baseline (1). Every read
-// that chooses, filters or counts reads them as they are.
+// DL-148 items 9 to 11, DL-154, DL-283, DL-284: a Hero's formed Stats are read only for the Stat
+// values they add into a Check's score (`withForm`). Aric is hurt on the Quest at the baseline (so the
+// hurt's factor by area), Dara is at Morale 20, below it (Morale's factor there), and the rest are at
+// the baseline (1); all are rested. Every read that chooses, filters or counts reads them as they are.
 describe('form: what it scales, and what it does not', () => {
   const formed = ((): QueryParty => {
     const { world, heroes, all } = scene();
     for (const hero of all) if (hero.name !== 'dara') hero.morale = deps.config.moraleBaseline;
     return queryParty(all, world, deps, { hurt: new Set([(heroes['aric'] as Hero).id]) });
   })();
-  const aric = deps.config.hurtCheckFactor;
+  /** Aric's hurt factor on `statKey`, by its area in content. */
+  const aric = (statKey: string): number => hurtFactor(areaOf(statKey), true, deps.config);
   const dara = moraleFactor(20, deps.config);
   const scaled = (query: NumQuery): number => evaluate(query, formed, true);
   const scaledVal = (query: ValQuery, name: string): number => valueOf(query, member(name, formed), formed.content, true);
   const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
 
-  test("each member carries their form: Morale's factor, times hurtCheckFactor once hurt", () => {
-    expect(formed.members.map((it) => [it.hero.name, it.form])).toEqual([
-      ['aric', aric],
-      ['bryn', 1],
-      ['cass', 1],
-      ['dara', dara],
-      ['edda', 1],
-    ]);
+  test("each member carries their formed Stats: Morale's factor on every Stat, the hurt's by area once hurt", () => {
+    const [hurt, , , low] = formed.members as [QueryMember, QueryMember, QueryMember, QueryMember];
+    for (const statKey of heroStatKeys) {
+      expect(hurt.formed[statKey], statKey).toBe((hurt.stats[statKey] ?? 0) * aric(statKey));
+      expect(low.formed[statKey], statKey).toBe((low.stats[statKey] ?? 0) * dara);
+    }
+    for (const it of formed.members.filter((_, at) => at === 1 || at === 2 || at === 4)) expect(it.formed).toEqual(it.stats);
+    // The hurt's gap is taken whole from a Physical Stat and half from a Mental one.
+    expect(aric('strength')).toBe(deps.config.hurtCheckFactor);
+    expect(aric('wits')).toBe(1 - (1 - deps.config.hurtCheckFactor) / 2);
   });
 
   describe('scaled', () => {
-    test('`stat`: the Stat times the form', () => {
-      expect(scaledVal(['stat', 'strength'], 'aric')).toBe(15 * aric);
+    test('`stat`: the formed Stat', () => {
+      expect(scaledVal(['stat', 'strength'], 'aric')).toBe(15 * aric('strength'));
+      expect(scaledVal(['stat', 'wits'], 'aric')).toBe(11 * aric('wits'));
       expect(scaledVal(['stat', 'strength'], 'dara')).toBe(8 * dara);
     });
 
-    test('`weighted`: each Stat within it times the form, then its weight', () => {
-      expect(scaledVal(['weighted', [['strength', 1], ['wits', 0.5]]], 'aric')).toBe(1 * (15 * aric) + 0.5 * (11 * aric));
+    test('`weighted`: each Stat within it formed, then its weight', () => {
+      expect(scaledVal(['weighted', [['strength', 1], ['wits', 0.5]]], 'aric')).toBe(1 * (15 * aric('strength')) + 0.5 * (11 * aric('wits')));
     });
 
-    test('`+`, `-` and `*` of Vals: each Stat within them times the form, a number not', () => {
-      expect(scaledVal(['+', ['stat', 'strength'], 2], 'aric')).toBe(15 * aric + 2);
-      expect(scaledVal(['-', ['stat', 'strength'], ['stat', 'wits']], 'aric')).toBe(15 * aric - 11 * aric);
-      // A product of two Stats is scaled twice, as each Stat in it is.
-      expect(scaledVal(['*', ['stat', 'strength'], ['stat', 'wits']], 'aric')).toBe(15 * aric * (11 * aric));
+    test('`+`, `-` and `*` of Vals: each Stat within them formed, a number not', () => {
+      expect(scaledVal(['+', ['stat', 'strength'], 2], 'aric')).toBe(15 * aric('strength') + 2);
+      expect(scaledVal(['-', ['stat', 'strength'], ['stat', 'wits']], 'aric')).toBe(15 * aric('strength') - 11 * aric('wits'));
+      // A product of two Stats reads each formed.
+      expect(scaledVal(['*', ['stat', 'strength'], ['stat', 'wits']], 'aric')).toBe(15 * aric('strength') * (11 * aric('wits')));
     });
 
     test("`sum` and `avg`: each Hero's value with their own form", () => {
-      const total = 15 * aric + 15 + 6 + 8 * dara + 9;
+      const total = 15 * aric('strength') + 15 + 6 + 8 * dara + 9;
       expect(scaled(['sum', 'party', ['stat', 'strength']])).toBe(total);
       expect(scaled(['avg', 'party', ['stat', 'strength']])).toBe(total / 5);
     });
 
     test('`of`: the Hero chosen adds their value with their form', () => {
-      expect(scaled(['of', ['best', warriors, ['stat', 'strength']], ['stat', 'strength']])).toBe(15 * aric);
+      expect(scaled(['of', ['best', warriors, ['stat', 'strength']], ['stat', 'strength']])).toBe(15 * aric('strength'));
     });
 
     test('`max` and `min`: the Hero `of best` or `of worst` would choose adds their value with their form', () => {
       // Aric and Bryn tie at 15, and Aric, the earlier, is still the strongest Warrior: hurt, he adds less.
-      expect(scaled(['max', warriors, ['stat', 'strength']])).toBe(15 * aric);
+      expect(scaled(['max', warriors, ['stat', 'strength']])).toBe(15 * aric('strength'));
       expect(scaled(['min', ['where', 'party', ['class', 'healer', 'warrior']], ['stat', 'strength']])).toBe(8 * dara);
       expect(scaled(['max', nobody, ['stat', 'strength']])).toBe(0);
     });
 
     test("`ranked`: each weight times the Hero's value with their form", () => {
-      expect(scaled(['ranked', 'party', ['stat', 'strength'], [1, 0.5]])).toBe(1 * (15 * aric) + 0.5 * 15);
+      expect(scaled(['ranked', 'party', ['stat', 'strength'], [1, 0.5]])).toBe(1 * (15 * aric('strength')) + 0.5 * 15);
     });
 
     test('`+`, `-`, `*`, `least` and `greatest` of Nums carry it into each Num, a number not', () => {
-      const strongest = 15 * aric;
-      const wits = 11 * aric + 14 + 9 + 13 * dara + 15;
+      const strongest = 15 * aric('strength');
+      const wits = 11 * aric('wits') + 14 + 9 + 13 * dara + 15;
       const of = (stat: string): NumQuery => ['of', ['best', warriors, ['stat', 'strength']], ['stat', stat]];
       expect(scaled(['+', of('strength'), 1])).toBe(strongest + 1);
       expect(scaled(['-', ['sum', 'party', ['stat', 'wits']], of('strength')])).toBe(wits - strongest);
@@ -477,7 +483,7 @@ describe('form: what it scales, and what it does not', () => {
       expect(names(['top', 'party', 1, ['stat', 'strength']], formed)).toEqual(['aric']);
       expect(names(['bottom', ['where', 'party', ['class', 'warrior']], 1, ['stat', 'strength']], formed)).toEqual(['aric']);
       // Ranked by Strength as they are, Aric first, though with his form he adds less than Bryn's 15.
-      expect(scaled(['ranked', warriors, ['stat', 'strength'], [1, 0]])).toBe(15 * aric);
+      expect(scaled(['ranked', warriors, ['stat', 'strength'], [1, 0]])).toBe(15 * aric('strength'));
     });
 
     test('`count`', () => {
@@ -504,43 +510,133 @@ describe('form: what it scales, and what it does not', () => {
       expect(valueOf(['weighted', [['strength', 1]]], member('aric', formed), formed.content)).toBe(15);
     });
 
-    test('with every form at 1, a score with form reads exactly as one without', () => {
+    test('with every formed Stat the raw one, a score with form reads exactly as one without', () => {
       const { party: steady } = partyOf();
-      for (const it of steady.members) it.form = 1;
+      const raw: QueryParty = { ...steady, members: steady.members.map((it) => ({ ...it, formed: { ...it.stats } })) };
       for (const query of [
         ['sum', 'party', ['weighted', [['strength', 0.3], ['wits', 0.7]]]],
         ['max', warriors, ['stat', 'strength']],
         ['ranked', 'party', ['stat', 'wits'], [1, 0.5, 0.25]],
         ['+', ['*', 0.4, ['avg', 'party', ['stat', 'dexterity']]], ['of', ['worst', 'party', ['stat', 'dexterity']], ['stat', 'wits']]],
       ] as NumQuery[]) {
-        expect(evaluate(query, steady, true)).toBe(evaluate(query, steady));
+        expect(evaluate(query, raw, true)).toBe(evaluate(query, raw));
       }
     });
   });
 });
 
+// DL-280 items 2 and 4, DL-284: the form module, through the one place a member is built. Fatigue's
+// factor and the hurt's are by Stat area, each from its formula; Morale's is on every Stat.
+describe("queryParty's formed Stats by area", () => {
+  /** The owner's figures: FS 0.4, the hurt 0.6, Fatigue's scale 0 to 100, the baseline 50. */
+  const owners = testDeps({ fatigueScaling: 0.4, hurtCheckFactor: 0.6, fatigueMax: 100, moraleBaseline: 50 });
+  /** Each of `all` at Fatigue `f` on the Day, `hurt` or not, read as `queryParty` reads them under `over`. */
+  const taken = (f: number, hurt: boolean, over = deps) => {
+    const { world, all } = scene('formed');
+    const ids = all.map((hero) => hero.id);
+    return queryParty(all, world, over, { fatigueByHero: Object.fromEntries(ids.map((id) => [id, f])), hurt: new Set(hurt ? ids : []) });
+  };
+  /** What the formula gives `member`'s Stat `statKey` under `config`: written out, apart from form.ts. */
+  const expected = (it: QueryMember, statKey: string, f: number, hurt: boolean, config = deps.config): number => {
+    const area = areaOf(statKey);
+    const whole = area === 'physical' || area === 'magical';
+    const fatigue = 1 - ((whole ? config.fatigueScaling : config.fatigueScaling / 2) * f) / config.fatigueMax;
+    const gap = 1 - config.hurtCheckFactor;
+    const wound = hurt ? (area === 'physical' ? 1 - gap : 1 - gap / 2) : 1;
+    return (it.stats[statKey] ?? 0) * moraleFactor(it.morale, config) * fatigue * wound;
+  };
+
+  test.each([
+    [0, false],
+    [50, false],
+    [100, false],
+    [0, true],
+    [50, true],
+    [100, true],
+  ])('at Fatigue %d, hurt %s: each Stat times Morale’s factor, Fatigue’s by its area and the hurt’s by its area', (f, hurt) => {
+    const party = taken(f, hurt);
+    for (const it of party.members) {
+      expect(it.fatigue).toBe(f);
+      for (const statKey of heroStatKeys) expect(it.formed[statKey], `${it.hero.name} ${statKey}`).toBeCloseTo(expected(it, statKey, f, hurt), 12);
+    }
+  });
+
+  test("the owner's table at the baseline: a Physical Stat × 0.8 and a Mental × 0.9 at Fatigue 50; hurt at 100, × 0.36 and × 0.64", () => {
+    const at = (f: number, hurt: boolean) => {
+      const { world, all } = scene('formed-owner');
+      const [hero] = all as [Hero];
+      hero.morale = 50;
+      const [it] = queryParty([hero], world, owners, { fatigueByHero: { [hero.id]: f }, hurt: new Set(hurt ? [hero.id] : []) }).members as [QueryMember];
+      return { strength: (it.formed['strength'] ?? 0) / (it.stats['strength'] ?? 1), wits: (it.formed['wits'] ?? 0) / (it.stats['wits'] ?? 1) };
+    };
+    expect(at(0, false)).toEqual({ strength: 1, wits: 1 });
+    expect(at(50, false)).toEqual({ strength: expect.closeTo(0.8, 12), wits: expect.closeTo(0.9, 12) });
+    expect(at(100, false)).toEqual({ strength: expect.closeTo(0.6, 12), wits: expect.closeTo(0.8, 12) });
+    expect(at(100, true)).toEqual({ strength: expect.closeTo(0.36, 12), wits: expect.closeTo(0.64, 12) });
+  });
+
+  test('a Hero the Day names no Fatigue for reads their stored Fatigue, as they set out', () => {
+    const { world, all } = scene('formed-stored');
+    all.forEach((hero, at) => (hero.fatigue = 20 * at));
+    const party = queryParty(all, world, deps);
+    expect(party.members.map((it) => it.fatigue)).toEqual([0, 20, 40, 60, 80]);
+    for (const it of party.members) for (const statKey of heroStatKeys) expect(it.formed[statKey]).toBeCloseTo(expected(it, statKey, it.fatigue, false), 12);
+  });
+
+  test('the raw Stats stay as they are, whatever the Fatigue and the hurt', () => {
+    const { world, all } = scene('formed-raw');
+    const raw = all.map((hero) => effectiveStats(hero, world, deps.content));
+    expect(taken(100, true).members.map((it) => it.stats)).toEqual(raw);
+  });
+
+  test('atFatigue reads the member again at another Day’s Fatigue, and is the same member at its own', () => {
+    const party = taken(10, true);
+    const [first] = party.members as [QueryMember];
+    expect(atFatigue(first, 10, deps)).toBe(first);
+    const later = atFatigue(first, 70, deps);
+    expect(later.fatigue).toBe(70);
+    expect(later.stats).toBe(first.stats);
+    for (const statKey of heroStatKeys) expect(later.formed[statKey]).toBeCloseTo(expected(first, statKey, 70, true), 12);
+  });
+});
+
 describe("queryParty's Morale on the Quest", () => {
+  /** Whether each of `party`'s members' formed Stats are their raw ones times Morale's factor at their Morale on the Quest (rested, unhurt). */
+  const formedByMorale = (party: QueryParty): void => {
+    for (const it of party.members) {
+      for (const statKey of heroStatKeys) expect(it.formed[statKey]).toBe((it.stats[statKey] ?? 0) * moraleFactor(it.morale, deps.config));
+    }
+  };
+
   test("is the stored Morale plus the Morale consequences so far, held to the scale, and sets Morale's factor in the form", () => {
     const { world, all } = scene('working');
-    const at = (delta: number) =>
-      queryParty(all, world, deps, { moraleByHero: Object.fromEntries(all.map((hero) => [hero.id, delta])) }).members.map((it) => [it.morale, it.form]);
-    const formed = (...morales: number[]) => morales.map((morale) => [morale, moraleFactor(morale, deps.config)]);
+    const at = (delta: number) => queryParty(all, world, deps, { moraleByHero: Object.fromEntries(all.map((hero) => [hero.id, delta])) });
 
     // aric 60, bryn 40, cass 70, dara 20, edda 50.
-    expect(at(0)).toEqual(formed(60, 40, 70, 20, 50));
-    expect(at(-25)).toEqual(formed(35, 15, 45, 0, 25));
-    expect(at(30)).toEqual(formed(90, 70, 100, 50, 80));
+    for (const [delta, morales] of [
+      [0, [60, 40, 70, 20, 50]],
+      [-25, [35, 15, 45, 0, 25]],
+      [30, [90, 70, 100, 50, 80]],
+    ] as const) {
+      const party = at(delta);
+      expect(party.members.map((it) => it.morale)).toEqual(morales);
+      formedByMorale(party);
+    }
     // The stored Morale is untouched: it changes on the return.
     expect(all.map((hero) => hero.morale)).toEqual([60, 40, 70, 20, 50]);
   });
 
-  test("hurt on the Quest multiplies Morale's factor by hurtCheckFactor", () => {
+  test("hurt on the Quest multiplies Morale's factor by the hurt's, by area", () => {
     const { world, all } = scene('hurt-form');
     const [aric, bryn] = all as [Hero, Hero];
     const taken = queryParty(all, world, deps, { hurt: new Set([aric.id, bryn.id]), moraleByHero: { [aric.id]: 30, [bryn.id]: 30 } });
 
-    expect(taken.members[0]?.form).toBe(moraleFactor(90, deps.config) * deps.config.hurtCheckFactor);
-    expect(taken.members[1]?.form).toBe(moraleFactor(70, deps.config) * deps.config.hurtCheckFactor);
+    for (const [at, morale] of [[0, 90], [1, 70]] as const) {
+      const it = taken.members[at] as QueryMember;
+      for (const statKey of heroStatKeys) {
+        expect(it.formed[statKey]).toBe((it.stats[statKey] ?? 0) * (moraleFactor(morale, deps.config) * 1 * hurtFactor(areaOf(statKey), true, deps.config)));
+      }
+    }
     expect(taken.members.map((it) => it.hurt)).toEqual([true, true, false, false, false]);
   });
 
@@ -552,6 +648,6 @@ describe("queryParty's Morale on the Quest", () => {
     const taken = queryParty(all, world, deps, { moraleByHero: { [aric.id]: -50, [bryn.id]: 35, [cass.id]: 0 } });
 
     expect(taken.members.map((it) => it.morale)).toEqual([10, 75, 70, 20, 50]);
-    expect(taken.members.map((it) => it.form)).toEqual([10, 75, 70, 20, 50].map((morale) => moraleFactor(morale, deps.config)));
+    formedByMorale(taken);
   });
 });

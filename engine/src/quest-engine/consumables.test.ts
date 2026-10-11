@@ -26,6 +26,8 @@ const pinned: Partial<GameConfig> = {
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
   // Every Tier's Death at a scale of 1, as these Quests' Deaths were written before Tiers (DL-265).
   tiers: defaultConfig.tiers.map((tier) => ({ ...tier, deathScale: 1 })),
+  // No Fatigue on form or harm, as these Quests' capabilities were worked out before it acted (DL-284).
+  fatigueScaling: 0,
 };
 
 /** An Encounter keyed `key` of `kind`: Strength, `sum`, no Skills, which `pass` or fail any Party of 8s. */

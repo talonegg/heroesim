@@ -36,7 +36,7 @@ import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { holdings, itemDefinition } from './items.js';
 import { describeQuery, statsIn } from './quest-engine/describe.js';
 import { estimateQuest, type QuestEstimate } from './quest-engine/estimate.js';
-import { formEffect, meanForm, type FormEffect } from './quest-engine/form.js';
+import { formEffect, formFigure, meanForm, type FormEffect } from './quest-engine/form.js';
 import { queryParty } from './quest-engine/query.js';
 import { appliesOn, synergiesFor } from './quest-engine/synergy.js';
 
@@ -95,9 +95,10 @@ export interface DispatchPreview {
   /** The consumables the Guild holds, which it could carry. */
   held: Stack[];
   /**
-   * What the Party's form as it sets out does to its odds (v1.1.4-S3, DL-148 item 12): the mean of its
-   * Heroes' forms, and its `formEffect`. One line for the Party, naming no Hero's Morale; `null` for a
-   * Party of no one.
+   * What the Party's form as it sets out does to its odds (DL-148 item 12, DL-284): the mean of its
+   * Heroes' forms as one figure each (`formFigure`: their Morale's factor, their Fatigue's and the
+   * hurt's by Stat area), and its `formEffect`. One line for the Party, naming no Hero's Morale; `null`
+   * for a Party of no one.
    */
   form: { mean: number; effect: FormEffect } | null;
   /**
@@ -149,7 +150,7 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
   });
 
   const party = queryParty(heroes, world, deps);
-  const mean = meanForm(party.members.map((member) => member.form));
+  const mean = meanForm(party.members.map((member) => formFigure(member, deps)));
   return {
     quest,
     heroes,

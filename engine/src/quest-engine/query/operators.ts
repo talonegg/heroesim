@@ -15,11 +15,11 @@
 // the Guild's dealings (M4's third risk; the Check's test reads this file to hold it so), nor Regard
 // between particular Heroes (DL-148 item 5).
 //
-// Form (v1.1.4-S3, DL-148 items 9 to 11, form.ts). A Check's score is read with each Hero's form
+// Form (DL-148 items 9 to 11, DL-284, form.ts). A Check's score is read with each Hero's form
 // (`evaluate`'s `withForm`), a Synergy's requirements without. With form, only the Stat values a Hero
-// adds into the score are scaled: each `stat`, and each Stat within a `weighted` and within the `+`,
-// `-` and `*` of Vals, is times its Hero's form; a number, a Skill rating, Level, Morale and age are
-// not. Every choice of a Hero reads them unscaled: `best`, `worst`, `top`, `bottom`, `ranked`'s order,
+// adds into the score are formed: each `stat`, and each Stat within a `weighted` and within the `+`,
+// `-` and `*` of Vals, reads its Hero's formed Stat (`QueryMember.formed`); a number, a Skill rating,
+// Level, Morale and age are not. Every choice of a Hero reads them as they are: `best`, `worst`, `top`, `bottom`, `ranked`'s order,
 // and the Hero whose value `max` or `min` adds, which are `of best` and `of worst`. So do every filter
 // and every count. A hurt Warrior is still the strongest Warrior, and adds less.
 
@@ -185,8 +185,8 @@ export const operators: Operators = {
 
 /**
  * `query`'s value for `party`: a number of the Party, 0 for an empty Set or no Hero. `withForm`, for
- * a Check's score (v1.1.4-S3), scales each Stat value a Hero adds into it by their form; without it,
- * as for a Synergy's requirements, every Hero is read as they are.
+ * a Check's score (DL-284), reads each Stat value a Hero adds into it formed; without it, as for a
+ * Synergy's requirements, every Hero is read as they are.
  */
 export function evaluate(query: NumQuery, party: QueryParty, withForm = false): number {
   if (typeof query === 'number') return query;
@@ -211,8 +211,8 @@ export function heroOf(query: HeroQuery, party: QueryParty): QueryMember | undef
 
 /**
  * `query`'s value for `member`: a number read of the one Hero. `withForm`, for a value they add into a
- * Check's score (v1.1.4-S3), scales each Stat it reads by their form, within a `weighted` and an
- * arithmetic Val too; a number, a Skill rating, Level, Morale and age are read as they are.
+ * Check's score (DL-284), reads each Stat it reads formed, within a `weighted` and an arithmetic Val
+ * too; a number, a Skill rating, Level, Morale and age are read as they are.
  */
 export function valueOf(query: ValQuery, member: QueryMember, content: QueryContent, withForm = false): number {
   if (typeof query === 'number') return query;
@@ -290,10 +290,10 @@ function ranking(
     .sort((a, b) => sign * (a.value - b.value) || a.index - b.index);
 }
 
-/** A member's effective value of the Stat `statKey`, times their form `withForm`; 0 for a Stat content does not define. */
+/** A member's effective value of the Stat `statKey`, or `withForm` their formed value (DL-284); 0 for a Stat content does not define. */
 function statOf(member: QueryMember, statKey: string, withForm: boolean): number {
-  const value = Object.hasOwn(member.stats, statKey) ? (member.stats[statKey] ?? 0) : 0;
-  return withForm ? value * member.form : value;
+  const values = withForm ? member.formed : member.stats;
+  return Object.hasOwn(values, statKey) ? (values[statKey] ?? 0) : 0;
 }
 
 /** The rating `hero` holds of the Skill `skillKey`; 0 when none, or for a Skill content does not define. */

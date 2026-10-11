@@ -246,7 +246,7 @@ describe.each(['check.ts', 'query.ts', 'form.ts', 'query/operators.ts', 'query/p
 });
 
 describe('query.ts', () => {
-  test("imports as values only effectiveStats, ageOf and form's two, and otherwise only types: content's, the document's and the config's", () => {
+  test("imports as values only effectiveStats, ageOf and the form module's two, and otherwise only types: content's, the document's and the config's", () => {
     const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
     const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
       from,
@@ -257,9 +257,29 @@ describe('query.ts', () => {
     expect(imports.filter((it) => !it.typeOnly)).toEqual([
       { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
       { from: '../time.js', names: ['ageOf'], typeOnly: false },
-      { from: './form.js', names: ['formOf', 'workingMorale'], typeOnly: false },
+      { from: './form.js', names: ['formedStats', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
+  });
+});
+
+// The form module (DL-284) reads the configuration, content's Stat areas and the Stats it is given,
+// and nothing else: no value of any module, so the form path reads no rule it is not handed.
+describe('form.ts', () => {
+  test("imports only types: the config's, content's and the document's", () => {
+    const source = readFileSync(fileURLToPath(new URL('./form.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
+      from,
+      names: names.split(',').map((name) => name.trim()).filter((name) => name !== ''),
+      typeOnly: type !== undefined,
+    }));
+
+    expect(imports).toEqual([
+      { from: '../config.js', names: ['GameConfig'], typeOnly: true },
+      { from: '../content-types.js', names: ['ContentSet', 'StatArea'], typeOnly: true },
+      { from: '../document.js', names: ['StatValues'], typeOnly: true },
+    ]);
+    expect(source).not.toMatch(/^import (?!type )/m);
   });
 });
 

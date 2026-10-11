@@ -31,6 +31,9 @@ export const pinned = {
   tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1, deathScale: 1 })),
   deathFactor: 1,
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
+  // No Fatigue on form or harm, as the scenes' numbers were worked out before it acted (DL-284); the
+  // tests of Fatigue on the Quest set it.
+  fatigueScaling: 0,
 };
 
 /** An Encounter keyed `key`: one Stat, `sum`, no Skills, which `pass` or fail any Party of 8s, with `success`/`failure`. */

@@ -425,6 +425,8 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   fatigueBands: bands(fatigueBandNames, { min: 0, max: 'fatigueMax' }),
   fatigueRiseByTier: fatigueSteps('Tier from 1', 'Tier'),
   fatigueFallByQuarters: fatigueSteps('quarters grade from 0', 'grade'),
+  // A share, so Fatigue never takes a Stat below nothing (DL-284).
+  fatigueScaling: share,
 
   potentialHintBands: bands(potentialHints, { min: 0 }),
   declineAge: whole({ min: 0 }),

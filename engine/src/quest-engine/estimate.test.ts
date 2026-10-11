@@ -282,8 +282,12 @@ describe('the estimate', () => {
     ], { morale: [19, 38, 76, 91], carried: [['grappling-line', 1]] });
     const estimate = partyEstimator(s.world, s.deps);
     const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    // Each at a Fatigue of their own, and a Quest of the same return night at another Tier, so the
+    // members kept by return night are read again at each Day's Fatigue (DL-284).
+    [a, b, c, d].forEach((hero, at) => (hero.fatigue = [5, 40, 75, 100][at] as number));
     const longer = { ...s.quest, durationTurns: s.quest.durationTurns + 2 * turnsPerDay };
-    for (const quest of [s.quest, longer]) {
+    const steeper = { ...s.quest, tier: s.quest.tier === 5 ? 1 : 5 };
+    for (const quest of [s.quest, longer, steeper]) {
       for (const party of [[], [a], [d, b], [b, d], [a, b, c, d], [c, a, d]]) {
         for (const carried of [[], s.carried]) {
           expect(estimate(quest, party, { carried, pool: [a, b] }), party.map((hero) => hero.id).join()).toEqual(estimateQuest(s.world, quest, party, s.deps, carried));
@@ -360,7 +364,8 @@ describe('the estimate', () => {
   });
 
   test("reads the Party as the resolver meets it on the night it comes home: a Hero far below the baseline has drifted up toward it", () => {
-    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50 }, { ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+    // No Fatigue on form, so the Morale drift is all that moves the Check between setting out and the night home (DL-284).
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, fatigueScaling: 0 }, { ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
     const created = createWorld('estimate-home', setup, deps).document;
     const { world } = created;
     const guild = playerGuild(world) as Guild;
@@ -385,6 +390,56 @@ describe('the estimate', () => {
     // factor on their form up the line with it (DL-283).
     expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
+  });
+
+  // DL-284, candidate 8 not adopted: the estimate and the resolver work a Check out twice, so a parity
+  // test over fixed Encounters, no one falling, holds them together: every Check's capability on every
+  // Encounter, each on its own Day at its own Fatigue, to the last bit, and at no variance its Degree.
+  test('meets each Encounter on its Day as the resolver does: every capability to the last bit, Heroes setting out at any Fatigue, none read at the Fatigue they come home with', () => {
+    const march = (key: string, score: NumQuery, factor: number): Encounter => ({
+      key,
+      name: key,
+      kind: 'travel',
+      checks: [{ key, name: key, score, skills: [], difficultyFactor: factor, variance: 0 }],
+      consequences: { success: [], failure: [] },
+    });
+    const keys = ['first', 'second', 'third', 'fourth', 'fifth'];
+    const scores: NumQuery[] = [strength, wits, courage, ['sum', 'party', ['weighted', [['strength', 0.5], ['arcana', 0.5]]]], strength];
+    const encounters = Object.fromEntries(keys.map((key, at) => [key, march(key, scores[at] as NumQuery, [0.3, 0.5, 0.2, 0.25, 0.32][at] as number)]));
+    const deps = testDeps({ rivalCount: 0 }, { ...testContent, encounters: { ...testContent.encounters, ...encounters } });
+    const created = createWorld('estimate-days', setup, deps).document;
+    const { world } = created;
+    const guild = playerGuild(world) as Guild;
+    const heroes = guild.rosterIds.map((id) => world.heroes[id] as Hero);
+    heroes.forEach((hero, at) => {
+      hero.morale = [25, 50, 70, 95][at % 4] as number;
+      hero.fatigue = [0, 30, 65, 97][at % 4] as number;
+    });
+    const questId = world.board[0] as Quest['id'];
+    const quest = world.quests[questId] as Quest;
+    Object.assign(quest, { durationTurns: 10 * turnsPerDay, encounterKeys: keys, lootTableKey: null, requirements: { partySizeMin: 1 } });
+    const estimate = estimateQuest(world, quest, heroes, deps);
+    if (estimate === null) throw new Error('No estimate');
+
+    const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id) }, deps);
+    if (!sent.ok) throw new Error(sent.rejection.reason);
+    let document = sent.document;
+    const met: QuestEncounter['payload'][] = [];
+    while (met.length === 0) {
+      const turned = advance(document, deps);
+      document = turned.document;
+      met.push(...turned.events.filter((event): event is QuestEncounter => event.type === 'quest.encounter').map((event) => event.payload));
+    }
+
+    expect(met.map((it) => it.encounterKey)).toEqual(keys);
+    for (const [index, it] of met.entries()) {
+      const estimated = estimate.encounters[index];
+      expect(it.checks?.map((one) => one.capability), it.encounterKey).toEqual(estimated?.checks.map((one) => one.capability));
+      expect(estimated?.degrees[it.degree as Degree], it.encounterKey).toBe(1);
+    }
+    // Fatigue moved them: the same Check on the first Day and the last reads the Party lower on the last.
+    const strengthOn = (index: number) => met[index]?.checks?.[0]?.capability ?? Number.NaN;
+    expect(strengthOn(4)).toBeLessThan(strengthOn(0));
   });
 
   // A Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
@@ -418,7 +473,8 @@ describe('the estimate', () => {
     const s = scene('estimate-reroll', [
       { key: 'first', kind: 'travel', checks: [draft('first', strength, 1)] },
       { key: 'second', kind: 'travel', checks: [draft('second', strength, 1)] },
-    ], { carried: [['grappling-line', 1]] });
+      // No Fatigue on form, so the two Encounters' Checks roll alike on their two Days (DL-284).
+    ], { carried: [['grappling-line', 1]], overrides: { fatigueScaling: 0 } });
     const [first, second] = estimated(s).encounters;
     const p = (first?.checks[0]?.degrees.success ?? 0) + (first?.checks[0]?.degrees.triumph ?? 0);
     expect(p).toBeGreaterThan(0.2);

@@ -207,7 +207,7 @@ export type QuestEncounter = Entry<'quest.encounter', EncounterResult & { questI
 
 /**
  * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
- * (v1.1.4-S3's verification): with every form at 1 and the same rolls, its pass formula would have
+ * (v1.1.4-S3's verification): with the raw Stats and the same rolls, its pass formula would have
  * given the other side of the Success line. The narration's one sentence of the Encounter is said
  * exactly when it is set; an entry written before DL-154 has none.
  */

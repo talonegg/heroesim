@@ -29,17 +29,19 @@ export function meetsRequirement(party: QueryParty, requires: SynergyRequires): 
  * through `synergiesOn`, and a front end shows it for a proposed Party before dispatch. Worked out
  * once for a Party taken (`queryParty`) and a content's Synergies, neither of which changes once
  * taken, however many Checks read it: the chance estimate reads it for every Check of many Parties
- * (v1.1.4-S6, DL-157).
+ * (v1.1.4-S6, DL-157). A Party on another Day of the same Quest (`QueryParty.base`) meets its base's,
+ * since no requirement reads the formed Stats or the Fatigue that alone differ (DL-284).
  */
 export function synergiesFor(party: QueryParty, content: Pick<ContentSet, 'synergies'>): Synergy[] {
-  const known = metBy.get(party);
+  const taken = party.base ?? party;
+  const known = metBy.get(taken);
   if (known !== undefined && known.synergies === content.synergies) return [...known.met];
-  const met = sortedRows(content.synergies, (synergy) => meetsRequirement(party, synergy.requires));
-  metBy.set(party, { synergies: content.synergies, met });
+  const met = sortedRows(content.synergies, (synergy) => meetsRequirement(taken, synergy.requires));
+  metBy.set(taken, { synergies: content.synergies, met });
   return [...met];
 }
 
-/** The Synergies each Party taken met, under the Synergies they were read against (`synergiesFor`). */
+/** The Synergies each Party taken afresh met, under the Synergies they were read against (`synergiesFor`). */
 const metBy = new WeakMap<QueryParty, { synergies: ContentSet['synergies']; met: Synergy[] }>();
 
 /** Whether `synergy` applies on an Encounter of `kind`: one of its kinds, or any kind when it names none. */

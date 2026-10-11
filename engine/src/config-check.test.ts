@@ -257,6 +257,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   },
   fatigueRiseByTier: { refused: [[], [4, -1], [4, Number.NaN], [4, Number.POSITIVE_INFINITY], [4, '5'], 4], allowed: [[0], [4, 5, 6, 7, 8], [8, 4], [0.5, 1, 1.5]] },
   fatigueFallByQuarters: { refused: [[], [5, -1], [5, Number.NaN], [5, Number.POSITIVE_INFINITY], [5, '6'], 5], allowed: [[0], [5, 6, 7, 8], [8, 5], [0.5, 1, 1.5, 2, 2.5]] },
+  fatigueScaling: share,
   potentialHintBands: {
     refused: [{ modest: -1, promising: 6, exceptional: 10 }, { modest: 0, promising: 10, exceptional: 6 }, { modest: 0, promising: 6, exceptional: 6 }],
     allowed: [{ modest: 0, promising: 0.5, exceptional: 30 }],
