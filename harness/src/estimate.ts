@@ -36,9 +36,10 @@
 // and drawing nothing (`moraleIn`), so that it meets Morale about as often as the content's do. Every
 // chance of that measure was to be held within 3 points of the resolver's rate; on the shipped content an
 // Encounter's Degrees stood 23.65 points off, and the owner's answer (2026-10-04, DL-173) holds only the
-// whole Quest's chances, its bands and success, within 3 points (`moraleHeld`), and reports each
-// Encounter's gaps, its Degrees and Success or better, without holding them. The no-one-falls check
-// stays on every chance.
+// whole Quest's chances, its bands and success (`moraleHeld`), and reports each Encounter's gaps, its
+// Degrees and Success or better, without holding them; within 5 points, the owner's answer (DL-275) to
+// the key-order sample's 4.84 (DL-263), the estimate not following Morale. The no-one-falls check stays
+// on every chance.
 
 import { createHash } from 'node:crypto';
 import {
@@ -86,8 +87,8 @@ export const defaultEstimateRuns = 20_000;
 export const estimateTolerance = readGateSpec().estimate.noOneFalls.within;
 /**
  * How far, in chance, the estimate of the whole Quest may stand from the resolver's rate with Morale's
- * consequences left in (v1.1.5-S7, DL-168 item 7: 3 points, the owner's example; DL-173: held on the
- * Quest's chances only, each Encounter's reported), as the Gate's spec holds it.
+ * consequences left in (v1.1.5-S7, DL-168 item 7; DL-173: held on the Quest's chances only, each
+ * Encounter's reported; 5 points, DL-275), as the Gate's spec holds it.
  */
 export const estimateMoraleTolerance = readGateSpec().estimate.moraleInQuest.within;
 
@@ -504,7 +505,7 @@ export function estimateReport(
     ...section(
       'moraleIn',
       'Morale in',
-      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one. Only the Quest's bands and success are held within the limit (DL-173, the owner's answer of 2026-10-04); each Encounter's gaps are reported, not held, the "Beyond the limit" of their rows counting those beyond 3 points.`,
+      `Injuries and Deaths are taken out of every Encounter, and Morale's consequences left in: the core's as shipped, and each Encounter written for a sample given those of a core Encounter of its kind. ${whole(count((it) => it.moraleEncounters))} of the ${whole(count((it) => it.encounters))} Encounters carry one. Only the Quest's bands and success are held within the limit (DL-173, the owner's answer of 2026-10-04; DL-275); each Encounter's gaps are reported, not held, the "Beyond the limit" of their rows counting those beyond ${fixed(100 * estimateMoraleTolerance, 0)} points.`,
       estimateMoraleTolerance,
       'quest',
     ),

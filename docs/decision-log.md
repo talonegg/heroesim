@@ -1253,3 +1253,38 @@ answer on it, the playtest and the word (the delivery guide's step 3).
 **Evidence.** The commit `v1.2.0-S13 (DL-274)`; `harness/reports/v1.2.0-gate-2026-10-11.md` and its
 JSON, committed; the estimate's report `estimate-2026-10-11` (not committed). The epic's S13 Status.
 Then, on the owner's asking: `web/src/content.test.ts`'s "the content gate" given `{ timeout: 30_000 }`, as DL-270's `release.test.ts` (no assertion changed); the Targets' default baseline `v1.2.0-gate-2026-10-11`, the release's closing gate (`settings.ts`, `environment.md`, the harness README, the settings tests); the `neutral` run `v1.2.0-close-neutral-2026-10-11` (no `HEROESIM_WORKERS`, alone, 10 games of 20 years, 404.9 s, schema 9, config 21, content 41), fingerprint `036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e`, the next `--expect` reference, its report committed.
+
+## DL-275 — v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to the backlog
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner ("a"); the agent's record
+
+**Context.** The close's estimate run (DL-274 item 3) met the no-one-falls line (1.18 points, within
+2) and not the Morale-in line: estimate-0150's success, 59.40% estimated, 54.56% resolved, 4.84
+points against DL-173's 3, the figure since S3's key order (DL-263). DL-263 item 1 left the limit to
+the owner at the close. Offered: (a) widen the limit to 5 points; (b) make the game's estimate account
+for Morale, an engine change that moves play; (c) make the probe's sample order-independent and keep 3.
+
+**Decision.**
+
+1. **The Morale-in limit is 5 points** (the owner: "a"): `harness/gate.json`'s
+   `estimate.moraleInQuest.within` 0.05, its source and a note saying so. It still holds the Quest's
+   bands and success only, strictly below, each Encounter's gaps reported (DL-173). This supersedes
+   DL-173's 3 points in part: the note under its owner's answer and `superseded/DL-173.md`.
+2. **Morale-aware estimating goes to the backlog** (`plan.md` §3, Alongside): the estimate following
+   each Encounter's Morale into the form of the Encounters after it, so the limit can return to 3.
+3. **The estimate is not run again:** its figures are unchanged, only the line; 4.84 is within 5.
+
+*Judgement calls, for the owner to see.*
+- **The tests that pinned 3 points moved with the line** (the owner's word given): four tests of
+  `harness/src/estimate.test.ts` printed or planted around the limit (the report's "limit of 3
+  points", gaps of exactly and beyond it, 3.5 points' plant); each now reads 5, its fixture moved to
+  keep its meaning (beyond: 7 and 5.5 points; within: 4.9). No assertion was loosened.
+- **A fixed figure found and fixed, test first:** the report's Morale-in note said its rows count
+  gaps "beyond 3 points", written in, not read from the spec; it now prints the limit
+  (`estimateMoraleTolerance`), a new expectation red first.
+
+**Consequences.** Every line of the Gate is met at the close; S13 awaits the owner's playtest and
+word. A Morale-aware estimate would move play and the Rivals' choices, and with it the probe's line.
+
+**Evidence.** The commit `v1.2.0-S13 (DL-275)`; DL-274's estimate report `estimate-2026-10-11`
+(not committed). The epic's S13 first box and Status.

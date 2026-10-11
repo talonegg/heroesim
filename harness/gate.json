@@ -55,8 +55,8 @@
       "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.6's close, the widest 1.18 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185)"
     },
     "moraleInQuest": {
-      "within": 0.03,
-      "source": "v1.1.5-S7 (DL-173, the owner's answer): the Quest's bands and success within 3 points with Morale's consequences in; held at v1.1.6's close, the widest 1.61 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185)"
+      "within": 0.05,
+      "source": "the owner's answer (DL-275), superseding DL-173's 3 points: the Quest's bands and success within 5 points with Morale's consequences in, each Encounter's gaps reported, not held (v1.1.5-S7, DL-173); v1.2.0's close (DL-274): the widest 4.84 points, estimate-0150's success, 59.40% estimated, 54.56% resolved, the key-order sample since S3 (DL-263)"
     }
   },
   "notes": [
@@ -67,6 +67,7 @@
     "v1.1.8's close moved the baseline from v1.1.6's closing full gate to its own, a clean run of the same games as v1.1.7's close, the one report the spec names; the copy line's anchor kept at S17's 0.253, and no limit changed (DL-229).",
     "v1.1.9's close kept the baseline, v1.1.9 changing no play, and anchored the copy line at its own closing full gate on the owner's answer, the growth unchanged (DL-252).",
     "v1.2.0 took the player's Bankruptcies out of the lines, at most 3 of 50 since DL-188, for the report's Targets, which set them against DL-83 item 2's band and fail no run: reported, not gated, in v1.2.0 (DL-257 item 7, the owner's answer Q11 a; DL-259).",
-    "v1.2.0's close moved the baseline from v1.1.8's closing full gate to its own, v1.2.0 changing play; the lines' sources name it, the copy line's anchor kept at v1.1.9's 0.390, and no limit changed (DL-274)."
+    "v1.2.0's close moved the baseline from v1.1.8's closing full gate to its own, v1.2.0 changing play; the lines' sources name it, the copy line's anchor kept at v1.1.9's 0.390, and no limit changed (DL-274).",
+    "v1.2.0's close widened the estimate's Morale-in limit from 3 points to 5 on the owner's answer, the close's widest 4.84 points; Morale-aware estimating is in the backlog (DL-275)."
   ]
 }

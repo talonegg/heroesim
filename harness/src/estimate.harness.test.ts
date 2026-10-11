@@ -12,8 +12,8 @@ import { runSettings } from './settings.js';
 // each Encounter's chance of each Degree and of Success or better, and the Quest's of each band and of
 // success, held within 2 points of the resolver's rate (DL-156). DL-173 (with DL-168
 // item 7) measures the same samples, seeds and estimate again with Morale's consequences left in,
-// Injuries and Deaths still taken out. Held within `estimateMoraleTolerance`, 3 points, are the Quest's
-// chances only, its bands and success (the owner's answer of 2026-10-04, DL-173); each Encounter's gaps
+// Injuries and Deaths still taken out. Held within `estimateMoraleTolerance`, 5 points (DL-275), are the
+// Quest's chances only, its bands and success (the owner's answer of 2026-10-04, DL-173); each Encounter's gaps
 // there are written to the report, "reported, not held", and do not fail. Both limits are the Gate's
 // (`harness/gate.json`, DL-186 item 13). The report, both measures, is written to
 // harness/reports/<name>-<date>.md, the name HEROESIM_MILESTONE gives or `estimate`, so that
@@ -24,7 +24,7 @@ const probe = settings.run === 'estimate' ? settings : null;
 const samples = probe?.samples ?? 0;
 const runs = probe?.resolutions ?? 0;
 
-test.runIf(probe !== null)(`${samples} Parties and Quests, each estimated within 2 points of ${runs} seeds resolved, and the Quest's within 3 with Morale in`, { timeout: 24 * 60 * 60_000 }, () => {
+test.runIf(probe !== null)(`${samples} Parties and Quests, each estimated within 2 points of ${runs} seeds resolved, and the Quest's within 5 with Morale in`, { timeout: 24 * 60 * 60_000 }, () => {
   if (probe === null) return;
   const startedAt = new Date();
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
@@ -38,7 +38,7 @@ test.runIf(probe !== null)(`${samples} Parties and Quests, each estimated within
   const encounterMost = widest(probed, 'moraleIn', 'encounters');
   const points = (gap: number | undefined): string => ((gap ?? 0) * 100).toFixed(2);
   // The two checks (`estimateChecks`, tested in estimate.test.ts): every chance strictly within 2 points
-  // with no one falling, and the Quest's within 3 with Morale in; a failure prints the gap and its limit.
+  // with no one falling, and the Quest's within 5 with Morale in; a failure prints the gap and its limit.
   const checks = estimateChecks(probed);
   const verdict = (within: boolean): string => (within ? 'PASS' : 'FAIL');
   print(

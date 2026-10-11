@@ -144,3 +144,6 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
   - A Hero's page showing a Stat's sources, as the Roster's tooltip does (DL-186 item 31).
   - The weighted draws updated: a deal at creation that keeps to the weights' proportions when
     they are not all 1 (DL-210's review).
+  - Morale-aware estimating: the game's chance estimate following each Encounter's Morale
+    consequences into the form of the Encounters after it, an engine change that moves play, so that
+    the estimate probe's Morale-in limit can return to 3 points from 5 (DL-275).

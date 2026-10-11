@@ -182,7 +182,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-170 | 2026-10-03 | v1.1.5-S11 built: the Board's Party builder lists the Heroes who can go first in the default order … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-171 | 2026-10-03 | v1.1.5-S12 built: the Roster as Tiles or a Table of effective Stats, its columns chosen in a panel … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-172 | 2026-10-03 | v1.1.5-S8 built: the words of the Earned Trait, the Chance band and the configuration's comments … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
-| DL-173 | 2026-10-04 | v1.1.5-S7 built: the estimate probe's second measure with Morale's consequences left in, run on the … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
+| DL-173 | 2026-10-04 | v1.1.5-S7 built: the estimate probe's second measure with Morale's consequences left in, run on the … | in part by DL-275 | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-174 | 2026-10-04 | v1.1.5-S1 built: one game's memory profiled, its main cause the save's text written at each year's … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-175 | 2026-10-04 | v1.1.5-S6 built (code part): `partyFor` adds a Hero past the minimum only for more than the margin … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-176 | 2026-10-04 | v1.1.5-S2 built: the harness's player sends its Parties to the Quests they are likeliest to win … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
@@ -284,6 +284,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [decision-log](../decision-log.md) |
 | DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [decision-log](../decision-log.md) |
 | DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [decision-log](../decision-log.md) |
+| DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
