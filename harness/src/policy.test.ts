@@ -63,10 +63,12 @@ const deps: EngineDeps = {
   content,
 };
 
+/** A new world, its player's Guild with its post of Captain held (DL-287), so that only a test of naming meets a choice to name, and the Board's Quests. */
 function scene(seed = 'policy'): { document: WorldDocument; guild: Guild; quests: Quest[] } {
   const { document } = createWorld(seed, harnessSetup, deps);
   const guild = playerGuild(document.world);
   if (guild === undefined) throw new Error('No player');
+  guild.captainId = guild.rosterIds[0] ?? null;
   const quests = document.world.board.map((questId) => {
     const quest = document.world.quests[questId];
     if (quest === undefined) throw new Error(`No Quest ${questId}`);
@@ -631,6 +633,28 @@ describe('automaticPolicy', () => {
       const choices = automaticPolicy(document, deps, { ...defaultPolicyConfig, buyWealthMultiple: 1_000 });
       expect(choices.map((action) => action.kind)).toEqual(['recruit']);
     });
+  });
+
+  // DL-287: the player's Guild names a Captain as a Rival does, so a harness game meets the Captain's effects.
+  test("names to an empty post its Hero highest in the captaincy Stat, by the engine's captainChoice, before it sends anyone, and no one while the post is held", () => {
+    const { document, guild, quests } = scene('policy-captain');
+    guild.captainId = null;
+    openBoard(quests);
+    const heroes = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
+    heroes.forEach((hero, at) => Object.assign(hero, { traits: [], stats: { ...hero.stats, leadership: at === 2 ? 19 : 4 } }));
+
+    const actions = automaticPolicy(document, deps, noBuilding);
+
+    expect(actions.filter((action) => action.kind === 'nameCaptain')).toEqual([{ kind: 'nameCaptain', guildId: guild.id, heroId: heroes[2]?.id }]);
+    expect(actions.findIndex((action) => action.kind === 'nameCaptain')).toBeLessThan(actions.findIndex((action) => action.kind === 'dispatch'));
+    let current = document;
+    for (const action of actions) {
+      const result = applyAction(current, action, deps);
+      expect(result.ok, action.kind).toBe(true);
+      if (result.ok) current = result.document;
+    }
+    expect(current.world.guilds[guild.id]?.captainId).toBe(heroes[2]?.id);
+    expect(automaticPolicy(current, deps, noBuilding).some((action) => action.kind === 'nameCaptain')).toBe(false);
   });
 
   test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (DL-57)', () => {

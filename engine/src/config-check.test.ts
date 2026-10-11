@@ -264,6 +264,12 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   fatigueFallByQuarters: { refused: [[], [5, -1], [5, Number.NaN], [5, Number.POSITIVE_INFINITY], [5, '6'], 5], allowed: [[0], [5, 6, 7, 8], [8, 5], [0.5, 1, 1.5, 2, 2.5]] },
   fatigueScaling: share,
   playerRestBand: { refused: ['sleepy', '', 'none', 3], allowed: ['fresh', 'tired', 'exhausted', null] },
+  // DL-287: a Captain adds to their Party's form and Morale, never takes; a change only costs.
+  captainFormFactor: { refused: [0.99, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [1, 1.05, 2] },
+  captainHomecomingMorale: { refused: [-0.5, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 5, 2.5] },
+  captainHomeBaselineBonus: { refused: [-1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 5, 0.5] },
+  captainChangeMoraleCost: { refused: [1, 0.5, Number.NaN, Number.NEGATIVE_INFINITY, undefined], allowed: [0, -10, -2.5] },
+  captainChangeLockDays: wholeFrom(0),
   potentialHintBands: {
     refused: [{ modest: -1, promising: 6, exceptional: 10 }, { modest: 0, promising: 10, exceptional: 6 }, { modest: 0, promising: 6, exceptional: 6 }],
     allowed: [{ modest: 0, promising: 0.5, exceptional: 30 }],

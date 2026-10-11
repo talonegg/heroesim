@@ -267,6 +267,17 @@ export interface Guild {
   guildmasterId: GuildmasterId;
   /** The Roster, ordered. */
   rosterIds: HeroId[];
+  /**
+   * The Captain (DL-280 item 6, DL-287): one Hero of the Roster, named by `nameCaptain`; `null` for a
+   * post empty, as it is at founding and once its Captain dies, retires or leaves the Roster.
+   */
+  captainId: HeroId | null;
+  /**
+   * The Turn the Captain was last changed, one named in another's place (`nameCaptain`); `null` for
+   * a Guild whose Captain never was. Within `captainChangeLockDays` of it the post is locked against
+   * another change (`captainLock`); a vacancy filled sets nothing.
+   */
+  captainChangedOnTurn: Turn | null;
   wealth: number;
   fame: number;
   /** Set while Wealth is below the Bankruptcy floor. */
@@ -507,9 +518,10 @@ export interface Stack {
  * `demands` from Quests, refusing every older save likewise (DL-193); 8, Quests' `tier` and
  * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
  * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266); 10, Heroes'
- * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282).
+ * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282); 11,
+ * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287).
  */
-export const schemaVersion = 10;
+export const schemaVersion = 11;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

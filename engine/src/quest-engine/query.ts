@@ -8,14 +8,17 @@
 // Each Hero's effective Stats are read once, through `effectiveStats`, when the Party is taken for
 // an Encounter, with their Morale on the Quest, their Fatigue on the Encounter's Day, their age,
 // whether they are hurt and how far that is relieved, and their formed Stats, which the form module
-// works out from those (form.ts, DL-284, DL-285). It is the one place a member is built: the
-// resolver, the estimate and the Party builder all take the Party here. It reads only the Party's own Heroes and their state on the Quest: never
-// the Guild's leader nor the Guild's dealings (M4's third risk; the Check's test reads this file to
-// hold it so), nor Regard between particular Heroes (DL-148 item 5).
+// works out from those (form.ts, DL-284, DL-285), with their Guild's Captain's factor when the Captain
+// is among them (DL-287). It is the one place a member is built: the resolver, the estimate and the
+// Party builder all take the Party here. It reads only the Party's own Heroes, their state on the
+// Quest and which of them their Guild names Captain: never the Guild's leader nor the Guild's dealings
+// (M4's third risk; the Check's test reads this file to hold it so), nor Regard between particular
+// Heroes (DL-148 item 5).
 
 import type { EngineDeps } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import type { Hero, HeroId, StatValues, World } from '../document.js';
+import { captaincyScale } from '../captain.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
 import { formedStats, hurtRelief, relievesHurt, workingMorale } from './form.js';
@@ -42,6 +45,11 @@ export interface QueryMember {
    * the other members, by a heal Item spent on them, or both; 0 when they are unhurt.
    */
   relief: number;
+  /**
+   * s of their Guild's Captain on the Encounter (`partyCaptaincy`, DL-287): the Captain's captaincy
+   * Stat from its least, 0, to its most, 1, when the Captain is among the members; 0 when not.
+   */
+  captaincy: number;
 }
 
 /** What has happened to the Party on the Quest so far, and the Day it has come to, as the Queries read it (v1.1.4-S3). */
@@ -70,11 +78,29 @@ export interface QueryParty {
   members: readonly QueryMember[];
   content: QueryContent;
   /**
-   * The Party this one is on another Day of the same Quest (the estimate's, `atFatigue`): its members
-   * the same but for their Fatigue and formed Stats, which no Synergy's requirement reads, so it meets
-   * that Party's Synergies (synergy.ts). Absent for a Party taken afresh.
+   * The Party this one is on another Day of the same Quest (the estimate's, `reformed`): its members
+   * the same but for their Fatigue, their Captain's s and their formed Stats, which no Synergy's
+   * requirement reads, so it meets that Party's Synergies (synergy.ts). Absent for a Party taken
+   * afresh.
    */
   base?: QueryParty;
+}
+
+/**
+ * s of the Captain among `members` (DL-280 item 6, DL-287): of the member whose Guild names them its
+ * Captain, their effective captaincy Stat's scale (`captaincyScale`); 0 when no member is. A Party is
+ * one Guild's, so it has one Captain at most; the Captain's own state on the Quest does not move it.
+ */
+export function partyCaptaincy(
+  members: readonly Pick<QueryMember, 'hero' | 'stats'>[],
+  world: Pick<World, 'guilds'>,
+  content: Pick<ContentSet, 'stats'>,
+): number {
+  for (const { hero, stats } of members) {
+    const guild = hero.guildId === null || !Object.hasOwn(world.guilds, hero.guildId) ? undefined : world.guilds[hero.guildId];
+    if (guild?.captainId === hero.id) return captaincyScale(stats, content);
+  }
+  return 0;
 }
 
 /**
@@ -84,7 +110,8 @@ export interface QueryParty {
  * on the Encounter's Day, `onQuest.fatigueByHero`'s or else their stored Fatigue; their age at
  * `world.turn`; whether `onQuest.hurt` holds their id; their relief once hurt (`hurtRelief`, DL-285),
  * by a Healer when another of `heroes` is of a Class content marks `relievesHurt`, one relief however
- * many, and by a heal Item when `onQuest.relieved` holds their id; and their formed Stats from those
+ * many, and by a heal Item when `onQuest.relieved` holds their id; s of their Guild's Captain when
+ * the Captain is one of `heroes` (`partyCaptaincy`, DL-287); and their formed Stats from those
  * (`formedStats`, DL-284). With nothing `onQuest`, the Party as it sets out.
  */
 export function queryParty(
@@ -96,23 +123,25 @@ export function queryParty(
   const { config, content } = deps;
   const { hurt = new Set(), relieved = new Set(), moraleByHero = {}, fatigueByHero = {} } = onQuest;
   const healers = heroes.filter((hero) => relievesHurt(hero.classKey, content));
+  const read = heroes.map((hero) => ({ hero, stats: effectiveStats(hero, world, content) }));
+  const captaincy = partyCaptaincy(read, world, content);
   return {
-    members: heroes.map((hero) => {
+    members: read.map(({ hero, stats }) => {
       const delta = Object.hasOwn(moraleByHero, hero.id) ? (moraleByHero[hero.id] ?? 0) : 0;
       const morale = workingMorale(hero.morale, delta, config);
       const fatigue = Object.hasOwn(fatigueByHero, hero.id) ? (fatigueByHero[hero.id] ?? hero.fatigue) : hero.fatigue;
       const isHurt = hurt.has(hero.id);
       const relief = isHurt ? hurtRelief({ healer: healers.some((healer) => healer.id !== hero.id), item: relieved.has(hero.id) }, config) : 0;
-      const stats = effectiveStats(hero, world, content);
       return {
         hero,
         stats,
-        formed: formedStats(stats, { morale, fatigue, hurt: isHurt, relief }, deps),
+        formed: formedStats(stats, { morale, fatigue, hurt: isHurt, relief, captaincy }, deps),
         morale,
         fatigue,
         age: ageOf(hero, world.turn, config),
         hurt: isHurt,
         relief,
+        captaincy,
       };
     }),
     content,
@@ -120,11 +149,19 @@ export function queryParty(
 }
 
 /**
- * `member` on another Day of the same Quest (DL-284): as they are but for their Fatigue, `fatigue`, and
- * their formed Stats read again at it (`formedStats`); the same member when their Fatigue is unchanged.
- * What the estimate takes for each Day of a Quest its Encounters fall on (estimate.ts).
+ * `member` on another Day of the same Quest, or in another Party of the same Guild (DL-284, DL-287): as
+ * they are but for their Fatigue and the Party's Captain's s, each as `change` gives it or else their
+ * own, and their formed Stats read again at those (`formedStats`); the same member when neither
+ * changes. What the estimate takes for each Day of a Quest its Encounters fall on, in each Party it
+ * proposes (estimate.ts).
  */
-export function atFatigue(member: QueryMember, fatigue: number, deps: Pick<EngineDeps, 'config' | 'content'>): QueryMember {
-  if (fatigue === member.fatigue) return member;
-  return { ...member, fatigue, formed: formedStats(member.stats, { morale: member.morale, fatigue, hurt: member.hurt, relief: member.relief }, deps) };
+export function reformed(
+  member: QueryMember,
+  change: { fatigue?: number; captaincy?: number },
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): QueryMember {
+  const { fatigue = member.fatigue, captaincy = member.captaincy } = change;
+  if (fatigue === member.fatigue && captaincy === member.captaincy) return member;
+  const state = { morale: member.morale, fatigue, hurt: member.hurt, relief: member.relief, captaincy };
+  return { ...member, fatigue, captaincy, formed: formedStats(member.stats, state, deps) };
 }

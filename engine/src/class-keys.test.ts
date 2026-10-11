@@ -34,3 +34,21 @@ describe("the engine's source", () => {
     expect(naming.map((path) => path.slice(src.length))).toEqual([]);
   });
 });
+
+// The engine names no Hero Stat either (ADR-0006): the Stat a Captain is scaled by is the one content
+// marks `captaincy` (DL-287), and every other rule reads a Stat by its area or a Query's key.
+const heroStatKeys = Object.entries(JSON.parse(readFileSync(fileURLToPath(new URL('../../content/stats.json', import.meta.url)), 'utf8')) as Record<string, { owner: string }>)
+  .filter(([, stat]) => stat.owner === 'hero')
+  .map(([key]) => key);
+
+describe("the engine's source and the Hero Stats", () => {
+  test('reads the Hero Stats from content: the shipped content has them, the captaincy Stat among them', () => {
+    expect(heroStatKeys).toContain('leadership');
+  });
+
+  test.each(heroStatKeys)('names no Hero Stat key as a string: %s', (statKey) => {
+    const quoted = new RegExp(`['"\`]${statKey}['"\`]`);
+    const naming = sources(src).filter((path) => quoted.test(readFileSync(path, 'utf8')));
+    expect(naming.map((path) => path.slice(src.length))).toEqual([]);
+  });
+});

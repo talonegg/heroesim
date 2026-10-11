@@ -11,7 +11,10 @@
 //   Physical Stats and half by every other area, less its relief (`hurtRelief`, DL-285): a share
 //   relieved by a Healer, a member of a Class content marks `relievesHurt` other than the hurt Hero
 //   among the Party on the Encounter, and a share by a heal Item spent at their Injury, the two
-//   multiplying on the gap.
+//   multiplying on the gap;
+// - the Captain's, on an Encounter with their Guild's Captain among the Party (DL-280 item 6; DL-287):
+//   1 + s·(`captainFormFactor` − 1) on every Stat of every member, the Captain's own included, s being
+//   the Captain's captaincy Stat from its least, 0, to its most, 1 (`captaincyScale`, captain.ts).
 // A Stat's area is content's (`stats.json`), and the Healer is a Class's mark (`classes.json`), so the
 // engine names no Stat and no Class (ADR-0006; the architecture review's candidate 5). Each Hero's own
 // state sets their own form, not the Party's mean (DL-148 item 9). query.ts reads it once for each
@@ -36,7 +39,7 @@ export type MoraleFactorConfig = Pick<GameConfig, 'moraleBaseline' | 'moraleMin'
 export type FatigueFactorConfig = Pick<GameConfig, 'fatigueScaling' | 'fatigueMax'>;
 
 /** What a Hero's form reads of the configuration. */
-export type FormConfig = MoraleFactorConfig & FatigueFactorConfig & Pick<GameConfig, 'hurtCheckFactor'>;
+export type FormConfig = MoraleFactorConfig & FatigueFactorConfig & Pick<GameConfig, 'hurtCheckFactor' | 'captainFormFactor'>;
 
 /** What a Hero's form reads of content: each Stat's area. */
 export type FormContent = Pick<ContentSet, 'stats'>;
@@ -57,6 +60,11 @@ export interface FormState {
   hurt: boolean;
   /** The share of their hurt's gap relieved on the Encounter (`hurtRelief`), from 0 to 1; read only when they are hurt. */
   relief: number;
+  /**
+   * s of their Guild's Captain on the Encounter (DL-287): the Captain's captaincy Stat from its least,
+   * 0, to its most, 1 (`captaincyScale`), when the Captain is among the Party; 0 when not.
+   */
+  captaincy: number;
 }
 
 /** What relieves a hurt Hero on an Encounter (DL-285): a Healer among the rest of the Party, a heal Item spent at their Injury. */
@@ -119,6 +127,15 @@ export function hurtRelief(by: ReliefBy, config: Pick<GameConfig, 'healerHurtRel
 }
 
 /**
+ * The Captain's factor at `captaincy`, s (DL-280 item 6, Q12 a; DL-287): 1 + s·(`captainFormFactor` −
+ * 1), 1 with no Captain among the Party or one at the captaincy Stat's least, `captainFormFactor` at
+ * its most. On every Stat of every member.
+ */
+export function captainFactor(captaincy: number, config: Pick<GameConfig, 'captainFormFactor'>): number {
+  return 1 + captaincy * (config.captainFormFactor - 1);
+}
+
+/**
  * Whether a Hero of `classKey` relieves the hurt of another member of their Party (DL-285): their
  * Class's `relievesHurt` mark in content. A Class content no longer defines relieves nothing.
  */
@@ -129,12 +146,13 @@ export function relievesHurt(classKey: string, content: Pick<ContentSet, 'classe
 /**
  * A Hero's formed Stats on an Encounter (DL-284): each of `stats`, their effective Stats, times
  * Morale's factor at `state.morale`, Fatigue's at `state.fatigue` and the hurt's after its relief
- * (DL-285), by the Stat's area in content, the factors multiplied. A Stat content does not define, which no effective Stats hold,
- * is times Morale's alone. With every factor 1, each Stat as it is.
+ * (DL-285), by the Stat's area in content, and the Captain's at `state.captaincy` (DL-287), the
+ * factors multiplied. A Stat content does not define, which no effective Stats hold, is times Morale's
+ * and the Captain's alone. With every factor 1, each Stat as it is.
  */
 export function formedStats(stats: StatValues, state: FormState, deps: FormDeps): StatValues {
   const { config, content } = deps;
-  const morale = moraleFactor(state.morale, config);
+  const morale = moraleFactor(state.morale, config) * captainFactor(state.captaincy, config);
   const byArea = new Map<StatArea, number>();
   const factorOf = (area: StatArea): number => {
     let factor = byArea.get(area);
@@ -172,8 +190,8 @@ export function fatigueHarm(fatigue: number, config: FatigueFactorConfig): HarmF
 
 /**
  * A Hero's form as one figure, for the Party builder's line alone (DL-148 item 12, DL-284): Morale's
- * factor times the mean, over content's Hero Stats, of Fatigue's and the hurt's factors on each. No
- * Check reads it; a Check reads the formed Stats (`formedStats`).
+ * factor and the Captain's (DL-287) times the mean, over content's Hero Stats, of Fatigue's and the
+ * hurt's factors on each. No Check reads it; a Check reads the formed Stats (`formedStats`).
  */
 export function formFigure(state: FormState, deps: FormDeps): number {
   const { config, content } = deps;
@@ -184,7 +202,7 @@ export function formFigure(state: FormState, deps: FormDeps): number {
     total += fatigueFactor(stat.area, state.fatigue, config) * hurtFactor(stat.area, state, config);
     counted += 1;
   }
-  return moraleFactor(state.morale, config) * (counted === 0 ? 1 : total / counted);
+  return moraleFactor(state.morale, config) * captainFactor(state.captaincy, config) * (counted === 0 ? 1 : total / counted);
 }
 
 /** What a Party's mean form does to its odds, as the Party builder words it (DL-148 item 12). */

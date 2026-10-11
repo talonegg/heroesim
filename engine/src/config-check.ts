@@ -438,6 +438,13 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   // A band a Hero can reach, or none (DL-286).
   playerRestBand: oneOfOrNone(fatigueBandNames),
 
+  // A Captain never takes from their Party, nor from its Morale, and a change never raises the outgoing Captain's (DL-287).
+  captainFormFactor: finite({ min: 1 }),
+  captainHomecomingMorale: finite({ min: 0 }),
+  captainHomeBaselineBonus: finite({ min: 0 }),
+  captainChangeMoraleCost: finite({ max: 0 }),
+  captainChangeLockDays: whole({ min: 0 }),
+
   potentialHintBands: bands(potentialHints, { min: 0 }),
   declineAge: whole({ min: 0 }),
   declinePerYear: whole({ min: 0 }),

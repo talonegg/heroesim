@@ -433,6 +433,13 @@ const sentences: Sentences = {
     const { guildId, facility, grade, improvementKey, cost } = event.payload;
     return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`;
   },
+  // DL-287: a Captain named to an empty post, or in another's place, the post then locked until a date.
+  'guild.captain-named': (event, _content, calendar) => {
+    const { guildId, heroId, replacedId, lockedUntilTurn } = event.payload;
+    if (replacedId === null) return say`${called(event, guildId)} named ${hero(event, heroId)} its Captain.`;
+    const locked = lockedUntilTurn === null ? '' : say`; the post cannot change again before ${dateOfTurn(lockedUntilTurn, calendar)}`;
+    return say`${called(event, guildId)} named ${hero(event, heroId)} its Captain in place of ${hero(event, replacedId)}${locked}.`;
+  },
   'hero.levelled': (event, content) => {
     // The Stats that rose, never the points Potential took: Potential is shown only as a hint.
     const { heroId, level, statDeltas } = event.payload;

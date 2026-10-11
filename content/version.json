@@ -1,5 +1,5 @@
 {
-  "version": 44,
+  "version": 45,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -45,6 +45,7 @@
     "41 from the content editor's Finish of 2026-10-11 (changed survey-the-old-workings, clear-the-barrow).",
     "42 from v1.2.1-S1, which renames the Synergy `under-a-captain`, \"Under a captain\", to `under-a-strong-leader`, \"Under a strong leader\", so that Captain means the Guild's post alone (DL-280 Q3, DL-281); no rule reads the key, and a Party meeting its requirements gets the same bonus.",
     "43 from v1.2.1-S5, which marks the Healer `relievesHurt`, the Class whose member relieves the hurt of another member of their Party on a Quest (DL-280 item 4, DL-285); the engine reads the mark and names no Class.",
-    "44 from v1.2.1-S6, which gives each Disposition its `restBand`, the Fatigue band at or past which it keeps a free Hero home: steady and miserly tired, ambitious exhausted, reckless null, none (DL-280 item 5, DL-286)."
+    "44 from v1.2.1-S6, which gives each Disposition its `restBand`, the Fatigue band at or past which it keeps a free Hero home: steady and miserly tired, ambitious exhausted, reckless null, none (DL-280 item 5, DL-286).",
+    "45 from v1.2.1-S7, which marks Leadership `captaincy`, the Stat a Captain's effects are scaled by from its least to its most (DL-280 item 6, DL-287); the engine reads the mark and names no Stat."
   ]
 }

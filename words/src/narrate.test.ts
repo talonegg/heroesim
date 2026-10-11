@@ -148,6 +148,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], { guildId, facility: 'quarters', grade: 2, improvementKey: 'quarters-2', cost: 500 }),
+  'guild.captain-named': event('guild.captain-named', [guildId, heroId, otherHeroId], { guildId, heroId, replacedId: otherHeroId, lockedUntilTurn: 300 }),
   'hero.levelled': event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 3, statDeltas: { strength: 1, courage: 2 }, pointsLost: 0 }),
   'patron.regard-changed': event('patron.regard-changed', [patronId, guildId], {
     patronId: patronId as never,
@@ -296,6 +297,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guildmaster.succeeded': `${osric} retired at 65 as Guildmaster of ${kestrel}, and <name:${successorId}|Wenna Tolley> succeeded them.`,
   'hero.left-guild': `${brenna} left ${kestrel} for the Unattached pool.`,
   'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 500 Wealth: its quarters are now grade 2.`,
+  'guild.captain-named': `${kestrel} named ${brenna} its Captain in place of ${aldred}; the post cannot change again before Year 1 Day 101.`,
   'hero.levelled': `${brenna} reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
   'patron.regard-changed': `${maud}'s Regard for ${kestrel} fell from neutral to cool when an Offer of theirs went untaken.`,
   // A Hero a Guildmaster's Regard is for is a Hero slot (DL-209); a Patron or a Guildmaster a name.
@@ -385,6 +387,8 @@ describe('the variations of a sentence', () => {
     ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), `${kestrel} lost its Guildmaster to Retirement and folded.`],
     ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), `${kestrel} went bankrupt and folded.`],
     ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
+    ['a Captain named to an empty post', varied('guild.captain-named', { replacedId: null, lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain.`],
+    ['a Captain changed with no lock', varied('guild.captain-named', { lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain in place of ${aldred}.`],
     ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`],
     ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
     // A floor that is not 0 is named as it is, so a save playing under other rules reads true.

@@ -266,7 +266,9 @@ describe.each(['check.ts', 'query.ts', 'form.ts', 'query/operators.ts', 'query/p
 });
 
 describe('query.ts', () => {
-  test("imports as values only effectiveStats, ageOf and the form module's four, and otherwise only types: content's, the document's and the config's", () => {
+  // The Captain's scale (DL-287) is the one value read beyond the member's own: which of the Party its
+  // Guild names Captain, and their captaincy Stat's scale.
+  test("imports as values only effectiveStats, ageOf, the Captain's scale and the form module's four, and otherwise only types: content's, the document's and the config's", () => {
     const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
     const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
       from,
@@ -275,6 +277,7 @@ describe('query.ts', () => {
     }));
 
     expect(imports.filter((it) => !it.typeOnly)).toEqual([
+      { from: '../captain.js', names: ['captaincyScale'], typeOnly: false },
       { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
       { from: '../time.js', names: ['ageOf'], typeOnly: false },
       { from: './form.js', names: ['formedStats', 'hurtRelief', 'relievesHurt', 'workingMorale'], typeOnly: false },

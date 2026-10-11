@@ -36,6 +36,14 @@ export type {
   BuyRequest,
   NotInMarket,
 } from './actions/buy.js';
+export type {
+  NameCaptainAction,
+  NameCaptainAlreadyCaptain,
+  NameCaptainGuildFolded,
+  NameCaptainHeroNotOnRoster,
+  NameCaptainLocked,
+  NameCaptainRejection,
+} from './actions/captain.js';
 export {
   fameRefusal,
   unavailability,
@@ -177,6 +185,7 @@ export {
   type TransferRefusalReason,
   type TransferSide,
 } from './controllers/rival.js';
+export { captainChoice, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
 export * from './create.js';
 export {

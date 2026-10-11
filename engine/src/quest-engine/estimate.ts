@@ -10,8 +10,10 @@
 // the Day each Encounter falls on and each Hero's Fatigue on it, from the Fatigue they would set out
 // with: the proposed Heroes' own, not the copies brought home, whose Fatigue is the Quest's end's. One
 // Party is taken for each distinct Day, its members the brought-home ones at that Day's Fatigue
-// (`atFatigue`), each kept by return night, Hero and Fatigue, however many Parties and Quests read
-// them; the Synergies are the Party's on every Day, since no requirement reads a formed Stat.
+// (`reformed`), each kept by return night, Hero, Fatigue and the Captain's s, however many Parties and
+// Quests read them; the Synergies are the Party's on every Day, since no requirement reads a formed
+// Stat. The Captain's factor is the proposed Party's own (DL-287): its Guild's Captain's s when the
+// Captain is one of it (`partyCaptaincy`), whoever else the pool brought home.
 //
 // - *One Check.* Its roll is C × (1 + v × (2u − 1)), u a draw from 0 up to 1, never below 0, so the
 //   chance it reaches x is 1 − clamp((x ÷ C − 1 + v) ÷ 2v, 0, 1); at v = 0 it is a step, 1 when C
@@ -47,7 +49,7 @@ import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.
 import { bandOf } from '../bands.js';
 import { chanceBandNames, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type CheckKey, type Degree, type Encounter, type EncounterKey, type EncounterKind } from '../content-types.js';
-import { compareByCodeUnit, type Hero, type HeroId, type Quest, type Turn, type World } from '../document.js';
+import { compareByCodeUnit, requireRow, rowOf, type GuildId, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { clamp } from '../generators/draw.js';
 import { itemDefinition } from '../items.js';
@@ -58,7 +60,7 @@ import { questClock } from './clock.js';
 import { bonusOf, rerollFor, takeBonuses, type Left } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { storedSequence } from './encounters.js';
-import { atFatigue, queryParty, type QueryMember, type QueryParty } from './query.js';
+import { partyCaptaincy, queryParty, reformed, type QueryMember, type QueryParty } from './query.js';
 import { questBand } from './resolve.js';
 
 /** The chance of each Degree, which sum to 1. */
@@ -161,16 +163,18 @@ export type PartyEstimator = (
  * `estimateQuest` on `world`, many times over (the Best Party module's, DL-237): each Hero is brought
  * home for a return night (`homecoming`), and read as a Query reads them (`queryParty`: their
  * effective Stats, Morale and age, each of their own alone), once, and at each Fatigue an
- * Encounter's Day meets them at (`atFatigue`), once, however many Parties and Quests of that return
- * night are estimated; each estimate equals `estimateQuest`'s for the same
- * Quest, Party and consumables. `world` must not change while it is used, which the Best Party module
- * holds its callers to. Throws as `estimateQuest` does, at the call.
+ * Encounter's Day meets them at, in a Party with its Captain or without (`reformed`), once, however
+ * many Parties and Quests of that return night are estimated; each estimate equals `estimateQuest`'s
+ * for the same Quest, Party and consumables. `world` must not change while it is used, which the Best
+ * Party module holds its callers to. Throws as `estimateQuest` does, at the call.
  */
 export function partyEstimator(world: World, deps: CheckDeps): PartyEstimator {
   const { config, content } = deps;
-  // By return night: a world that holds every Hero brought home for it, each of them as a Party's
-  // member, and each of those at each Fatigue an Encounter's Day has met them at (DL-284).
-  const homes = new Map<Turn, { world: World; members: Map<HeroId, QueryMember>; byFatigue: Map<HeroId, Map<number, QueryMember>> }>();
+  // By return night and the Guilds whose Captain the Party takes away with it (`captainsAmong`), whose
+  // Heroes miss the Captain's lift to their Morale's baseline on the nights away (DL-287): a world that
+  // holds every Hero brought home for it, each of them as a Party's member, and each of those at each
+  // Fatigue an Encounter's Day has met them at, under each Captain's s a Party has given them (DL-284).
+  const homes = new Map<string, { world: World; members: Map<HeroId, QueryMember>; byFatigue: Map<HeroId, Map<string, QueryMember>> }>();
   // By Encounter: the Degree its pass formula gives each combination of its Checks' Degrees, as read.
   const passes: Passes = new Map();
   return (quest, heroes, { carried = [], pool = heroes } = {}) => {
@@ -180,15 +184,17 @@ export function partyEstimator(world: World, deps: CheckDeps): PartyEstimator {
     if (sequence.length === 0) return null;
     if (heroes.length === 0) return noOne(sequence, config);
     const night = returnNightOf(world.turn, quest);
-    let home = homes.get(night);
+    const captainsAway = captainsAmong(heroes, world);
+    const homeKey = `${night}|${captainsAway.join()}`;
+    let home = homes.get(homeKey);
     if (home === undefined || heroes.some((hero) => !home?.members.has(hero.id))) {
       const known = home?.members;
       const away = [...pool, ...heroes].filter((hero, at, all) => known?.has(hero.id) !== true && all.findIndex((other) => other.id === hero.id) === at);
-      const brought = homecoming(world, away, quest, deps);
+      const brought = homecoming(world, away, quest, deps, captainsAway);
       const members = queryParty(brought.heroes, brought.world, deps).members;
       if (home === undefined) {
         home = { world: brought.world, members: new Map(), byFatigue: new Map() };
-        homes.set(night, home);
+        homes.set(homeKey, home);
       } else {
         // Each Hero comes home of their own alone, so the copies join the world the first brought home.
         for (const hero of brought.heroes) home.world.heroes[hero.id] = hero;
@@ -196,21 +202,27 @@ export function partyEstimator(world: World, deps: CheckDeps): PartyEstimator {
       for (const member of members) home.members.set(member.hero.id, member);
     }
     const { members, byFatigue } = home;
-    const party: QueryParty = { members: heroes.map((hero) => members.get(hero.id) as QueryMember), content };
-    // Each brought-home member at `fatigue`, kept by Hero and Fatigue for the return night.
+    const proposed = heroes.map((hero) => members.get(hero.id) as QueryMember);
+    // The Captain's s of this Party, read from the world as it is, not the pool's the members were
+    // brought home in (DL-287).
+    const captaincy = partyCaptaincy(proposed, world, content);
+    // Each brought-home member at `fatigue` under `captaincy`, kept by Hero, Fatigue and s for the return night.
     const atDay = (member: QueryMember, fatigue: number): QueryMember => {
       let known = byFatigue.get(member.hero.id);
       if (known === undefined) {
         known = new Map();
         byFatigue.set(member.hero.id, known);
       }
-      let found = known.get(fatigue);
+      const key = `${fatigue}:${captaincy}`;
+      let found = known.get(key);
       if (found === undefined) {
-        found = atFatigue(member, fatigue, deps);
-        known.set(fatigue, found);
+        found = reformed(member, { fatigue, captaincy }, deps);
+        known.set(key, found);
       }
       return found;
     };
+    // The base each Day's Party meets its Synergies as, which read no formed Stat (synergy.ts).
+    const party: QueryParty = { members: proposed, content };
     // The Fatigue each proposed Hero would set out with: their own, never a brought-home copy's (DL-282's verification).
     const setOut = new Map(heroes.map((hero) => [hero.id, hero.fatigue]));
     const clock = questClock(quest, sequence.length, config);
@@ -306,22 +318,49 @@ function estimateFor(
 }
 
 /**
+ * The Guilds, in id order, whose Captain is one of `heroes` (DL-287): sent with them, the Captain is
+ * away, and lifts no Morale baseline of their Roster on the nights away (`moraleBaselineFor`).
+ */
+function captainsAmong(heroes: readonly Hero[], world: Pick<World, 'guilds'>): GuildId[] {
+  const guildIds = new Set<GuildId>();
+  for (const hero of heroes) {
+    const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
+    if (guild !== undefined && guild.captainId === hero.id) guildIds.add(guild.id);
+  }
+  return [...guildIds].sort(compareByCodeUnit);
+}
+
+/**
  * `heroes`, sent on `quest` now, as they come home on its return night (`returnNightOf`): copies of
  * them, each night away from the first night after `world.turn` run on them by the Hero State
  * Engine's own step (`heroNight`), away on `quest`, and a world that holds the copies at the return
- * night's Turn.
+ * night's Turn. The copies are in no Party, so each Guild of `captainsAway`, whose Captain goes with
+ * them, holds its post empty in that world, as a Captain away lifts no baseline (DL-287).
  * `world` and `heroes` are left as they are.
  */
-function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'durationTurns' | 'tier'>, deps: CheckDeps): { world: World; heroes: Hero[] } {
+function homecoming(
+  world: World,
+  heroes: readonly Hero[],
+  quest: Pick<Quest, 'durationTurns' | 'tier'>,
+  deps: CheckDeps,
+  captainsAway: readonly GuildId[],
+): { world: World; heroes: Hero[] } {
   const away = heroes.map((hero) => copyOf(hero));
-  const home: World = { ...world, heroes: { ...world.heroes, ...Object.fromEntries(away.map((hero) => [hero.id, hero])) } };
+  const guilds = captainsAway.length === 0 ? world.guilds : { ...world.guilds };
+  for (const guildId of captainsAway) guilds[guildId] = { ...requireRow(world.guilds, guildId), captainId: null };
+  const home: World = { ...world, guilds, heroes: { ...world.heroes, ...Object.fromEntries(away.map((hero) => [hero.id, hero])) } };
   const returns = returnNightOf(world.turn, quest);
   const first = nightOf(dayOf(world.turn));
+  // Each Guild's Captain's lift, kept across the nights and forgotten after the Captain's own (DL-287).
+  const captainLifts = new Map<GuildId, number>();
   for (let night = first > world.turn ? first : first + turnsPerDay; night < returns; night += turnsPerDay) {
     home.turn = night;
-    const ctx = { ...deps, turn: night, emit: eventEmitter(home) };
+    const ctx = { ...deps, turn: night, emit: eventEmitter(home), captainLifts };
     // The copies are in no Party, so each is marked away on the Quest, or their Fatigue would fall (DL-282).
-    for (const hero of away) heroNight(hero, home, ctx, quest);
+    for (const hero of away) {
+      heroNight(hero, home, ctx, quest);
+      if (hero.guildId !== null && rowOf(home.guilds, hero.guildId)?.captainId === hero.id) captainLifts.delete(hero.guildId);
+    }
   }
   home.turn = returns;
   return { world: home, heroes: away };

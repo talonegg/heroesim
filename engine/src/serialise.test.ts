@@ -231,7 +231,7 @@ describe('deserialise', () => {
   });
 
   test('a structurally broken document is refused, not thrown on', () => {
-    const reason = refusal(deserialise('{"meta":{"version":10},"world":[],"history":null}', deps));
+    const reason = refusal(deserialise(`{"meta":{"version":${schemaVersion}},"world":[],"history":null}`, deps));
     expect(reason.kind).toBe('invalid');
   });
 
@@ -317,6 +317,23 @@ describe('the migration chain', () => {
 // ── Older saves: refused (DL-125 item 10.2, DL-135 item 7; DL-193) ────
 
 describe('a save of an older schema', () => {
+  /** `document` as schema 10 wrote it: `meta.version` 10, its Guilds without a Captain or the Turn of a change. */
+  function asVersion10(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { guilds: Record<string, { captainId?: unknown; captainChangedOnTurn?: unknown }> } };
+    parsed.meta.version = 10;
+    for (const guild of Object.values(parsed.world.guilds)) {
+      delete guild.captainId;
+      delete guild.captainChangedOnTurn;
+    }
+    return JSON.stringify(parsed);
+  }
+
+  test("of schema 10, its Guilds without a Captain, is refused as unsupported-version, naming both versions (DL-287)", () => {
+    const text = asVersion10(createWorld('version-10', setup, testDeps()).document);
+
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 10, schemaVersion });
+  });
+
   /** `document` as schema 9 wrote it: `meta.version` 9, its Heroes without Fatigue and its Parties without their Fatigue at dispatch. */
   function asVersion9(document: WorldDocument): string {
     const parsed = JSON.parse(serialise(document)) as SavedDocument & {
@@ -331,7 +348,7 @@ describe('a save of an older schema', () => {
   test('of schema 9, its Heroes without Fatigue, is refused as unsupported-version, naming both versions (DL-282)', () => {
     const text = asVersion9(createWorld('version-9', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 9, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 9, schemaVersion });
   });
 
   /** `document` as schema 8 wrote it: `meta.version` 8, and each Quest's requirements with a greatest Party, `partySizeMax`. */
@@ -345,7 +362,7 @@ describe('a save of an older schema', () => {
   test("of schema 8, its Quests' requirements with a greatest Party, is refused as unsupported-version, naming both versions (DL-266)", () => {
     const text = asVersion8(createWorld('version-8', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 8, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 8, schemaVersion });
   });
 
   /** `document` as schema 7 wrote it: `meta.version` 7, and each Quest without its Tier or its Beats' lines. */
@@ -361,7 +378,7 @@ describe('a save of an older schema', () => {
   test("of schema 7, its Quests without a Tier, is refused as unsupported-version, naming both versions, not as invalid (DL-262)", () => {
     const text = asVersion7(createWorld('version-7', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 7, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 7, schemaVersion });
   });
 
   /**
@@ -383,7 +400,7 @@ describe('a save of an older schema', () => {
   test('of schema 6, as v1.1.5 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-193)', () => {
     const text = asVersion6(createWorld('version-6', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 6, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 6, schemaVersion });
   });
 
   /**
@@ -402,11 +419,11 @@ describe('a save of an older schema', () => {
   test('of schema 5, as v1.1.2 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-135 item 7)', () => {
     const text = asVersion5(createWorld('version-5', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion });
   });
 
   test("of schema 5 with a Hero's three fields is refused the same way: the version, not the shape, refuses it", () => {
-    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 10 });
+    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion });
   });
 
   /**
@@ -426,14 +443,14 @@ describe('a save of an older schema', () => {
   test('of schema 4, as v1.1.1 wrote it, is refused as unsupported-version, naming both versions, not as invalid', () => {
     const text = asVersion4(createWorld('version-4', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 10 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion });
   });
 
   test.each([1, 2, 3])('of schema %i is refused the same way: no migration leads from it', (version) => {
     expect(refusal(deserialise(withVersion(built(), version), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: version,
-      schemaVersion: 10,
+      schemaVersion,
     });
   });
 });

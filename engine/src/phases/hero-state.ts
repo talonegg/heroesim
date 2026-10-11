@@ -42,8 +42,9 @@
 //
 // The `heroes` stream is the only one this phase moves.
 
+import { leaveRoster } from '../captain.js';
 import type { GameConfig } from '../config.js';
-import { requireRow, rowOf, type Hero, type HeroId, type History, type Quest, type Turn, type World } from '../document.js';
+import { requireRow, rowOf, type GuildId, type Hero, type HeroId, type History, type Quest, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
 import { fatigueNight } from '../fatigue.js';
 import { streamOf } from '../generators/draw.js';
@@ -57,13 +58,18 @@ import { activeRosterHeroes } from './roster-walk.js';
 
 export const heroState: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
+  // Each Guild's Captain's lift to the baseline, worked out once a night and forgotten when the
+  // Captain's own night, or their Retirement, may change it (DL-287).
+  const night: HeroNightContext = { ...ctx, captainLifts: new Map() };
   for (const { guild, hero } of activeRosterHeroes(world)) {
-    events.push(...heroNight(hero, world, ctx));
+    events.push(...heroNight(hero, world, night));
+    if (guild.captainId === hero.id) night.captainLifts?.delete(guild.id);
     if (!retirementCheckDue(hero, ctx)) continue;
     const age = ageOf(hero, ctx.turn, ctx.config);
     if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
     hero.retiredOnTurn = ctx.turn;
-    guild.rosterIds = guild.rosterIds.filter((id) => id !== hero.id);
+    leaveRoster(guild, hero.id);
+    night.captainLifts?.delete(guild.id);
     events.push(
       ctx.emit({ type: 'hero.retired', participants: [hero.id], payload: { heroId: hero.id, guildId: guild.id, age } }),
     );
@@ -71,8 +77,11 @@ export const heroState: PhaseRun = (world, ctx) => {
   return events;
 };
 
-/** What a Hero's night reads of the phase's context. */
-export type HeroNightContext = Pick<PhaseContext, 'config' | 'content' | 'turn' | 'emit'>;
+/**
+ * What a Hero's night reads of the phase's context, and the night's own memo of each Guild's
+ * Captain's lift to the Morale baseline (`moraleBaselineFor`), when it keeps one.
+ */
+export type HeroNightContext = Pick<PhaseContext, 'config' | 'content' | 'turn' | 'emit'> & { captainLifts?: Map<GuildId, number> };
 
 /**
  * One night of `hero`'s State before the Retirement check: healing, Morale drift, Fatigue and Regard
@@ -124,7 +133,7 @@ function heal(hero: Hero, ctx: HeroNightContext): EngineEvent[] {
 
 /** Moves Morale toward the Hero's baseline without passing it; an event only when a band is crossed. */
 function drift(hero: Hero, world: World, ctx: HeroNightContext): EngineEvent[] {
-  const baseline = moraleBaselineFor(hero, world, ctx.config, ctx.content);
+  const baseline = moraleBaselineFor(hero, world, ctx.config, ctx.content, ctx.captainLifts);
   const step = ctx.config.moraleDrift;
   const before = hero.morale;
   hero.morale = before < baseline ? Math.min(baseline, before + step) : Math.max(baseline, before - step);

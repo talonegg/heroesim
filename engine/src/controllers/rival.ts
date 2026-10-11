@@ -17,6 +17,7 @@ import type { GuildAction } from '../actions/action.js';
 import { dispatchRefusal, fameRefusal, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
 import { bestParties, partyPool, requiredParty } from '../best-party.js';
+import { captainChoice } from '../captain.js';
 import type { EngineDeps } from '../config.js';
 import { gearSlotKeys, purchaseSteps, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
 import {
@@ -47,8 +48,9 @@ import {
  * The actions `guild` takes this afternoon, in the order to apply them, by the one rule every
  * Disposition shares, reading the weights of its row (M6-S1, DL-56):
  *
- * 1. put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`, M5-S2, DL-49),
- *    which moves no Wealth and sends no one;
+ * 1. name to its post, when it is empty, its Hero highest in the captaincy Stat (`captainChoice`,
+ *    DL-287), and put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`,
+ *    DL-49), each of which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it may take, by its Fame,
  *    and can staff (`preferredQuest`), drawing from `rivals` to choose among Quests of the same
  *    difficulty;
@@ -88,7 +90,9 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
   const disposition = chooser(guild, deps.content);
   if (disposition === 'own' || disposition === null) return [];
 
-  const choices: GuildAction[] = [...gearChoices(world, guild, deps)];
+  // DL-287: a post left empty is filled first, free; it moves no Wealth and sends no one.
+  const captain = captainChoice(world, guild, deps);
+  const choices: GuildAction[] = [...(captain === null ? [] : [captain]), ...gearChoices(world, guild, deps)];
   const quest = preferredQuest(world, guild, disposition, deps);
   if (quest !== null) choices.push(quest);
   const dispatched = new Set(quest?.heroIds ?? []);

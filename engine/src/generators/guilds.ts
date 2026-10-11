@@ -149,6 +149,9 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     foundedTurn: world.turn,
     guildmasterId,
     rosterIds: [],
+    // The post is empty until the Guild names a Captain (DL-287).
+    captainId: null,
+    captainChangedOnTurn: null,
     wealth,
     // Every Guild alike, the player's and each Rival's (#40, DL-261); Quest outcomes move it after.
     fame: deps.config.foundingFame,

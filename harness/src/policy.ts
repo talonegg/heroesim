@@ -15,6 +15,7 @@
 import {
   affordableImprovement,
   bestParties,
+  captainChoice,
   cheapestUnattached,
   compareByCodeUnit,
   fameRefusal,
@@ -80,12 +81,16 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 });
 
 /**
- * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57):
- * decline, equip, dispatch, then one purchase.
+ * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
+ * DL-287): decline, name a Captain, equip, dispatch, then one purchase.
  *
  * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
  *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
  *   seen). Declining moves nothing else, so the choices after it are made on the same document.
+ * - **Name a Captain** to an empty post, as a Rival does: its Hero highest in the captaincy Stat, the
+ *   first in Roster order among those tied (the engine's `captainChoice`, DL-287), so that a harness
+ *   game meets the Captain's effects. It never changes a Captain it has. Naming moves no Wealth and
+ *   sends no one, so the choices after it are made on the same document.
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
@@ -133,8 +138,10 @@ export function automaticPolicy(
   const guild = playerGuild(world);
   if (world.ended !== null || guild === undefined || guild.foldedOnTurn !== null) return [];
 
+  const captain = captainChoice(world, guild, deps);
   const actions: GuildAction[] = [
     ...offersTo(world, guild.id).map((offer): GuildAction => ({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id })),
+    ...(captain === null ? [] : [captain]),
     ...gearChoices(world, guild, deps),
   ];
   // The world does not change in this call, so one Best Party module answers every question (DL-237).

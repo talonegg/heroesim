@@ -3,6 +3,7 @@ import { defaultConfig } from '../config.js';
 import type { StatArea } from '../content-types.js';
 import { testContent } from '../world.test-support.js';
 import {
+  captainFactor,
   fatigueFactor,
   fatigueHarm,
   formEffect,
@@ -153,7 +154,7 @@ describe('formedStats', () => {
 
   test("each Stat times Morale's, Fatigue's and the hurt's factors by its area in content, multiplied, no floor", () => {
     for (const [morale, fatigue, hurt, relief] of [[50, 0, false, 0], [20, 50, false, 0.5], [80, 100, true, 0], [0, 100, true, 0.75]] as const) {
-      const formed = formedStats(stats, { morale, fatigue, hurt, relief }, deps);
+      const formed = formedStats(stats, { morale, fatigue, hurt, relief, captaincy: 0 }, deps);
       for (const [key, value] of Object.entries(stats)) {
         const area = areaOf(key);
         expect(formed[key], `${key} at ${morale}, ${fatigue}, ${hurt}, ${relief}`).toBeCloseTo(
@@ -163,17 +164,46 @@ describe('formedStats', () => {
       }
     }
     // Wretched, exhausted to the full and hurt: a Physical Stat keeps 0.75 × 0.6 × 0.6 of itself.
-    expect(formedStats(stats, { morale: 0, fatigue: 100, hurt: true, relief: 0 }, deps)['strength']).toBeCloseTo(12 * 0.75 * 0.6 * 0.6, 12);
+    expect(formedStats(stats, { morale: 0, fatigue: 100, hurt: true, relief: 0, captaincy: 0 }, deps)['strength']).toBeCloseTo(12 * 0.75 * 0.6 * 0.6, 12);
     // Relieved by a Healer and a heal Item, a quarter of the gap left: 0.75 × 0.6 × 0.9 (DL-285).
-    expect(formedStats(stats, { morale: 0, fatigue: 100, hurt: true, relief: 0.75 }, deps)['strength']).toBeCloseTo(12 * 0.75 * 0.6 * 0.9, 12);
+    expect(formedStats(stats, { morale: 0, fatigue: 100, hurt: true, relief: 0.75, captaincy: 0 }, deps)['strength']).toBeCloseTo(12 * 0.75 * 0.6 * 0.9, 12);
   });
 
   test('every Stat as it is at the baseline, rested and unhurt', () => {
-    expect(formedStats(stats, { morale: owners.moraleBaseline, fatigue: 0, hurt: false, relief: 0 }, deps)).toEqual(stats);
+    expect(formedStats(stats, { morale: owners.moraleBaseline, fatigue: 0, hurt: false, relief: 0, captaincy: 0 }, deps)).toEqual(stats);
   });
 
   test("a Stat content does not define is times Morale's factor alone", () => {
-    expect(formedStats({ grace: 10 }, { morale: 100, fatigue: 100, hurt: true, relief: 0 }, deps)).toEqual({ grace: 12.5 });
+    expect(formedStats({ grace: 10 }, { morale: 100, fatigue: 100, hurt: true, relief: 0, captaincy: 0 }, deps)).toEqual({ grace: 12.5 });
+  });
+});
+
+// DL-280 item 6, Q12 a; DL-287: the Captain's Party brings up to `captainFormFactor` of every Stat, scaled
+// by the Captain's captaincy Stat, s, from 0 at its least to 1 at its most (captain.ts).
+describe("the Captain's factor", () => {
+  test('is 1 at s 0 and captainFormFactor at s 1, in a line between: 1 + s·(captainFormFactor − 1)', () => {
+    expect(captainFactor(0, { captainFormFactor: 1.05 })).toBe(1);
+    expect(captainFactor(1, { captainFormFactor: 1.05 })).toBeCloseTo(1.05, 12);
+    expect(captainFactor(0.5, { captainFormFactor: 1.05 })).toBeCloseTo(1.025, 12);
+    expect(captainFactor(0.3, { captainFormFactor: 1.4 })).toBeCloseTo(1.12, 12);
+    expect(captainFactor(1, { captainFormFactor: 1 })).toBe(1);
+  });
+
+  test("multiplies every formed Stat, whatever its area, with Morale's, Fatigue's and the hurt's", () => {
+    const deps = { config: { ...owners, captainFormFactor: 1.05 }, content: testContent };
+    const stats = { strength: 12, arcana: 9, wits: 15, charisma: 7, grace: 10 };
+    const state = { morale: 70, fatigue: 40, hurt: true, relief: 0.5 };
+    const without = formedStats(stats, { ...state, captaincy: 0 }, deps);
+    for (const captaincy of [0.25, 1]) {
+      const formed = formedStats(stats, { ...state, captaincy }, deps);
+      for (const key of Object.keys(stats)) expect(formed[key], `${key} at ${captaincy}`).toBeCloseTo((without[key] as number) * (1 + captaincy * 0.05), 12);
+    }
+  });
+
+  test("raises the Party builder's figure with the formed Stats", () => {
+    const deps = { config: { ...owners, captainFormFactor: 1.05 }, content: testContent };
+    const state = { morale: 30, fatigue: 60, hurt: false, relief: 0 };
+    expect(formFigure({ ...state, captaincy: 1 }, deps)).toBeCloseTo(formFigure({ ...state, captaincy: 0 }, deps) * 1.05, 12);
   });
 });
 
@@ -195,15 +225,15 @@ describe('formFigure, for the Party builder alone', () => {
   const heroAreas = Object.values(testContent.stats).filter((stat) => stat.owner === 'hero').map((stat) => stat.area);
 
   test("is Morale's factor when rested and unhurt, exactly", () => {
-    for (const morale of [0, 11, 50, 73, 100]) expect(formFigure({ morale, fatigue: 0, hurt: false, relief: 0 }, deps)).toBe(moraleFactor(morale, owners));
+    for (const morale of [0, 11, 50, 73, 100]) expect(formFigure({ morale, fatigue: 0, hurt: false, relief: 0, captaincy: 0 }, deps)).toBe(moraleFactor(morale, owners));
   });
 
   test("is Morale's factor times the mean over content's Hero Stats of Fatigue's and the hurt's factors", () => {
     const mean = (fatigue: number, hurt: boolean, relief: number) =>
       heroAreas.reduce((total, area) => total + fatigueFactor(area, fatigue, owners) * hurtFactor(area, { hurt, relief }, owners), 0) / heroAreas.length;
-    expect(formFigure({ morale: 70, fatigue: 50, hurt: false, relief: 0 }, deps)).toBeCloseTo(moraleFactor(70, owners) * mean(50, false, 0), 12);
-    expect(formFigure({ morale: 30, fatigue: 100, hurt: true, relief: 0 }, deps)).toBeCloseTo(moraleFactor(30, owners) * mean(100, true, 0), 12);
-    expect(formFigure({ morale: 30, fatigue: 100, hurt: true, relief: 0.5 }, deps)).toBeCloseTo(moraleFactor(30, owners) * mean(100, true, 0.5), 12);
+    expect(formFigure({ morale: 70, fatigue: 50, hurt: false, relief: 0, captaincy: 0 }, deps)).toBeCloseTo(moraleFactor(70, owners) * mean(50, false, 0), 12);
+    expect(formFigure({ morale: 30, fatigue: 100, hurt: true, relief: 0, captaincy: 0 }, deps)).toBeCloseTo(moraleFactor(30, owners) * mean(100, true, 0), 12);
+    expect(formFigure({ morale: 30, fatigue: 100, hurt: true, relief: 0.5, captaincy: 0 }, deps)).toBeCloseTo(moraleFactor(30, owners) * mean(100, true, 0.5), 12);
   });
 });
 
@@ -235,7 +265,7 @@ describe("the Party builder's line, from the mean form", () => {
 
   test("a Party all at the low band's start lowers it a little, and all a point below it badly, whatever the defaults", () => {
     const deps = { config, content: testContent };
-    const at = (morale: number) => formEffect(meanForm([morale, morale].map((it) => formFigure({ morale: it, fatigue: 0, hurt: false, relief: 0 }, deps))), config);
+    const at = (morale: number) => formEffect(meanForm([morale, morale].map((it) => formFigure({ morale: it, fatigue: 0, hurt: false, relief: 0, captaincy: 0 }, deps))), config);
     expect(at(config.moraleBands.low)).toBe('lowers-a-little');
     expect(at(config.moraleBands.low - 1)).toBe('lowers-badly');
     expect(at(config.moraleBaseline)).toBe('none');

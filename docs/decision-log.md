@@ -686,3 +686,67 @@ return exactly with the rest-band filter off, and the stops follow the pool as t
 names `staffableQuests`; of 21 mutations none survived the suite, and the staffing stops gained tests
 of their own for the rest band; stale "free Heroes" comments made the pool's, and S9 given the words a
 player reads.
+
+## DL-287 — v1.2.1-S7 built: the Captain
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 6 (Q3 c, Q12 a) gives each Guild one Captain, named freely, a change costing
+the outgoing Captain Morale and locking the post, a vacancy filled free, and three effects scaled by
+Leadership. The engine names no Stat (ADR-0006), so the captaincy Stat is a mark in content (the
+architecture review's candidate 5); the Captain's factor joins the form module (candidate 1, DL-284).
+
+**Decision.**
+
+1. **The post:** a Guild's `captainId` and `captainChangedOnTurn`, schema 11, no migration; the
+   validator's `captain-off-roster` holds the Captain to the Roster. `leaveRoster` (captain.ts) is the
+   one way a Hero leaves a Roster, emptying the post, for a Death, a Retirement and a Transfer; a fold
+   empties it too.
+2. **The action `nameCaptain`:** any Hero of the Roster, at home or away; to an empty post free; in
+   another's place the outgoing Captain loses `captainChangeMoraleCost` (`captain-changed`) and the
+   post is locked to the morning of Day d + `captainChangeLockDays` (`captainLock`, the Transfer lock's
+   pattern). Refusals: `guild-folded`, `hero-not-on-roster`, `already-captain`, `captain-locked`.
+   `guild.captain-named`, a Milestone, names the Captain replaced and the lock.
+3. **s**, the Captain's effective captaincy Stat from its least, 0, to its most, 1 (`captaincyScale`).
+   The Stat is the one content marks `captaincy`, Leadership (content 45); content's check refuses
+   none, two, a Guildmaster's, or a malformed or misspelt mark.
+4. **The effects**, each times s: every formed Stat of every member on an Encounter with the Captain
+   among them × 1 + s·(`captainFormFactor` − 1), in `queryParty` (`partyCaptaincy`, `reformed`); the
+   others of the Party coming home with the Captain alive + round(s·`captainHomecomingMorale`)
+   (`captain-homecoming`, a Quest's cause); the Roster's baseline + s·`captainHomeBaselineBonus` while
+   the Captain is in no Party (`moraleBaselineFor`, its lift kept once a night a Guild).
+5. **The estimate** takes the proposed Party's own factor, not its pool's, and its homecoming leaves
+   the baseline unlifted for a Guild whose Captain the Party takes away, as the nights away do.
+6. **Choosers:** a Rival names to an empty post its Hero highest in the captaincy Stat, ties to Roster
+   order, first of its choices, drawing nothing (`captainChoice`); the harness's policy names by the
+   same rule.
+7. **Config** 29, a `captain` section by hand: `captainFormFactor` 1.05 (at least 1),
+   `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5 (each at least 0),
+   `captainChangeMoraleCost` −10 (at most 0), `captainChangeLockDays` 30 (whole, at least 0).
+8. **The words:** the History's sentence, the refusals', the CLI's `captain --hero <heroId>`;
+   `CONTEXT.md` (Captain, Form), R40 and the data model say what is built.
+
+*Judgement calls, for the owner to see.*
+- *No clearing:* the post empties only by a Death, a Retirement, a Transfer or a fold. The Captain
+  named again is refused, not charged. A vacancy is filled whatever the lock.
+- *The baseline is scaled* by s, as S7's "each scaled" and R40 say; §2's row reads unscaled.
+- *The homecoming:* the others, not the Captain; none if the Captain fell; on any outcome; rounded
+  to a whole number, as a Quest's Morale is.
+- *The factor* needs the Captain on that Encounter, so a fallen Captain lifts no one after; it is on
+  every Stat, a Stat content does not define too.
+- *s reads effective Stats*, Traits and Gear counting.
+- *A Rival never changes its Captain*, and names none where content marks no captaincy Stat; the
+  test content marks none, so scenes keep their numbers and the Captain's tests mark Leadership.
+- *The kind* is `nameCaptain`, camelCase as every action's; the CLI's command is `captain`.
+- *The homecoming Morale is not estimated*: it lands after the Quest is resolved.
+
+**Consequences.** Every Guild in a harness game has a Captain from its first afternoon. In a quick
+run (4 × 2 years) against `v1.2.1-s6-quick`: the player's failed Quests 5.3% to 3.4%, strong
+successes 65.5% to 65.1%; the Rivals' 24.5% to 22.6% and 31.7% to 32.5%, their Quests 3,751 to
+3,821, one Bankruptcy fold where there were two. A Turn's mean `advance` 1.54 to 1.80 ms, part the
+play's, part the Captain's lift reading the Captain's effective Stats. Every save records the
+config version 29, the content version 45 and schema 11.
+
+**Evidence.** The commit `v1.2.1-S7 (DL-287)`; the epic's S7 boxes. The checks' counts, the
+doctors' readings and the quick run's fingerprint are in the commit message; the report
+`v1.2.1-s7-quick` is not committed.

@@ -837,6 +837,17 @@ export function withDispositions(
 }
 
 /**
+ * `content` (the test content by default) with `statKey` marked the captaincy Stat (DL-287), frozen: the
+ * test content marks none, so a Captain scales nothing and no Rival names one, and a scene with a
+ * Captain keeps its numbers; a test of the Captain marks the Stat it reads.
+ */
+export function withCaptaincy(content: ContentSet = testContent, statKey = 'leadership'): ContentSet {
+  const row = content.stats[statKey];
+  if (row === undefined) throw new RangeError(`No Stat ${statKey}`);
+  return deepFreeze({ ...content, stats: { ...content.stats, [statKey]: { ...row, captaincy: true } } });
+}
+
+/**
  * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
  * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
  * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
@@ -1013,6 +1024,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       foundedTurn: 0,
       guildmasterId,
       rosterIds: [],
+      captainId: null,
+      captainChangedOnTurn: null,
       wealth: 500 + 100 * g,
       fame: g,
       belowFloorSince: null,

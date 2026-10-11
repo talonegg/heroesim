@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import type { HeroQuery, NumQuery, PartyCondition, PredQuery, SetQuery, StatArea, ValQuery } from '../content-types.js';
-import type { Hero, HeroId, SkillRating, World } from '../document.js';
+import { makeId, type Guild, type Hero, type HeroId, type SkillRating, type World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
 import type { Class, ContentSet } from '../content-types.js';
-import { classSkillRequires, demandsCheck, heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
+import { classSkillRequires, demandsCheck, heroStatKeys, testContent, testDeps, testWorld, withCaptaincy } from '../world.test-support.js';
 import { hurtFactor, moraleFactor } from './form.js';
-import { atFatigue, evaluate, heroOf, holds, is, membersOf, queryParty, valueOf, type QueryMember, type QueryParty } from './query.js';
+import { evaluate, heroOf, holds, is, membersOf, queryParty, reformed, valueOf, type QueryMember, type QueryParty } from './query.js';
 
 // The Query evaluator (ADR-0010, DL-148 items 4 to 6). Five Heroes are generated, then
 // given the Stats, Skills, Traits and facts each test reads; every other Hero Stat is 10. The owner's
@@ -590,11 +590,11 @@ describe("queryParty's formed Stats by area", () => {
     expect(taken(100, true).members.map((it) => it.stats)).toEqual(raw);
   });
 
-  test('atFatigue reads the member again at another Day’s Fatigue, and is the same member at its own', () => {
+  test('reformed reads the member again at another Day’s Fatigue, and is the same member at its own', () => {
     const party = taken(10, true);
     const [first] = party.members as [QueryMember];
-    expect(atFatigue(first, 10, deps)).toBe(first);
-    const later = atFatigue(first, 70, deps);
+    expect(reformed(first, { fatigue: 10 }, deps)).toBe(first);
+    const later = reformed(first, { fatigue: 70 }, deps);
     expect(later.fatigue).toBe(70);
     expect(later.stats).toBe(first.stats);
     for (const statKey of heroStatKeys) expect(later.formed[statKey]).toBeCloseTo(expected(first, statKey, 70, true), 12);
@@ -683,11 +683,76 @@ describe("queryParty's relief from the hurt", () => {
     expect(taken(['aric', 'dara'], { hurt: ['aric'], relieved: ['aric'], over: other }).aric?.relief).toBeCloseTo(1 - 0.8 * 0.6, 12);
   });
 
-  test('atFatigue keeps the relief, and reads the formed Stats again with it', () => {
+  test('reformed keeps the relief, and reads the formed Stats again with it', () => {
     const { aric } = taken(['aric', 'dara'], { hurt: ['aric'], relieved: ['aric'] });
-    const later = atFatigue(aric as QueryMember, 60, healers);
+    const later = reformed(aric as QueryMember, { fatigue: 60 }, healers);
     expect(later.relief).toBe(0.75);
     expect(later.formed['strength']).toBeCloseTo((aric?.stats['strength'] ?? 0) * moraleFactor(60, healers.config) * (1 - (healers.config.fatigueScaling * 60) / healers.config.fatigueMax) * 0.9, 12);
+  });
+});
+
+// DL-280 item 6, Q12 a; DL-287: on an Encounter with its Guild's Captain among the Party, every member's
+// formed Stats are times 1 + s·(captainFormFactor − 1), s the Captain's captaincy Stat from its least, 0,
+// to its most, 1. The engine names no Stat (ADR-0006): the test content marks none, and these tests mark
+// Leadership, which runs from 1 to 20.
+describe("queryParty's Captain", () => {
+  const captained = testDeps({ captainFormFactor: 1.05 }, withCaptaincy());
+  /** The five Heroes on one Guild's Roster, `captain` (a name, or none) its Captain at Leadership `leadership`. */
+  const led = (captain: string | null, leadership = 20): { world: World; heroes: Record<string, Hero>; all: Hero[] } => {
+    const taken = scene('captain');
+    const guildId = makeId('guilds', 1);
+    for (const hero of taken.all) hero.guildId = guildId;
+    const chosen = captain === null ? null : (taken.heroes[captain] as Hero);
+    if (chosen !== null) chosen.stats['leadership'] = leadership;
+    taken.world.guilds[guildId] = { id: guildId, rosterIds: taken.all.map((hero) => hero.id), captainId: chosen?.id ?? null } as Guild;
+    return taken;
+  };
+  /** Each member's formed Stats over their formed Stats with no Captain. */
+  const lift = (party: QueryParty, without: QueryParty): number[] =>
+    party.members.flatMap((it, at) => heroStatKeys.map((key) => (it.formed[key] ?? 0) / (without.members[at]?.formed[key] ?? 1)));
+
+  test("at the Stat's most, every member, the Captain too, brings captainFormFactor of every Stat", () => {
+    const { world, all } = led('cass', 20);
+    const party = queryParty(all, world, captained);
+    const without = queryParty(all, world, testDeps({ captainFormFactor: 1.05 }));
+    expect(party.members.map((it) => it.captaincy)).toEqual(all.map(() => 1));
+    for (const ratio of lift(party, without)) expect(ratio).toBeCloseTo(1.05, 12);
+    expect(party.members.map((it) => it.stats)).toEqual(without.members.map((it) => it.stats));
+  });
+
+  test("at the Stat's least, a Captain adds nothing; between, a share in a line", () => {
+    const { world, all } = led('cass', 1);
+    const without = queryParty(all, world, testDeps({ captainFormFactor: 1.05 }));
+    expect(queryParty(all, world, captained).members.map((it) => it.formed)).toEqual(without.members.map((it) => it.formed));
+    const half = led('cass', 10.5);
+    for (const ratio of lift(queryParty(half.all, half.world, captained), queryParty(half.all, half.world, testDeps({ captainFormFactor: 1.05 })))) {
+      expect(ratio).toBeCloseTo(1.025, 12);
+    }
+  });
+
+  test('a Party without its Captain, or of a Guild with none, takes no factor', () => {
+    const { world, heroes } = led('cass', 20);
+    const others = ['aric', 'bryn', 'dara'].map((name) => heroes[name] as Hero);
+    expect(queryParty(others, world, captained).members.map((it) => it.captaincy)).toEqual([0, 0, 0]);
+    const none = led(null);
+    expect(queryParty(none.all, none.world, captained).members.every((it) => it.captaincy === 0)).toBe(true);
+  });
+
+  test("reads the Stat content marks, not Leadership's key: unmarked, no Captain scales anything", () => {
+    const { world, all, heroes } = led('cass', 20);
+    expect(queryParty(all, world, testDeps({ captainFormFactor: 1.05 })).members.every((it) => it.captaincy === 0)).toBe(true);
+    (heroes['cass'] as Hero).stats['charisma'] = 1;
+    expect(queryParty(all, world, testDeps({ captainFormFactor: 1.05 }, withCaptaincy(testContent, 'charisma'))).members[0]?.captaincy).toBe(0);
+  });
+
+  test("reformed keeps the Captain's s, or reads the formed Stats again at another", () => {
+    const { world, all } = led('cass', 20);
+    const [first] = queryParty(all, world, captained).members as [QueryMember];
+    expect(reformed(first, { captaincy: 1 }, captained)).toBe(first);
+    const alone = reformed(first, { captaincy: 0 }, captained);
+    expect(alone.captaincy).toBe(0);
+    for (const key of heroStatKeys) expect(alone.formed[key]).toBeCloseTo((first.formed[key] ?? 0) / 1.05, 12);
+    expect(reformed(first, { fatigue: 50 }, captained).captaincy).toBe(1);
   });
 });
 

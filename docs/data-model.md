@@ -118,6 +118,11 @@ Display order comes from selectors, except in the ordered lists of ids: a Roster
 id, name, backgroundKey, foundedTurn
 guildmasterId
 rosterIds:      HeroId[]                    ordered
+captainId:      HeroId | null               the Captain, a Hero of the Roster; null for an empty
+                                            post, as at founding and once its Captain leaves the
+                                            Roster (DL-287)
+captainChangedOnTurn: turn | null           the Turn of the last change of Captain, from which
+                                            the post is locked for captainChangeLockDays (DL-287)
 wealth, fame
 belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
 foldedOnTurn:   turn | null                 a Rival that reached an ending; out of play and out of
@@ -415,7 +420,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282, DL-287). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 
@@ -435,6 +440,7 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 | `unattached-mismatch` | A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither |
 | `guildmaster-guild-mismatch`, `retired-guildmaster-in-office` | A Guildmaster whose `guildId` is not the Guild that names them; a Guild in play naming a retired Guildmaster (DL-102) |
 | `folded-guild-in-play` | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) |
+| `captain-off-roster` | A Guild whose Captain is not on its Roster, or whose last change of Captain is after `world.turn` (DL-287) |
 | `departed-hero-in-play` | A Hero out of play on a Roster, in a Party or with a `partyId`: their row is frozen (ADR-0011) |
 | `quest-party-mismatch`, `too-many-parties` | `quest.partyIds` and `party.questId` disagree; more Parties on a Quest than `maxPartiesPerQuest` |
 | `duplicate-stack`, `empty-stack`, `gear-slot-overfull` | Two stacks of one definition, holder and slot; a stack below 1; a Hero's slot holding more than one Item (DL-48) |

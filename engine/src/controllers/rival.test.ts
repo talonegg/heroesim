@@ -11,7 +11,7 @@ import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withCaptaincy, withDispositions, withValid } from '../world.test-support.js';
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
 import { rivalChoices, staffableQuests } from './rival.js';
@@ -926,6 +926,53 @@ describe('rivalChoices', () => {
 
     expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'build']);
     expect(world).toEqual(expected);
+  });
+});
+
+// DL-280 item 6, DL-287: a Rival names to an empty post its Hero highest in the captaincy Stat, first
+// of all its choices and beside them, drawing nothing; a post held, or content marking no captaincy Stat,
+// it names no one. The test content marks none, so these tests mark Leadership.
+describe('a Rival names its Captain', () => {
+  const captained = testDeps({}, withCaptaincy(withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 })));
+
+  test('to an empty post, first, its Hero highest in the captaincy Stat, ties to the first in Roster order, drawing nothing', () => {
+    const { world, rival, deps } = scene('rival-captain', captained);
+    const heroes = rival.rosterIds.map((id) => heroOf(world, id));
+    heroes.forEach((hero, at) => Object.assign(hero, { traits: [], stats: { ...hero.stats, leadership: at === 1 ? 18 : 6 } }));
+    const held = structuredClone(world);
+    const heldRival = held.guilds[rival.id] as Guild;
+    heldRival.captainId = heroes[0]?.id ?? null;
+
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices[0]).toEqual({ kind: 'nameCaptain', guildId: rival.id, heroId: heroes[1]?.id });
+    // Beside its other choices, which are as they would be with the post held, and with the same draws.
+    expect(choices.slice(1)).toEqual(rivalChoices(held, heldRival, deps));
+    expect(world.rng).toEqual(held.rng);
+
+    const tied = scene('rival-captain', captained);
+    for (const id of tied.rival.rosterIds) Object.assign(heroOf(tied.world, id), { traits: [], stats: { ...heroOf(tied.world, id).stats, leadership: 12 } });
+    expect(rivalChoices(tied.world, tied.rival, deps)[0]).toEqual({ kind: 'nameCaptain', guildId: tied.rival.id, heroId: tied.rival.rosterIds[0] });
+  });
+
+  test('none while its post is held, nor where content marks no captaincy Stat', () => {
+    const { world, rival, deps } = scene('rival-captain-held', captained);
+    rival.captainId = rival.rosterIds[0] ?? null;
+    expect(rivalChoices(world, rival, deps).some((action) => action.kind === 'nameCaptain')).toBe(false);
+    rival.captainId = null;
+    expect(rivalChoices(world, rival, testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }))).some((action) => action.kind === 'nameCaptain')).toBe(false);
+  });
+
+  test('applied in the afternoon, the post filled with no cost and no lock; a Captain fallen is replaced the next afternoon', () => {
+    const deps = testDeps({ rivalCount: 1 }, withCaptaincy());
+    let document = createWorld('rival-captain-play', setup, deps).document;
+    const rivalId = (rivalsOf(document.world)[0] as Guild).id;
+    // The first afternoon, its first.
+    for (let turn = 0; turn < 4 && (document.world.guilds[rivalId] as Guild).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
+    expect((document.world.guilds[rivalId] as Guild).captainId).not.toBeNull();
+    const named = document.history.byType['guild.captain-named'] ?? [];
+    expect(named).toHaveLength(1);
+    expect(document.history.entries[named[0] as number]).toMatchObject({ payload: { guildId: rivalId, replacedId: null, lockedUntilTurn: null } });
+    expect((document.world.guilds[rivalId] as Guild).captainChangedOnTurn).toBeNull();
   });
 });
 

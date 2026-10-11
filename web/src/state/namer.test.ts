@@ -180,6 +180,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     improvementKey: 'training-yard-2',
     cost: 500,
   }),
+  'guild.captain-named': event('guild.captain-named', [guildId, heroId], { guildId, heroId, replacedId: null, lockedUntilTurn: null }),
   'hero.levelled': event('hero.levelled', [heroId, guildId], {
     heroId,
     guildId,

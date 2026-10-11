@@ -100,6 +100,7 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'guildmaster.succeeded': null,
   'hero.left-guild': null,
   'guild.improved': (payload, guildId) => when(payload.guildId === guildId, 'hall', -payload.cost),
+  'guild.captain-named': null,
   'hero.levelled': null,
   'patron.regard-changed': null,
   'guildmaster.regard-changed': null,

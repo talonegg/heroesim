@@ -28,6 +28,8 @@ function bareGuild(world: World): Guild {
     foundedTurn: 0,
     guildmasterId: makeId('guildmasters', 1),
     rosterIds: [],
+    captainId: null,
+    captainChangedOnTurn: null,
     wealth: 0,
     fame: 0,
     belowFloorSince: null,

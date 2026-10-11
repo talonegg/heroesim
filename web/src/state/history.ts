@@ -215,6 +215,8 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'guildmaster.succeeded': null,
   'hero.left-guild': null,
   'guild.improved': null,
+  // DL-287: a Milestone, so never routine.
+  'guild.captain-named': null,
   'hero.levelled': null,
   'patron.regard-changed': 'Regard',
   'guildmaster.regard-changed': 'Regard',
@@ -311,6 +313,7 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': false,
+  'guild.captain-named': false,
   'hero.levelled': false,
   'patron.regard-changed': true,
   'guildmaster.regard-changed': false,

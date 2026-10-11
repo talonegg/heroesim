@@ -379,6 +379,27 @@ export interface GameConfig {
    */
   playerRestBand: FatigueBand | null;
 
+  // ── `captain`: the Captain (DL-280 item 6, Q3 c, Q12 a; DL-287) ────────────────────────────────
+  // Each of the Captain's effects is scaled by s, their captaincy Stat (the Stat content marks
+  // `captaincy`) from its least, 0, to its most, 1 (`captaincyScale`).
+  /**
+   * What the Captain's Party brings to a Check at s = 1: every formed Stat of every member on an
+   * Encounter with the Captain among them is times 1 + s·(this − 1) (form.ts). 1 adds nothing.
+   */
+  captainFormFactor: number;
+  /** The Morale each Hero of the Captain's Party gains on the return at s = 1, the Captain coming home with them: s·this. */
+  captainHomecomingMorale: number;
+  /** Added to the Morale baseline of every Hero of the Roster at s = 1 while the Captain is at home (`moraleBaselineFor`): s·this. */
+  captainHomeBaselineBonus: number;
+  /** The Morale the outgoing Captain loses when another Hero is named in their place (`nameCaptain`); a vacancy filled costs none. */
+  captainChangeMoraleCost: number;
+  /**
+   * Days the post is locked after a change of Captain: a Captain named in another's place on Day
+   * `d` cannot be replaced before the morning of Day `d + captainChangeLockDays`, as a Transfer
+   * locks a Hero (`transferLockDays`). A vacancy is filled whatever the lock. 0 locks nothing.
+   */
+  captainChangeLockDays: number;
+
   // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**
    * Where each Potential hint starts on the gap from a Stat's base to its Potential, in Stat

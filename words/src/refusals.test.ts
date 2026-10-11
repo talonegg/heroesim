@@ -145,6 +145,11 @@ const samples: Samples = {
   'acceptTransfer insufficient-wealth': { action: 'acceptTransfer', reason: 'insufficient-wealth', ...fee, guildId: rival.id },
   'declineTransfer guild-folded': { action: 'declineTransfer', reason: 'guild-folded', guildId: rival.id },
   'declineTransfer offer-not-found': { action: 'declineTransfer', reason: 'offer-not-found', offerId },
+
+  'nameCaptain guild-folded': { action: 'nameCaptain', reason: 'guild-folded', guildId },
+  'nameCaptain hero-not-on-roster': { action: 'nameCaptain', reason: 'hero-not-on-roster', heroId: rivalHero.id },
+  'nameCaptain already-captain': { action: 'nameCaptain', reason: 'already-captain', heroId },
+  'nameCaptain captain-locked': { action: 'nameCaptain', reason: 'captain-locked', captainId: heroId, changedOnTurn: 30, untilTurn: 300 },
 };
 
 const kinds = Object.keys(samples) as RefusalKind[];
@@ -290,6 +295,11 @@ const exactly: Record<RefusalKind, string> = {
   'acceptTransfer insufficient-wealth': `The fee is 180 Wealth; ${other} has 40.`,
   'declineTransfer guild-folded': `${other} has folded and deals no more.`,
   'declineTransfer offer-not-found': `No such Transfer Offer<ids:${offerId}> stands for ${lantern}'s Heroes<command:show-offers>.`,
+
+  'nameCaptain guild-folded': `${lantern} has folded and names no Captain.`,
+  'nameCaptain hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
+  'nameCaptain already-captain': `${brenna} is already ${lantern}'s Captain.`,
+  'nameCaptain captain-locked': `${brenna} was named Captain on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
 };
 
 describe('the refusals', () => {

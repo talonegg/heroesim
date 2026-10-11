@@ -49,13 +49,16 @@ _Avoid_: Team, Squad, Band
 
 **Captain**:
 The one Hero of its Roster a Guild names as its leader: one a Guild, named freely by its
-Guildmaster's controller, the player for the player's Guild and a Disposition for a Rival, and
-changed at a cost to the outgoing Captain's Morale, after which the post is locked for a time. What
-the Captain brings grows with their Leadership: the Party they go out with brings more of its Stats
-to a Check and its Heroes come home with more Morale, and the Roster's Morale baseline is higher
-while they are at home. A post left by a Death, a Retirement or a departure is filled without cost
-or lock. The Synergy "Under a strong leader" is another thing, a Party's bonus and not a post
-(DL-280; to be built).
+Guildmaster's controller, the player for the player's Guild, and for a Rival its Hero highest in
+Leadership whenever its post is empty. Any Hero of the Roster may be named, at home or away. Naming
+to an empty post is free; naming one in another's place costs the outgoing Captain Morale, after
+which the post is locked for a time. A post left by a Death, a Retirement, a Transfer or a fold is
+empty, and filled without cost or lock. What the Captain brings grows with their Leadership, from
+nothing at its least to the whole at its most: the Party they are in brings more of every Stat to a
+Check, the others of it who come home with them gain Morale, and the Roster's Morale baseline is
+higher while they are at home. Leadership is the Stat content marks as the captaincy's; the engine
+names none (DL-280, DL-287). The Synergy "Under a strong leader" is another thing, a Party's bonus and
+not a post.
 _Avoid_: Leader, Commander, Captaincy (for the Hero), Guildmaster (a different person)
 
 **Patron**:
@@ -448,13 +451,12 @@ the Physical Stats and half of it from the others, less what is relieved: a shar
 Healer, a member of a Class content marks as relieving the hurt, in the Party on the Encounter other
 than the hurt Hero, one relief however many there are; a share by a heal Item, spent at the Injury
 itself, the one healing most Days first, for the rest of the Quest; the two multiplying on the gap
-(DL-285). The Captain's Party brings more, by the Captain's
-Leadership. Fatigue also raises a Hero's chance of an Injury or a Death. The areas are content's,
+(DL-285). The Captain's Party, on an Encounter with the Captain among it, brings more of every
+Stat, by the Captain's Leadership (DL-287). Fatigue also raises a Hero's chance of an Injury or a Death. The areas are content's,
 each Stat's own (DL-284). Form never changes their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
-Fatigue, the hurt by Stat area (DL-284) and its relief (DL-285) are built; the Captain is to be
-built (DL-280).
+Fatigue, the hurt by Stat area (DL-284), its relief (DL-285) and the Captain's (DL-287) are built.
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:

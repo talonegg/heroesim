@@ -293,10 +293,19 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 /**
  * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
  * Morale consequences of a Quest's Encounters, summed (M4-S2), a Hero they held in high Regard
- * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, or a module's
- * `adjustMorale` effect (M8-S2, DL-77).
+ * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, a module's
+ * `adjustMorale` effect (M8-S2, DL-77), another Hero named Captain in their place (`captain-changed`),
+ * or coming home with their Guild's Captain (`captain-homecoming`; DL-287).
  */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer' | 'module';
+export type MoraleCause =
+  | 'roster-death'
+  | 'strong-success'
+  | 'drift'
+  | 'encounters'
+  | 'transfer'
+  | 'module'
+  | 'captain-changed'
+  | 'captain-homecoming';
 
 /**
  * The causes a Quest's return makes, for each type that names the Quest on them (DL-112 item 2):
@@ -304,7 +313,7 @@ export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encount
  * validator refuses an entry of a Quest's cause without it (DL-246).
  */
 export const questCauses = {
-  'hero.morale-changed': ['encounters', 'strong-success', 'roster-death'],
+  'hero.morale-changed': ['encounters', 'strong-success', 'roster-death', 'captain-homecoming'],
   'patron.regard-changed': ['quest-success', 'quest-failure'],
   'guildmaster.regard-changed': ['quest-success', 'quest-failure'],
   'hero.regard-changed': ['shared-quest'],
@@ -426,6 +435,19 @@ export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: 
 export type GuildImproved = Entry<
   'guild.improved',
   { guildId: GuildId; facility: FacilityKey; grade: number; improvementKey: ImprovementKey; cost: number }
+>;
+
+// ── The Captain (DL-280 item 6, DL-287) ─────────────────────────────────────────────────────
+
+/**
+ * A Guild named `heroId` its Captain through `nameCaptain`: to an empty post, `replacedId` `null`; in
+ * another's place, `replacedId` theirs and `lockedUntilTurn` the first Turn another change may be
+ * made (`captainLock`), `null` for a vacancy filled or a lock of 0 Days. A Milestone, naming the
+ * Guild, the Hero and the Captain replaced.
+ */
+export type GuildCaptainNamed = Entry<
+  'guild.captain-named',
+  { guildId: GuildId; heroId: HeroId; replacedId: HeroId | null; lockedUntilTurn: Turn | null }
 >;
 
 // ── Progression (M3-S1, DL-36) ───────────────────────────────────────────────────────────────
@@ -722,6 +744,7 @@ export type EngineEvent =
   | GuildmasterSucceeded
   | HeroLeftGuild
   | GuildImproved
+  | GuildCaptainNamed
   | HeroLevelled
   | PatronRegardChanged
   | GuildmasterRegardChanged
@@ -784,6 +807,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': true,
+  'guild.captain-named': true,
   'hero.levelled': true,
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,

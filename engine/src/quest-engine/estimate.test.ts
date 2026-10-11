@@ -12,7 +12,7 @@ import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { setup, testContent, testDeps } from '../world.test-support.js';
+import { setup, testContent, testDeps, withCaptaincy } from '../world.test-support.js';
 import { capability } from './check.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { chanceBand, chanceToReach, estimateQuest, partyEstimator, type CheckEstimate, type QuestEstimate } from './estimate.js';
@@ -301,6 +301,28 @@ describe('the estimate', () => {
     expect(() => estimate({ ...s.quest, difficulty: 0 }, [a])).toThrow(RangeError);
   });
 
+  // DL-287: the Captain's factor is the proposed Party's own, whoever else the pool brought home with it.
+  test("partyEstimator gives a Party its Captain's factor, and a Party without the Captain none, though the Captain was brought home with the pool", () => {
+    const s = scene('estimate-captain', [
+      { key: 'first', kind: 'travel', checks: [draft('first', strength, 1), draft('second', wits, 1.1)], pass: ['or', 'first', 'second'] },
+      { key: 'third', kind: 'combat', checks: [draft('third', courage, 1)] },
+    ]);
+    const captained = { ...s.deps, config: { ...s.deps.config, captainFormFactor: 1.05 }, content: withCaptaincy(s.deps.content) };
+    const flat = { ...captained, config: { ...captained.config, captainFormFactor: 1 } };
+    const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    a.stats['leadership'] = 20;
+    (s.world.guilds[a.guildId as Guild['id']] as Guild).captainId = a.id;
+    const estimate = partyEstimator(s.world, captained);
+    for (const party of [[a, b], [b, c], [a, b, c, d], [d, c, b, a], [b, c, d]]) {
+      const named = party.map((hero) => hero.id).join();
+      const got = estimate(s.quest, party, { pool: [a, b, c, d] });
+      expect(got, named).toEqual(estimateQuest(s.world, s.quest, party, captained));
+      if (!party.includes(a)) expect(got, named).toEqual(estimateQuest(s.world, s.quest, party, flat));
+    }
+    // The whole Roster, its Checks' targets set at its capability, is likelier with its Captain's factor.
+    expect(estimate(s.quest, [a, b, c, d])?.success).toBeGreaterThan(estimateQuest(s.world, s.quest, [a, b, c, d], flat)?.success ?? 1);
+  });
+
   // DL-237: the estimator keeps the Degree each pass formula gives each combination of Degrees it
   // has met, so every Party and Quest asked of it after shares them; each must be the formula's own.
   test("gives each Encounter's Degrees, over many pass formulas, Parties and Quests asked of one estimator, to the last bit as the formula read afresh for every combination gives them", () => {
@@ -390,6 +412,45 @@ describe('the estimate', () => {
     // factor on their form up the line with it (DL-283).
     expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
+  });
+
+  // DL-287: the Captain lifts the Roster's baseline while at home, so a Party sent without its Captain
+  // drifts up toward the higher baseline on the nights away, and one sent with the Captain does not,
+  // while bringing the Captain's factor; the estimate meets each as the resolver does.
+  test.each([
+    ['with its Captain, who lifts no baseline while away and brings their factor', true],
+    ['without its Captain, the baseline lifted by the Captain at home', false],
+  ])('reads a Party sent %s as the resolver meets it', (_name, withCaptain) => {
+    const content = withCaptaincy({ ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5, captainFormFactor: 1.05 }, content);
+    const created = createWorld(withCaptain ? 'estimate-captain-away' : 'estimate-captain-home', setup, deps).document;
+    const { world } = created;
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
+    const guild = playerGuild(world) as Guild;
+    const [captain, other] = guild.rosterIds.map((id) => world.heroes[id] as Hero) as [Hero, Hero];
+    for (const hero of [captain, other]) Object.assign(hero, { morale: 50, traits: [] });
+    captain.stats['leadership'] = 20;
+    guild.captainId = captain.id;
+    const sent = withCaptain ? captain : other;
+    const questId = world.board[0] as Quest['id'];
+    const quest = world.quests[questId] as Quest;
+    Object.assign(quest, { durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1 } });
+    const estimate = estimateQuest(world, quest, [sent], deps);
+    const asTheySetOut = capability(queryParty([sent], world, deps), { kind: 'travel' }, deps.content.encounters.march?.checks[0] as EncounterCheck, world, deps);
+
+    const dispatched = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: [sent.id] }, deps);
+    if (!dispatched.ok) throw new Error(dispatched.rejection.reason);
+    let document = dispatched.document;
+    let met: QuestEncounter['payload'] | undefined;
+    while (met === undefined) {
+      const turned = advance(document, deps);
+      document = turned.document;
+      met = turned.events.find((event): event is QuestEncounter => event.type === 'quest.encounter')?.payload;
+    }
+    expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
+    // With the Captain: Morale held at 50 away, the factor 1.05 on; without: Morale drifted up toward 55.
+    if (withCaptain) expect(met.checks?.[0]?.capability).toBeCloseTo(asTheySetOut, 9);
+    else expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
   });
 
   // DL-284, candidate 8 not adopted: the estimate and the resolver work a Check out twice, so a parity

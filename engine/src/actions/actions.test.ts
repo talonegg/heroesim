@@ -13,6 +13,7 @@ import { applyEquip, applyUnequip } from './equip.js';
 import { applyRecruit } from './recruit.js';
 import { applySell } from './sell.js';
 import { applyAcceptTransfer, applyDeclineTransfer, applyOfferTransfer, applyTransferIn, applyTransferOut } from './transfer.js';
+import { applyNameCaptain } from './captain.js';
 import type { WorldActionResult } from './result.js';
 
 // A Guild's actions in a Turn applied on one copy of the world (DL-238, ADR-0011 as amended): the
@@ -234,6 +235,15 @@ describe('applyActions', () => {
         },
       ],
       [{ kind: 'acceptTransfer', guildId: rival, offerId: ids.offer }, 'insufficient-wealth'],
+      [
+        { kind: 'nameCaptain', guildId: player, heroId: idle },
+        'captain-locked',
+        (world) => {
+          const guild = world.guilds[player] as Guild;
+          guild.captainId = guild.rosterIds.find((heroId) => heroId !== idle) ?? null;
+          guild.captainChangedOnTurn = world.turn;
+        },
+      ],
     ];
 
     for (const [action, reason, prepare] of cases) {
@@ -317,6 +327,7 @@ describe('applyAction', () => {
     offerTransfer: row((ids) => ({ kind: 'offerTransfer', guildId: ids.rivalGuild, heroId: idle(ids) }), applyOfferTransfer),
     acceptTransfer: row((ids) => ({ kind: 'acceptTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyAcceptTransfer),
     declineTransfer: row((ids) => ({ kind: 'declineTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyDeclineTransfer),
+    nameCaptain: row((ids) => ({ kind: 'nameCaptain', guildId: player(ids), heroId: idle(ids) }), applyNameCaptain),
   };
 
   test.each(Object.keys(rows))('%s is its rule run on a copy of the world: the same world and events, the input left as it was, meta and the History shared', (kind) => {

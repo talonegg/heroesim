@@ -67,6 +67,7 @@ export const refusalChecks = [
   'guildmaster-guild-mismatch',
   'retired-guildmaster-in-office',
   'folded-guild-in-play',
+  'captain-off-roster',
   'departed-hero-in-play',
   'quest-party-mismatch',
   'too-many-parties',
@@ -194,6 +195,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   guildmasterGuildMismatch,
   retiredGuildmasterInOffice,
   foldedGuildInPlay,
+  captainOffRoster,
   departedHeroInPlay,
   questPartyMismatch,
   tooManyParties,
@@ -444,6 +446,8 @@ const guildFields: Shape<Guild> = {
   foundedTurn: 'integer',
   guildmasterId: 'string',
   rosterIds: 'list',
+  captainId: 'string-or-null',
+  captainChangedOnTurn: 'integer-or-null',
   wealth: 'number',
   fame: 'number',
   belowFloorSince: 'integer-or-null',
@@ -1018,6 +1022,32 @@ function foldedGuildInPlay({ world }: WorldDocument): ValidationFailure[] {
         check: 'folded-guild-in-play',
         id: partyId,
         detail: `${partyId} is ${party.guildId}'s, which folded on Turn ${guild.foldedOnTurn}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/**
+ * A Guild's Captain is a Hero of its Roster (DL-287): a Hero who leaves it leaves the post empty
+ * (`leaveRoster`), and a folded Guild, its Roster empty, has none. The Turn of its last change is not
+ * after the world's.
+ */
+function captainOffRoster({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [guildId, guild] of Object.entries(world.guilds)) {
+    if (guild.captainId !== null && !guild.rosterIds.includes(guild.captainId)) {
+      failures.push({
+        check: 'captain-off-roster',
+        id: guildId,
+        detail: `${guildId} names ${guild.captainId} as Captain, who is not on its Roster`,
+      });
+    }
+    if (guild.captainChangedOnTurn !== null && guild.captainChangedOnTurn > world.turn) {
+      failures.push({
+        check: 'captain-off-roster',
+        id: guildId,
+        detail: `${guildId} changed its Captain on Turn ${guild.captainChangedOnTurn}, after the world's Turn ${world.turn}`,
       });
     }
   }

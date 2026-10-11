@@ -105,6 +105,11 @@ Commands:
   build --facility <infirmary | training-yard | quarters>
       Raise a facility of the player's Guild's Hall by one grade, for the next grade's
       cost, and print what was built, the Wealth left and what the next grade costs.
+  captain --hero <heroId>
+      Name one of the player's Heroes, at home or away, the Guild's Captain. To an empty
+      post it is free; in another Captain's place, the one replaced loses Morale and the
+      post is locked for a time. A post left by a Death, a Retirement or a Transfer is
+      empty again.
   equip --hero <heroId> (--item <itemId> | --stack <stackId>)
       Put gear the player's Guild holds, listed with its ids by show roster, into its slot
       on one of the Guild's Heroes: a unique Item by --item, or one from a stack by --stack.
@@ -200,6 +205,7 @@ export type Command =
   | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'build'; save: string; facility: FacilityKey }
+  | { name: 'captain'; save: string; hero: HeroId }
   | { name: 'equip'; save: string; hero: HeroId; gear: GearRef }
   | { name: 'unequip'; save: string; hero: HeroId; slot: SlotKey }
   | { name: 'buy'; save: string; item: ItemDefinitionKey; quantity: number }
@@ -241,6 +247,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   preview: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   build: { save: 'value', facility: 'value' },
+  captain: { save: 'value', hero: 'value' },
   equip: { save: 'value', hero: 'value', item: 'value', stack: 'value' },
   unequip: { save: 'value', hero: 'value', slot: 'value' },
   buy: { save: 'value', item: 'value', quantity: 'value' },
@@ -632,6 +639,9 @@ function parse(argv: readonly string[]): Command {
     case 'build':
       atMost(positional, 0, 'build');
       return { name, save, facility: facility(required(flags, name, 'facility')) };
+    case 'captain':
+      atMost(positional, 0, 'captain');
+      return { name, save, hero: heroId(required(flags, name, 'hero')) };
     case 'equip':
       atMost(positional, 0, 'equip');
       return { name, save, hero: heroId(required(flags, name, 'hero')), gear: gearRef(flags) };

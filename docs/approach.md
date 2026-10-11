@@ -106,7 +106,7 @@ fastForward(document, { guildId, until, maxTurns }, deps)
                                             -> { document, events, stoppedBecause }
 applyAction(document, action, deps)         -> { document, events } or a typed rejection
   action: rebase, or a Guild's: dispatch, recruit, transferIn, transferOut, offerTransfer,
-          acceptTransfer, declineTransfer, buy, sell, equip, unequip, build
+          acceptTransfer, declineTransfer, buy, sell, equip, unequip, build, nameCaptain
 applyActions(document, actions, deps)       -> { document, results }: a Guild's actions,
                                                in order, on one copy
 selectors and History readers (rankings, offeredQuests, entriesFor, returnOf, …), read-only

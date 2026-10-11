@@ -41,7 +41,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Heroes: Attributes, Stats, Skills, Traits, States | Yes | Skill growth, Class change |
 | Portraits and Descriptive Attributes | Guildmasters' and Heroes', the Portraits chosen to fit; content has no Hero picture yet | Patron pictures; Guild Banners' heraldry |
 | Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | The State, its bands and the Quest clock (DL-282); its effect on Checks and harm (DL-284); rest bands (DL-286) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
-| The Captain: one a Guild, scaled by Leadership | To be built, v1.2.1 (DL-280) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
+| The Captain: one a Guild, scaled by Leadership | The post, its change's cost and lock, and its three effects (DL-287) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
 | Progression: XP, Level, Potential, Decline | Yes | The Guildmaster Trait that sharpens Potential hints |
 | Quest Engine | Encounters, Checks, Degrees, Synergies, Relationship, Items | Mid-Quest reports |
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
@@ -167,7 +167,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
   filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come
   home with more Morale, and the Roster's Morale baseline is higher while they are at home, each
-  scaled by the Captain's Leadership (DL-280; to be built, v1.2.1).
+  scaled by the Captain's Leadership (DL-280, DL-287).
 
 ### 3.4 Quests
 

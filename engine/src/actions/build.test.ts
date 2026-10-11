@@ -253,9 +253,9 @@ describe('what a grade built does', () => {
   });
 
   test('the baseline is held inside the Morale scale, and a Hero on no Roster has no quarters', () => {
-    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100, inspirationMoraleShift: 0 };
+    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100, inspirationMoraleShift: 0, captainHomeBaselineBonus: 0 };
     const hall = { infirmary: 0, trainingYard: 0, quarters: 2 };
-    const world = { guilds: { [makeId('guilds', 1)]: { hall, guildmasterId: makeId('guildmasters', 1) } }, guildmasters: {} } as never;
+    const world = { guilds: { [makeId('guilds', 1)]: { hall, guildmasterId: makeId('guildmasters', 1), captainId: null } }, guildmasters: {}, heroes: {} } as never;
 
     expect(moraleBaselineFor({ guildId: makeId('guilds', 1) }, world, config, testContent)).toBe(100);
     expect(moraleBaselineFor({ guildId: null }, world, config, testContent)).toBe(60);

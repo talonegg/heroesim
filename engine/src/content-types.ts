@@ -88,6 +88,12 @@ export interface Stat {
   /** What a Stat missing from a Hero or Guildmaster reads as (data-model rule 5). */
   default: number;
   owner: StatOwner;
+  /**
+   * The captaincy Stat's mark (DL-280 item 6; DL-287; the architecture review's candidate 5): the one
+   * Hero Stat a Captain's effects are scaled by (`captaincyScale`), so the engine names no Stat
+   * (ADR-0006). Content's check holds exactly one Stat to it; absent, false.
+   */
+  captaincy?: boolean;
 }
 
 /**

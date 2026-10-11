@@ -82,6 +82,8 @@ const guild: Guild = {
   foundedTurn: 0,
   guildmasterId,
   rosterIds: [heroId],
+  captainId: heroId,
+  captainChangedOnTurn: null,
   wealth: 500,
   fame: 3,
   belowFloorSince: null,
@@ -97,6 +99,7 @@ const rival: Guild = {
   name: 'The Grey Wardens',
   guildmasterId: rivalGuildmasterId,
   rosterIds: [],
+  captainId: null,
   controller: { kind: 'rival', disposition: 'steady' },
   regard: {},
 };

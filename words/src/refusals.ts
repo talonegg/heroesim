@@ -327,6 +327,16 @@ const sentences: Sentences = {
   'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${fee} Wealth; ${guild(setting, guildId)} has ${wealth}.`,
   'declineTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'declineTransfer offer-not-found': notFound,
+
+  // The Captain (DL-287).
+  'nameCaptain guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and names no Captain.`,
+  'nameCaptain hero-not-on-roster': ({ heroId }, setting) =>
+    say`${hero(setting, heroId)} is not on ${player(setting)}'s Roster${command('show-roster')}.`,
+  'nameCaptain already-captain': ({ heroId }, setting) => say`${hero(setting, heroId)} is already ${player(setting)}'s Captain.`,
+  'nameCaptain captain-locked': ({ captainId, changedOnTurn, untilTurn }, setting) => {
+    const { calendar } = setting;
+    return say`${hero(setting, captainId)} was named Captain on ${dateOfTurn(changedOnTurn, calendar)}, and the post cannot change again before ${dateOfTurn(untilTurn, calendar)}.`;
+  },
 };
 
 /** Every kind the table has a sentence for: the test holds it to the union. */

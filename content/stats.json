@@ -18,7 +18,7 @@
   "spirit": { "name": "Spirit", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
   "resistance": { "name": "Resistance", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
 
-  "leadership": { "name": "Leadership", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "leadership": { "name": "Leadership", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero", "captaincy": true },
   "charisma": { "name": "Charisma", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
   "diplomacy": { "name": "Diplomacy", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
   "adaptability": { "name": "Adaptability", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
