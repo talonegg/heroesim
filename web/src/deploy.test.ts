@@ -233,6 +233,8 @@ describe('the live check', () => {
     expect(leavesThePage(addresses.worker, `${addresses.pages}/`)).toBe(true);
     expect(leavesThePage(addresses.worker, 'https://example.com/x.js')).toBe(true);
     expect(leavesThePage(addresses.pages, 'https://example.com/x.js')).toBe(true);
+    expect(leavesThePage(addresses.pages, 'http://heroesims.pages.dev/')).toBe(true);
+    expect(leavesThePage(addresses.worker, `${addresses.worker}:8443/`)).toBe(true);
   });
 
   test("allows Cloudflare's Web Analytics beacon and its report on Pages and its deployments, never on the Worker (DL-279)", () => {
@@ -244,9 +246,10 @@ describe('the live check', () => {
     }
   });
 
-  test("allows only the beacon's two origins, over https, and no look-alike", () => {
+  test("allows only the beacon's two origins, over https to a page on https, and no look-alike", () => {
     for (const url of [
       'http://static.cloudflareinsights.com/beacon.min.js',
+      'https://static.cloudflareinsights.com:8443/beacon.min.js',
       'https://cloudflareinsights.com.example.com/cdn-cgi/rum',
       'https://evil-cloudflareinsights.com/cdn-cgi/rum',
       'https://other.cloudflareinsights.com/x.js',
@@ -256,6 +259,7 @@ describe('the live check', () => {
     }
     expect(leavesThePage('https://heroesims.pages.dev.example.com', beacon)).toBe(true);
     expect(leavesThePage('https://notheroesims.pages.dev', beacon)).toBe(true);
+    expect(leavesThePage('http://heroesims.pages.dev', beacon)).toBe(true);
   });
 });
 

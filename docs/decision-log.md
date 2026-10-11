@@ -223,3 +223,6 @@ on `v1.2.0-dev` until the owner's word moves it.
 **Evidence.** The commit `v1.2.1 (DL-279)`. Its tests are in `web/src/deploy.test.ts`'s "the live
 check". `npm run e2e:live -w web` against the deployed `v1.2.0` passed all four projects, where CI's
 release run 38109053584 had failed both Pages projects.
+Verified 2026-10-11 at `c2c9b07`: the allowance is exact and narrow, but a page on `http:`, a
+beacon on another port and the page's host on another scheme or port went untested, so four
+mutations survived; tests now refuse each.
