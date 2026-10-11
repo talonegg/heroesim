@@ -232,9 +232,29 @@ describe('recoveryCounters: the Days a Hero spends recovering at home', () => {
 
     const { fatigueRecovery } = countGame(document, deps, undefined, undefined, only('fatigueRecovery'));
 
-    expect(fatigueRecovery.player.toRest).toEqual({ spells: 2, done: 1, doneDays: 4, sent: 1, sentDays: 3, open: 0 });
-    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 3, done: 1, doneDays: 7, sent: 1, sentDays: 3, open: 1 });
-    expect(fatigueRecovery.rival.toRest).toEqual({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, open: 0 });
+    expect(fatigueRecovery.player.toRest).toEqual({ spells: 2, done: 1, doneDays: 4, sent: 1, sentDays: 3, left: 0, open: 0 });
+    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 3, done: 1, doneDays: 7, sent: 1, sentDays: 3, left: 0, open: 1 });
+    expect(fatigueRecovery.rival.toRest).toEqual({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, left: 0, open: 0 });
+  });
+
+  test('a Hero who leaves every Roster while recovering, by a Retirement or a fold, ends the recovery as left, never open nor later sent (DL-291)', () => {
+    const { document, player } = fixture('fatigue-recovery-left');
+    const [a, b] = player.rosterIds;
+    if (a === undefined || b === undefined) throw new Error('Roster too short');
+    // Both home tired at 14; a retires that night, b goes to the pool at a fold and is taken again
+    // by another Guild 30 Days on, which must not count as a recovery cut short after those Days.
+    crossed(document, 9, a, 'fresh', 'tired');
+    crossed(document, 9, b, 'fresh', 'tired');
+    resolved(document, 14, player, 1, [a, b]);
+    add(document, 14, 'hero.retired', [a, player.id], { heroId: a, guildId: player.id, age: 60 });
+    add(document, 17, 'hero.left-guild', [b, player.id], { heroId: b, guildId: player.id });
+    taken(document, 107, player, 2, [b]);
+    document.world.turn = 110;
+
+    const { fatigueRecovery } = countGame(document, deps, undefined, undefined, only('fatigueRecovery'));
+
+    expect(fatigueRecovery.player.toRest).toEqual({ spells: 2, done: 0, doneDays: 0, sent: 0, sentDays: 0, left: 2, open: 0 });
+    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 2, done: 0, doneDays: 0, sent: 0, sentDays: 0, left: 2, open: 0 });
   });
 
   test('a Hero who died on the Quest begins no recovery, though the night before left them as tired as the one who came home', () => {
@@ -250,8 +270,8 @@ describe('recoveryCounters: the Days a Hero spends recovering at home', () => {
 
     const { fatigueRecovery } = countGame(document, deps, undefined, undefined, only('fatigueRecovery'));
 
-    expect(fatigueRecovery.player.toRest).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, open: 0 });
-    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, open: 0 });
+    expect(fatigueRecovery.player.toRest).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, left: 0, open: 0 });
+    expect(fatigueRecovery.player.toFresh).toEqual({ spells: 1, done: 1, doneDays: 2, sent: 0, sentDays: 0, left: 0, open: 0 });
   });
 
   test("a Rival's rest band is its Disposition's, and a Guild with none begins no recovery to it", () => {
@@ -269,8 +289,8 @@ describe('recoveryCounters: the Days a Hero spends recovering at home', () => {
 
     const { fatigueRecovery } = countGame(document, deps, undefined, undefined, only('fatigueRecovery'));
 
-    expect(fatigueRecovery.rival.toRest).toEqual({ spells: 1, done: 1, doneDays: 1, sent: 0, sentDays: 0, open: 0 });
-    expect(fatigueRecovery.rival.toFresh).toEqual({ spells: 2, done: 1, doneDays: 3, sent: 0, sentDays: 0, open: 1 });
+    expect(fatigueRecovery.rival.toRest).toEqual({ spells: 1, done: 1, doneDays: 1, sent: 0, sentDays: 0, left: 0, open: 0 });
+    expect(fatigueRecovery.rival.toFresh).toEqual({ spells: 2, done: 1, doneDays: 3, sent: 0, sentDays: 0, left: 0, open: 1 });
 
     // A Disposition resting no one begins no recovery to its rest band.
     rival.controller = { kind: 'rival', disposition: 'reckless' };

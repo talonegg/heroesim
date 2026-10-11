@@ -929,3 +929,60 @@ The mean Fatigue at dispatch, 43.5 and 56.9, has no band, and S11 reads it.
 **Consequences.** The report shows Fatigue's cost. The Rivals, against v1.2.0's quick run: failed Quests 8.2% to 22.0%, strong successes 55.5% to 31.9%, recruits 17 to 0, Wealth a Rival at the third year-start 22,011 to 6,940, a Rival folding once. They have recruited nothing since S4: Wealth stays under `recruitThreshold` Upkeeps. Config 30, content 45, schema 11 as before.
 
 **Evidence.** The commit `v1.2.1-S10 (DL-290)`; the report `v1.2.1-s10-quick` (not committed), fingerprint `290b6d18…`, the same as S8's `v1.2.1-s8-quick`: play is unchanged. S9 ran no quick run. The epic's S10 counters box. Verified 2026-10-12 at 59de016: each counter re-derived against the engine and every mutation red; it found `restKept` reading the player's pool on the morning, after the policy had sent the Heroes the night brought home (88.2%, 59.3% sampled on the night's Turn it sends from), and a Healer counted for an Injury at the last Encounter, which the engine never eases, and fixed both test first, with tests of a hurt Healer and a Hero who died, the Fatigue section moved from under `gameCounters`' comment and `partyPool` reading `restBandOf`; `v1.2.1-s10v-quick`, the same fingerprint.
+
+## DL-291 — v1.2.1-S12 (part): the release's commits reviewed to S10
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** The epic's S12 asks for a review of the release's commits, its findings fixed test first.
+This part reviews `4ed5372..HEAD`, S1 to S10 and their verifications (DL-281 to DL-290), in the
+engine, the words, the page, the CLI, the harness, content and the tools, before S11 tunes; no sweep
+runs and no setting changes while the owner's Q21 and Q22 are open.
+
+**Decision.**
+
+1. **The seams hold.** The form module is the one path from `queryParty` (the resolver, the estimate,
+   the Party builder); the resolver reads the Quest clock's Fatigue, never the stored; relief, the
+   Captain's factor and the hurt multiply once; Fatigue's harm is applied before the one hold at 1;
+   the estimate's Day Parties, its caches and its Captain's lift match the resolver's reading; every
+   chooser reads `partyPool`; every way off a Roster empties the post. The engine names no Class and
+   no Stat (`class-keys.test.ts`), and no new draw or stream is taken; the S8 shift of `rivals` is
+   DL-288 item 6's. No path a candidate replaced is left beside it.
+2. **Fixed, test first** (each red, then green):
+   - *The lock's sentence* (`captain-locked`, words): it said the Captain who holds the post was named
+     on the date of the last replacement, false once a vacancy is filled under a lock (DL-287 item 2:
+     a vacancy fills whatever the lock). It now says "The Captain was last replaced on …, and the post
+     cannot change again before …".
+   - *Days recovering* (`recoveryCounters`, the harness): a Hero who retired or went to the pool at a
+     fold mid-recovery was counted still recovering, or, recruited later, sent again after Days in the
+     pool. Such a recovery now ends as gone (`left`), a row of its own in the report.
+   - *The to-fresh row* read "sent again before they fell below it"; it now reads "before they were
+     fresh".
+   - *The CLI's `show` help* read as if `hall` showed each Hero's Morale, Fatigue and Captain.
+3. **Fixed, words and comments:** the e2e layout check's sentence for no Party ("free" for "rested",
+   DL-289 item 8); the policy's claim that naming a Captain changes nothing its choices read (the
+   estimate is the document's before the naming, as a Rival's is); `observeDispatches`' claim that no
+   night changes the Captain; "free Heroes" for the pool in the policy, `best-party.ts` and
+   `estimate.ts`; the CLI preview's claim to show what the builder shows; the page's Hero actions
+   without the Captain; `tiredBand`'s default.
+
+*Judgement calls, for the owner to see.*
+- *Speed.* A three-year game of the default config, profiled, gives a mean `advance` of 1.03 to
+  1.08 ms at HEAD against 1.06 to 1.20 at `4ed5372` (two runs each, one seed): no new hot spot in
+  that game. The new per-Turn costs are a Rival's heal purchase, tried every afternoon its gear step
+  buys nothing (about 1.7% of the game's time, mostly `holdings` scanned once for the Guild and once
+  a Party), and the estimate's homecoming, run once more a return night for a Party taking its Guild's
+  Captain (its key, DL-287 item 5). Left as they are: the rise to 1.8 ms reads as the play's.
+- *Not changed, for the owner:* the policy and a Rival weigh a Turn's Parties before the Captain they
+  name that Turn (as gear equipped that Turn); changing it would move play.
+- *Style left:* the page's `captaincyOf` branch for no post, which cannot be reached; the policy's
+  effect list not checked for completeness by the compiler; the hidden ", Captain"'s space; a lone
+  Healer's relief sentence; a rest band of `fresh` beginning a recovery that never ends.
+
+**Consequences.** No rule, setting or content changed: config 30, content 45, schema 11. Play cannot
+move; the report's recovery lines gain the row of those gone. The player reads the lock's new
+sentence on the Hero's page and in the CLI.
+
+**Evidence.** The commit `v1.2.1-S12 (DL-291)`; its message has the findings, the checks' counts and
+the doctors' readings. The e2e specs whose sentences changed were not run (no build, a machine short
+of memory); S12's close runs them.

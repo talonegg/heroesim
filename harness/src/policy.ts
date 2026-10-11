@@ -7,10 +7,11 @@
 // it plays the same game (ADR-0001). It sends Parties through the engine's own staffing rule,
 // the Best Party, the one the Rivals send (DL-30; by the chance estimate, DL-157), at the player's
 // margin, `playerPartyMargin`: the Party the Board gives as "Your best Party". It chooses its Quests
-// by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from the Heroes still
-// free, the likeliest first, ties to the higher reward, then the Quest id, and then again from the
-// Heroes left. One Best Party module serves a call (DL-237), so a Quest asked again from the Heroes
-// left weighs only the Parties it has not weighed, and keeps its Party when none of it was sent.
+// by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from its pool still at
+// home (`partyPool`, DL-286), the likeliest first, ties to the higher reward, then the Quest id, and
+// then again from the Heroes left. One Best Party module serves a call (DL-237), so a Quest asked
+// again from the Heroes left weighs only the Parties it has not weighed, and keeps its Party when
+// none of it was sent.
 
 import {
   affordableImprovement,
@@ -89,7 +90,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  * - **Name a Captain** to an empty post, as a Rival does: its Hero highest in the captaincy Stat, the
  *   first in Roster order among those tied (the engine's `captainChoice`, DL-287), so that a harness
  *   game meets the Captain's effects. It never changes a Captain it has. Naming moves no Wealth and
- *   sends no one, so the choices after it are made on the same document.
+ *   sends no one, so the choices after it are made on the same document, the estimate's before the
+ *   naming: a Party chosen that Turn is weighed without the new Captain's factor, as a Rival's is (DL-291).
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
@@ -245,8 +247,8 @@ function staffed(best: BestParties, quests: readonly Quest[], available: readonl
 
 /**
  * The Quest to send a Party on next (v1.1.5-S2, DL-168 item 2): of `choices`, the Quests the policy
- * can staff from the Heroes still free, the one whose Party has the highest chance of success, ties
- * to the higher reward, then the lower Quest id; `undefined` when there is none.
+ * can staff from its pool still at home (`partyPool`), the one whose Party has the highest chance of
+ * success, ties to the higher reward, then the lower Quest id; `undefined` when there is none.
  */
 function likeliest(choices: readonly Choice[]): Choice | undefined {
   let chosen: Choice | undefined;

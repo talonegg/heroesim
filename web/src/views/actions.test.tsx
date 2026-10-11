@@ -390,7 +390,7 @@ describe('the Captain', () => {
     const locked = within(section('Roster')).getByRole('article');
     const button = within(locked).getByRole('button', { name: `Name ${other} Captain` });
     expect(button.hasAttribute('disabled')).toBe(true);
-    const lockWords = within(locked).getByText(new RegExp(`^${name} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`));
+    const lockWords = within(locked).getByText(new RegExp(`^The Captain was last replaced on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`));
     // The disabled button carries its reason, so a screen reader that reaches it hears why (DL-289's verification).
     expect(button.getAttribute('aria-describedby')).toBe(lockWords.id);
     expect(lockWords.id).not.toBe('');

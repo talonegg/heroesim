@@ -108,8 +108,8 @@ function moraleLines({ form }: DispatchPreview): string[] {
 }
 
 /**
- * Each Hero's Fatigue and its band (DL-282), the Guild's Captain among them marked (DL-287), as the page's
- * builder shows them (DL-289), read from the Roster's rows (`rosterReading`); a Hero not on the Roster is
+ * Each Hero's Fatigue and its band (DL-282), the Guild's Captain among them marked (DL-287): the band the
+ * page's builder shows, with the figure it leaves out (DL-289), read from the Roster's rows (`rosterReading`); a Hero not on the Roster is
  * said by `heroLines`, and none for a Party of no one.
  */
 function fatigueLines({ heroes }: DispatchPreview, roster: readonly RosterRowReading[]): string[] {

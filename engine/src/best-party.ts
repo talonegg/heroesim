@@ -1,5 +1,5 @@
 // The Best Party (CONTEXT.md; DL-148 item 17, DL-157, DL-175): the Party the engine would send on a
-// Quest from a Guild's free Heroes, chosen by the chance estimate. One module answers it for every
+// Quest from a Guild's pool, chosen by the chance estimate. One module answers it for every
 // caller (DL-237): the Rivals' controllers, the harness's policy, the Board's "Your best Party" on the
 // page and in the CLI, and the harness's calibration. It is opened over one world, which does not
 // change while it is open, and a Guild, and it keeps each Hero as they will come home and every

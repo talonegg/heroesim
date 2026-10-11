@@ -891,7 +891,7 @@ test('the Board’s chances and what each Check reads, and the Party builder’s
     const board = await openView(page, 'Board');
     const quest = board.getByRole('article').first();
     await expect(quest.getByTestId('best-party')).toHaveText(
-      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your free Heroes meets its requirements\.)$/,
+      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your rested Heroes meets its requirements\.)$/,
     );
     await expectNoHorizontalOverflow(page, `the Board's cards, ${at}`);
 

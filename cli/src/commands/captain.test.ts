@@ -50,7 +50,7 @@ describe('captain', () => {
 
     const locked = play(['captain', '--hero', first]);
     expect(locked.code).toBe(exitCodes.refused);
-    expect(locked.err).toMatch(new RegExp(`^${names[1]} \\(${second}\\) was named Captain on Year 1 Day 1, and the post cannot change again before Year 1 Day 31\\.`));
+    expect(locked.err).toMatch(new RegExp(`^The Captain was last replaced on Year 1 Day 1, and the post cannot change again before Year 1 Day 31\\.`));
     expect(saved()).toBe(before);
   });
 

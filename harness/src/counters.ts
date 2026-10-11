@@ -2249,7 +2249,7 @@ export function transfersShort(before: World, events: readonly Entry[], config: 
 // Read from the History or the World State, drawing nothing, so that play is as it was without them
 // (DL-239): the Party's Fatigue and Captain as it set out are the world's, which no entry records.
 
-/** The lowest Fatigue band the lines call "tired or worse": the band a Disposition's or the player's rest band is by default (DL-286). */
+/** The lowest Fatigue band the lines call "tired or worse": the player's rest band by default, and steady's and miserly's (DL-286). */
 export const tiredBand: FatigueBand = 'tired';
 
 const bandRank = (band: FatigueBand): number => fatigueBandNames.indexOf(band);
@@ -2284,7 +2284,8 @@ export const noDispatchFatigue = (): DispatchFatigue => ({
  * it to `seen`: its `fatigueAtDispatch` (DL-282) read by `fatigueBand`, and whether its Guild's Captain
  * is among its Heroes. Told after each `advance`, it meets a Party the Turn it set out: the player's
  * from the policy's actions before the Turn, a Rival's from its afternoon in it, and a Party stays out
- * a Day at least. The Guild's Captain is as that Turn left it, which no night of it changes.
+ * a Day at least. The Guild's Captain is as that Turn left it: a Captain at home who retires that night,
+ * or a Rival's sold the same afternoon, leaves the Party out of `captainNamed`, which is rare (DL-291).
  */
 export function observeDispatches(
   taken: Record<ControllerKind, DispatchFatigue>,
@@ -2361,11 +2362,13 @@ export interface RecoveryTally {
   /** Spells cut short as the Hero was sent again first, and the Days they had run, summed. */
   sent: number;
   sentDays: number;
+  /** Spells ended as the Hero left every Roster, by a Retirement or their Guild's fold, where no night rests them (DL-291). */
+  left: number;
   /** Spells still running when the game stopped. */
   open: number;
 }
 
-export const noRecoveryTally = (): RecoveryTally => ({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, open: 0 });
+export const noRecoveryTally = (): RecoveryTally => ({ spells: 0, done: 0, doneDays: 0, sent: 0, sentDays: 0, left: 0, open: 0 });
 
 /** A kind of Guild's Heroes' recoveries at home: to below their Guild's rest band, and to fresh. */
 export interface Recovery {
@@ -2385,17 +2388,19 @@ interface Spell {
 
 /**
  * The Days Heroes take to recover at home (DL-290), from `hero.fatigue-changed` (the band a Hero is
- * in, which a night records only on crossing one), `quest.taken` and `quest.resolved`, in the order
- * of the History. A recovery begins when a Hero comes home alive from a Quest in a band at or past
- * the one it ends below, for the Guild that sent them; it ends when a night takes them below it, or is
- * cut short when they are sent again, or is left open at the game's end. The two bands are the Guild's
+ * in, which a night records only on crossing one), `quest.taken`, `quest.resolved`, `hero.retired` and
+ * `hero.left-guild`, in the order of the History. A recovery begins when a Hero comes home alive from a
+ * Quest in a band at or past the one it ends below, for the Guild that sent them; it ends when a night
+ * takes them below it, or is cut short when they are sent again, or ends as left when they leave every
+ * Roster, retired or sent to the pool at a fold, where no night moves their Fatigue (DL-291), or is left
+ * open at the game's end. The two bands are the Guild's
  * rest band (`restBandOf`; a Guild with none begins none) and fresh. The Days are the Turns between
  * the Quest's return and the night that ends it, over `turnsPerDay`: 0 for a night the Hero fell on
  * the very night they came home, as the Hero State Engine runs after the Quest concludes.
  */
 export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps, 'config' | 'content'>): Record<ControllerKind, Recovery> {
   const counts = { player: noRecovery(), rival: noRecovery() };
-  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved'] as const)
+  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved', 'hero.retired', 'hero.left-guild'] as const)
     .flatMap((type) => positionedEntriesOf(document, type))
     .sort((a, b) => a.position - b.position);
   const bands = new Map<string, number>();
@@ -2415,6 +2420,11 @@ export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps,
         return false;
       });
       running.set(heroId, left);
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') {
+      const heroId = payloadField(entry, 'heroId');
+      if (typeof heroId !== 'string') throw new Error(`${what} has no heroId`);
+      for (const spell of running.get(heroId) ?? []) spell.tally.left += 1;
+      running.delete(heroId);
     } else if (entry.type === 'quest.taken') {
       const heroIds = payloadField(entry, 'heroIds');
       if (!Array.isArray(heroIds)) throw new Error(`${what} has no heroIds`);

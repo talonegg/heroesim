@@ -1290,8 +1290,25 @@ describe("the Captain's post on a Hero's page (DL-289)", () => {
     const until = dateOfTurn(captainLock(guild, document.world.turn, defaultConfig)?.untilTurn ?? 0, defaultConfig);
     expect(locked).toMatchObject({
       kind: 'own',
-      captaincy: { is: false, locked: `${captain.name} was named Captain on ${dateOfTurn(document.world.turn, defaultConfig)}, and the post cannot change again before ${until}.` },
+      captaincy: { is: false, locked: `The Captain was last replaced on ${dateOfTurn(document.world.turn, defaultConfig)}, and the post cannot change again before ${until}.` },
     });
+  });
+
+  test('dates a lock by the replacement that set it, not by the Captain who filled the post emptied since (DL-291)', () => {
+    // A replaced on the change's Turn, then B left the Roster and C filled the empty post free: the
+    // lock still holds from the change (`nameCaptain`), and C was not named on its date.
+    const document = structuredClone(newDocument('selectors'));
+    const [filler, other] = heroes(document) as [Hero, Hero];
+    const guild = playerOf(document);
+    const changed = document.world.turn;
+    guild.captainChangedOnTurn = changed;
+    guild.captainId = filler.id;
+    document.world.turn = changed + 6;
+
+    const locked = heroPage(document, other.id)?.actions;
+    if (locked?.kind !== 'own') throw new Error("the player's Hero");
+    expect(locked.captaincy.locked).not.toContain(`${filler.name} was named Captain on ${dateOfTurn(changed, defaultConfig)}`);
+    expect(locked.captaincy.locked).toMatch(/^The Captain was last replaced on /);
   });
 
   test("has no Captain post for a Hero of a Rival or in the pool, who may be one of theirs but not named by this Guild", () => {

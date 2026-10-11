@@ -2113,10 +2113,12 @@ const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals
     const [sent, rest, recovery, relief] = [totals.dispatchFatigue, totals.restKept, totals.fatigueRecovery, totals.hurtRelief];
     const row = (label: string, cell: (kind: ControllerKind) => string): string[] => [label, ...controllerKinds.map(cell)];
     const share = (n: number, of: number): string => `${whole(n)} (${percent(n, of)})`;
-    const recoveryRows = (below: string, pick: (kind: ControllerKind) => RecoveryTally): string[][] => [
+    // `before` says what ends the recovery, for the row of those sent again first (DL-291).
+    const recoveryRows = (below: string, before: string, pick: (kind: ControllerKind) => RecoveryTally): string[][] => [
       row(`Days recovering to ${below}, the mean of those that ended`, (kind) => `${ratio(pick(kind).doneDays, pick(kind).done)} (over ${whole(pick(kind).done)})`),
       row('… recoveries begun at a homecoming', (kind) => whole(pick(kind).spells)),
-      row(`… sent again before they fell below it`, (kind) => `${share(pick(kind).sent, pick(kind).spells)}, after ${pick(kind).sent === 0 ? '—' : ratio(pick(kind).sentDays, pick(kind).sent)} Days`),
+      row(`… sent again before ${before}`, (kind) => `${share(pick(kind).sent, pick(kind).spells)}, after ${ratio(pick(kind).sentDays, pick(kind).sent)} Days`),
+      row('… gone from every Roster first, retired or at a fold', (kind) => share(pick(kind).left, pick(kind).spells)),
       row('… still recovering as the game stopped', (kind) => whole(pick(kind).open)),
     ];
     return [
@@ -2125,7 +2127,7 @@ const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals
         "its Parties from, the player's on a night's Turn, before the policy sends the Heroes the night brought home, and a Rival's on a morning's, " +
         "which its afternoon reads: the free Heroes (`availableHeroes`) and those `partyPool` leaves out. " +
         "A recovery runs from a Hero's homecoming, alive, in a band at or past the one it ends below, to the night " +
-        'a crossing takes their Fatigue below it, or is cut short when they are sent again; its Days are counted from the return. ' +
+        'a crossing takes their Fatigue below it, or is cut short when they are sent again or leave every Roster; its Days are counted from the return. ' +
         'Relief is classed at each Injury taken on a Quest (a Healer of the Party who had not died by then, with an Encounter after it to ease; ' +
         'a heal Item spent on the Hero at that Encounter).',
       '',
@@ -2138,8 +2140,8 @@ const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals
           row('Mean Fatigue at dispatch, a Hero', (kind) => ratio(sent[kind].fatigue, sent[kind].heroes, 1)),
           row('Free Heroes a rest band kept home', (kind) => `${share(rest[kind].kept, rest[kind].free)} of ${whole(rest[kind].free)} free`),
           row('Guild-Days a rest band kept at least one Hero home', (kind) => share(rest[kind].guildDaysKept, rest[kind].guildDays)),
-          ...recoveryRows('below the rest band', (kind) => recovery[kind].toRest),
-          ...recoveryRows('fresh', (kind) => recovery[kind].toFresh),
+          ...recoveryRows('below the rest band', 'they fell below it', (kind) => recovery[kind].toRest),
+          ...recoveryRows('fresh', 'they were fresh', (kind) => recovery[kind].toFresh),
           row('Quests a Captain led', (kind) => share(sent[kind].captained, sent[kind].parties)),
           row('… of the Parties sent while a Captain was named', (kind) => share(sent[kind].captained, sent[kind].captainNamed)),
           row('Injuries taken on a Quest', (kind) => whole(relief[kind].injuries)),

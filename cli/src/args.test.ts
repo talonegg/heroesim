@@ -161,6 +161,9 @@ describe('parseArgs', () => {
     expect(said).toContain('the best Party of your rested Heroes');
     expect(said).not.toContain('free Heroes');
     expect(said).toContain("each Hero's Morale and Fatigue and who its Captain is");
+    // DL-291: hall's clause says what hall shows, not the roster's Morale, Fatigue and Captain.
+    expect(said).not.toContain('Captain is, and so does hall');
+    expect(said).toContain("hall shows the player's Guild unless given another too, each facility's grade");
     expect(said).toContain("each Hero's Fatigue and the Captain among them, what would relieve the hurt");
   });
 

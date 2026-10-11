@@ -1176,8 +1176,8 @@ export interface Captaincy {
 }
 
 /**
- * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip and
- * transfer out; on another Guild's Roster, take them in for the Transfer fee; in the Unattached
+ * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip,
+ * transfer out and name Captain (DL-289); on another Guild's Roster, take them in for the Transfer fee; in the Unattached
  * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
  * at the paying Guildmaster's Negotiation); whether it is done is the engine's too, which refuses
  * with a sentence. Whether a Hero in the pool would sign is the engine's `signingRefusal`, as the
@@ -1296,7 +1296,7 @@ function statValues(hero: Hero, world: World): Map<string, { base: number; effec
 /**
  * What the player can do with `hero`, read as `read`: recruit them from the pool for the signing fee,
  * take them in from another Guild's Roster for the Transfer fee, the fees the reading's (DL-241); or,
- * on the player's Roster, equip, unequip and transfer them out.
+ * on the player's Roster, equip, unequip, transfer them out and name them Captain (DL-289).
  */
 function heroActions(hero: Hero, read: HeroReading, reading: PageReading, document: WorldDocument): HeroActions | null {
   const { world, deps, guild: player } = reading;

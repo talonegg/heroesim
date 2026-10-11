@@ -333,9 +333,10 @@ const sentences: Sentences = {
   'nameCaptain hero-not-on-roster': ({ heroId }, setting) =>
     say`${hero(setting, heroId)} is not on ${player(setting)}'s Roster${command('show-roster')}.`,
   'nameCaptain already-captain': ({ heroId }, setting) => say`${hero(setting, heroId)} is already ${player(setting)}'s Captain.`,
-  'nameCaptain captain-locked': ({ captainId, changedOnTurn, untilTurn }, setting) => {
+  // Dated by the replacement that set the lock, which a vacancy filled since leaves as it was (DL-291).
+  'nameCaptain captain-locked': ({ changedOnTurn, untilTurn }, setting) => {
     const { calendar } = setting;
-    return say`${hero(setting, captainId)} was named Captain on ${dateOfTurn(changedOnTurn, calendar)}, and the post cannot change again before ${dateOfTurn(untilTurn, calendar)}.`;
+    return say`The Captain was last replaced on ${dateOfTurn(changedOnTurn, calendar)}, and the post cannot change again before ${dateOfTurn(untilTurn, calendar)}.`;
   },
 };
 

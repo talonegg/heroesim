@@ -355,7 +355,7 @@ const exactly: Record<keyof Samples, string> = {
   'nameCaptain guild-folded': 'The Lantern has folded and names no Captain.',
   'nameCaptain hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
   'nameCaptain already-captain': `${hero.name} is already The Lantern's Captain.`,
-  'nameCaptain captain-locked': `${hero.name} was named Captain on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
+  'nameCaptain captain-locked': `The Captain was last replaced on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
 };
 
 /**

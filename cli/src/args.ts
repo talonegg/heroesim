@@ -59,12 +59,13 @@ Commands:
         | offers | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another, each Hero's Morale and Fatigue and who its
-      Captain is, and so does hall, each facility's grade and what the next grade costs;
+      Captain is; hall shows the player's Guild unless given another too, each
+      facility's grade and what the next grade costs;
       pool marks the Heroes who will not yet sign for the player's Guild's Fame;
       patrons shows each Patron's Regard for the player's Guild; board shows the Quests
       on offer, each with its Tier and whether it is Deadly, each Encounter's Checks and
-      what they read, and the best Party of your rested Heroes, those at home whom your
-      rest band does not keep there, with its chance; rankings orders the Guilds in play
+      what they read, and the best Party of your rested Heroes, those free at home whom
+      your rest band does not keep there, with its chance; rankings orders the Guilds in play
       by Fame, or by Wealth with --by wealth; guildmaster shows the player's
       Guildmaster, or another Guild's, with their Stats, Traits and Regard; market shows
       what the Market has for sale and at what price, and what the player's Guild holds

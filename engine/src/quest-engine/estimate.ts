@@ -372,7 +372,7 @@ function homecoming(
 
 /**
  * A deep copy of `value`, JSON-safe as the document is (data-model rule 6), equal to `structuredClone`'s
- * at a third of its cost: a Rival's Best Party brings its free Heroes home every afternoon (DL-164).
+ * at a third of its cost: a Rival's Best Party brings its pool home every afternoon (DL-164).
  */
 function copyOf<T>(value: T): T {
   if (typeof value !== 'object' || value === null) return value;

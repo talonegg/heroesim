@@ -275,7 +275,7 @@ describe('sweepPlay', () => {
       captainNamed: parties,
       captained,
     });
-    const recovery = (done: number, doneDays: number) => ({ spells: done + 1, done, doneDays, sent: 1, sentDays: 2, open: 0 });
+    const recovery = (done: number, doneDays: number) => ({ spells: done + 1, done, doneDays, sent: 1, sentDays: 2, left: 0, open: 0 });
     const games = sweep.games.map((game) => ({
       ...game,
       counters: {
@@ -301,7 +301,7 @@ describe('sweepPlay', () => {
     expect(summed.dispatchFatigue.player).toMatchObject({ parties: 20, tired: 0, heroes: 40, fatigue: 1600, captained: 6 });
     expect(summed.dispatchFatigue.rival).toMatchObject({ parties: 40, tired: 20, byWorstBand: { fresh: 0, weary: 20, tired: 20, exhausted: 0 } });
     expect(summed.restKept).toEqual({ player: { guildDays: 8, guildDaysKept: 6, free: 16, kept: 12 }, rival: { guildDays: 32, guildDaysKept: 8, free: 80, kept: 20 } });
-    expect(summed.fatigueRecovery.player.toRest).toEqual({ spells: 8, done: 6, doneDays: 12, sent: 2, sentDays: 4, open: 0 });
+    expect(summed.fatigueRecovery.player.toRest).toEqual({ spells: 8, done: 6, doneDays: 12, sent: 2, sentDays: 4, left: 0, open: 0 });
     expect(summed.hurtRelief.rival).toEqual({ injuries: 4, healer: 0, item: 0, both: 0, neither: 4, atLast: 0 });
     const report = playReport(fatigued, { deps, machine: machine(), startedAt: new Date(2026, 9, 12, 12), milestone: 'v1.2.1-s10' });
     expect(report).toContain('## Fatigue and the Captain (DL-290)');
@@ -310,6 +310,10 @@ describe('sweepPlay', () => {
     expect(report).toContain('| Mean Fatigue at dispatch, a Hero | 40.0 | 40.0 |');
     expect(report).toContain('| Free Heroes a rest band kept home | 12 (75.0%) of 16 free | 20 (25.0%) of 80 free |');
     expect(report).toContain('| Days recovering to below the rest band, the mean of those that ended | 2.00 (over 6) | 4.00 (over 2) |');
+    // DL-291: the to-fresh rows say what ends a recovery to fresh, and a Hero who left every Roster is not still recovering.
+    expect(report).toContain('| … sent again before they fell below it | 2 (25.0%), after 2.00 Days |');
+    expect(report).toMatch(/\| … sent again before they were fresh \| \d+ \(/);
+    expect(report).toMatch(/\| … gone from every Roster first, retired or at a fold \| 0 \(0\.0%\) \|/);
     expect(report).toContain('| Quests a Captain led | 6 (30.0%) | 16 (40.0%) |');
     expect(report).toContain('| … by neither | 2 (25.0%) | 4 (100.0%) |');
   });

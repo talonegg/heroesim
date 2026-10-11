@@ -299,7 +299,7 @@ const exactly: Record<RefusalKind, string> = {
   'nameCaptain guild-folded': `${lantern} has folded and names no Captain.`,
   'nameCaptain hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
   'nameCaptain already-captain': `${brenna} is already ${lantern}'s Captain.`,
-  'nameCaptain captain-locked': `${brenna} was named Captain on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
+  'nameCaptain captain-locked': `The Captain was last replaced on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
 };
 
 describe('the refusals', () => {

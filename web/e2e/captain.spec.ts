@@ -125,8 +125,8 @@ test('naming another Captain says what it costs and locks, and the post then sta
   await tiles.nth(0).getByRole('button').click();
   await expect(article.getByRole('button', { name: `Name ${first} Captain` })).toBeDisabled();
   // The lock’s sentence is the disabled button’s description, so a screen reader hears why.
-  await expect(article.getByRole('button', { name: `Name ${first} Captain` })).toHaveAccessibleDescription(new RegExp(`^${escaped(second)} was named Captain on `));
-  await expect(article.getByText(new RegExp(`^${escaped(second)} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`))).toBeVisible();
+  await expect(article.getByRole('button', { name: `Name ${first} Captain` })).toHaveAccessibleDescription(/^The Captain was last replaced on /);
+  await expect(article.getByText(new RegExp(`^The Captain was last replaced on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`))).toBeVisible();
   await expectNoHorizontalOverflow(page, 'a Hero’s page, the post locked');
   await expectTargets(page, 'a Hero’s page, the post locked');
 });

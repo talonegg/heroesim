@@ -117,10 +117,12 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
   Heroes (`availableHeroes`) and the ones `partyPool` leaves out; the share of free Heroes, and of Guild-Days with at least one kept.
   The player's is read on a night's Turn, before the policy sends the Heroes the night brought home and rested (a morning would
   read its pool after that sending, the rested gone and the kept left); a Rival's on a morning's, which its afternoon reads.
-- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken` and `quest.resolved`. A recovery begins when a
-  Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or past fresh, and ends when a night takes them
-  below it; it is cut short if they are sent again first. The mean is over the recoveries that ended, in whole Days from the
-  return (both ends fall on a night); the report also gives how many were cut short, after how many Days, and how many were still running when the game stopped.
+- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken`, `quest.resolved`, `hero.retired` and
+  `hero.left-guild`. A recovery begins when a Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or
+  past fresh, and ends when a night takes them below it; it is cut short if they are sent again first, and ends as gone if they
+  leave every Roster first, retired or at a fold, where no night rests them (DL-291). The mean is over the recoveries that ended,
+  in whole Days from the return (both ends fall on a night); the report also gives how many were cut short, after how many Days,
+  how many were gone, and how many were still running when the game stopped.
   The mean to fresh is biased low by the cut-short ones, which a rest band below fresh makes most of them.
 - **Quests a Captain led** (`dispatchFatigue`): the share of Parties sent that included the Guild's Captain as the Turn left it.
 - **Hurt relief used** (`hurtRelief`): each `hero.injured` on a Quest, as relieved by a Healer of the Party (a Class content marks
