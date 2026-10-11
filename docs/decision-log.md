@@ -826,3 +826,60 @@ from a Party none of whose Heroes return, and a heal purchase pre-empted no tran
 step in 63,200 Rival afternoons of four 20-year games (691 purchases); of 37 mutations three fell to
 a History fingerprint alone, now killed by tests: another Guild's Party counted, a wiped Party's
 Items kept or lost.
+
+## DL-289 — v1.2.1-S9 built: the page, the CLI and the words
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 8 (Q5 a) gives the page part 11's layers for what exists, and S1 to S8 built
+Fatigue, the Captain, relief and rest bands in the engine with the CLI's `captain` alone. The page showed
+none of them; the form line's words were copied in the page and the CLI, the page read Morale's band again
+from the engine, the phone's "Sort by" took every group after the first for a Stat area (the architecture
+review's candidate 7), and "free Heroes" was untrue where a rest band keeps tired ones home (DL-286).
+
+**Decision.**
+
+1. **One reading of State.** A `HeroRow` of `@heroesim/words` carries `moraleBand`, `fatigue`,
+   `fatigueBand` and `captain`, so a Roster's row, the pool's and a Hero's reading all say them; the page's
+   `rosterRows` takes the bands from it and the web's second `moraleBand` call is gone. `moraleBandNames`
+   and `fatigueBandNames` are the words' lists. The engine's entry exports `fatigueBand`, `captainLock`
+   and `relievesHurt`.
+2. **Roster groups say their kind:** `hero`, `state` or `stat-area`. State holds Morale and Fatigue, the
+   phone's sixth tab and a Columns group; "Sort by" offers the `stat-area` groups by kind. Sorts: `fatigue`,
+   most tired first. Filters: Morale's bands and Fatigue's, each group's name shown.
+3. **The Captain's mark** (an icon of a shield) stands before the Class's in `HeroName` on the tile, in the
+   Table's Name cell on every tab, and in the builder; its post is read after the name (", Captain").
+   A Fatigue chip (tone: plain to weary, warn tired, bad exhausted) stands beside Morale's, with the Table's
+   Fatigue column.
+4. **The Hero's page:** Fatigue and Captain chips, and a "Captain" part for a Hero of the player's Roster:
+   who holds the post, or what naming them does (`namingWords`: free to an empty post, else the outgoing
+   Captain's Morale and the lock), "Name Captain" playing `nameCaptain`, disabled while the lock holds with
+   the refusal's own sentence (`captain-locked`) said under it.
+5. **The Party builder:** each row's Fatigue band, never the figure; the Captain marked; for the Party
+   chosen, "Relief from the hurt": the Healer's Classes in the Party and the heal Items carried, or none
+   (`reliefWords`, words).
+6. **The form line's words** `formEffectWords` live in `words/src/party.ts`, read by the page and the
+   CLI; both copies are gone (`imports.test.ts` holds it).
+7. **The CLI:** Fatigue beside Morale in every Hero table and `show hero` (with the bands), a Captain
+   column in `show roster`, `Captain` in `show hero`, and `preview`'s Fatigue and Relief sections.
+8. **The pool's words:** `noBestPartyWords`, "No Party of your rested Heroes meets its requirements.",
+   one for the Board and `show board`; the CLI's help, and the page's fast forward "until a Quest your
+   rested Heroes can staff appears" with its note and help, say rested; `CONTEXT.md` defines rested.
+9. **The script budget** 900 kB: its doc comment and test were confirmed (DL-285); the build is 863,084
+   bytes.
+
+*Judgement calls, for the owner to see.*
+- *Morale moves in the wide Table* from after Age to after Items, since columns follow their groups.
+- *"Rested"*, not "free", as the owner's example had it; it is also said where no rest band is set.
+- *The stop sentence* "a Quest to staff: …'s Heroes at home could go on …" is left as it was: it is true
+  of any Hero at home, and not in the story's list.
+- *The form line's heading* stays "Morale", though the line reads Fatigue and the hurt too (DL-284).
+- *The lock disables the button* rather than refuse a click, as Recruit does; no rule is on the page.
+- *Fatigue by band on the builder's rows*, Morale's none, as DL-148 item 12 left it.
+- *Tones:* fresh and weary plain, so a new game's chips stay quiet.
+
+**Consequences.** The page and the CLI show what S1 to S8 built. No rule, config or content changed: the
+config version stays 30, the content version 45, schema 11.
+
+**Evidence.** The commit `v1.2.1-S9 (DL-289)`; the epic's S9 boxes. The checks' counts, the doctors'
+readings and the e2e count are in the commit message.

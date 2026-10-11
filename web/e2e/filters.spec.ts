@@ -29,11 +29,16 @@ test("the Roster's filters: each group's name on the line of its All, the chips 
   const tiles = roster.getByRole('list', { name: 'Heroes on the Roster' }).getByRole('listitem');
   const availability = roster.getByRole('group', { name: 'Where', exact: true });
   const classes = roster.getByRole('group', { name: 'Class', exact: true });
+  // The bands of Morale and of Fatigue are filters too (DL-289).
+  const morale = roster.getByRole('group', { name: 'Morale', exact: true });
+  const fatigue = roster.getByRole('group', { name: 'Fatigue', exact: true });
   // Each group's name shown and naming it, before its chips on the line of its first, All, at every
   // width, and nothing pushed sideways (the owner's answer, DL-213).
   for (const [group, name] of [
     [classes, 'Class'],
     [availability, 'Where'],
+    [morale, 'Morale'],
+    [fatigue, 'Fatigue'],
   ] as const) {
     const label = page.locator(`[id="${(await group.getAttribute('aria-labelledby')) ?? ''}"]`);
     await expect(label).toHaveText(name);
@@ -46,6 +51,18 @@ test("the Roster's filters: each group's name on the line of its All, the chips 
     expect(shown.x + shown.width, `${name}: the label before All`).toBeLessThanOrEqual(all.x);
   }
   await expectNoHorizontalOverflow(page, "the Roster's filters with their names");
+  expect(await optionsOf(morale)).toEqual(['Wretched', 'Low', 'Steady', 'High', 'Elated']);
+  expect(await optionsOf(fatigue)).toEqual(['Fresh', 'Weary', 'Tired', 'Exhausted']);
+  // A band pressed from the keyboard shows the Heroes of it, and a second press lets it go.
+  const fresh = chip(fatigue, 'Fresh');
+  await fresh.focus();
+  await page.keyboard.press('Space');
+  await expect(fresh).toHaveAttribute('aria-pressed', 'true');
+  await expect(tiles.first()).toBeVisible();
+  await expectNoHorizontalOverflow(page, "the Roster's tiles filtered by Fatigue");
+  await expectTargets(page, "the Roster's tiles filtered by Fatigue");
+  await page.keyboard.press('Space');
+  await expect(fresh).toHaveAttribute('aria-pressed', 'false');
   // Away, pressed from the keyboard.
   const away = chip(availability, 'Away');
   await away.focus();

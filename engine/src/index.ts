@@ -135,10 +135,12 @@ export {
   configVersion,
   defaultConfig,
   flattenConfig,
+  moraleBandNames,
   questBands,
   regardBandNames,
   type ChanceBand,
   type EngineDeps,
+  type FatigueBand,
   type GameConfig,
   type LoadDeps,
   type MoraleBand,
@@ -186,7 +188,7 @@ export {
   type TransferRefusalReason,
   type TransferSide,
 } from './controllers/rival.js';
-export { captainChoice, type CaptainLock } from './captain.js';
+export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export * from './create.js';
@@ -338,6 +340,7 @@ export {
   type RegardContext,
   type ResolvedForRegard,
 } from './regard.js';
+export { fatigueBand } from './fatigue.js';
 export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
@@ -358,7 +361,7 @@ export {
   type EncounterEstimate,
   type QuestEstimate,
 } from './quest-engine/estimate.js';
-export type { FormConfig, FormEffect } from './quest-engine/form.js';
+export { relievesHurt, type FormConfig, type FormEffect } from './quest-engine/form.js';
 export type { ConsumableUse, Kit } from './quest-engine/consumables.js';
 export { passDegree, passOf, type Decided } from './quest-engine/degree.js';
 export {

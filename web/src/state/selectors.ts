@@ -33,7 +33,6 @@ import {
   guildmasterTraitsOf,
   holdings,
   itemDefinition,
-  moraleBand,
   previewDispatch,
   rankingPlaces,
   sexes,
@@ -55,6 +54,7 @@ import {
   type HeroId,
   type ItemDefinitionKey,
   type ItemId,
+  type FatigueBand,
   type MoraleBand,
   type PotentialHint,
   type QuestEstimate,
@@ -67,7 +67,6 @@ import {
   type StopCondition,
   type StopReason,
   type Synergy,
-  type FormEffect,
   type TimeOfDay,
   type TraitKey,
   type Unavailability,
@@ -78,24 +77,30 @@ import {
   atHallWords,
   bestPartyReading,
   boardReading,
+  captainPost,
   capitalised,
   chanceWords,
   dateOfDay,
   dateOfTurn,
   consumableEffectWords,
   endedSentence,
+  fatigueBandNames,
+  formEffectWords,
   heroReading,
   heroSkills,
   heroTraits,
   kindWords,
   listed,
   modifierWords,
+  moraleBandNames,
   nameIn,
+  namingWords,
   nightOfDay,
   nightOfTurn,
   partyFloorWords,
   questClosed,
   readsAsOne,
+  reliefWords,
   rosterReading,
   rowOf,
   shownPercent,
@@ -412,7 +417,9 @@ function byClass(a: Hero, b: Hero): number {
  * Stats the Quest's Checks read (`statsRead`, v1.1.4-S6, in place of the template's demands); and
  * the Skills the Quest names that they have. Every value is one the
  * Roster, a Hero's page and the Board already give: no fit and no odds. No Hero's Morale: the
- * builder says what the Party's does in one line (v1.1.4-S3's verification, DL-148 item 12).
+ * builder says what the Party's does in one line (v1.1.4-S3's verification, DL-148 item 12). Their
+ * Fatigue is said by its band, since a rest band keeps the tired home (DL-286), and the Captain marked
+ * (DL-289).
  */
 export interface PartyRow extends ClassMarked {
   heroId: HeroId;
@@ -424,6 +431,10 @@ export interface PartyRow extends ClassMarked {
   unavailable: string | null;
   /** The Board's chip, short (v1.1.5-S11, DL-169 item 2): `Away` or `Injured`; `null` when the Hero can go. */
   chip: string | null;
+  /** Their Fatigue's band, as the Roster's rows read it (`rosterReading`). */
+  fatigueBand: FatigueBand;
+  /** Whether they are the Guild's Captain. */
+  captain: boolean;
   /** Each Stat the Quest's Checks read (`statsRead`), in the order it meets them, at the value a Check reads (`statBreakdown`'s effective value). */
   stats: { name: string; value: number }[];
   /** The Skill the Quest requires, then those that help (`skillsThatHelp`), that the Hero has. */
@@ -438,9 +449,12 @@ export interface PartyRow extends ClassMarked {
  */
 export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[] | null {
   const { world } = document;
-  const { guild, calendar } = readingOf(document);
+  const reading = readingOf(document);
+  const { guild, calendar } = reading;
   const quest = rowOf(world.quests, questId);
   if (guild === undefined || quest === undefined || !world.board.includes(questId)) return null;
+  // Each Hero's Fatigue band and whether they are the Captain are the Roster's rows' own (DL-289).
+  const rowsRead = new Map(rosterReading(reading, guild).map((row) => [row.id, row]));
   const { skillKey } = quest.requirements;
   const named = [...new Set([...(skillKey === undefined ? [] : [skillKey]), ...skillsThatHelp(quest, content)])];
   const read = statsRead(quest, content);
@@ -457,6 +471,7 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
       const values = statValues(hero, world);
       const held = heroSkills(content, hero);
       const { why, until, chip } = availability.get(hero.id) ?? availabilityOf(hero, world, calendar);
+      const row = rowsRead.get(hero.id);
       return {
         heroId: hero.id,
         name: hero.name,
@@ -465,6 +480,8 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
         why,
         unavailable: until,
         chip,
+        fatigueBand: row?.fatigueBand ?? 'fresh',
+        captain: row?.captain ?? false,
         stats: read.map((key) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
         skills: named.flatMap((key) => held.filter((skill) => skill.key === key).map(({ name, rating }) => ({ name, rating }))),
       };
@@ -496,14 +513,6 @@ function bonusWords({ flat, factor }: Synergy['bonus']): string {
   return listed([...(flat === undefined ? [] : [`+${flat}`]), ...(factor === undefined ? [] : [`×${factor}`])]);
 }
 
-/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the CLI's words. */
-const formEffectWords: Readonly<Record<FormEffect, string>> = {
-  raises: 'Raises the odds',
-  none: 'Makes no difference',
-  'lowers-a-little': 'Lowers the odds a little',
-  'lowers-badly': 'Lowers the odds badly',
-};
-
 export interface PreviewView {
   requirements: { words: string; met: boolean }[];
   /** Each Hero chosen who cannot go. */
@@ -512,6 +521,11 @@ export interface PreviewView {
   synergies: string[];
   /** What the Party's Morale does to its odds, one line for the Party naming no Hero (DL-148 item 12); `null` for no one chosen. */
   morale: string | null;
+  /**
+   * What relieves the hurt on the Quest: a Healer among the Party and the heal Items carried, or that there
+   * is none (DL-285, DL-289); none for no one chosen.
+   */
+  relief: string[];
   /**
    * How likely the Party is to come through each Encounter and the Quest (v1.1.4-S6, DL-148 item 15):
    * each a word, and in the detail its percentage floored to 5, if no one falls; `null` for no one chosen, or
@@ -570,6 +584,7 @@ export function previewView(
             return `${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reach(encounters)}.`;
           }),
     morale: preview.form === null ? null : `${formEffectWords[preview.form.effect]}.`,
+    relief: preview.form === null ? [] : reliefWords(preview.heroes, preview.consumables, content),
     chances: preview.chances === null ? null : chancesView(preview.chances),
     consumables:
       preview.consumables.length === 0
@@ -688,6 +703,11 @@ export interface RosterRow extends ClassMarked {
   age: number;
   morale: number;
   moraleBand: MoraleBand;
+  /** Their Fatigue and its band, read as Morale is, from the words' reading (DL-289). */
+  fatigue: number;
+  fatigueBand: FatigueBand;
+  /** Whether they are the Guild's Captain: an icon beside their name (DL-289). */
+  captain: boolean;
   /** The engine's `unavailability`: why the Hero is not at the Hall to be sent, or `null` (M9-S6). */
   why: Unavailability | null;
   /** Where the Hero is: at the Hall, injured, or away with a Party, and until when: `At the Hall`. */
@@ -709,7 +729,7 @@ export interface RosterRow extends ClassMarked {
 export type SortDirection = 'ascending' | 'descending';
 
 /** What the Roster sorts by (DL-169 item 10): the default order, a Hero's field, when they are free, or a Stat by its key. */
-export type RosterSortKey = 'default' | 'name' | 'class' | 'level' | 'age' | 'morale' | 'free' | StatKey;
+export type RosterSortKey = 'default' | 'name' | 'class' | 'level' | 'age' | 'morale' | 'fatigue' | 'free' | StatKey;
 
 /** The Roster's sort: one value, which the "Sort by" dropdown and the Table's headings share. */
 export interface RosterOrder {
@@ -737,6 +757,7 @@ const heroSorts: readonly RosterSortChoice[] = [
   { key: 'level', label: 'Level', first: 'descending', area: null },
   { key: 'age', label: 'Age', first: 'ascending', area: null },
   { key: 'morale', label: 'Morale', first: 'descending', area: null },
+  { key: 'fatigue', label: 'Fatigue', first: 'descending', area: null },
   { key: 'free', label: 'When free', first: 'ascending', area: null },
 ];
 
@@ -746,8 +767,8 @@ function heroStats(set: ContentSet): ContentSet['stats'][string][] {
 }
 
 /**
- * The choices of "Sort by" (DL-169 item 10): Default, Name, Class, Level, Age, Morale, When free,
- * then each of the 20 Stats, highest first. Age first sorts youngest first, a name A to Z, Class in
+ * The choices of "Sort by" (DL-169 item 10): Default, Name, Class, Level, Age, Morale, Fatigue (DL-289),
+ * When free, then each of the 20 Stats, highest first. Age first sorts youngest first, a name A to Z, Class in
  * the content's order and when free those at the Hall first.
  */
 export function rosterSortChoices(set: ContentSet = content): RosterSortChoice[] {
@@ -801,40 +822,57 @@ export interface RosterColumn {
   number: boolean;
 }
 
-/** A group of the Table's columns, which the Columns panel and the phone's tabs show together: Hero, then each area. */
+/**
+ * What a group of columns is (DL-289, the architecture review's candidate 7): the Hero's own, their
+ * State, or one of the Stat areas. A view that offers the Stat areas alone, as the phone's "Sort by" does,
+ * reads them by this and not by where a group stands.
+ */
+export type RosterColumnKind = 'hero' | 'state' | 'stat-area';
+
+/** A group of the Table's columns, which the Columns panel and the phone's tabs show together: Hero, State, then each area. */
 export interface RosterColumnGroup {
   key: string;
   label: string;
+  kind: RosterColumnKind;
   columns: RosterColumn[];
 }
 
 /**
- * The Table's columns after Name, which always shows (DL-169 item 7): Hero (Class, Level, Age,
- * Morale, where the Hero is, Traits, Items), then the Stats by area, each area a group, in content's
- * order.
+ * The Table's columns after Name, which always shows (DL-169 item 7): Hero (Class, Level, Age, where
+ * the Hero is, Traits, Items), State (Morale, Fatigue; DL-289, Q5 a), then the Stats by area, each area a
+ * group, in content's order.
  */
 export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup[] {
   const hero: RosterColumnGroup = {
     key: 'hero',
     label: 'Hero',
+    kind: 'hero',
     columns: [
       { key: 'class', label: 'Class', sort: 'class', number: false },
       { key: 'level', label: 'Level', sort: 'level', number: true },
       { key: 'age', label: 'Age', sort: 'age', number: true },
-      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
       { key: 'where', label: 'Where', sort: 'free', number: false },
       { key: 'traits', label: 'Traits', sort: null, number: false },
       { key: 'items', label: 'Items', sort: null, number: false },
+    ],
+  };
+  const state: RosterColumnGroup = {
+    key: 'state',
+    label: 'State',
+    kind: 'state',
+    columns: [
+      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
+      { key: 'fatigue', label: 'Fatigue', sort: 'fatigue', number: true },
     ],
   };
   const areas: RosterColumnGroup[] = [];
   for (const stat of heroStats(set)) {
     const column: RosterColumn = { key: stat.key, label: stat.name, sort: stat.key, number: true };
     const area = areas.find((each) => each.key === stat.area);
-    if (area === undefined) areas.push({ key: stat.area, label: capitalised(stat.area), columns: [column] });
+    if (area === undefined) areas.push({ key: stat.area, label: capitalised(stat.area), kind: 'stat-area', columns: [column] });
     else area.columns.push(column);
   }
-  return [hero, ...areas];
+  return [hero, state, ...areas];
 }
 
 /**
@@ -936,7 +974,10 @@ function buildRosterRows(document: WorldDocument): RosterRows {
       level: read.level,
       age: read.age,
       morale: read.morale,
-      moraleBand: moraleBand(read.morale, config),
+      moraleBand: read.moraleBand,
+      fatigue: read.fatigue,
+      fatigueBand: read.fatigueBand,
+      captain: read.captain,
       why: availability.why,
       whereabouts: availability.where,
       traits: heroTraits(content, hero),
@@ -952,11 +993,14 @@ function buildRosterRows(document: WorldDocument): RosterRows {
 /**
  * The Roster's filters (DL-206 items 25 to 29, DL-213): by Class, in the order content declares
  * (`class-order.json`), and by availability, At the Hall, Injured and Away, in the words the Board's
- * chip and a Hero's whereabouts use (`@heroesim/words`, DL-206 item 12). A Hero shows when they match
- * both. Each group's name, Class and Where, is shown before its chips (the owner's answer, DL-213).
+ * chip and a Hero's whereabouts use (`@heroesim/words`, DL-206 item 12), and by the band of their Morale
+ * and of their Fatigue (DL-289). A Hero shows when they match every filter. Each group's name, Class, Where,
+ * Morale and Fatigue, is shown before its chips (the owner's answer, DL-213).
  * The view filters the rows `rosterRows` keeps, once sorted, and builds none again (DL-199).
  */
-export function rosterFacets(set: Pick<ContentSet, 'classes' | 'classOrder'> = content): Facets<RosterRow, 'class' | 'availability'> {
+export function rosterFacets(
+  set: Pick<ContentSet, 'classes' | 'classOrder'> = content,
+): Facets<RosterRow, 'class' | 'availability' | 'morale' | 'fatigue'> {
   return {
     class: { label: 'Class', options: set.classOrder.map((key) => ({ key, label: nameIn(set.classes, key) })), of: (row) => row.classKey },
     availability: {
@@ -969,6 +1013,9 @@ export function rosterFacets(set: Pick<ContentSet, 'classes' | 'classOrder'> = c
       // No Hero on a Roster is dead or retired: such a row would be of no choice, shown by All alone.
       of: (row) => (row.why === null ? 'hall' : row.why === 'injured' || row.why === 'in-party' ? row.why : null),
     },
+    // By the bands a row carries, lowest first (DL-289): the words' names, the rows' own bands.
+    morale: { label: 'Morale', options: moraleBandNames.map((key) => ({ key, label: capitalised(key) })), of: (row) => row.moraleBand },
+    fatigue: { label: 'Fatigue', options: fatigueBandNames.map((key) => ({ key, label: capitalised(key) })), of: (row) => row.fatigueBand },
   };
 }
 
@@ -987,6 +1034,7 @@ export function sortedRoster(rows: RosterRows, order: RosterOrder = defaultRoste
     : order.key === 'level' ? (a, b) => a.row.level - b.row.level
     : order.key === 'age' ? (a, b) => a.row.age - b.row.age
     : order.key === 'morale' ? (a, b) => a.row.morale - b.row.morale
+    : order.key === 'fatigue' ? (a, b) => a.row.fatigue - b.row.fatigue
     : order.key === 'free' ? (a, b) => compareNumbers(a.free, b.free)
     : (a, b) => statOf(a) - statOf(b);
   const sign = order.direction === 'ascending' ? 1 : -1;
@@ -1047,6 +1095,10 @@ export interface HeroPageView extends ClassMarked {
    */
   line: string[];
   morale: { value: number; band: MoraleBand };
+  /** Their Fatigue and its band (DL-282, DL-289). */
+  fatigue: { value: number; band: FatigueBand };
+  /** Whether they are their Guild's Captain (DL-287); the player's, a Rival's or none. */
+  captain: boolean;
   /** Where the Hero is, in the Roster's words, and the engine's `unavailability`: why they cannot go now. */
   where: { why: Unavailability | null; words: string };
   /** The Injury's name, while they have one; `where` says when it heals. */
@@ -1112,6 +1164,18 @@ export interface TransferTarget {
 }
 
 /**
+ * The Captain's post as a Hero of the player's Roster meets it (DL-287, DL-289): whether the Hero holds it, the
+ * words that say so or say what naming them does, and, while a change of Captain still locks the post, the
+ * refusal's own words with the date it opens. The page disables "Name Captain" while `locked` stands, as it
+ * disables Recruit for a Hero who will not sign; whether it is done is the engine's.
+ */
+export interface Captaincy {
+  is: boolean;
+  words: string;
+  locked: string | null;
+}
+
+/**
  * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip and
  * transfer out; on another Guild's Roster, take them in for the Transfer fee; in the Unattached
  * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
@@ -1121,7 +1185,7 @@ export interface TransferTarget {
  * Q17).
  */
 export type HeroActions =
-  | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[] }
+  | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[]; captaincy: Captaincy }
   | { kind: 'rival'; guildName: string; fee: number }
   | { kind: 'pool'; fee: number; signs: string; willSign: boolean };
 
@@ -1186,6 +1250,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     line: who,
     ...classMarkOf(reading.content, read.classKey),
     morale: { value: read.morale, band: read.moraleBand },
+    fatigue: { value: read.fatigue, band: read.fatigueBand },
+    captain: read.captain,
     where: { why: available.why, words: available.where },
     injury: read.injury?.name ?? null,
     xp: read.xp,
@@ -1214,7 +1280,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       newestEntries(history, hero.id, (entry) => entry.milestone),
       reading.narration,
     ),
-    actions: heroActions(hero, read, reading),
+    actions: heroActions(hero, read, reading, document),
   };
 }
 
@@ -1232,7 +1298,7 @@ function statValues(hero: Hero, world: World): Map<string, { base: number; effec
  * take them in from another Guild's Roster for the Transfer fee, the fees the reading's (DL-241); or,
  * on the player's Roster, equip, unequip and transfer them out.
  */
-function heroActions(hero: Hero, read: HeroReading, reading: PageReading): HeroActions | null {
+function heroActions(hero: Hero, read: HeroReading, reading: PageReading, document: WorldDocument): HeroActions | null {
   const { world, deps, guild: player } = reading;
   if (player === undefined) return null;
   if (read.signing !== null) {
@@ -1244,6 +1310,7 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading): HeroA
   return {
     kind: 'own',
     equip: gearChoices(world, player),
+    captaincy: captaincyOf(hero, read, reading, document),
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
       .map((other) => {
@@ -1251,6 +1318,24 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading): HeroA
         const sentence = `${other.name} would pay ${fee} Wealth for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
         return { guildId: other.id, name: other.name, fee, sentence };
       }),
+  };
+}
+
+/**
+ * The Captain's post as `hero`, of the player's Roster, meets it: that they are the Captain, or what naming
+ * them does (`namingWords`) and, while the post is locked, the refusal's sentence for it (DL-289).
+ */
+function captaincyOf(hero: Hero, read: HeroReading, reading: PageReading, document: WorldDocument): Captaincy {
+  const post = captainPost(reading);
+  if (post === null || read.captain) return { is: read.captain, words: `${hero.name} is ${reading.guild?.name ?? 'the Guild'}'s Captain.`, locked: null };
+  const { lock, captain } = post;
+  return {
+    is: false,
+    words: namingWords(post, hero.name),
+    locked:
+      lock === null || captain === null
+        ? null
+        : rejectionSentence({ action: 'nameCaptain', reason: 'captain-locked', captainId: captain.id, ...lock }, document, content),
   };
 }
 

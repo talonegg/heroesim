@@ -8,7 +8,7 @@
 // one confirmation an act that lets a Hero go asks for (E4). M9-F2 (DL-115) adds tabs, for the
 // Guild's parts.
 
-import type { MoraleBand, RegardBand } from '@heroesim/engine';
+import type { FatigueBand, MoraleBand, RegardBand } from '@heroesim/engine';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { narrowQuery } from '../breakpoints';
 import { chosenOf, faceted, toggled, type FacetChoices, type Facets, type FacetView } from '../state/facets';
@@ -60,6 +60,14 @@ export const moraleTones: Readonly<Record<MoraleBand, Tone>> = {
   steady: 'plain',
   high: 'good',
   elated: 'good',
+};
+
+/** How a Fatigue band reads beside a Hero (DL-289): plain until tired, a warning when tired, a bad sign when exhausted; the band's word is always there. */
+export const fatigueTones: Readonly<Record<FatigueBand, Tone>> = {
+  fresh: 'plain',
+  weary: 'plain',
+  tired: 'warn',
+  exhausted: 'bad',
 };
 
 /**

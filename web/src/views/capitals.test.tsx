@@ -131,7 +131,8 @@ function readEveryView(reader: Reader): void {
  * A game with something in every part: a Rival folded and another's Guildmaster succeeded; six
  * Turns played; a Hero dead and one retired; one injured and one with no
  * Skill; a Guildmaster with no Trait; a Party out; a Unique Item and a Consumable held; older rules,
- * which the game menu offers to adopt; and a Transfer Offer, which stopped the last play.
+ * which the game menu offers to adopt; and a Transfer Offer, which stopped the last play. Its Heroes are
+ * of every Fatigue band, one is the Captain and the post is locked by a change just made (DL-289).
  */
 function busyGame(): { state: GameState; gone: Named[] } {
   const { state: played6, dead, retired } = withTheGone(played(withWorldNews(started('capitals')), { kind: 'advance', turns: 6 }));
@@ -140,6 +141,12 @@ function busyGame(): { state: GameState; gone: Named[] } {
     if (first === undefined || second === undefined) throw new Error('expected two Heroes on the Roster');
     first.injury = { typeKey: 'deep-cut', healsOnTurn: document.world.turn + 12 };
     second.skills = {};
+    player.captainId = second.id;
+    player.captainChangedOnTurn = document.world.turn;
+    player.rosterIds.forEach((heroId, index) => {
+      const hero = document.world.heroes[heroId];
+      if (hero !== undefined) hero.fatigue = Object.values(document.meta.config.fatigueBands)[index % 4] ?? 0;
+    });
     const guildmaster = document.world.guildmasters[player.guildmasterId];
     if (guildmaster === undefined) throw new Error("no player's Guildmaster");
     guildmaster.traits = [];
@@ -228,6 +235,12 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     fireEvent.click(within(availability).getByRole('button', { name: /^Injured \d+$/ }));
     expect(within(section('Roster')).getByTestId('roster-shown').textContent).toMatch(/^Showing \d+ of \d+ Heroes\.$/);
     reader.read('The Roster filtered');
+    // And by the band of Morale and of Fatigue (DL-289).
+    fireEvent.click(within(availability).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Fatigue' })).getByRole('button', { name: /^Weary \d+$/ }));
+    reader.read('The Roster filtered by Fatigue');
+    fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Fatigue' })).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(availability).getByRole('button', { name: /^Injured \d+$/ }));
     const [none] = within(within(section('Roster')).getByRole('group', { name: 'Class' })).getAllByRole('button').filter((chip) => chip.classList.contains('is-empty'));
     fireEvent.click(none as HTMLElement);
     expect(within(section('Roster')).getByTestId('roster-shown').textContent).toBe('No Hero on the Roster matches the filters.');
@@ -251,6 +264,10 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
     fireEvent.click(pick as HTMLElement);
     expect(within(board).getByTestId('party-morale')).toBeDefined();
+    // And what would relieve the hurt, and each row's Fatigue band and the Captain's mark (DL-289).
+    expect(within(board).getByTestId('relief')).toBeDefined();
+    expect(board.querySelector('.party-row .captain-mark')).not.toBeNull();
+    expect(within(board).getAllByText(/^Fatigue (fresh|weary|tired|exhausted)$/).length).toBeGreaterThan(0);
     // And its chances, a word each, with the numbers in the detail, opened.
     expect(within(board).getAllByTestId('best-party').length).toBeGreaterThan(0);
     expect(within(board).getAllByTestId('encounters').length).toBeGreaterThan(0);

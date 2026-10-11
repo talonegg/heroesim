@@ -53,6 +53,7 @@ import {
   listed,
   modifierWords,
   nameIn,
+  noBestPartyWords,
   nightOfDay,
   nightOfTurn,
   poolNote,
@@ -317,6 +318,7 @@ function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly Her
       { heading: 'Level', align: 'right' },
       { heading: 'Age', align: 'right' },
       { heading: 'Morale', align: 'right' },
+      { heading: 'Fatigue', align: 'right' },
       { heading: 'Background' },
       ...more,
     ],
@@ -327,6 +329,7 @@ function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly Her
       String(row.level),
       String(row.age),
       String(row.morale),
+      String(row.fatigue),
       row.background,
       ...more.map((column) => column.cell(row)),
     ]),
@@ -341,10 +344,13 @@ function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly Her
  */
 export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
   const { world, content } = reading;
-  const fees: HeroColumn<RosterRowReading>[] =
-    reading.guild === undefined || reading.guild.id === guild.id
+  // The Captain marked beside the others (DL-289), then another Guild's Transfer fee.
+  const fees: HeroColumn<RosterRowReading>[] = [
+    { heading: 'Captain', cell: (row) => (row.captain ? 'Yes' : '') },
+    ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right', cell: (row) => String(row.transferFee ?? '') }];
+      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => String(row.transferFee ?? '') }]),
+  ];
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
     const definition = itemDefinition(content, row.definitionKey);
@@ -402,9 +408,12 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['Class', hero.className],
     ['Background', hero.background],
     ['Guild', hero.guild === null ? (hero.unattached ? 'Unattached' : 'None') : `${hero.guild.name ?? hero.guild.id} (${hero.guild.id})`],
+    // A post a Hero holds only on a Roster (DL-289).
+    ...(hero.relationships === null ? [] : [['Captain', hero.captain ? 'Yes' : 'No'] as [string, string]]),
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
-    ['Morale', String(hero.morale)],
+    ['Morale', `${hero.morale}, ${hero.moraleBand}`],
+    ['Fatigue', `${hero.fatigue}, ${hero.fatigueBand}`],
     [
       'Injury',
       hero.injury === null
@@ -686,7 +695,7 @@ export function renderBoard(reading: PlayerReading): string[] {
 /**
  * A Quest's Encounters as the Board gives them: each with its kind and each Check's name and what it
  * reads, an Encounter of one Check of its own name on one line; then whether it is Deadly, with no
- * figure (DL-265); then the Best Party of the player's free Heroes and its chance, if no one falls,
+ * figure (DL-265); then the Best Party of the player's rested Heroes and its chance, if no one falls,
  * or why the player's Guild may not take the Quest.
  */
 function questLines(quest: QuestReading, reading: PlayerReading): string[] {
@@ -707,9 +716,9 @@ function questLines(quest: QuestReading, reading: PlayerReading): string[] {
   ];
 }
 
-/** "Your best Party": the Best Party of the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
+/** "Your best Party": the Best Party of the player's rested Heroes (`partyPool`, DL-286), its chance in a word and floored to 5%, or why there is none. */
 function bestPartyWords(best: BestPartyReading | null): string {
-  if (best === null) return 'No Party of your free Heroes meets its requirements.';
+  if (best === null) return noBestPartyWords;
   const names = listed(best.names);
   if (best.chance === null) return `Your best Party: ${names}; its chance is not known until its Encounters are drawn.`;
   return `Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${names}.`;

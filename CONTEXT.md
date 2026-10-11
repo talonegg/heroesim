@@ -323,8 +323,10 @@ _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted (DL-282). A
 Guild's rest band is one of them or none, its Disposition's or, for the player's Guild, a setting's,
 and a free Hero whose Fatigue is at or past it is left out of the Heroes the Guild chooses a Party
-from (DL-286). The page and the CLI read a Hero's Fatigue by them; their readings are to be built
-(DL-280).
+from (DL-286): its rested Heroes, those at home that the band leaves, whom the Board's "Your best Party" and
+the staffing stops count and the Heroes it keeps home are still sendable by hand. The page and the CLI read
+a Hero's Fatigue by them (DL-289): a Fatigue chip beside Morale's, a column and filters, the Party builder's
+rows, the CLI's tables.
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:

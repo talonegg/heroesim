@@ -199,6 +199,9 @@ describe("show's layouts of the readings (DL-241)", () => {
     background: 'Levy soldier',
     xp: 45,
     moraleBand: 'steady',
+    fatigue: 34,
+    fatigueBand: 'weary',
+    captain: false,
     guild: { id: 'guild-000002' as GuildId, name: 'The Ashford Guild' },
     unattached: false,
     injury: { name: 'Deep cut', healsOnTurn: 20 },
@@ -229,9 +232,11 @@ describe("show's layouts of the readings (DL-241)", () => {
       'Class          Warrior',
       'Background     Levy soldier',
       'Guild          The Ashford Guild (guild-000002)',
+      'Captain        No',
       'Level          3',
       'XP             45',
-      'Morale         61',
+      'Morale         61, steady',
+      'Fatigue        34, weary',
       'Injury         Deep cut, healing on the night of Year 1 Day 7 (Turn 20)',
       'Traits         Lame (-2 Dexterity, -1 Endurance)',
       'Biography      Once a drover.',
@@ -265,6 +270,17 @@ describe("show's layouts of the readings (DL-241)", () => {
     ]);
   });
 
+  // DL-289: Fatigue and the Captain are shown wherever Morale is; a Hero on no Roster has no post to hold.
+  test("show hero says Fatigue with its band beside Morale's, and whether the Hero is the Captain only for a Hero on a Roster", () => {
+    const field = (all: readonly string[], label: string) => all.find((line) => line.startsWith(`${label} `))?.replace(/\s+/g, ' ');
+
+    const captain = renderHero({ ...hero, captain: true, fatigue: 71, fatigueBand: 'exhausted', morale: 8, moraleBand: 'wretched' }, defaultConfig);
+    expect(field(captain, 'Captain')).toBe('Captain Yes');
+    expect(field(captain, 'Fatigue')).toBe('Fatigue 71, exhausted');
+    expect(field(captain, 'Morale')).toBe('Morale 8, wretched');
+    expect(field(renderHero({ ...hero, relationships: null, guild: null, unattached: true }, defaultConfig), 'Captain')).toBeUndefined();
+  });
+
   test('show hero says what a Hero lacks: no Guild, Injury, Trait, Skill or other Hero on the Roster, and no Relationships off one', () => {
     const lines = (reading: Partial<HeroReading>) => renderHero({ ...hero, ...reading }, defaultConfig);
     const field = (all: readonly string[], label: string) => all.find((line) => line.startsWith(`${label} `))?.replace(/\s+/g, ' ');
@@ -293,19 +309,27 @@ describe("show's layouts of the readings (DL-241)", () => {
 
     const lines = renderPool(reading);
 
-    expect(lines.slice(0, 3)).toEqual(['Unattached pool', '', expect.stringMatching(/^Id\s+Name\s+Class\s+Level\s+Age\s+Morale\s+Background\s+Fee\s+Signs$/)]);
+    expect(lines.slice(0, 3)).toEqual(['Unattached pool', '', expect.stringMatching(/^Id\s+Name\s+Class\s+Level\s+Age\s+Morale\s+Fatigue\s+Background\s+Fee\s+Signs$/)]);
     for (const row of poolReading(reading)) {
       const cells = rowFor(lines, row.id).split(/\s{2,}/);
-      expect(cells).toEqual([row.id, row.name, row.className, String(row.level), String(row.age), String(row.morale), row.background, String(row.fee), capitalised(signsWords(row.signs as Signs))]);
+      expect(cells).toEqual([row.id, row.name, row.className, String(row.level), String(row.age), String(row.morale), String(row.fatigue), row.background, String(row.fee), capitalised(signsWords(row.signs as Signs))]);
     }
     expect(rowFor(lines, (pool[0] as Hero).id)).toMatch(/\sNeeds Fame \d+$/);
     expect(lines.slice(-2)).toEqual(['', `The Test has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`]);
 
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id) as Guild;
     const roster = renderRoster(reading, rival);
-    expect(roster[2]).toMatch(/\sBackground\s+Transfer fee$/);
-    for (const row of rosterReading(reading, rival)) expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.transferFee}$`));
-    expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground$/);
+    expect(roster[2]).toMatch(/\sBackground\s+Captain\s+Transfer fee$/);
+    for (const row of rosterReading(reading, rival)) {
+      expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.captain ? 'Yes\\s+' : ''}${row.transferFee}$`));
+    }
+    expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground\s+Captain$/);
+    // DL-289: the Captain of a Roster is marked in its Captain column, the others left blank.
+    guild.captainId = guild.rosterIds[1] as HeroId;
+    const captain = rosterReading(playerReading(document, playDeps(document)), guild).filter((row) => row.captain);
+    expect(captain).toHaveLength(1);
+    expect(rowFor(renderRoster(reading, guild), (captain[0] as { id: string }).id)).toMatch(/\sYes$/);
+    for (const row of rosterReading(playerReading(document, playDeps(document)), guild).filter((each) => !each.captain)) expect(rowFor(renderRoster(reading, guild), row.id)).toMatch(/\S$/);
   });
 
   test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {
@@ -349,7 +373,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     const best = bestPartyReading(reading, third);
     if (best === null || best.chance === null) throw new Error('no Best Party');
     expect(block(three)).toContain(`  Your best Party: ${chanceWords[best.chance.band]} (${best.chance.percent}% if no one falls), ${listed(best.names)}.`);
-    expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your free Heroes meets its requirements)\.$/)]);
+    expect(block(two).slice(1, 3)).toEqual(['  no-such-encounter', expect.stringMatching(/^ {2}(Your best Party: .+; its chance is not known until its Encounters are drawn|No Party of your rested Heroes meets its requirements)\.$/)]);
   });
 
   // DL-264: a Quest the player's Guild may not take offers no Party; the line says why, in the refusals' words.

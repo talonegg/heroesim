@@ -58,12 +58,13 @@ Commands:
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another, and so does hall, each facility's grade and
-      what the next grade costs; pool marks the Heroes who will not yet sign for the
-      player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
-      board shows the Quests on offer, each with its Tier and whether it is Deadly, each
-      Encounter's Checks and what they read, and the best Party of your free Heroes with
-      its chance; rankings orders the Guilds in play
+      player's Guild unless given another, each Hero's Morale and Fatigue and who its
+      Captain is, and so does hall, each facility's grade and what the next grade costs;
+      pool marks the Heroes who will not yet sign for the player's Guild's Fame;
+      patrons shows each Patron's Regard for the player's Guild; board shows the Quests
+      on offer, each with its Tier and whether it is Deadly, each Encounter's Checks and
+      what they read, and the best Party of your rested Heroes, those at home whom your
+      rest band does not keep there, with its chance; rankings orders the Guilds in play
       by Fame, or by Wealth with --by wealth; guildmaster shows the player's
       Guildmaster, or another Guild's, with their Stats, Traits and Regard; market shows
       what the Market has for sale and at what price, and what the player's Guild holds
@@ -77,14 +78,14 @@ Commands:
       Fast forward: play Turns until one gives a reason to stop, then print the reason and
       what happened. These always stop it: the player's Guild falls below the
       Bankruptcy floor, a Party of the player's comes home, a decision is needed (no Party
-      is out, and a Quest the Guild could take reaches the Board), a Rival makes a Transfer
-      Offer for one of the player's Heroes, an installed module asks to stop, and the game
-      ends.
+      is out, and a Quest the Guild's rested Heroes could take reaches the Board), a
+      Rival makes a Transfer Offer for one of the player's Heroes, an installed module
+      asks to stop, and the game ends.
       <stops> names any of party-returns, decision, staffable, transfer-offer,
       below-floor, ended and pool-refreshed, joined by commas. Two stop it only when named:
-      staffable (a Quest the Heroes at home could take reaches the Board, even with a
-      Party out) and pool-refreshed (new Heroes in the Unattached pool). --max caps the
-      Turns played: one year of Turns unless given.
+      staffable (a Quest the rested Heroes at home could take reaches the Board, even
+      with a Party out) and pool-refreshed (new Heroes in the Unattached pool). --max
+      caps the Turns played: one year of Turns unless given.
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
@@ -93,9 +94,11 @@ Commands:
       is sent: the Quest's Beats, its narrative in the order it plays them; each
       requirement met or missed, the least Party among them; any Hero who cannot go;
       the Synergies it would have and on how many of the Quest's Encounters, what its
-      Morale does to the odds, its chances of each Encounter and of the Quest if no one
-      falls, the consumables it would carry, the reward the Guildmaster would agree,
-      and whether dispatch would send it. Changes nothing.
+      Morale does to the odds, each Hero's Fatigue and the Captain among them, what
+      would relieve the hurt (a Healer in the Party, a heal Item carried), its chances
+      of each Encounter and of the Quest if no one falls, the consumables it would
+      carry, the reward the Guildmaster would agree, and whether dispatch would send
+      it. Changes nothing.
   dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party, the reward agreed and the Day it returns. With

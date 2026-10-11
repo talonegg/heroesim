@@ -4009,15 +4009,22 @@ tr.mine td {
   white-space: normal;
 }
 
-.class-mark {
+.class-mark,
+.captain-mark {
   display: inline-block;
   margin-inline-end: 0.4em;
   line-height: 1;
   vertical-align: -0.3em;
 }
 
-.class-mark > .icon {
+.class-mark > .icon,
+.captain-mark > .icon {
   display: block;
+}
+
+/* The Captain's mark stands before the Class's, in the brass the Guild's Wealth wears, so that it is seen at a glance (DL-289). */
+.captain-mark {
+  color: var(--brass);
 }
 
 /* A person's Portrait beside who they are: their name, their line and what follows it. */

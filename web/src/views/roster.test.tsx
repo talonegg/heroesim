@@ -323,7 +323,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
 });
 
 // DL-169 items 6 to 11: the Roster as Tiles or a Table, its columns chosen in a panel on a
-// wide screen and in five tabs on a phone, one "Sort by" for both views with the Table's headings in
+// wide screen and in six tabs on a phone, one "Sort by" for both views with the Table's headings in
 // step, each Hero's Traits and Items, and every choice kept in this browser, never in the save.
 
 /** The Stats as content lists them, by area: what the Table's columns follow. */
@@ -335,7 +335,9 @@ const physical = statsOf('physical');
 const mental = statsOf('mental');
 const magical = statsOf('magical');
 const social = statsOf('social');
-const heroColumns = ['Class', 'Level', 'Age', 'Morale', 'Where', 'Traits', 'Items'];
+const heroColumns = ['Class', 'Level', 'Age', 'Where', 'Traits', 'Items'];
+// DL-289: Morale and Fatigue are a group of their own, State, after the Hero's.
+const stateColumns = ['Morale', 'Fatigue'];
 
 /**
  * A new game whose first Hero is a Warrior carrying an arming sword, holding Lame, Weaponry 10,
@@ -509,7 +511,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
     renderGame(withPartyOut(started()));
     showAs('Table');
 
-    expect(headings()).toEqual(['Name', ...heroColumns, ...physical, ...mental, ...magical, ...social]);
+    expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
     expect(rosterTable().className).toContain('table--first-sticky');
     for (const name of within(rosterTable()).getAllByRole('rowheader')) {
       expect(within(name).getByTestId('portrait-thumb')).toBeDefined();
@@ -709,9 +711,9 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
 
     expect(button.getAttribute('aria-expanded')).toBe('true');
     const panel = within(section('Roster')).getByRole('group', { name: 'Columns' });
-    expect(Array.from(panel.querySelectorAll('legend')).map((legend) => legend.textContent)).toEqual(['Hero', 'Physical', 'Mental', 'Magical', 'Social']);
+    expect(Array.from(panel.querySelectorAll('legend')).map((legend) => legend.textContent)).toEqual(['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']);
     const boxes = within(panel).getAllByRole('checkbox') as HTMLInputElement[];
-    expect(boxes.map((box) => box.labels?.[0]?.textContent)).toEqual([...heroColumns, ...physical, ...mental, ...magical, ...social]);
+    expect(boxes.map((box) => box.labels?.[0]?.textContent)).toEqual([...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
     expect(boxes.every((box) => box.checked)).toBe(true);
     expect(within(panel).queryByRole('checkbox', { name: 'Name' })).toBeNull();
 
@@ -724,12 +726,12 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'None of the Mental columns' }));
     expect(headings().filter((heading) => mental.includes(heading))).toEqual([]);
     fireEvent.click(within(panel).getByRole('button', { name: 'None of the Hero columns' }));
-    expect(headings().slice(0, 2)).toEqual(['Name', 'Dexterity']);
+    expect(headings().slice(0, 3)).toEqual(['Name', 'Morale', 'Fatigue']);
     fireEvent.click(within(panel).getByRole('button', { name: 'All the Mental columns' }));
     expect(headings().filter((heading) => mental.includes(heading))).toEqual(mental);
 
     // Every column hidden: Name still shows.
-    for (const group of ['Hero', 'Physical', 'Mental', 'Magical', 'Social']) fireEvent.click(within(panel).getByRole('button', { name: `None of the ${group} columns` }));
+    for (const group of ['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']) fireEvent.click(within(panel).getByRole('button', { name: `None of the ${group} columns` }));
     expect(headings()).toEqual(['Name']);
     expect(tableNames()).toHaveLength(4);
 
@@ -739,7 +741,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     expect(headings()).toEqual(['Name']);
     fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('button', { name: 'Reset the columns' }));
-    expect(headings()).toEqual(['Name', ...heroColumns, ...physical, ...mental, ...magical, ...social]);
+    expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
     expect(localStorage.getItem('heroesim.rosterColumns')).toBe('');
   });
 
@@ -758,9 +760,9 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
       showAs('Table');
       expect(within(section('Roster')).queryByRole('button', { name: 'Columns' })).toBeNull();
       const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
-      expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Hero', 'Physical', 'Mental', 'Magical', 'Social']);
+      expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']);
       expect(within(tabs).getByRole('tab', { name: 'Hero' }).getAttribute('aria-selected')).toBe('true');
-      expect(headings()).toEqual(['Name', 'Class', 'Level', 'Age', 'Morale', 'Where', 'Items']);
+      expect(headings()).toEqual(['Name', 'Class', 'Level', 'Age', 'Where', 'Items']);
       expect(within(section('Roster')).getByRole('tabpanel', { name: 'Hero' }).contains(rosterTable())).toBe(true);
 
       fireEvent.click(within(tabs).getByRole('tab', { name: 'Physical' }));
@@ -798,7 +800,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     renderGame(started());
     const select = sortBy();
     expect(select.value).toBe('default');
-    expect(Array.from(select.options).map((option) => option.textContent)).toEqual(['Default', 'Name', 'Class', 'Level', 'Age', 'Morale', 'When free', ...physical, ...mental, ...magical, ...social]);
+    expect(Array.from(select.options).map((option) => option.textContent)).toEqual(['Default', 'Name', 'Class', 'Level', 'Age', 'Morale', 'Fatigue', 'When free', ...physical, ...mental, ...magical, ...social]);
     expect(Array.from(select.querySelectorAll('optgroup')).map((group) => group.label)).toEqual(['Physical', 'Mental', 'Magical', 'Social']);
     expect(direction().textContent).toBe('Default order');
     // The default order: Class in the content's order.
@@ -817,6 +819,15 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     expect(unsorted).toEqual(['Traits', 'Items']);
     expect(help.roster).not.toMatch(/any column/);
     expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Traits and Items.');
+  });
+
+  test('says in its help that a Hero shows Morale and Fatigue, the Captain is marked and named from a page, and Morale and Fatigue bands filter (DL-289)', () => {
+    expect(help.roster).toContain('their Morale and Fatigue and where they are, the Captain marked');
+    expect(help.roster).toContain('name them your Guild’s Captain');
+    expect(help.roster).toContain('those of some Morale or Fatigue band');
+    expect(help.board).toContain('their Fatigue, and their Stats and Skills for this Quest, marks the Captain');
+    expect(help.board).toContain('what would relieve the hurt');
+    expect(help.board).not.toContain('their Morale, Stats');
   });
 
   test('says in its help which choices this browser keeps, and that the filters are not among them (DL-206 item 28, DL-214)', () => {
@@ -1229,7 +1240,7 @@ describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () =>
 
       resize(false);
       expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
-      expect(headings()).toEqual(['Name', ...heroColumns, ...physical, ...mental, ...magical, ...social]);
+      expect(headings()).toEqual(['Name', ...heroColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social]);
 
       expect(listeners.size).toBeGreaterThan(0);
       cleanup();
@@ -1238,5 +1249,134 @@ describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () =>
       if (before === undefined) Reflect.deleteProperty(globalThis, 'matchMedia');
       else Object.defineProperty(globalThis, 'matchMedia', before);
     }
+  });
+});
+
+// DL-289: Fatigue and the Captain on the Roster, in its three views and its filters. What the
+// rows hold is `state/selectors.test.ts`'s; this holds how the Roster lays them out.
+describe("the Roster's Fatigue and Captain (DL-289)", () => {
+  /** A new game whose Heroes' Fatigue and whose Captain are set: the first the Captain, at `fatigues`. */
+  function tired(fatigues: readonly number[]): { state: GameState; captain: string; names: string[] } {
+    const names: string[] = [];
+    let captain = '';
+    const state = changed(started(), (document, player) => {
+      player.captainId = player.rosterIds[0] ?? null;
+      player.rosterIds.forEach((id, index) => {
+        const hero = document.world.heroes[id];
+        if (hero === undefined) return;
+        hero.fatigue = fatigues[index] ?? 0;
+        names.push(hero.name);
+        if (index === 0) captain = hero.name;
+      });
+    });
+    return { state, captain, names };
+  }
+  const bands = documentOf(started()).meta.config.fatigueBands;
+
+  test('a tile has a Fatigue chip beside Morale’s, its figure and band, the tone of the band; the Captain’s tile has the mark', () => {
+    const { state, captain, names } = tired([0, bands.weary, bands.tired, bands.exhausted]);
+    renderGame(state);
+
+    const all = cards();
+    const cardOf = (name: string): HTMLElement => all.find((card) => card.textContent?.startsWith(name) === true) as HTMLElement;
+    const chipsOf = (card: HTMLElement): string[] => Array.from(card.querySelectorAll('.hero-card__state .chip')).map((each) => each.textContent ?? '');
+    expect(chipsOf(cardOf(names[0] as string)).slice(0, 2)).toEqual([expect.stringMatching(/^Morale \d+, /), 'Fatigue 0, fresh']);
+    expect(chip(cardOf(names[1] as string), `Fatigue ${bands.weary}, weary`).className).toBe('chip chip--plain');
+    expect(chip(cardOf(names[2] as string), `Fatigue ${bands.tired}, tired`).className).toBe('chip chip--warn');
+    expect(chip(cardOf(names[3] as string), `Fatigue ${bands.exhausted}, exhausted`).className).toBe('chip chip--bad');
+    for (const card of all) expect(chip(card, /^Fatigue \d+, /).querySelector('svg')).not.toBeNull();
+    // The mark before the Captain’s Class mark, read with the name; nobody else has one.
+    const marked = all.filter((card) => card.querySelector('.captain-mark') !== null);
+    expect(marked).toHaveLength(1);
+    expect(within(marked[0] as HTMLElement).getByRole('button').textContent).toBe(`${captain}, Captain`);
+    expect(within(marked[0] as HTMLElement).getByRole('button', { name: `${captain}, Captain` })).toBeDefined();
+  });
+
+  test('a Roster with no Captain marks no one', () => {
+    renderGame(started());
+
+    expect(document.querySelector('.captain-mark')).toBeNull();
+  });
+
+  test('the Table has a Fatigue column of its own with the band, sorted by its heading, and the Captain’s mark in their Name', () => {
+    const { state, captain, names } = tired([bands.weary, 0, bands.exhausted, bands.tired]);
+    renderGame(state);
+    showAs('Table');
+
+    expect(headings()).toContain('Fatigue');
+    expect(cellOf(`${names[0]}, Captain`, 'fatigue').textContent).toBe(`${bands.weary}, weary`);
+    expect(cellOf(names[2] as string, 'fatigue').textContent).toBe(`${bands.exhausted}, exhausted`);
+    expect(within(rosterTable()).getByRole('rowheader', { name: `${captain}, Captain` }).querySelector('.captain-mark')).not.toBeNull();
+    expect(rosterTable().querySelectorAll('.captain-mark')).toHaveLength(1);
+
+    fireEvent.click(within(within(rosterTable()).getByRole('columnheader', { name: /^Fatigue/ })).getByRole('button'));
+    expect(sortBy().value).toBe('fatigue');
+    // The most tired first, the way a Fatigue first sorts.
+    expect(tableNames().map((each) => each.replace(', Captain', ''))).toEqual([names[2], names[3], names[0], names[1]]);
+  });
+
+  test('on a phone the State tab shows Morale and Fatigue, and the Captain’s mark stands beside their name in every tab', () => {
+    const restore = asPhone();
+    try {
+      const { state, captain } = tired([0, 0, 0, 0]);
+      localStorage.setItem('heroesim.rosterView', 'table');
+      renderGame(state);
+
+      const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
+      fireEvent.click(within(tabs).getByRole('tab', { name: 'State' }));
+      expect(headings()).toEqual(['Name', 'Morale', 'Fatigue']);
+      expect(within(rosterTable()).getByRole('rowheader', { name: `${captain}, Captain` }).querySelector('.captain-mark')).not.toBeNull();
+      fireEvent.click(within(tabs).getByRole('tab', { name: 'Physical' }));
+      expect(within(rosterTable()).getByRole('rowheader', { name: `${captain}, Captain` }).querySelector('.captain-mark')).not.toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  // The architecture review's candidate 7: the phone's "Sort by" offers the Stat areas by their kind, so
+  // the State group, which has no Stat to sort by, is no empty group of it.
+  test('"Sort by" groups the Stat areas alone, each with its Stats, and Morale and Fatigue stand with the rest above them', () => {
+    renderGame(started());
+
+    const select = sortBy();
+    const groups = Array.from(select.querySelectorAll('optgroup'));
+    expect(groups.map((group) => group.label)).toEqual(['Physical', 'Mental', 'Magical', 'Social']);
+    for (const group of groups) expect(group.querySelectorAll('option').length).toBeGreaterThan(0);
+    expect(Array.from(select.children).filter((child) => child.tagName === 'OPTION').map((option) => option.textContent)).toEqual([
+      'Default',
+      'Name',
+      'Class',
+      'Level',
+      'Age',
+      'Morale',
+      'Fatigue',
+      'When free',
+    ]);
+  });
+
+  test('filters by the band of Morale and of Fatigue, each group named, each chip counting what it would show', () => {
+    const { state, names } = tired([0, bands.weary, bands.tired, bands.tired]);
+    renderGame(
+      changed(state, (document, player) => {
+        const hero = document.world.heroes[player.rosterIds[1] as never];
+        if (hero !== undefined) hero.morale = 95;
+      }),
+    );
+    const group = (name: string): HTMLElement => within(section('Roster')).getByRole('group', { name });
+    const words = (of: HTMLElement): string[] => within(of).getAllByRole('button').map((button) => button.textContent ?? '');
+
+    expect(group('Fatigue').firstElementChild?.textContent).toBe('Fatigue');
+    expect(words(group('Fatigue'))).toEqual(['All', 'Fresh 1', 'Weary 1', 'Tired 2', 'Exhausted 0']);
+    expect(words(group('Morale'))).toEqual(['All', 'Wretched 0', 'Low 0', 'Steady 3', 'High 0', 'Elated 1']);
+
+    fireEvent.click(within(group('Fatigue')).getByRole('button', { name: /^Tired \d+$/ }));
+    expect(tileNames().sort()).toEqual([names[2], names[3]].sort());
+    expect(within(section('Roster')).getByTestId('roster-shown').textContent).toBe('Showing 2 of 4 Heroes.');
+    // Morale’s counts are among the Heroes the Fatigue filter shows.
+    expect(words(group('Morale'))).toEqual(['All', 'Wretched 0', 'Low 0', 'Steady 2', 'High 0', 'Elated 0']);
+
+    fireEvent.click(within(group('Fatigue')).getByRole('button', { name: 'All' }));
+    fireEvent.click(within(group('Morale')).getByRole('button', { name: /^Elated \d+$/ }));
+    expect(tileNames()).toEqual([names[1]]);
   });
 });

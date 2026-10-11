@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
-import { holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
+import { changed, holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
 import { historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, wealth } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (DL-73): the CLI's
@@ -337,5 +337,57 @@ describe('Transfer Offers', () => {
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
     logSays(new RegExp(`^The Lantern declined ${guildName}'s Offer for ${name}\\.$`));
+  });
+});
+
+// DL-289 (the design's part 11; DL-287): the Captain is named from a Hero's page, `nameCaptain` through the
+// page's own control, the engine's refusal said in its words.
+describe('the Captain', () => {
+  const holds = (page: HTMLElement, name: string): HTMLElement => within(within(page).getByRole('list', { name: `${name}'s State` })).getByText('Captain');
+
+  test('is named from a Hero’s page, free to an empty post: the page says so, the post is theirs, the History records it', async () => {
+    const game = started();
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
+    expect(within(page()).getByRole('heading', { name: 'Captain' })).toBeDefined();
+    expect(within(page()).getByText(`Naming ${name} Captain is free: the post is empty.`)).toBeDefined();
+    expect(within(within(page()).getByRole('list', { name: `${name}'s State` })).queryByText('Captain')).toBeNull();
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Name ${name} Captain` }));
+    await idle();
+
+    expect(within(page()).getByText(`${name} is The Lantern's Captain.`)).toBeDefined();
+    expect(within(page()).queryByRole('button', { name: `Name ${name} Captain` })).toBeNull();
+    expect(holds(page(), name).closest('.chip')?.querySelector('svg')).not.toBeNull();
+    logSays(new RegExp(`^The Lantern named ${name} its Captain\\.$`));
+  });
+
+  test('in another’s place says what it costs and locks, then the post stays locked in the refusal’s words, and the one replaced is no Captain', async () => {
+    let other = '';
+    const game = changed(started(), (document, player) => {
+      player.captainId = player.rosterIds[1] ?? null;
+      other = document.world.heroes[player.rosterIds[1] as never]?.name ?? '';
+    });
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
+    expect(
+      within(page()).getByText(
+        `Naming ${name} Captain in place of ${other} costs ${other} 10 Morale and locks the post for 30 Days.`,
+      ),
+    ).toBeDefined();
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Name ${name} Captain` }));
+    await idle();
+
+    expect(within(page()).getByText(`${name} is The Lantern's Captain.`)).toBeDefined();
+    // The one replaced: no Captain now, and the post is locked, said as the engine refuses it.
+    fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
+    fireEvent.click(within(rosterList()).getByRole('button', { name: other }));
+    const locked = within(section('Roster')).getByRole('article');
+    const button = within(locked).getByRole('button', { name: `Name ${other} Captain` });
+    expect(button.hasAttribute('disabled')).toBe(true);
+    expect(within(locked).getByText(new RegExp(`^${name} was named Captain on Year 1 Day \\d+, and the post cannot change again before Year 1 Day \\d+\\.$`))).toBeDefined();
+    expect(within(within(locked).getByRole('list', { name: `${other}'s State` })).queryByText('Captain')).toBeNull();
+    logSays(new RegExp(`^The Lantern named ${name} its Captain in place of ${other}; the post cannot change again before Year 1 Day \\d+\\.$`));
   });
 });

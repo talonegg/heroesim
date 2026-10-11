@@ -77,6 +77,29 @@ describe("a Hero's name with their Class's mark", () => {
     expect(element?.textContent?.slice(firstWord.length)).toBe(rest);
   });
 
+  // DL-289: the Captain's mark stands before the Class's inside the same unit, hidden from assistive
+  // technology, and the name is read with the post after it.
+  test('the Captain has a mark before their Class’s in the one unit, a tooltip, and a screen reader reads the post after the name', () => {
+    const { container } = render(<HeroName icon="tome" className="Mage" name="Ingram Holloway" captain />);
+    const element = container.querySelector('.hero-name');
+    const lead = element?.querySelector('.hero-name__lead');
+
+    expect(lead?.firstElementChild?.classList.contains('captain-mark')).toBe(true);
+    expect(lead?.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+    expect(lead?.firstElementChild?.getAttribute('title')).toBe('Captain');
+    expect(lead?.children[1]?.classList.contains('class-mark')).toBe(true);
+    expect(lead?.textContent).toBe('Ingram');
+    expect(element?.textContent).toBe('Ingram Holloway, Captain');
+    expect(element?.querySelector('.visually-hidden')?.textContent).toBe(', Captain');
+  });
+
+  test('a Hero who is not the Captain has no mark and no extra words', () => {
+    const { container } = render(<HeroName icon="tome" className="Mage" name="Ingram Holloway" />);
+
+    expect(container.querySelector('.captain-mark')).toBeNull();
+    expect(container.querySelector('.hero-name')?.textContent).toBe('Ingram Holloway');
+  });
+
   test('the name may carry a class of its own, its text the name alone', () => {
     const { container } = render(<HeroName icon={null} className="Rogue" name="Ingram Holloway" nameClass="party-row__name" />);
     const element = container.querySelector('.hero-name');
