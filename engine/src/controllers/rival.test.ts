@@ -13,8 +13,8 @@ import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
 import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyGuildAction, type GuildAction } from '../actions/action.js';
-import { bestParties } from '../best-party.js';
-import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
+import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
+import { rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
 
 // DL-175: a test may name the chance of success by the size of the Party, in place of
@@ -527,6 +527,82 @@ describe('staffing agrees with dispatch', () => {
   });
 });
 
+// The rest band (DL-280 item 5, Q4 a; DL-286): a Rival chooses its Quest and its Party from its pool,
+// its free Heroes less those its Disposition's rest band keeps home, so it never picks a Quest it
+// then cannot staff.
+describe('the rest band: a Rival chooses from its pool', () => {
+  const restDeps = (restBand: Disposition['restBand']): EngineDeps =>
+    testDeps(
+      { rivalRosterMin: 6, rivalRosterMax: 6, fatigueBands: { fresh: 0, weary: 25, tired: 50, exhausted: 75 } },
+      withDispositions({ restBand, partyMargin: 1 }),
+    );
+
+  test('passes over a Quest only the Heroes it keeps home could staff, and sends none of them', () => {
+    const { world, rival, deps } = scene('rest-pass-over', restDeps('tired'));
+    // The easiest Quest, steady's, needs four; the rest one.
+    const [easiest, ...rest] = openBoard(world, [10, 50, 60, 70, 80, 90], 1) as [Quest, ...Quest[]];
+    easiest.requirements = { partySizeMin: 4 };
+    const heroes = byId(availableHeroes(world, rival));
+    expect(heroes).toHaveLength(6);
+    // Three rested, three tired or worse.
+    heroes.forEach((hero, index) => (hero.fatigue = [0, 49, 50, 10, 75, 100][index] as number));
+
+    // Free, the six could staff the easiest; its pool of three cannot.
+    expect(requiredParty(easiest, heroes)).not.toBeNull();
+    expect(partyPool(world, rival, deps).map((hero) => hero.fatigue)).toEqual([0, 49, 10]);
+    const action = dispatchOf(world, rival, deps);
+    expect(action?.questId).toBe(rest[0]?.id);
+    for (const heroId of action?.heroIds ?? []) expect(heroOf(world, heroId).fatigue, heroId).toBeLessThan(50);
+    expect(staffableQuests(world, rival, deps).map((quest) => quest.id)).toEqual(rest.map((quest) => quest.id));
+
+    // With no rest band it takes the easiest, as before.
+    const { world: free, rival: freeRival, deps: freeDeps } = scene('rest-pass-over', restDeps(null));
+    openBoard(free, [10, 50, 60, 70, 80, 90], 1)[0]!.requirements = { partySizeMin: 4 };
+    byId(availableHeroes(free, freeRival)).forEach((hero, index) => (hero.fatigue = [0, 49, 50, 10, 75, 100][index] as number));
+    expect(dispatchOf(free, freeRival, freeDeps)?.questId).toBe(easiest.id);
+  });
+
+  test('sends no one, and can staff nothing, when its rest band keeps every free Hero home', () => {
+    const { world, rival, deps } = scene('rest-all-home', restDeps('weary'));
+    openBoard(world, [10, 50, 60, 70, 80, 90], 1);
+    for (const hero of availableHeroes(world, rival)) hero.fatigue = 25;
+
+    expect(partyPool(world, rival, deps)).toEqual([]);
+    expect(dispatchOf(world, rival, deps)).toBeUndefined();
+    expect(staffableQuests(world, rival, deps)).toEqual([]);
+  });
+
+  test('never picks a Quest it cannot staff from its pool, whatever its Disposition and its Heroes’ Fatigue', () => {
+    let dispatched = 0;
+    for (const disposition of ['steady', 'ambitious', 'miserly', 'reckless'] as const) {
+      for (const restBand of [null, 'weary', 'tired', 'exhausted'] as const) {
+        for (const seed of ['a', 'b', 'c']) {
+          const { world, rival, deps } = scene(`rest-any-${seed}`, restDeps(restBand), disposition);
+          const quests = openBoard(world, [10, 30, 50, 70, 90, 95], 1);
+          quests.forEach((quest, index) => (quest.requirements = { partySizeMin: 1 + (index % 4) }));
+          // Fatigues spread over the scale, differently for each seed.
+          availableHeroes(world, rival).forEach((hero, index) => (hero.fatigue = (index * 37 + seed.charCodeAt(0) * 11) % 101));
+          const pool = partyPool(world, rival, deps);
+
+          const action = dispatchOf(world, rival, deps);
+
+          const where = `${disposition} ${restBand} ${seed}`;
+          if (action === undefined) {
+            expect(staffableQuests(world, rival, deps), where).toEqual([]);
+            continue;
+          }
+          dispatched += 1;
+          const quest = world.quests[action.questId] as Quest;
+          expect(requiredParty(quest, pool), where).not.toBeNull();
+          for (const heroId of action.heroIds) expect(pool.map((hero) => hero.id), where).toContain(heroId);
+          expect(dispatchRefusal(world, action, deps), where).toBeNull();
+        }
+      }
+    }
+    expect(dispatched).toBeGreaterThan(20);
+  });
+});
+
 describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost. Both
@@ -925,6 +1001,7 @@ describe('one rule for every Disposition, reading its row', () => {
       gearThreshold: 4,
       transferAppetite: 0.3,
       partyMargin: 0.2,
+      restBand: 'weary',
     };
     const withFifth = (row: Disposition = cautious): ContentSet =>
       deepFreeze({ ...testContent, dispositions: { ...testContent.dispositions, [row.key]: row } });

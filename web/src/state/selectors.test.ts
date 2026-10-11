@@ -3,7 +3,6 @@ import {
   addStack,
   advance,
   applyAction,
-  availableHeroes,
   bankruptcyCountdown,
   bestParties,
   configVersion,
@@ -15,6 +14,7 @@ import {
   guildmasterOf,
   isDeadly,
   milestoneTypes,
+  partyPool,
   rankingPlaces,
   rankings,
   signingFee,
@@ -31,7 +31,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, nightOf } from '@heroesim/engine/testing';
+import { append, availableHeroes, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { capitalised, chanceWords, dateOfTurn, heroReading, listed, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
@@ -292,7 +292,7 @@ describe("the Board's Quest cards (DL-104)", () => {
     });
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest);
     const guild = playerOf(document);
-    const available = availableHeroes(document.world, guild);
+    const available = partyPool(document.world, guild, deps);
     const heroIds = bestParties(document.world, guild, deps).party(first as Quest, available)?.heroIds ?? [];
     const estimate = estimateQuest(document.world, first as Quest, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
 

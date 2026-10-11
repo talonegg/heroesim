@@ -14,7 +14,6 @@
 
 import {
   affordableImprovement,
-  availableHeroes,
   bestParties,
   cheapestUnattached,
   compareByCodeUnit,
@@ -26,6 +25,7 @@ import {
   marketStock,
   offeredQuests,
   offersTo,
+  partyPool,
   playerGuild,
   upkeep,
   type BestParties,
@@ -89,8 +89,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
- *   Quest on the Board its Party is the one the engine would send from the Guild's Heroes still free
- *   (the Best Party: those the requirements take, then whoever most raises the estimated chance of
+ *   Quest on the Board its Party is the one the engine would send from the Guild's pool, its Heroes
+ *   still free whom `playerRestBand` does not keep home (`partyPool`, DL-286) (the Best Party: those the requirements take, then whoever most raises the estimated chance of
  *   success up to `partySizeMin`, then while each raises it by more than `playerPartyMargin`,
  *   v1.1.4-S6). Of the Quests it can staff, it sends the one whose Party has the highest chance of
  *   success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
@@ -139,7 +139,7 @@ export function automaticPolicy(
   ];
   // The world does not change in this call, so one Best Party module answers every question (DL-237).
   const best = bestParties(world, guild, deps);
-  let available = availableHeroes(world, guild);
+  let available = partyPool(world, guild, deps);
   // A Quest of a Tier whose Fame minimum is above the Guild's Fame is passed over: dispatch would refuse it (DL-264).
   let choices = staffed(best, offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null), available);
   const left = heldConsumables(world, guild, deps);

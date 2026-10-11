@@ -40,6 +40,36 @@ describe('a Disposition', () => {
     expect(refusalOf(() => parse(wrong)).message).toMatch(/dispositions\.json: reckless\.questRiskAppetite is "high"/);
   });
 
+  // A rest band is a Fatigue band, or null for none: a Hero at or past it is kept home (DL-280 item 5, DL-286).
+  test('has a rest band, a Fatigue band or null, and one that is neither or missing is refused, naming it', () => {
+    const none = withJson('dispositions.json', (json) => {
+      Object.assign(reckless(json), { restBand: null });
+    });
+    const tired = withJson('dispositions.json', (json) => {
+      Object.assign(reckless(json), { restBand: 'tired' });
+    });
+    const sleepy = withJson('dispositions.json', (json) => {
+      Object.assign(reckless(json), { restBand: 'sleepy' });
+    });
+    const missing = withJson('dispositions.json', (json) => {
+      Reflect.deleteProperty(reckless(json), 'restBand');
+    });
+
+    expect(parse(none).dispositions['reckless']?.restBand).toBeNull();
+    expect(parse(tired).dispositions['reckless']?.restBand).toBe('tired');
+    expect(refusalOf(() => parse(sleepy)).message).toContain('dispositions.json: reckless.restBand is "sleepy"; expected one of fresh, weary, tired, exhausted, or null');
+    expect(refusalOf(() => parse(missing)).message).toContain('dispositions.json: reckless.restBand is missing');
+  });
+
+  test('with a rest band no Fatigue band is refused in memory, naming it', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.dispositions['steady'] ?? {}, { restBand: 'sleepy' });
+
+    expect(refusalOf(() => validateContent(content)).message).toContain(
+      'dispositions.steady.restBand is "sleepy"; it is a Fatigue band, fresh, weary, tired or exhausted, or null',
+    );
+  });
+
   test('is required: a set with none is refused, since every Rival is dealt one', () => {
     expect(refusalOf(() => parse(withText('dispositions.json', '{}'))).message).toContain('dispositions is empty');
   });
@@ -54,6 +84,7 @@ describe('a Disposition', () => {
         gearThreshold: 0,
         transferAppetite: 0,
         partyMargin: 0,
+        restBand: 'weary',
       };
     });
 

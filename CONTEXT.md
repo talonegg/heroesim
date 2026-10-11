@@ -80,7 +80,7 @@ competes for Quests, Heroes and Rankings.
 _Avoid_: Enemy, Opponent, AI guild, Competitor
 
 **Disposition**:
-The named rule set that makes a Rival Guild's choices.
+The named rule set that makes a Rival Guild's choices, among them its rest band (DL-286).
 _Avoid_: AI, Personality, Strategy
 
 **Controller**:
@@ -311,16 +311,17 @@ Quest's Tier, and falls each night they are at home, faster the better their Gui
 Encounters spread evenly over its first two thirds, the last on Day ceil(2D/3) of a Quest of D Days,
 and the Days after it the trip home, on which Fatigue still rises. The wearier a Hero, the less of their Stats they
 bring to a Check, the Physical and Magical more than the Mental and Social, and the more often they
-are injured and killed (Form). A Guild may keep its tired Heroes at home by a rest band, but Fatigue
-never makes a Hero unavailable: the player may send anyone. Its effect on Form and harm is built
-(DL-284); the rest band is to be built (DL-280).
+are injured and killed (Form). A Guild keeps its tired Heroes at home by its rest band, but Fatigue
+never makes a Hero unavailable: the player may send anyone (DL-280). Its effect on Form and harm is
+built (DL-284), and the rest band (DL-286).
 _Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
 
 **Fatigue band**:
 One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted (DL-282). A
-Guild's rest band is one of them, and a Hero at or past it is left out when the Guild chooses a
-Party; the page and the CLI read a Hero's Fatigue by them. The rest band and the page's and the
-CLI's readings are to be built (DL-280).
+Guild's rest band is one of them or none, its Disposition's or, for the player's Guild, a setting's,
+and a free Hero whose Fatigue is at or past it is left out of the Heroes the Guild chooses a Party
+from (DL-286). The page and the CLI read a Hero's Fatigue by them; their readings are to be built
+(DL-280).
 _Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
 
 **Morale band**:
@@ -673,7 +674,7 @@ A typed reason Fast forward halts. Some always stop it: an ending, the watched G
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
 and a module asking; others only when the caller names them: a Quest its free Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
-DL-101). To be built: an opt-in stop for a Random Event (DL-82).
+DL-101). Both staffing stops read the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:

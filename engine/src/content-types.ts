@@ -12,7 +12,7 @@
 // Content is read, never written: nothing in the engine mutates a row.
 
 import type { FacilityKey, Sex } from './document.js';
-import type { TierOverride } from './config.js';
+import type { FatigueBand, TierOverride } from './config.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
 // plain strings: type safety over them comes from content validation at load, not from the
@@ -698,6 +698,12 @@ export interface Disposition {
    * more than the fewest the Quest allows.
    */
   partyMargin: number;
+  /**
+   * The Fatigue band at or past which it keeps a free Hero home rather than send them, or `null` to
+   * keep no one home for Fatigue (DL-280 item 5, Q4 a; `partyPool`, DL-286). Only its own choices
+   * read it: a Hero it keeps home is no Unavailability.
+   */
+  restBand: FatigueBand | null;
   /**
    * The order it tries its purchases in, the first that applies made (v1.1.6-S16, DL-186 item 16,
    * DL-202): each of `purchaseSteps` once. When absent, `purchaseSteps`' own order.

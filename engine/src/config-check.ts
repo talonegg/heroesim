@@ -167,6 +167,11 @@ function oneOf(members: readonly string[]): ConfigRule {
   return (value) => (members.includes(value as string) ? undefined : `it is one of ${members.join(', ')}`);
 }
 
+/** One of `members`, or `null` for none. */
+function oneOfOrNone(members: readonly string[]): ConfigRule {
+  return (value) => (value === null || members.includes(value as string) ? undefined : `it is one of ${members.join(', ')}, or null`);
+}
+
 /** A list of `members`, none twice. */
 function listOf(members: readonly string[]): ConfigRule {
   return (value) =>
@@ -430,6 +435,8 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   fatigueFallByQuarters: fatigueSteps('quarters grade from 0', 'grade'),
   // A share, so Fatigue never takes a Stat below nothing (DL-284).
   fatigueScaling: share,
+  // A band a Hero can reach, or none (DL-286).
+  playerRestBand: oneOfOrNone(fatigueBandNames),
 
   potentialHintBands: bands(potentialHints, { min: 0 }),
   declineAge: whole({ min: 0 }),

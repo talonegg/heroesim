@@ -1083,11 +1083,13 @@ describe('the Quest named on what its return causes', () => {
     // no setting can make 1 for every Hero; and the formed Stats by area, Fatigue on form and harm and
     // the hurt's gap whole on the Physical Stats and half on the others (DL-284; cfa59f20…, b44dee00…
     // and 6378c240…); and the owner's Morale values, the baseline 50, the bands' starts 0, 11, 35, 66
-    // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…).
+    // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…); and
+    // the rest bands, every Guild choosing its Parties from its pool (DL-286; d675f275…, a1ad6174… and
+    // 3796609d…).
     expect(fingerprints).toEqual([
-      'd675f275b216bf0bfde90748ac09545e4bca595d7264c1d782e1cffede479577',
-      'a1ad617469b9e4080141605e3a1472536e16a4833a22cee3695616bade2da05d',
-      '3796609de01979137143570856e8ea283715d3e1c444313e5ec9835c8edadd02',
+      '95fad3afe4a160108d27223effbac5d86efd37c07b0f8f1a85d42acf0ac570dd',
+      'ab51c1f920821fb01c5145d7c1e30009d1f004e840ff50a854e05104d96e9635',
+      'd7713b5c3550d764b86d8a2b412f1fbb29fa59d58a6286b8af2fd0987b1193e7',
     ]);
   });
 

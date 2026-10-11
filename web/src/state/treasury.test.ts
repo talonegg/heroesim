@@ -3,7 +3,6 @@ import {
   bestParties,
   advance,
   applyAction,
-  availableHeroes,
   createWorld,
   defaultConfig,
   holdings,
@@ -19,7 +18,7 @@ import {
   type GuildId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createProbe, makeId } from '@heroesim/engine/testing';
+import { availableHeroes, createProbe, makeId } from '@heroesim/engine/testing';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { whenOfTurn } from '@heroesim/words';
 import { content } from '../content';

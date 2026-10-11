@@ -57,6 +57,11 @@ export function oneOf<Choice extends string>(choices: Readonly<Record<Choice, tr
   return plain((row, field) => row.oneOf(field, choices));
 }
 
+/** One of `choices`, or `null`: present either way, such as a Disposition's rest band. */
+export function oneOfOrNull<Choice extends string>(choices: Readonly<Record<Choice, true>>): Field<Choice | null> {
+  return plain((row, field) => row.oneOfOrNull(field, choices));
+}
+
 /** A list of strings, each one of `choices`, such as a Beat pool's Encounter kinds. */
 export function oneOfEach<Choice extends string>(choices: Readonly<Record<Choice, true>>): Field<Choice[]> {
   return plain((row, field) => row.oneOfEach(field, choices));
@@ -319,6 +324,14 @@ export class RowReader {
     const listed = Object.keys(choices);
     this.wrong(field, value, listed.length === 0 ? 'none: there is nothing to choose from' : `one of ${listed.join(', ')}`);
     return Object.keys(choices)[0] as Choice;
+  }
+
+  /** One of `choices`, or `null`: present either way. */
+  oneOfOrNull<Choice extends string>(field: string, choices: Readonly<Record<Choice, true>>): Choice | null {
+    const value = this.field(field);
+    if (value === null || (typeof value === 'string' && Object.hasOwn(choices, value))) return value as Choice | null;
+    this.wrong(field, value, `one of ${Object.keys(choices).join(', ')}, or null`);
+    return null;
   }
 
   strings(field: string): string[] {

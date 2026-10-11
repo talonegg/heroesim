@@ -2,7 +2,6 @@ import { loadContent } from '@heroesim/content/node';
 import {
   addStack,
   ageOf,
-  availableHeroes,
   bestParties,
   createWorld,
   defaultConfig,
@@ -12,6 +11,7 @@ import {
   guildmasterOf,
   isDeadly,
   judgedHintBands,
+  partyPool,
   playerGuild,
   potentialHint,
   signingFee,
@@ -556,11 +556,11 @@ describe("a Quest's reading", () => {
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
     first.requirements = { partySizeMin: 1 };
     second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
-    // One Hero away: the Best Party is of the free Heroes only.
+    // One Hero away: the Best Party is of the pool, free Heroes only.
     const [away] = heroes(document) as [Hero];
     away.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     const guild = player(document);
-    const heroIds = bestParties(document.world, guild, deps).party(first, availableHeroes(document.world, guild))?.heroIds ?? [];
+    const heroIds = bestParties(document.world, guild, deps).party(first, partyPool(document.world, guild, deps))?.heroIds ?? [];
     const estimate = estimateQuest(document.world, first, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
     const reading: PlayerReading = playerReading(document, deps);
 
@@ -574,5 +574,19 @@ describe("a Quest's reading", () => {
     expect(bestPartyReading(reading, second)).toBeNull();
     // Asked again, of the same reading, the same.
     expect(bestPartyReading(reading, first)?.heroIds).toEqual(heroIds);
+  });
+
+  // DL-286: the Board's best Party is of the player's pool, the Heroes `playerRestBand` keeps home left out.
+  test("leaves out of the Best Party each free Hero at or past the player's rest band, and none with no rest band", () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest];
+    first.requirements = { partySizeMin: 1 };
+    const resting = (playerRestBand: GameConfig['playerRestBand']): EngineDeps => ({ ...deps, config: { ...deps.config, playerRestBand, playerPartyMargin: 0 } });
+    const free = heroes(document);
+    // Every Hero but one tired.
+    for (const hero of free.slice(1)) hero.fatigue = resting('tired').config.fatigueBands.tired;
+
+    expect(bestPartyReading(playerReading(document, resting('tired')), first)?.heroIds).toEqual([free[0]?.id]);
+    expect(bestPartyReading(playerReading(document, resting(null)), first)?.heroIds.length).toBeGreaterThan(1);
   });
 });

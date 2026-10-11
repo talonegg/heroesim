@@ -1,8 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import { applyAction, applyGuildAction } from './actions/action.js';
-import { bestParties } from './best-party.js';
-import type { EngineDeps, GameConfig } from './config.js';
-import { availableHeroes } from './controllers/rival.js';
+import { availableHeroes, bestParties, partyPool } from './best-party.js';
+import type { EngineDeps, FatigueBand, GameConfig } from './config.js';
 import { createWorld } from './create.js';
 import { compareByCodeUnit, type Guild, type Hero, type Quest, type World, type WorldDocument } from './document.js';
 import { streamOf } from './generators/draw.js';
@@ -312,5 +311,100 @@ describe('the Best Party module (DL-237)', () => {
       turned.world.turn += 1;
       expect(() => later.chance(turned.quests[0]!, availableHeroes(turned.world, turned.rival))).toThrow(changed);
     });
+  });
+});
+
+// A Guild's pool (DL-280 item 5, Q4 a; the architecture review's candidate 3; DL-286): its free Heroes
+// less those whose Fatigue, as it stands, is at or past its rest band, a Rival's from its Disposition
+// and the player's from the configuration.
+describe('partyPool', () => {
+  // Eight Heroes a Guild, and the band starts given, so that no test rests on the defaults.
+  const base = { rivalRosterMin: 8, rivalRosterMax: 8, startingRosterSize: 8, fatigueBands: { fresh: 0, weary: 25, tired: 50, exhausted: 75 } } as const;
+  // A Fatigue at each band's start and just below the next, the Roster's free Heroes given them in turn.
+  const fatigues = [0, 24, 25, 49, 50, 74, 75, 100];
+
+  /** A world whose first Rival and the player's Guild have their free Heroes at `fatigues`, in Roster order, under `deps`. */
+  function tired(seed: string, deps: EngineDeps): { world: World; rival: Guild; player: Guild } {
+    const { world } = createWorld(seed, setup, deps).document;
+    const rival = Object.values(world.guilds)
+      .filter((guild) => dispositionOf(guild) !== null)
+      .sort((a, b) => compareByCodeUnit(a.id, b.id))[0] as Guild;
+    const player = playerGuild(world) as Guild;
+    for (const guild of [rival, player]) {
+      const available = availableHeroes(world, guild);
+      expect(available.length, guild.id).toBeGreaterThanOrEqual(fatigues.length);
+      available.forEach((hero, index) => (hero.fatigue = fatigues[index % fatigues.length] as number));
+    }
+    return { world, rival, player };
+  }
+
+  const kept: Record<FatigueBand | 'none', number[]> = {
+    none: fatigues,
+    fresh: [],
+    weary: [0, 24],
+    tired: [0, 24, 25, 49],
+    exhausted: [0, 24, 25, 49, 50, 74],
+  };
+  const restBands: (FatigueBand | null)[] = [null, 'fresh', 'weary', 'tired', 'exhausted'];
+
+  test.each(restBands)("keeps home a Rival's free Heroes at or past its Disposition's rest band, %s, and no one else", (restBand) => {
+    const deps = testDeps({ ...base, playerRestBand: null }, withDispositions({ restBand }));
+    const { world, rival } = tired(`pool-rival-${restBand}`, deps);
+    const available = availableHeroes(world, rival);
+
+    const pool = partyPool(world, rival, deps);
+
+    expect(pool.map((hero) => hero.fatigue)).toEqual(kept[restBand ?? 'none']);
+    // In Roster order, each a free Hero of the Roster.
+    expect(pool).toEqual(available.filter((hero) => pool.includes(hero)));
+  });
+
+  test.each(restBands)("keeps home the player's free Heroes at or past playerRestBand, %s, whatever the Dispositions say", (playerRestBand) => {
+    const deps = testDeps({ ...base, playerRestBand }, withDispositions({ restBand: 'fresh' }));
+    const { world, player } = tired(`pool-player-${playerRestBand}`, deps);
+
+    expect(partyPool(world, player, deps).map((hero) => hero.fatigue)).toEqual(kept[playerRestBand ?? 'none']);
+  });
+
+  test('reads the bands where the configuration starts them, and a Guild with a Disposition content does not define as the player', () => {
+    const deps = testDeps(
+      { ...base, fatigueBands: { fresh: 0, weary: 10, tired: 20, exhausted: 90 }, playerRestBand: 'exhausted' },
+      withDispositions({ restBand: 'tired' }),
+    );
+    const { world, rival } = tired('pool-starts', deps);
+
+    expect(partyPool(world, rival, deps).map((hero) => hero.fatigue)).toEqual([0]);
+    // A Disposition content does not define (data-model rule 5) reads the player's rest band.
+    rival.controller = { kind: 'rival', disposition: 'no-such-disposition' };
+    expect(partyPool(world, rival, deps).map((hero) => hero.fatigue)).toEqual([0, 24, 25, 49, 50, 74, 75]);
+  });
+
+  test('never holds an unavailable Hero, however rested: injured, away in a Party, dead or retired', () => {
+    const deps = testDeps(base, withDispositions({ restBand: null }));
+    const { world, rival } = tired('pool-unavailable', deps);
+    const [injured, away, dead, retired] = availableHeroes(world, rival) as [Hero, Hero, Hero, Hero];
+    injured.injury = { typeKey: 'broken-arm', healsOnTurn: 99 };
+    away.partyId = 'party-000001' as Hero['partyId'];
+    dead.diedOnTurn = 0;
+    retired.retiredOnTurn = 0;
+
+    expect(partyPool(world, rival, deps).map((hero) => hero.fatigue)).toEqual([50, 74, 75, 100]);
+  });
+
+  test("is what the Best Party chooses from: no Hero it keeps home is named, though the module would name them were they given", () => {
+    const deps = testDeps(base, withDispositions({ restBand: 'tired', partyMargin: 0 }));
+    const { world, rival } = tired('pool-best', deps);
+    const [quest] = world.board.map((questId) => world.quests[questId] as Quest);
+    if (quest === undefined) throw new Error('An empty Board');
+    quest.requirements = { partySizeMin: 5 };
+    const module = bestParties(world, rival, deps);
+
+    // Four are rested enough, too few for a Party of five; all eight would do.
+    expect(module.party(quest, partyPool(world, rival, deps))).toBeNull();
+    expect(module.party(quest, availableHeroes(world, rival))?.heroIds).toHaveLength(5);
+    quest.requirements = { partySizeMin: 2 };
+    const best = module.party(quest, partyPool(world, rival, deps));
+    expect(best).not.toBeNull();
+    for (const heroId of best?.heroIds ?? []) expect(world.heroes[heroId]?.fatigue, heroId).toBeLessThan(50);
   });
 });

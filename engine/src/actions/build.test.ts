@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
-import { bestParties } from '../best-party.js';
-import { availableHeroes } from '../controllers/rival.js';
+import { bestParties, partyPool } from '../best-party.js';
 import { createWorld } from '../create.js';
 import { facilityKeys, makeId, type FacilityKey, type Guild, type Guildmaster, type Hero, type World, type WorldDocument } from '../document.js';
 import type { TurnEvent } from '../events.js';
@@ -276,7 +275,7 @@ describe('what a grade built does', () => {
       const quest = questId === undefined ? undefined : document.world.quests[questId];
       if (quest === undefined) throw new Error('An empty Board');
       quest.requirements = { partySizeMin: 1 };
-      const heroIds = bestParties(document.world, guild, hurt).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
+      const heroIds = bestParties(document.world, guild, hurt).party(quest, partyPool(document.world, guild, hurt))?.heroIds ?? null;
       if (heroIds === null) throw new Error('No Party');
       const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, hurt);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);

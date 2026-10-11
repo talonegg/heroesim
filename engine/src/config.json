@@ -1,5 +1,5 @@
 {
-  "version": 27,
+  "version": 28,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -27,7 +27,8 @@
     "24 from v1.2.1-S4, which adds `fatigueScaling`, 0.4, FS in Fatigue's factors on a Hero's Stats and on their Injury and Death chances on a Quest, and makes `hurtCheckFactor` a factor by Stat area, the Physical Stats taking its gap whole and the others half (DL-280 items 2 and 4, DL-284).",
     "25 from the hurt's gap taken whole by the Physical Stats and half by the rest, at the owner's 0.6 (DL-280 item 4, DL-284): hurtCheckFactor 0.93 to 0.6.",
     "26 from the owner's Morale values (DL-280 item 3, DL-283 item 4; Q18): moraleBaseline 60 to 50, moraleBands {\"wretched\":0,\"low\":20,\"steady\":40,\"high\":75,\"elated\":90} to {\"wretched\":0,\"low\":11,\"steady\":35,\"high\":66,\"elated\":90}, moraleOnRosterDeath -10 to -20.",
-    "27 from v1.2.1-S5, which adds `healerHurtRelief`, 0.5, the share of a hurt Hero's gap a Healer in the Party relieves, and `healItemHurtRelief`, 0.5, the share a heal Item spent at their Injury relieves for the rest of the Quest, the two multiplying on the gap (DL-280 item 4, DL-285)."
+    "27 from v1.2.1-S5, which adds `healerHurtRelief`, 0.5, the share of a hurt Hero's gap a Healer in the Party relieves, and `healItemHurtRelief`, 0.5, the share a heal Item spent at their Injury relieves for the rest of the Quest, the two multiplying on the gap (DL-280 item 4, DL-285).",
+    "28 from v1.2.1-S6, which adds `playerRestBand`, tired, the Fatigue band at or past which the player's Best Party and the automatic policy leave a free Hero home, as a Disposition's `restBand` does a Rival's (DL-280 item 5, DL-286)."
   ],
   "sections": {
     "world": {
@@ -138,7 +139,8 @@
       "fatigueBands": { "fresh": 0, "weary": 25, "tired": 50, "exhausted": 75 },
       "fatigueRiseByTier": [4, 5, 6, 7, 8],
       "fatigueFallByQuarters": [5, 6, 7, 8],
-      "fatigueScaling": 0.4
+      "fatigueScaling": 0.4,
+      "playerRestBand": "tired"
     },
     "ageing": {
       "potentialHintBands": { "modest": 0, "promising": 6, "exceptional": 10 },

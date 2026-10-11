@@ -40,7 +40,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Turns and Fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills, Traits, States | Yes | Skill growth, Class change |
 | Portraits and Descriptive Attributes | Guildmasters' and Heroes', the Portraits chosen to fit; content has no Hero picture yet | Patron pictures; Guild Banners' heraldry |
-| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | The State, its bands and the Quest clock (DL-282); its effect on Checks and harm (DL-284); rest bands to be built, v1.2.1 (DL-280) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
+| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | The State, its bands and the Quest clock (DL-282); its effect on Checks and harm (DL-284); rest bands (DL-286) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
 | The Captain: one a Guild, scaled by Leadership | To be built, v1.2.1 (DL-280) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
 | Progression: XP, Level, Potential, Decline | Yes | The Guildmaster Trait that sharpens Potential hints |
 | Quest Engine | Encounters, Checks, Degrees, Synergies, Relationship, Items | Mid-Quest reports |
@@ -92,7 +92,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a Controller. The player controls
   theirs; each Rival is controlled by one of four Dispositions (`content/dispositions.json`), whose
   weights and thresholds decide the Quests it takes, whom it recruits, what it builds and buys, how
-  it bids for Heroes, and its Party margin (DL-56).
+  it bids for Heroes, its Party margin and its rest band (DL-56, DL-286).
 - R8. The Guildmaster has Attributes (name, sex and age), three Descriptive Attributes no rule
   reads (Birthplace, Appearance and Biography), a Portrait, five Stats and Traits that buff or
   penalise the Guild or a Class (DL-88, DL-100). The Stats bear on the Guild alone: Negotiation
@@ -162,7 +162,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   chances. A Guild's rest band, its Disposition's or the player's, leaves its Heroes at or past it
   out of the Parties it chooses, and the player may still send anyone. Every figure is a setting
   (DL-280; the State, its bands and its Day on a Quest by DL-282, its effect on Stats and chances
-  by DL-284, the rest band to be built, v1.2.1).
+  by DL-284, the rest band by DL-286).
 - R40. A Guild names one Captain from its Roster, freely, by its Guildmaster's controller; changing
   it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
   filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come

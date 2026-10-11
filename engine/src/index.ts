@@ -171,9 +171,8 @@ export {
   type Synergy,
   type TraitKey,
 } from './content-types.js';
-export { bestParties, type BestParties, type BestParty } from './best-party.js';
+export { bestParties, partyPool, type BestParties, type BestParty } from './best-party.js';
 export {
-  availableHeroes,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,

@@ -4,7 +4,6 @@ import {
   bestParties,
   advance,
   applyAction,
-  availableHeroes,
   configVersion,
   createWorld,
   defaultConfig,
@@ -27,7 +26,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId } from '@heroesim/engine/testing';
+import { availableHeroes, makeId } from '@heroesim/engine/testing';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { changed, documentOf, played as play, playerOf, started as startedFrom, turnsUntilHome, withPartyHomeInALaterStep, withPartyOut, withRosterReleased } from './game.test-support';

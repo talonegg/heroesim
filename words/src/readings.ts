@@ -13,7 +13,6 @@
 
 import {
   ageOf,
-  availableHeroes,
   bestParties,
   carriedGear,
   descriptiveAttributeLabels,
@@ -24,6 +23,7 @@ import {
   itemDefinition,
   judgedHintBands,
   moraleBand,
+  partyPool,
   playerGuild,
   potentialHint,
   regardBand,
@@ -80,7 +80,8 @@ export interface PlayerReading {
   readonly guildmaster: Guildmaster | undefined;
   readonly hintBands: Readonly<Record<PotentialHint, number>>;
   /**
-   * The Best Party of the player's free Heroes for `quest`, and the estimate it was chosen by; `null`
+   * The Best Party of the player's pool for `quest` (`partyPool`: their free Heroes less those
+   * `playerRestBand` keeps home, DL-286), and the estimate it was chosen by; `null`
    * when none meets the Quest's requirements, when the Guild may not take the Quest (`questClosed`,
    * DL-264), and with no player's Guild. Every question shares one Best Party module over the
    * reading's world, opened at the first (DL-237).
@@ -105,7 +106,7 @@ export function playerReading(document: Pick<WorldDocument, 'world'>, deps: Engi
     hintBands: judgedHintBands(guildmaster, content, config),
     bestParty(quest) {
       if (guild === undefined || fameRefusal(guild, quest, deps) !== null) return null;
-      opened ??= { best: bestParties(world, guild, deps), available: availableHeroes(world, guild) };
+      opened ??= { best: bestParties(world, guild, deps), available: partyPool(world, guild, deps) };
       return opened.best.party(quest, opened.available);
     },
   };

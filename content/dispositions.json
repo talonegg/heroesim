@@ -6,7 +6,8 @@
     "buildThreshold": 12,
     "gearThreshold": 3,
     "transferAppetite": 0.2,
-    "partyMargin": 0.05
+    "partyMargin": 0.05,
+    "restBand": "tired"
   },
   "ambitious": {
     "name": "Ambitious",
@@ -15,7 +16,8 @@
     "buildThreshold": 1.5,
     "gearThreshold": 2,
     "transferAppetite": 0.3,
-    "partyMargin": 0.05
+    "partyMargin": 0.05,
+    "restBand": "exhausted"
   },
   "miserly": {
     "name": "Miserly",
@@ -24,7 +26,8 @@
     "buildThreshold": 40,
     "gearThreshold": 10,
     "transferAppetite": 0.1,
-    "partyMargin": 0.05
+    "partyMargin": 0.05,
+    "restBand": "tired"
   },
   "reckless": {
     "name": "Reckless",
@@ -33,6 +36,7 @@
     "buildThreshold": 4,
     "gearThreshold": 3,
     "transferAppetite": 0.25,
-    "partyMargin": 0.1
+    "partyMargin": 0.1,
+    "restBand": null
   }
 }

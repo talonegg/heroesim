@@ -371,6 +371,13 @@ export interface GameConfig {
    * share from 0 to 1, so no Stat is taken below nothing; no floor beyond that (Q14 c).
    */
   fatigueScaling: number;
+  /**
+   * The rest band of a Guild with no Disposition, the player's (DL-280 item 5, Q4 a; DL-286): the
+   * Fatigue band at or past which the Board's "Your best Party" and the harness's automatic policy
+   * leave a free Hero home (`partyPool`), as a Disposition's `restBand` does a Rival's; `null` keeps
+   * no one home. The player may still send any free Hero: Fatigue is no Unavailability.
+   */
+  playerRestBand: FatigueBand | null;
 
   // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**

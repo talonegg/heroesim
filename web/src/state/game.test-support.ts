@@ -9,7 +9,6 @@ import {
   addStack,
   advance,
   applyAction,
-  availableHeroes,
   configVersion,
   createWorld,
   dayOf,
@@ -48,7 +47,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
+import { append, availableHeroes, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
 import { expect } from 'vitest';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';

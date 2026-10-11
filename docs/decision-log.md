@@ -626,3 +626,57 @@ after the infirmary, never twice, its Days kept to the return and lost with a He
 mutations four survived, one equivalent (`relievesHurt`'s own-key guard), and tests were added for
 the rest: a Class marked false relieving nothing, two heals of the same Days spent first by key, and
 a Healer who falls relieving no one after; the DL-50 record's quotes made DL-285 item 3's own words.
+
+## DL-286 — v1.2.1-S6 built: rest bands and the Party's pool
+
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
+
+**Context.** DL-280 item 5 (Q4 a) gives every Guild a rest band: a Disposition's `restBand` and the
+player's `playerRestBand`. Each chooser of a Party built its own pool from `availableHeroes`, which
+reads no config, so a band applied in the Best Party alone would let a Rival pick a Quest it then
+sends no one on (the architecture review's candidate 3).
+
+**Decision.**
+
+1. **The settings.** A Disposition's `restBand`, content: steady and miserly `tired`, ambitious
+   `exhausted`, reckless `null`, none; the content version 44. The config's `playerRestBand`, `tired`,
+   in the `fatigue` section, by hand, its rule a Fatigue band or `null`; the config version 28. None is
+   `null` in both, read by the content's `oneOfOrNull` field and refused otherwise by its rules.
+2. **One per-Guild reader.** `partyMarginOf` becomes `guildSetting(guild, setting, deps)` in
+   `best-party.ts`: the Disposition's field, else the player's (`playerPartyMargin`,
+   `playerRestBand`) for a Guild with none or one content does not define.
+3. **`partyPool(world, guild, deps)`** in the Best Party module: `availableHeroes` (moved there) less
+   each Hero whose `fatigueBand` is `atOrPast` the Guild's rest band; all of them for `null`. It reads
+   the Hero's Fatigue as it stands at the choice, which is the Fatigue they set out with: a dispatch
+   records it before the night.
+4. **Every chooser reads it:** a Rival's choice of Quest and its Party (`preferredQuest`),
+   `staffableQuests`, the harness's policy and the Board's best Party (`playerReading`). No caller
+   builds its own pool; `availableHeroes` leaves the engine's entry for `@heroesim/engine/testing`.
+5. **Fatigue is no Unavailability:** `dispatch` sends any free Hero, a tired one by hand included.
+6. **The fixture** `disposition(key, weights)` takes its weights named; the engine's test content
+   gives its four rows the core's rest bands.
+7. **The words:** `CONTEXT.md` (Fatigue, Fatigue band, Disposition, Fast-forward stop) and
+   `requirements.md` (R7, R39, the scope row) say what is built.
+
+*Judgement calls, for the owner to see.*
+- *None is `null`*, not a fifth word: no band to be at or past, and `config set playerRestBand null`
+  writes it.
+- *The stops follow the pool.* `staffableQuests` is the player's `decision-needed` and
+  `quest-staffable` stops' too, so a fast forward no longer stops for a Quest only a tired Hero could
+  staff, and stops when a Hero rests out of the band and makes one staffable.
+- *Stored Fatigue at the choice*, not projected: the two are equal, a Party setting out before the
+  night's rise.
+- *The Board's sentence* for no Party still says "free Heroes"; S9 words the pool.
+- *A rest band of `fresh`* is allowed and keeps every Hero home.
+
+**Consequences.** In a quick run (4 × 2 years) against `v1.2.1-s5-quick`, the player's Heroes set out
+at a mean Fatigue of 43 (87 before) and none tired or worse (93% before); the Rivals' at 56 (82), 45%
+tired or worse (90%), ambitious and reckless sending theirs. Fewer Quests are taken (the player's
+2,246 to 1,706, the Rivals' 4,450 to 3,751) and fewer fail: the player's 9.5% to 5.3%, strong
+successes 54.3% to 65.5%; the Rivals' 26.4% to 24.5% and 26.9% to 31.7%. Poorer for it, the Rivals
+still recruit no one and two fold to Bankruptcy (none before). Every save records the config version
+28 and the content version 44.
+
+**Evidence.** The commit `v1.2.1-S6 (DL-286)`; the epic's S6 boxes. The checks' counts, the
+doctors' readings and the quick run's fingerprint are in the commit message; the report
+`v1.2.1-s6-quick` is not committed.

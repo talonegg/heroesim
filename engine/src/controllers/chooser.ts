@@ -1,6 +1,6 @@
 // What makes a Guild's choices (ADR-0002, DL-30): the one place the engine's rules read where
-// a Guild's choices come from, for the Rival controllers' choices (rival.ts) and for the margin a
-// Guild's Best Party is chosen at (best-party.ts, DL-175).
+// a Guild's choices come from, for the Rival controllers' choices (rival.ts) and for the margin and
+// the rest band a Guild's Best Party is chosen by (best-party.ts, DL-175, DL-286).
 
 import type { ContentSet, Disposition } from '../content-types.js';
 import type { Guild } from '../document.js';
@@ -12,7 +12,7 @@ import { dispositionOf } from '../selectors.js';
  * a Disposition content does not define (data-model rule 5). The one place the Rival controllers
  * read where a Guild's choices come from (`dispositionOf`, ADR-0002's exception 2), for their own choices,
  * for a Guild's answer to a Transfer asked of it (`transferAnswer`), which is a choice too, and for the
- * margin a Guild's Best Party is chosen at (`best-party.ts`, DL-175).
+ * margin and the rest band a Guild's Best Party is chosen by (`best-party.ts`, DL-175, DL-286).
  */
 export function chooser(guild: Pick<Guild, 'controller'>, content: Pick<ContentSet, 'dispositions'>): Disposition | 'own' | null {
   const key = dispositionOf(guild);

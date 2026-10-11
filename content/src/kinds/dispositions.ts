@@ -1,16 +1,17 @@
 // The Dispositions (DL-56; `dispositions.json`): at least one, since the Guild Generator
 // deals one to every Rival; each appetite, and the `partyMargin` (DL-157), a fraction from 0 to 1, each
-// threshold a multiple of 0 or more, and the orders it buys and builds in, each when written a
-// permutation of its keys (DL-202).
+// threshold a multiple of 0 or more, its rest band a Fatigue band or null (DL-286), and the orders it
+// buys and builds in, each when written a permutation of its keys (DL-202).
 
 import type { Disposition, FacilityKey, PurchaseStep, SlotKey } from '@heroesim/engine/content';
-import { facilityKeys, gearSlotKeys, purchaseSteps } from '@heroesim/engine/content';
-import { choicesOf, number, oneOfEach, optional, table, text } from './read.js';
+import { facilityKeys, fatigueBandNames, gearSlotKeys, purchaseSteps } from '@heroesim/engine/content';
+import { choicesOf, number, oneOfEach, oneOfOrNull, optional, table, text } from './read.js';
 import { checkRowKeys, type KindRules } from './rules.js';
 
 const purchaseStepChoices: Record<PurchaseStep, true> = choicesOf(purchaseSteps);
 const gearSlots: Record<SlotKey, true> = choicesOf(gearSlotKeys);
 const facilities: Record<FacilityKey, true> = choicesOf(facilityKeys);
+const fatigueBands = choicesOf(fatigueBandNames);
 
 export const dispositionsKind = table<'dispositions', Disposition>(
   'dispositions',
@@ -23,6 +24,7 @@ export const dispositionsKind = table<'dispositions', Disposition>(
     gearThreshold: number,
     transferAppetite: number,
     partyMargin: number,
+    restBand: oneOfOrNull(fatigueBands),
     purchaseOrder: optional(oneOfEach(purchaseStepChoices)),
     gearSlotOrder: optional(oneOfEach(gearSlots)),
     buildOrder: optional(oneOfEach(facilities)),
@@ -46,6 +48,10 @@ export const dispositionsRules: KindRules = {
       for (const field of ['recruitThreshold', 'buildThreshold', 'gearThreshold'] as const) {
         const value = disposition[field];
         if (!(value >= 0)) problems.push(`${where}.${field} is ${value}; it is a number of 0 or more`);
+      }
+      const { restBand } = disposition;
+      if (restBand !== null && !(fatigueBandNames as readonly string[]).includes(restBand)) {
+        problems.push(`${where}.restBand is ${JSON.stringify(restBand)}; it is a Fatigue band, ${fatigueBandNames.slice(0, -1).join(', ')} or ${fatigueBandNames.at(-1)}, or null`);
       }
       checkOrder(`${where}.purchaseOrder`, disposition.purchaseOrder, purchaseSteps, problems);
       checkOrder(`${where}.gearSlotOrder`, disposition.gearSlotOrder, gearSlotKeys, problems);

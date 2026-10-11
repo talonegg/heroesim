@@ -14,9 +14,9 @@
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
-import { dispatchRefusal, fameRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
+import { dispatchRefusal, fameRefusal, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
-import { bestParties, requiredParty } from '../best-party.js';
+import { bestParties, partyPool, requiredParty } from '../best-party.js';
 import type { EngineDeps } from '../config.js';
 import { gearSlotKeys, purchaseSteps, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
 import {
@@ -345,32 +345,20 @@ function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId
 }
 
 /**
- * The Heroes of `guild` free to go on a Quest, in Roster order: on the Roster and neither dead,
- * retired, injured nor away in a Party, by `dispatch`'s own test (`unavailability`).
- */
-export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
-  const heroes: Hero[] = [];
-  for (const heroId of guild.rosterIds) {
-    const hero = rowOf(world.heroes, heroId);
-    if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
-  }
-  return heroes;
-}
-
-/**
  * The Quests on offer on the Board that `guild` could staff now, in the Board's order: those for
- * which `dispatch` would send some Party of its Heroes (`staffingParty`). Fast forward's
- * `decision-needed` and `quest-staffable` read it (M2-S11, DL-33; M9-S1, DL-101), so a stop, a
- * Rival and `dispatch` agree on what can be staffed.
+ * which `dispatch` would send some Party of its pool (`partyPool`, `staffingParty`), the Heroes its
+ * rest band keeps home left out (DL-286). Fast forward's `decision-needed` and `quest-staffable`
+ * read it (M2-S11, DL-33; M9-S1, DL-101), so a stop, a Rival and `dispatch` agree on what can be
+ * staffed, and a Quest only a Hero kept home could go on stops nothing.
  */
 export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Quest[] {
-  const available = availableHeroes(world, guild);
+  const available = partyPool(world, guild, deps);
   if (available.length === 0) return [];
   return offeredQuests(world).filter((quest) => staffingParty(world, guild, quest, available, deps) !== null);
 }
 
 /**
- * A Party of `available`, `guild`'s free Heroes, that `dispatch` would send on `quest` as it stands,
+ * A Party of `available`, `guild`'s pool, that `dispatch` would send on `quest` as it stands,
  * or `null` when there is none (DL-101). The search is the Best Party's own first step, the Party
  * its requirements take (`requiredParty`), and the verdict is `dispatch`'s own (`dispatchRefusal`,
  * with no consumables), so no second copy of the rule decides what can be staffed: a check
@@ -407,7 +395,7 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
  * (DL-157).
  */
 function preferredQuest(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): DispatchAction | null {
-  const available = availableHeroes(world, guild);
+  const available = partyPool(world, guild, deps);
   if (available.length === 0) return null;
   const staffable = offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null && requiredParty(quest, available) !== null);
   if (staffable.length === 0) return null;
