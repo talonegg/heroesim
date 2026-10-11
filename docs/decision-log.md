@@ -226,3 +226,6 @@ release run 38109053584 had failed both Pages projects.
 Verified 2026-10-11 at `c2c9b07`: the allowance is exact and narrow, but a page on `http:`, a
 beacon on another port and the page's host on another scheme or port went untested, so four
 mutations survived; tests now refuse each.
+
+*Note, 2026-10-11 (the owner's answer (a)).* Dependabot's two `target-branch`es move to `v1.2.1-dev`
+(DL-147 item 6), taking effect when `v1.2.1` is merged.
