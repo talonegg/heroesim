@@ -475,3 +475,10 @@ and 5.7%, and the player's 77.6%. Every save's `meta.config` loses one setting.
 **Evidence.** The commit `v1.2.1-S3 (DL-283)`; the epic's S3 boxes. The quick runs before and after
 and `compare`, the doctors' readings and the checks' counts are in the commit message; the reports
 are not committed.
+Verified 2026-10-11 at 92fa6b7: the line is the epic's formula in every path (`formOf` through
+`queryParty` for the resolver, both estimates and the Party builder; the CLI and the page only word
+`formEffect`), nothing live reads `moraleCheckFactor` or a band's factor, the rewritten tests follow
+the rule change without weakening, and all 21 mutations of the line, the hurt, `formEffect`'s
+thresholds and the bands' guard go red; DL-154 items 5 and 7 (the factors' rule, the builder's
+thresholds) gained their supersession notes and records, and a stale test comment and two lines'
+wrapping were fixed.

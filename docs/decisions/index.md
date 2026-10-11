@@ -163,7 +163,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-151 | 2026-10-02 | v1.1.4-S1 built: Checks scored by Queries over the Party, Synergy requirements written in them, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-152 | 2026-10-02 | v1.1.4-S2 built: several Checks to an Encounter, combined by a pass formula into a Degree … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-153 | 2026-10-02 | v1.1.4-S11 built: "Choose for me" for the whole Guildmaster, or "Choose myself" with the sex, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
-| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 1 in part by DL-283; item 5 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 1 in part by DL-283; item 5 in part by DL-168; item 5 in part by DL-283; item 7 in part by DL-283 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-155 | 2026-10-02 | v1.1.4-S4 built: harm that reads the Stats, an Injury's and a Death's `among`, `exposedBy` and … | item 3 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-156 | 2026-10-02 | v1.1.4-S5 built: the chance estimate, worked out exactly from what the resolver draws, the chance … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-157 | 2026-10-02 | v1.1.4-S6 built: the Board's cards show each Encounter and what each Check reads with "Your best … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |

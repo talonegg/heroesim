@@ -359,7 +359,7 @@ describe('the estimate', () => {
     expect(compared).toBe(3 * 16 * 8 * 2);
   });
 
-  test("reads the Party as the resolver meets it on the night it comes home: a wretched Hero's Morale has drifted a band up", () => {
+  test("reads the Party as the resolver meets it on the night it comes home: a Hero far below the baseline has drifted up toward it", () => {
     const deps = testDeps({ rivalCount: 0, moraleBaseline: 50 }, { ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
     const created = createWorld('estimate-home', setup, deps).document;
     const { world } = created;
@@ -381,7 +381,8 @@ describe('the estimate', () => {
       document = turned.document;
       met = turned.events.find((event): event is QuestEncounter => event.type === 'quest.encounter')?.payload;
     }
-    // Wretched (0.85) when sent; low (0.93) by the night home, the Morale 19 drifted up a point a night.
+    // Sent at Morale 19, below the baseline 50; by the night home drifted up a point a night, and Morale's
+    // factor on their form up the line with it (DL-283).
     expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
   });

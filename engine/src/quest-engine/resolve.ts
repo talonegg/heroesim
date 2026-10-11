@@ -36,10 +36,11 @@
 //
 // Each Hero brings their form to the Checks (v1.1.4-S3, form.ts): Morale's factor, a line through the
 // baseline (DL-283) read at their Morale on the Quest, their Morale as they set out plus the Morale
-// consequences applied so far, held to the scale; and less once they are hurt on the Quest. Their stored Morale
-// still changes only on the return (`questsConclude`). Form draws nothing. An Encounter says form
-// decided it (`formDecided`) only when, with every form at 1 and the same rolls, its pass formula
-// would have put it on the other side of the Success line (v1.1.4-S3's verification).
+// consequences applied so far, held to the scale; and less once they are hurt on the Quest. Their
+// stored Morale still changes only on the return (`questsConclude`). Form draws nothing. An
+// Encounter says form decided it (`formDecided`) only when, with every form at 1 and the same rolls,
+// its pass formula would have put it on the other side of the Success line (v1.1.4-S3's
+// verification).
 //
 // The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to every Check of an
 // Encounter (DL-148 item 13), roll the Checks of a failed Encounter again, and shorten the Injuries

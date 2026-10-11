@@ -412,7 +412,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   moraleMax: whole({ min: 'moraleMin' }),
   moraleDrift: finite({ min: 0 }),
   // Rising starts inside the scale keep it wider than 0, which Morale's factor divides by (DL-283).
-  moraleBands:bands(moraleBandNames, { min: 'moraleMin', max: 'moraleMax' }),
+  moraleBands: bands(moraleBandNames, { min: 'moraleMin', max: 'moraleMax' }),
   moraleOnRosterDeath: finite({ max: 0 }),
   moraleOnStrongSuccess: finite({ min: 0 }),
   heroRetirementAge: whole({ min: 0 }),
