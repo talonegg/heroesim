@@ -62,6 +62,18 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(shut.party.heroIds.map((id) => shut.world.heroes[id])).toEqual(open.party.heroIds.map((id) => open.world.heroes[id]));
   });
 
+  // DL-284's verification: each Hero sets out at a Fatigue drawn from the sample's own Fatigue stream,
+  // so the probe meets Fatigue's factors across the scale; the Party records it at dispatch.
+  test('sets each Hero out at a Fatigue drawn from 0 to fatigueMax, which the Party records at dispatch', () => {
+    const base = { ...deps, content: harmless(deps.content) };
+    const drawn = Array.from({ length: 8 }, (_, n) => drawSample(`estimate-${n + 1}`, base));
+    for (const { party } of drawn) expect(Object.keys(party.fatigueAtDispatch).sort()).toEqual([...party.heroIds].sort());
+    const fatigues = drawn.flatMap(({ party }) => Object.values(party.fatigueAtDispatch));
+    for (const fatigue of fatigues) expect(Number.isInteger(fatigue) && fatigue >= 0 && fatigue <= base.config.fatigueMax, `${fatigue}`).toBe(true);
+    expect(new Set(fatigues).size).toBeGreaterThan(fatigues.length / 2);
+    expect(Math.max(...fatigues)).toBeGreaterThan(base.config.fatigueMax / 2);
+  });
+
   test('takes every Injury and Death out of the content, and keeps Morale and the rest', () => {
     const kept = unhurt(deps.content);
     const all = Object.values(kept.encounters).flatMap(({ consequences }) => Object.values(consequences).flat());

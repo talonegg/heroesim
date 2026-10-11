@@ -930,6 +930,19 @@ describe('Fatigue on the Quest', () => {
     expect(runs.some(({ u }) => u >= kept && u < 1.08 * kept)).toBe(true);
   });
 
+  test("an Injury's chance is held at 1 too, after Fatigue's factor and before the Hero's guard", () => {
+    // 0.8 × Fatigue's 1.4 at full Fatigue is 1.12, held to 1: the guard then is the chance. Unheld, or
+    // held before Fatigue's factor, it would be 1.12 × the guard.
+    const runs = seeds.map((seed) => harmedAt(seed, injury({ chance: 0.8, guardedBy: ['constitution'] }), { guard: 0.5 }));
+    const [first] = runs;
+    if (first?.member === undefined) throw new Error('No Hero');
+    expect(first.f).toBe(1);
+    const kept = 1 - first.deps.config.guardRange * (meanShare(first.member, ['constitution'], first.deps.content) as number);
+    expect(kept * 1.12).toBeLessThan(1);
+    for (const { u, landed } of runs) expect(landed).toBe(u < kept);
+    expect(runs.some(({ u }) => u >= kept && u < 1.12 * kept)).toBe(true);
+  });
+
   test('a chance of 0 stays 0 at full Fatigue, and Fatigue never shifts a draw', () => {
     for (const seed of seeds.slice(0, 20)) {
       expect(harmedAt(seed, injury({ chance: 0 })).landed).toBe(false);

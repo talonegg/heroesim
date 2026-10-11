@@ -553,3 +553,13 @@ config version 25 and `fatigueScaling`.
 **Evidence.** The commit `v1.2.1-S4 (DL-284)`; the epic's S4 boxes. The checks' counts, the
 doctors' readings, the quick runs and `compare`, the estimate probe's two lines and the mutations
 are in the commit message; the reports are not committed.
+Verified 2026-10-11 at 30eba5a (a496124 and the Q18 commit after it): the formed Stats and the harm
+multipliers are the epic's §2 table in every path, each chance held at 1 once after Fatigue's factor
+and before the guard, the hurt's factor applied once, the resolver reads the clock
+and never the stored Fatigue, the estimate's member cache (return night, Hero, Fatigue) is complete and
+its parity test genuine, the builder's two caching survivors are speed alone, and the quick run's moves
+come from untuned Fatigue with no rest band yet (both sides' Heroes set out at a mean Fatigue of 82 to
+88, over 80% exhausted, Fatigue falling at home for every Guild and never rising), not a bug; of 49 mutations five
+survived, and tests were added for them: an Injury's chance held at 1 before the guard, the Party
+builder's line reading Fatigue, `formDecided`'s raw roll carrying the bonus, and the probe's drawn
+Fatigue.

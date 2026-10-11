@@ -149,6 +149,26 @@ describe('check', () => {
     expect(Math.max(...results.map((it) => it.roll))).toBeGreaterThan(cap * 1.15);
   });
 
+  // DL-284's verification: formDecided rolls the raw Stats with the same bonus the formed roll took, so
+  // only form, not the bonus, can stand between the two.
+  test('sets formDecided from the raw Stats carrying the same bonus as the formed roll', () => {
+    const { world, heroes } = party('decided-bonus', 1);
+    const [hero] = heroes as [Hero];
+    hero.traits = [];
+    const tiring = testDeps({ checkVariance: 0, fatigueScaling: 0.5, fatigueMax: 100 });
+    hero.morale = tiring.config.moraleBaseline;
+    const strength = encounterWith({ demands: [['strength', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 1 });
+    const at = (bonus: number) =>
+      checkOf(queryParty(heroes, world, tiring, { fatigueByHero: { [hero.id]: 100 } }), combat, strength, { difficulty: 10 }, world, tiring, bonus);
+
+    // Strength 8, formed to 4 at full Fatigue: with a bonus of 4 the formed roll is 8 and the raw 12,
+    // either side of the target, 10.
+    expect(at(4)).toMatchObject({ capability: 8, roll: 8, outcome: 'failure', formDecided: 'lowered' });
+    // With no bonus both fall short, and form decided nothing.
+    expect(at(0)).toMatchObject({ capability: 4, outcome: 'failure' });
+    expect(at(0)).not.toHaveProperty('formDecided');
+  });
+
   test('draws from the quests stream alone', () => {
     const { world, heroes } = party('streams', 2);
     const before = structuredClone(world.rng) as Record<string, unknown>;
