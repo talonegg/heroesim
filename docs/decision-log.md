@@ -731,6 +731,7 @@ architecture review's candidate 5); the Captain's factor joins the form module (
 - *No clearing:* the post empties only by a Death, a Retirement, a Transfer or a fold. The Captain
   named again is refused, not charged. A vacancy is filled whatever the lock.
 - *The baseline is scaled* by s, as S7's "each scaled" and R40 say; §2's row reads unscaled.
+  *Confirmed 2026-10-12 by the owner (Q20 a): scaled, as built.*
 - *The homecoming:* the others, not the Captain; none if the Captain fell; on any outcome; rounded
   to a whole number, as a Quest's Morale is.
 - *The factor* needs the Captain on that Encounter, so a fallen Captain lifts no one after; it is on
@@ -818,3 +819,10 @@ the old ones. Every save records the config version 30.
 **Evidence.** The commit `v1.2.1-S8 (DL-288)`; the epic's S8 boxes. The checks' counts, the doctors'
 readings, the quick runs' fingerprints and the twenty-year boxes' result are in the commit message;
 the reports `v1.2.1-s8-move-quick` and `v1.2.1-s8-quick` are not committed.
+Verified 2026-10-12 at 5f54090: the move maps every branch of the policy's old functions (its every
+effect, Parties counted, its reserve, the added "covers it" implied by the reserve), a Rival prices
+heal Items by `gearThreshold` as gear and carries one of each from home, unspent Items come home even
+from a Party none of whose Heroes return, and a heal purchase pre-empted no transfer, recruit or debt
+step in 63,200 Rival afternoons of four 20-year games (691 purchases); of 37 mutations three fell to
+a History fingerprint alone, now killed by tests: another Guild's Party counted, a wiped Party's
+Items kept or lost.

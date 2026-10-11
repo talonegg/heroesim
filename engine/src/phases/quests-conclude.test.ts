@@ -681,6 +681,28 @@ describe('questsConclude and the consumables a Party carried', () => {
 
     expect(heldBy(document.world, { kind: 'guild', id: guildId })).toEqual([['physicians-kit', 1]]);
   });
+
+  // DL-288: a Rival's heal Items come home as the player's kit does; only an Item spent on a Hero who
+  // dies is lost with them (DL-280, DL-285), never one unspent.
+  test("sends home what a Party none of whose Heroes came back did not spend: a Rival's heal Items its fallen Hero never used", () => {
+    const deps = soloDeps({ rivalCount: 1 }, certainHarmContent);
+    stillRivalControllers();
+    // One Hero through one failed Check: the Death takes them before any Injury, so no heal is spent.
+    const { eve, party, guildId, heroIds } = sentAway('rival-wiped', deps, {
+      size: 1,
+      rival: true,
+      difficulty: 5000,
+      encounterKeys: oneEncounter,
+      consumables: [['healing-draught', 1], ['physicians-kit', 1]],
+    });
+
+    const { document, events } = playTo(eve, party.returnsOnTurn, deps);
+
+    expect(ofType(events, 'hero.died').map((event) => event.payload.heroId)).toEqual(heroIds);
+    expect(ofType(events, 'item.expended')).toEqual([]);
+    expect(document.world.parties).not.toHaveProperty(party.id);
+    expect(heldBy(document.world, { kind: 'guild', id: guildId })).toEqual([['healing-draught', 1], ['physicians-kit', 1]]);
+  });
 });
 
 describe('questsConclude writes Regard once for each resolved Quest (DL-44)', () => {

@@ -33,11 +33,11 @@ const everyEffect = ['bonus', 'reroll', 'heal'] as const;
 const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
 const keysOf = (requests: readonly { definitionKey: string; quantity: number }[]) => requests.map((it) => `${it.definitionKey}×${it.quantity}`);
 
-/** A Party of `guild`'s first Hero, away, holding `stacks`. */
-function partyAway(world: World, guild: Guild, stacks: readonly (readonly [string, number])[]): void {
+/** A Party (the `n`th) of `guild`'s first Hero, away, holding `stacks`. */
+function partyAway(world: World, guild: Guild, stacks: readonly (readonly [string, number])[], n = 77): void {
   const heroId = guild.rosterIds[0] as HeroId;
-  const partyId = makeId('parties', 77);
-  world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
+  const partyId = makeId('parties', n);
+  world.parties[partyId] = { id: partyId, questId: makeId('quests', n), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
   for (const [definitionKey, quantity] of stacks) addStack(world, definitionKey, quantity, { kind: 'party', id: partyId });
 }
 
@@ -106,9 +106,11 @@ describe('consumablePurchase: what a controller buys toward its stock (DL-62, DL
     expect(consumablePurchase(world, guild, keeping({ stock: 4 }), deps)?.quantity).toBe(1);
   });
 
-  test("counts its Parties' with its own, and buys nothing once stocked", () => {
+  test("counts its Parties' with its own, not another Guild's, and buys nothing once stocked", () => {
     const { world, guild } = scene('buy-stocked', [['whetstone', 5]]);
     addStack(world, 'whetstone', 1, vaultOf(guild));
+    expect(consumablePurchase(world, guild, keeping(), deps)?.quantity).toBe(1);
+    partyAway(world, { ...guild, id: makeId('guilds', 99) }, [['whetstone', 1]], 78);
     expect(consumablePurchase(world, guild, keeping(), deps)?.quantity).toBe(1);
     partyAway(world, guild, [['whetstone', 1]]);
     expect(consumablePurchase(world, guild, keeping(), deps)).toBeNull();
