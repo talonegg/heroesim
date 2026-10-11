@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { estimateMoraleTolerance, estimateTolerance } from './estimate.js';
@@ -48,6 +48,19 @@ describe("the Gate's spec", () => {
     expect(spec.baseline.fingerprint).toMatch(/^[0-9a-f]{64}$/);
     const gate = runSettings({ HEROESIM_PROFILE: 'gate' });
     expect(gate.run === 'milestone' ? { games: gate.games, years: gate.years } : gate).toEqual({ games: spec.run.games, years: spec.run.years });
+  });
+
+  // The baseline moves with its figures (docs/agents/documentation.md, DL-274): its fingerprint and the
+  // save's gzipped mean and max are those of the report it names, read from that report's JSON.
+  test('the baseline is the report it names: its fingerprint and its last saves gzipped', () => {
+    const reportPath = path.join(path.dirname(gatePath), '..', spec.baseline.report.replace(/\.md$/, '.json'));
+    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as Pick<RunReport, 'fingerprint' | 'totals'>;
+    expect(report.fingerprint).toBe(spec.baseline.fingerprint);
+    const gzipped = report.totals.saves.at(-1)?.gzipped ?? [];
+    expect(gzipped).toHaveLength(spec.run.games);
+    const mib = (bytes: number): number => Number((bytes / mebibyte).toFixed(2));
+    expect(mib(gzipped.reduce((sum, it) => sum + it, 0) / gzipped.length)).toBe(spec.lines.saveGzipped.baselineMeanMiB);
+    expect(mib(Math.max(...gzipped))).toBe(spec.lines.saveGzipped.baselineMaxMiB);
   });
 
   test("the estimate's two limits are the spec's", () => {

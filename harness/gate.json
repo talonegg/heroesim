@@ -52,7 +52,7 @@
   "estimate": {
     "noOneFalls": {
       "within": 0.02,
-      "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.6's close, the widest 1.18 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185)"
+      "source": "v1.1.4-S5 (DL-156): every chance within 2 points of the resolver's rate with no one falling; held at v1.1.6's close, the widest 1.18 points (DL-205, harness/reports/m9-estimate-2026-10-06), as at v1.1.5's re-close (DL-185); v1.2.0's close (DL-274): the widest 1.18 points, estimate-0070's Encounter 4"
     },
     "moraleInQuest": {
       "within": 0.05,

@@ -74,7 +74,7 @@ describe('the milestone run', () => {
     });
     expect(runSettings({ HEROESIM_SEEDS: ' ', HEROESIM_VALIDATE: '', HEROESIM_REPLAY: ' ', HEROESIM_CONFIG: '  ' })).toEqual(runSettings({}));
     expect(settingsOf('milestone', { HEROESIM_VALIDATE: 'false', HEROESIM_REPLAY: 'true' })).toMatchObject({ validate: false, replay: true });
-    // The Targets' baseline (DL-259): the open release's baseline gate, with every counter, unless named (DL-270); none when `none`.
+    // The Targets' baseline (DL-259): the open release's baseline gate, with every counter, unless named (DL-270, DL-274); none when `none`.
     expect(defaultBaseline).toBe('v1.2.0-gate-2026-10-11');
     expect(settingsOf('milestone', { HEROESIM_BASELINE: 'NONE' })).toMatchObject({ baseline: null });
   });

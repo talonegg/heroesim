@@ -1252,7 +1252,8 @@ answer on it, the playtest and the word (the delivery guide's step 3).
 
 **Evidence.** The commit `v1.2.0-S13 (DL-274)`; `harness/reports/v1.2.0-gate-2026-10-11.md` and its
 JSON, committed; the estimate's report `estimate-2026-10-11` (not committed). The epic's S13 Status.
-Then, on the owner's asking: `web/src/content.test.ts`'s "the content gate" given `{ timeout: 30_000 }`, as DL-270's `release.test.ts` (no assertion changed); the Targets' default baseline `v1.2.0-gate-2026-10-11`, the release's closing gate (`settings.ts`, `environment.md`, the harness README, the settings tests); the `neutral` run `v1.2.0-close-neutral-2026-10-11` (no `HEROESIM_WORKERS`, alone, 10 games of 20 years, 404.9 s, schema 9, config 21, content 41), fingerprint `036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e`, the next `--expect` reference, its report committed.
+Then, the agent's housekeeping, not an owner's answer (this line corrected at its verification): `web/src/content.test.ts`'s "the content gate" given `{ timeout: 30_000 }`, as DL-270's `release.test.ts` (no assertion changed); the Targets' default baseline `v1.2.0-gate-2026-10-11`, the release's closing gate (`settings.ts`, `environment.md`, the harness README, the settings tests); the `neutral` run `v1.2.0-close-neutral-2026-10-11` (no `HEROESIM_WORKERS`, alone, 10 games of 20 years, 403.4 s, schema 9, config 21, content 41), fingerprint `036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e`, the next `--expect` reference, its report committed.
+Verified 2026-10-11 at 01d8bc1: each line re-derived from the reports, the estimate's local one (1.18, 4.84) too, the baseline's move and the neutral reference (its 10 seeds the gate's own); this Evidence's "owner's asking" and 404.9 s corrected; a test now holds `gate.json`'s baseline fingerprint and saves to its report (3 survivors killed).
 
 ## DL-275 — v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to the backlog
 
@@ -1288,3 +1289,4 @@ word. A Morale-aware estimate would move play and the Rivals' choices, and with 
 
 **Evidence.** The commit `v1.2.0-S13 (DL-275)`; DL-274's estimate report `estimate-2026-10-11`
 (not committed). The epic's S13 first box and Status.
+Verified 2026-10-11 at 01d8bc1: the line, its source and note, the four moved tests (none loosened) and the note's printed limit re-derived, 5 mutations red; DL-173 item 2's 0.03 found superseded too, its note and record added.

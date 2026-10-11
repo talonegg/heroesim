@@ -131,7 +131,9 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
   - The targets reset and tuned against, once more of the line is built (DL-257): DL-83's bands as
     restated; #51's Quests' volume, Wealth and the Market's size or draws by slot (DL-168 items 9 and
     12); #22's strong-success premium; the Death band (DL-256 item 10); the Tiers' factors, the
-    Board's growth and the Fame minimums.
+    Board's growth and the Fame minimums; the Rivals' Rosters and Wealth, a Rival hiring with no
+    Roster cap while its Wealth exceeds its Disposition's `recruitThreshold` Upkeeps (R1, DL-270,
+    DL-274).
   - Taken into the release that touches their code: #16, #46 and #52.
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below
     `rivalRosterMax` (DL-59), kept only as a development measure to constrain testing load
