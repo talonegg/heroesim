@@ -24,6 +24,9 @@ export const pinned = {
   checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
   strongTriumphShare: 0.5,
   hurtCheckFactor: 0.85,
+  // The baseline the scenes' Morale numbers were worked out at (DL-283 item 4, Q18): a Hero set at 60
+  // is at form 1, whatever the default baseline is.
+  moraleBaseline: 60,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   // Every Tier's XP and Death at a factor of 1, as the scenes' XP and harm were worked out before

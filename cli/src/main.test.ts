@@ -1622,7 +1622,7 @@ describe('preview lists the Synergies a proposed Party would have', () => {
 
   // DL-148 item 12: one line for the Party's Morale, from its mean form, naming no Hero.
   test.each([
-    [[60, 60], 'Makes no difference'],
+    [[defaultConfig.moraleBaseline, defaultConfig.moraleBaseline], 'Makes no difference'],
     [[80, 60], 'Raises the odds'],
     [[30, 30], 'Lowers the odds a little'],
     [[0, 10], 'Lowers the odds badly'],

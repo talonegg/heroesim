@@ -1082,11 +1082,12 @@ describe('the Quest named on what its return causes', () => {
     // a line (DL-283; 4aa6fab2…, d59db236… and 88664527…, with every form factor 1 before it), which
     // no setting can make 1 for every Hero; and the formed Stats by area, Fatigue on form and harm and
     // the hurt's gap whole on the Physical Stats and half on the others (DL-284; cfa59f20…, b44dee00…
-    // and 6378c240…).
+    // and 6378c240…); and the owner's Morale values, the baseline 50, the bands' starts 0, 11, 35, 66
+    // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…).
     expect(fingerprints).toEqual([
-      'aade1bc6d0efcf4ed11edaac1ea9964e93d5bc156352328c846d3bb460d2f377',
-      '63d230cfb61fb72675da16609f8ae635f111881f03780d00876b04731333d9fa',
-      '75219227352daf1195c7cf6492046461e1a31bcbbe8e801f2ade66bfe5d749a6',
+      'd675f275b216bf0bfde90748ac09545e4bca595d7264c1d782e1cffede479577',
+      'a1ad617469b9e4080141605e3a1472536e16a4833a22cee3695616bade2da05d',
+      '3796609de01979137143570856e8ea283715d3e1c444313e5ec9835c8edadd02',
     ]);
   });
 

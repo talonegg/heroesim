@@ -186,7 +186,8 @@ describe('Morale drift', () => {
     // Only the Hero State Engine runs, so every entry the month appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
     // Inspiration still: the baseline is moraleBaseline.
-    const deps = testDeps({ inspirationMoraleShift: 0, moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 } });
+    // The walks below were worked out at the baseline 60 and these bands (DL-283 item 4, Q18).
+    const deps = testDeps({ inspirationMoraleShift: 0, moraleBaseline: 60, moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 } });
     const month = nightOf(30);
     const start = created('drift-year', deps);
     const [quiet, falling, rising] = rosterOf(start.world) as [HeroId, HeroId, HeroId];

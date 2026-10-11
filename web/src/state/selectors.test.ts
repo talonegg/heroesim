@@ -759,7 +759,7 @@ describe('choosing a Party', () => {
 
   // DL-148 item 12: one Morale line for the Party, from its mean form, naming no Hero.
   test.each([
-    [[60, 60], 'Makes no difference.'],
+    [[defaultConfig.moraleBaseline, defaultConfig.moraleBaseline], 'Makes no difference.'],
     [[95, 50], 'Raises the odds.'],
     [[25, 50], 'Lowers the odds a little.'],
     [[5, 5], 'Lowers the odds badly.'],
@@ -798,7 +798,9 @@ describe('rosterRows and sortedRoster', () => {
     const [injured, away, home] = heroes(document);
     if (injured === undefined || away === undefined || home === undefined) throw new Error('three Heroes wanted');
     injured.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
-    injured.morale = 12;
+    // The top of the wretched band: one below the low band's start, whatever the bands are (DL-283 item 4, Q18).
+    const wretched = defaultConfig.moraleBands.low - 1;
+    injured.morale = wretched;
     away.partyId = 'party-000009' as PartyId;
     document.world.parties['party-000009' as PartyId] = {
       id: 'party-000009' as PartyId,
@@ -815,7 +817,7 @@ describe('rosterRows and sortedRoster', () => {
     const rows = sortedRoster(rosterRows(document));
     const [first, second, third] = [injured, away, home].map((hero) => rows.find((row) => row.heroId === hero.id));
 
-    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Year 1 Day 7' });
+    expect(first).toMatchObject({ morale: wretched, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Year 1 Day 7' });
     expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Year 1 Day 5' });
     expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
   });

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { mediaFiles } from '../media';
-import { carrying, carryingUnique, changed, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
+import { carrying, carryingUnique, changed, documentOf, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { idle, openFirstHero, renderGame, rosterList, section, wealth } from './page.test-support';
 import { help } from './section';
@@ -13,6 +13,9 @@ import { help } from './section';
 // value comes from a selector (`rosterRows`, `heroPage`, `poolView`, `offersView`).
 
 afterEach(cleanup);
+
+/** The top of the wretched band: one below the low band's start, whatever the bands are (DL-283 item 4, Q18). */
+const wretchedMorale = documentOf(started()).meta.config.moraleBands.low - 1;
 
 /** The Classes' names in content's declared order, the order the page lists them by (DL-186 item 24). */
 const classNames = content.classOrder.map((key) => content.classes[key]?.name ?? key);
@@ -36,7 +39,7 @@ describe("the Roster's Hero cards", () => {
       const hero = Object.values(document.world.heroes).find((each) => player.rosterIds.includes(each.id) && each.partyId === null);
       if (hero === undefined) throw new Error('no Hero at the Hall');
       hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
-      hero.morale = 12;
+      hero.morale = wretchedMorale;
     });
     renderGame(state);
 
@@ -50,7 +53,7 @@ describe("the Roster's Hero cards", () => {
     }
     const injured = all.find((card) => card.textContent?.includes('Injured, healing on the night of Year 1 Day 7') === true) as HTMLElement;
     expect(chip(injured, 'Injured, healing on the night of Year 1 Day 7').className).toBe('chip chip--warn');
-    expect(chip(injured, 'Morale 12, wretched').className).toBe('chip chip--bad');
+    expect(chip(injured, `Morale ${wretchedMorale}, wretched`).className).toBe('chip chip--bad');
     const away = all.filter((card) => /Away with a Party, back on the night of Year \d+ Day \d+/.test(card.textContent ?? ''));
     expect(away.length).toBeGreaterThan(0);
     for (const card of away) expect(chip(card, /^Away with a Party/).querySelector('svg')).not.toBeNull();

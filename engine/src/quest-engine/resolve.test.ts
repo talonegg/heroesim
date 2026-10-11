@@ -662,6 +662,9 @@ describe('several Checks', () => {
   });
 });
 
+/** The config the scenes run under, for Morale's factor at their baseline (`pinned`, DL-283 item 4). */
+const sceneConfig = { ...defaultConfig, moraleBaseline: pinned.moraleBaseline };
+
 // DL-148 items 9 to 11, DL-154, DL-283: each Hero's form, Morale's factor at their Morale on the
 // Quest and whether they are hurt on it, scales the Stats they add into a Check's score. The scene's
 // Party of three has Strength 24 in all, its capability at form 1; with no variance, its roll is its
@@ -694,7 +697,7 @@ describe('form on the Quest', () => {
       return encounters.map((it) => it.checks[0]?.capability ?? Number.NaN);
     };
     /** The Party's Strength at Morale `morale`, held to the scale, by Morale's factor there (DL-283). */
-    const formed = (morale: number) => 24 * moraleFactor(Math.max(defaultConfig.moraleMin, morale), defaultConfig);
+    const formed = (morale: number) => 24 * moraleFactor(Math.max(sceneConfig.moraleMin, morale), sceneConfig);
 
     // At 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
     const [first, second] = capabilities(0);
@@ -721,7 +724,7 @@ describe('form on the Quest', () => {
     // A target of 22: 24 is a Success at form 1, and at Morale 10, far below the baseline, a Setback.
     const lowered = resolvedAt('lowered', 10, [summed('one', 0.55)]).encounters[0];
     expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
-    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * moraleFactor(10, defaultConfig), 10);
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * moraleFactor(10, sceneConfig), 10);
     // A target of 25.2: 24 is a Setback at form 1, and at Morale 95, far above it, a Success.
     expect(resolvedAt('raised', 95, [summed('one', 0.63)]).encounters[0]).toMatchObject({
       degree: 'success',
@@ -784,7 +787,7 @@ describe('form on the Quest', () => {
 
   test('every form at 1, at the baseline and hurtCheckFactor 1, plays as before form (DL-154, DL-283): the capabilities read as they are, and nothing is formDecided', () => {
     const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }]);
-    const { encounters } = resolvedAt('ones', defaultConfig.moraleBaseline, [wounding, summed('after', 0.55)], { hurtCheckFactor: 1 });
+    const { encounters } = resolvedAt('ones', pinned.moraleBaseline, [wounding, summed('after', 0.55)], { hurtCheckFactor: 1 });
 
     expect(encounters.map((it) => it.checks)).toEqual([
       [{ key: 'wounding', capability: 24, roll: 24, target: 10, margin: 14, degree: 'triumph' }],
@@ -1106,7 +1109,7 @@ describe('harm that reads the Stats', () => {
     });
 
     // The first Hero at 39.5, the others at 59.5, each by Morale's factor there (DL-283).
-    const formed = (morale: number) => 8 * moraleFactor(morale, defaultConfig);
+    const formed = (morale: number) => 8 * moraleFactor(morale, sceneConfig);
     expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(39.5) + 2 * formed(59.5), 10);
   });
 
@@ -1138,7 +1141,7 @@ describe('harm that reads the Stats', () => {
       },
     });
 
-    const formed = (morale: number) => 8 * moraleFactor(morale, defaultConfig);
+    const formed = (morale: number) => 8 * moraleFactor(morale, sceneConfig);
     expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(30) + 2 * formed(45), 10);
   });
 

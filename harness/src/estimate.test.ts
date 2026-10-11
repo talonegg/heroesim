@@ -152,9 +152,11 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
       const sample = compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
       return sample.moraleIn.map((it, at) => it.rate - (sample.compared[at]?.rate ?? 0));
     };
-    const { moraleBaseline, moraleMin } = deps.config;
-    // At the baseline: a Morale loss on the way takes a Hero down Morale's line, and their form with it (DL-283).
-    expect(rates(moraleBaseline).some((gap) => gap !== 0)).toBe(true);
+    const { moraleBaseline, moraleBands, moraleMin } = deps.config;
+    // From the baseline, the low band's start and 10: a Morale loss on the way takes a Hero down Morale's
+    // line, and their form with it (DL-283). Whether 500 rolls cross a Degree's threshold from one Morale
+    // depends on the baseline, so the claim is that some of these cross it (DL-283 item 4, Q18).
+    expect([moraleBaseline, moraleBands.low, 10].some((morale) => rates(morale).some((gap) => gap !== 0))).toBe(true);
     // At the scale's floor, the Quest carrying no gain, every loss is held there: no Hero's form moves, so
     // nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
     expect(gains(drawSample(seed, base))).toEqual([]);

@@ -447,6 +447,15 @@ DL-154, DL-168 item 9), with the owner's Morale values: `moraleBaseline` 50, the
    9 files, each pinning or resting on the old values, so the file was put back and the edits
    discarded. The defaults stay 60, 0/20/40/75/90 and −10 until the owner rules on those tests
    (delivery.md rule 4); then the three `config set`s and `finish` raise the config to 24.
+   *Applied 2026-10-11 on the owner's answer to Q18 (fix each test by its kind): the three values through
+   `config set` and `config finish`, the config version 26. The scenes worked out at the baseline 60 pin
+   `moraleBaseline: 60` (the resolver's `pinned`, so its hurt, formDecided and 300-seed tests, and the
+   20-day drift test beside its bands), their Morale lines worked out from that pin; the Party builder's
+   "Makes no difference" rows (CLI, selectors) take the config's baseline; the Roster's "wretched"
+   Morale is the low band's start less one; the Death's cost and the band after it, in the return and
+   report tests, are worked out from the document's `moraleOnRosterDeath` and bands; the estimate's
+   Morale test asserts over the baseline, the low band's start and 10. The 120-Day History's three
+   fingerprints are re-recorded, the old in its comment. Of the 15, none fails after these changes.*
 5. **The words.** `CONTEXT.md`'s Morale band and Form say what is built; `config.ts`, `resolve.ts`
    and the estimate probe's comments read the line.
 6. **Superseded in part:** DL-148 item 9 and DL-154 item 1 (each Hero's band's factor) and DL-168

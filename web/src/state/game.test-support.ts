@@ -18,6 +18,7 @@ import {
   estimateQuest,
   holdings,
   isMilestone,
+  moraleBand,
   offeredQuests,
   playerGuild,
   serialise,
@@ -74,6 +75,11 @@ export function started(seed = 'app-test'): GameState {
 export function documentOf(state: GameState): WorldDocument {
   if (state.document === null) throw new Error('no game in hand');
   return state.document;
+}
+
+/** The band `morale` is in under `document`'s config (a view's test takes no values from the engine). */
+export function moraleBandIn(document: WorldDocument, morale: number): MoraleBand {
+  return moraleBand(morale, document.meta.config);
 }
 
 /** The player's Guild in `document`. */

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { changed, firstSeedWhere, startedWithEveryTier, withPartyOut, withReturn, type ReturnTold, type Written } from '../state/game.test-support';
+import { changed, firstSeedWhere, moraleBandIn, startedWithEveryTier, withPartyOut, withReturn, type ReturnTold, type Written } from '../state/game.test-support';
 import { questReturn, type QuestReturn } from '../state/quest-return';
 import { QuestReport } from './quest-report';
 
@@ -54,17 +54,21 @@ describe('the Quest report', () => {
     const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
     const [home] = guild?.rosterIds.filter((heroId) => !party.includes(heroId)) ?? [];
     if (home === undefined) throw new Error('no Hero at home');
+    // The cost of a Death and the band after it, from the game's own config (DL-283 item 4, Q18).
+    const { config } = document.meta;
+    const after = Math.max(config.moraleMin, 40 + config.moraleOnRosterDeath);
+    const bandAfter = moraleBandIn(document, after);
     const { report, region } = drawn({
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: home, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' }],
+      morale: [{ hero: home, cause: 'roster-death', before: 40, after, bandAfter }],
     });
     const heroes = within(region).getByRole('heading', { level: 4, name: 'Heroes' }).parentElement as HTMLElement;
     const [dead] = report.outcomes;
     const name = document.world.heroes[home]?.name ?? '';
 
-    const line = within(heroes).getByText(`At home: the Guild mourned ${dead?.name}. Morale fell for 1 Hero (−10).`);
+    const line = within(heroes).getByText(`At home: the Guild mourned ${dead?.name}. Morale fell for 1 Hero (−${Math.abs(config.moraleOnRosterDeath)}).`);
     // After the Heroes' outcomes.
     const outcomes = heroes.querySelector('.report__heroes') as HTMLElement;
     expect(outcomes.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -73,7 +77,7 @@ describe('the Quest report', () => {
     expect(disclosure.open).toBe(false);
     expect(within(disclosure).getByText('1 Hero at home')).toBeDefined();
     fireEvent.click(within(disclosure).getByText('1 Hero at home'));
-    expect(within(disclosure).getByRole('listitem').textContent).toBe(`${name}: Morale went from 40 to 30, low.`);
+    expect(within(disclosure).getByRole('listitem').textContent).toBe(`${name}: Morale went from 40 to ${after}, ${bandAfter}.`);
   });
 
   test('no line for the Heroes at home when no Hero died', () => {
