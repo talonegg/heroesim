@@ -3,7 +3,7 @@
 // for its Tier, Deadly where it can kill (a mark with no figure), the Days it takes and its reward,
 // first as DL-257 and DL-269 set them, then its difficulty, its Fame, its Party size, what else it needs
 // and the Day it leaves the Board, marked when that is today (the review's B2); then "Your best
-// Party" with a chance word, the Party the engine would send from the free Heroes (v1.1.4-S6, DL-148
+// Party" with a chance word, the Party the engine would send from the rested Heroes (v1.1.4-S6, DL-148
 // items 15 and 17), or why the Guild may not take the Quest (DL-264). Its name unfolds it: its Encounters, each Check's name and what it reads, in
 // place of the template's demands (v1.1.4-S6, DL-148 item 16), the Skills that help, and its
 // difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The
@@ -15,7 +15,9 @@
 // narrative, its Beats' lines in order, with no Death figure (DL-269); then each Hero on the Roster as a
 // row saying whether they can go, and when not why and until when, their Class and Level, the
 // effective values of the Stats the Quest's Checks read, and the Skills it names that they have; no Hero's
-// Morale (v1.1.4-S3's verification, DL-148 item 12). A row opens the Hero's page in place of the Board; "Back to the Party" returns to
+// Morale (v1.1.4-S3's verification, DL-148 item 12), but their Fatigue by its band, the Captain marked, and,
+// for the Party chosen, what would relieve the hurt: a Healer among it, the heal Items it carries (DL-289).
+// A row opens the Hero's page in place of the Board; "Back to the Party" returns to
 // the builder with the Party and the consumables as they were chosen. The choice is the shell's, kept
 // by Quest (`state/party-choices.ts`), so it holds when the player leaves the Board too, until the
 // Party is sent, its Quest leaves the Board, or another game is started or loaded (Q16). The requirements are a
@@ -30,7 +32,7 @@
 // nothing here computes a rule.
 
 import type { EncounterKind, HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesim/engine';
-import { capitalised, deadlyWords } from '@heroesim/words';
+import { capitalised, deadlyWords, noBestPartyWords } from '@heroesim/words';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { carrying, choiceFor, partyBuilder, toggled, type PartyChoice, type PartyChoices } from '../state/party-choices';
 import type { GameAction, GameState } from '../state/reducer';
@@ -47,7 +49,7 @@ import {
 import { HeroPage } from './hero-page';
 import { HeroName, Icon, type IconName } from './icons';
 import { View } from './section';
-import { Banner, Chip, Stepper, VisuallyHidden } from './ui';
+import { Banner, Chip, fatigueTones, Stepper, VisuallyHidden } from './ui';
 
 /** The orders the player may choose, in the words the control shows. */
 const orders: readonly (readonly [BoardOrder, string])[] = [
@@ -315,7 +317,7 @@ function Quest({
         </ul>
         <p className="quest__best" data-testid="best-party">
           {best === null || best === undefined ? (
-            'No Party of your free Heroes meets its requirements.'
+            noBestPartyWords
           ) : 'refused' in best ? (
             best.refused
           ) : (
@@ -501,6 +503,16 @@ function Builder({
               <p data-testid="party-morale">{preview.morale}</p>
             </>
           )}
+          {preview.relief.length === 0 ? null : (
+            <>
+              <h4>Relief from the hurt</h4>
+              <ul data-testid="relief">
+                {preview.relief.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          )}
           {preview.chances === null ? null : (
             <>
               <h4>Chances</h4>
@@ -555,7 +567,7 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
       <label className="party-row__pick">
         <input type="checkbox" checked={chosen} disabled={away} onChange={(event) => onToggle(event.target.checked)} />
         <span className="party-row__who">
-          <HeroName icon={row.classIcon} className={row.className} name={row.name} nameClass="party-row__name" />{' '}
+          <HeroName icon={row.classIcon} className={row.className} name={row.name} nameClass="party-row__name" captain={row.captain} />{' '}
           <span className="party-row__class">
             {row.className}, Level {row.level}
           </span>
@@ -577,6 +589,9 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
             {row.chip}
           </Chip>
         )}
+        <Chip tone={fatigueTones[row.fatigueBand]} icon="fatigue">
+          Fatigue {row.fatigueBand}
+        </Chip>
         {row.skills.map((skill) => (
           <Chip key={skill.name} tone="accent">
             {skill.name} {skill.rating}

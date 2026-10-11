@@ -152,6 +152,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'steady',
     bandAfter: 'low',
   }),
+  'hero.fatigue-changed': event('hero.fatigue-changed', [heroId], { heroId, before: 48, after: 54, bandBefore: 'weary', bandAfter: 'tired' }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
   'hero.trait-gained': event('hero.trait-gained', [heroId, questId], {
     heroId,
@@ -179,6 +180,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     improvementKey: 'training-yard-2',
     cost: 500,
   }),
+  'guild.captain-named': event('guild.captain-named', [guildId, heroId], { guildId, heroId, replacedId: null, lockedUntilTurn: null }),
   'hero.levelled': event('hero.levelled', [heroId, guildId], {
     heroId,
     guildId,
@@ -226,6 +228,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     effect: 'heal',
     heroId,
     days: 5,
+    encounterIndex: 1,
   }),
   'item.equipped': event('item.equipped', [heroId, guildId, stackId], {
     heroId,

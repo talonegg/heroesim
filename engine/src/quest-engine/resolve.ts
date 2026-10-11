@@ -34,16 +34,22 @@
 // loot.ts, DL-52), and whatever its Finale did: a Quest ending with its template's Finale has Loot
 // only if the Finale ended a Triumph (v1.1.4-S8, DL-148 item 23).
 //
-// Each Hero brings their form to the Checks (v1.1.4-S3, form.ts): their Morale band's factor, the
-// band read from their Morale on the Quest, their Morale as they set out plus the Morale consequences
-// applied so far, held to the scale; and less once they are hurt on the Quest. Their stored Morale
-// still changes only on the return (`questsConclude`). Form draws nothing. An Encounter says form
-// decided it (`formDecided`) only when, with every form at 1 and the same rolls, its pass formula
-// would have put it on the other side of the Success line (v1.1.4-S3's verification).
+// Each Hero brings their formed Stats to the Checks (form.ts, DL-284): Morale's factor, a line through
+// the baseline (DL-283) read at their Morale on the Quest, their Morale as they set out plus the
+// Morale consequences applied so far, held to the scale; Fatigue's by Stat area, read at their
+// Fatigue on the Encounter's Day, which the Quest clock works out from the Fatigue the Party set out
+// with (clock.ts), since their stored Fatigue is the Quest's end's; and the hurt's by Stat area once
+// they are hurt on the Quest, less its relief by a Healer among the rest of the Party and by a heal Item
+// spent at their Injury (DL-285). Their Fatigue on the Day raises the chance an Injury or a Death lands
+// on them too, a Death's before it is held at 1. Their stored Morale still changes only on the return
+// (`questsConclude`). Form draws nothing. An Encounter says form decided it (`formDecided`) only
+// when, with the raw Stats and the same rolls, its pass formula would have put it on the other side
+// of the Success line (v1.1.4-S3's verification).
 //
 // The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to every Check of an
-// Encounter (DL-148 item 13), roll the Checks of a failed Encounter again, and shorten the Injuries
-// once the sequence is over. Only a reroll draws: one more from `quests` for each Check that fell
+// Encounter (DL-148 item 13), roll the Checks of a failed Encounter again, and, a heal, are spent at
+// an Injury as it lands, relieving the hurt for the rest of the Quest and shortening the Injury
+// (DL-285). Only a reroll draws: one more from `quests` for each Check that fell
 // short of Success, in the order listed, straight after the Encounter's Checks, so a Party carrying
 // none draws as above. The Items used are returned beside the outcome, for `questsConclude` to
 // expend.
@@ -81,9 +87,11 @@ import { healDays } from '../injuries.js';
 import { int } from '../rng.js';
 import { healFactor } from '../selectors.js';
 import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
-import { kitOf, type ConsumableUse } from './consumables.js';
+import { kitOf, type ConsumableUse, type Kit } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { endsWithFinale, sequenceFor } from './encounters.js';
+import { questClock } from './clock.js';
+import { fatigueHarm } from './form.js';
 import { chooseEarner, moraleOf, strike, type Candidates } from './harm.js';
 import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
 import { queryParty, type OnQuest, type QueryParty } from './query.js';
@@ -128,8 +136,8 @@ export interface EncounterResult {
   /** The Check that set the Degree. */
   decidedBy: CheckKey;
   /**
-   * Set when form decided whether the Encounter succeeded (v1.1.4-S3): with every form at 1 and the
-   * same rolls, its pass formula would have given the other side of the Success line. `raised` when
+   * Set when form decided whether the Encounter succeeded (DL-284): with the raw Stats and the same
+   * rolls, its pass formula would have given the other side of the Success line. `raised` when
    * it succeeded by form, `lowered` when it failed by it. Absent otherwise.
    */
   formDecided?: FormDecided;
@@ -247,6 +255,10 @@ interface Working {
    * the Quest reads it as it is.
    */
   moraleByHero: Record<HeroId, number>;
+  /** Each living Hero's Fatigue on the Day of the Encounter being met, by id, from the Quest clock (DL-284). */
+  fatigueByHero: Record<HeroId, number>;
+  /** The Heroes a heal Item was spent on at their Injury, relieved for the rest of the Quest (DL-285). */
+  relieved: Set<HeroId>;
   regardDelta: number;
   /** The Traits drawn so far (v1.1.4-S7), each a positive one held for the band or a negative one. */
   earned: (EarnedTrait & { positive: boolean })[];
@@ -264,7 +276,8 @@ interface Working {
  * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
  * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
  * (INPUTS 4.5). The consumables the Party carries add to each Check, roll a failed Encounter's again,
- * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
+ * and are spent at an Injury, relieving and shortening it (M5-S3, DL-50, DL-285, `kitOf`); the Items
+ * used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
  * difficulty that is not above 0, an Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
@@ -289,16 +302,26 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     fameDelta: 0,
     moraleDelta: 0,
     moraleByHero: Object.fromEntries(heroes.map((hero) => [hero.id, 0])),
+    fatigueByHero: {},
+    relieved: new Set(),
     regardDelta: 0,
     earned: [],
   };
   const encounters: EncounterResult[] = [];
   const synergyKeys = new Set<SynergyKey>();
+  // The Day each Encounter falls on, and each Hero's Fatigue on it from the Fatigue the Party set out
+  // with: the stored Fatigue is the Quest's end's (clock.ts, DL-282, DL-284). The validator holds the
+  // Party's record to name exactly its Heroes.
+  const clock = sequence.length === 0 ? undefined : questClock(quest, sequence.length, config);
+  const { fatigueAtDispatch } = party;
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
+    working.fatigueByHero = Object.fromEntries(
+      working.alive.map((hero) => [hero.id, clock?.fatigueAt(index, fatigueAtDispatch[hero.id] ?? 0) ?? 0]),
+    );
     // The members as the Queries read them on this Encounter (DL-151): their effective Stats read
-    // once, their Morale on the Quest and their form from the harm so far (DL-154), and each Hero's
-    // own Morale consequences (DL-155).
+    // once, their Morale on the Quest, their Fatigue on its Day and their formed Stats from the harm so
+    // far (DL-154, DL-284), and each Hero's own Morale consequences (DL-155).
     const party = queryParty(working.alive, world, deps, onQuestOf(working));
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);
@@ -318,7 +341,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       decided = passDegree(pass, degreesOf(encounter, results));
     }
     const harm: Harm = { injured: [], died: [] };
-    const applying: Applying = { state, guild, world, encounterIndex: index, encounterKey: encounter.key, degree: decided.degree, deathScale };
+    const applying: Applying = { state, guild, world, kit, encounterIndex: index, encounterKey: encounter.key, degree: decided.degree, deathScale };
     for (const consequence of consequencesOf(encounter, decided.degree)) {
       apply(consequence, working, harm, applying, deps);
     }
@@ -342,9 +365,6 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       ...harm,
     });
   }
-  // M5-S3: the heals the Party carries shorten the Injuries it comes home with.
-  kit.heal(working.injuries);
-
   const successes = encounters.filter((result) => succeeded(result.degree)).length;
   const triumphs = encounters.filter((result) => result.degree === 'triumph').length;
   const band = questBand(successes, triumphs, sequence.length, config);
@@ -401,7 +421,7 @@ function degreesOf(encounter: Pick<Encounter, 'checks'>, results: readonly Check
 
 /**
  * Whether form decided whether `encounter` succeeded, at `degree` by `pass` (v1.1.4-S3's
- * verification): its Degree read again with every form at 1 and the same rolls. A Check form raised
+ * verification): its Degree read again with the raw Stats and the same rolls. A Check form raised
  * across the Success line was below it, one it lowered at or above it, and every other on its own
  * side. Whether a formula of `and`, `or` and `at-least` succeeds hangs only on which of its Checks
  * did, so a Failure and a Success stand for each.
@@ -448,11 +468,13 @@ function consequencesOf({ consequences }: Pick<Encounter, 'consequences'>, degre
 /** Who one Encounter's consequences hurt. */
 type Harm = Pick<EncounterResult, 'injured' | 'died'>;
 
-/** Where a consequence is applied: the `quests` stream, the Party's Guild and the world, and the Encounter and its Degree. */
+/** Where a consequence is applied: the `quests` stream, the Party's Guild, the world and its kit, and the Encounter and its Degree. */
 interface Applying {
   state: Stream;
   guild: Guild;
   world: World;
+  /** The consumables the Party carries, of which a heal is spent at an Injury (DL-285). */
+  kit: Kit;
   encounterIndex: number;
   encounterKey: EncounterKey;
   degree: Degree;
@@ -460,9 +482,19 @@ interface Applying {
   deathScale: number;
 }
 
-/** What has happened to the Party so far, as the Queries read it: who is hurt, and each Hero's Morale. */
+/** What has happened to the Party so far, as the Queries read it: who is hurt and who a heal Item relieved, each Hero's Morale, and their Fatigue on the Day. */
 function onQuestOf(working: Working): OnQuest {
-  return { hurt: new Set(working.injuries.map((injury) => injury.heroId)), moraleByHero: working.moraleByHero };
+  return {
+    hurt: new Set(working.injuries.map((injury) => injury.heroId)),
+    relieved: working.relieved,
+    moraleByHero: working.moraleByHero,
+    fatigueByHero: working.fatigueByHero,
+  };
+}
+
+/** `hero`'s Fatigue on the Day of the Encounter being met (`Working.fatigueByHero`). */
+function fatigueOn(working: Working, hero: Pick<Hero, 'id'>): number {
+  return working.fatigueByHero[hero.id] ?? 0;
 }
 
 /**
@@ -479,20 +511,28 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
       const factor = healFactor(at.guild, config);
       for (let time = 0; time < consequence.count; time += 1) {
         // Whether it lands and on whom, two draws (harm.ts), then its Days, a third, whether or not it lands.
-        const hurt = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
+        // The chance on the Hero chosen is times Fatigue's on its Day, held at 1, before their guard (DL-284).
+        const chanceOf = (hero: Hero): number => Math.min(1, consequence.chance * fatigueHarm(fatigueOn(working, hero), config).injury);
+        const hurt = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps, chanceOf);
         const days = int(state, type.healDaysMin, type.healDaysMax);
         if (hurt !== undefined) {
-          working.injuries.push({ heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) });
+          const injury: QuestInjury = { heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) };
+          working.injuries.push(injury);
           harm.injured.push(hurt.id);
+          // A heal Item carried is spent on it now, the infirmary applied first: it relieves the hurt for
+          // the rest of the Quest and shortens the Injury, which the return applies (DL-285).
+          if (at.kit.heal(injury, at.encounterIndex)) working.relieved.add(hurt.id);
         }
       }
       return;
     }
     case 'death': {
-      // The chance times the Quest's Death scale, held at 1, before the Hero's guard (DL-265); a scale
-      // of 0 kills no one, its two draws taken all the same, so the Tier never shifts a later draw.
-      const scaled = { ...consequence, chance: scaledDeathChance(consequence.chance, at.deathScale) };
-      const dead = strike(scaled, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps);
+      // The chance times the Quest's Death scale and Fatigue's on the Day of the Hero chosen, held at 1
+      // once, before their guard (DL-265, DL-284); a scale of 0 kills no one, its two draws taken all
+      // the same, so the Tier never shifts a later draw.
+      const chanceOf = (hero: Hero): number =>
+        scaledDeathChance(consequence.chance, at.deathScale * fatigueHarm(fatigueOn(working, hero), config).death);
+      const dead = strike(consequence, candidatesOf(working, harm), () => partyNow(working, at, deps), state, deps, chanceOf);
       if (dead !== undefined) {
         working.deaths.push(dead.id);
         working.alive = working.alive.filter((hero) => hero.id !== dead.id);

@@ -10,8 +10,8 @@
 // Time moves only here (the CLI's `advance` and `advance --until`): fast forward stops on its own
 // when a Party of the player's comes home, a decision is needed, a Transfer Offer arrives, the Guild
 // falls below the Bankruptcy floor (M9-S1, DL-101) or the game ends, and at the latest after a year.
-// Two stops come only when asked, from the split button's other ways: a Quest the Heroes at home can
-// staff appearing, even with a Party out (`quest-staffable`, the CLI's `--until staffable`; M9-S7),
+// Two stops come only when asked, from the split button's other ways: a Quest the rested Heroes at home can
+// staff appearing (those a rest band leaves, DL-286, DL-289), even with a Party out (`quest-staffable`, the CLI's `--until staffable`; M9-S7),
 // and new Heroes in the Unattached pool (pre-M0 review B7). Why it stopped is the home view's to say.
 
 import type { StopCondition } from '@heroesim/engine';
@@ -27,14 +27,14 @@ export const timeHelp =
   'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
   'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives, your ' +
   'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a Year; from its other ways, it ' +
-  'can also stop when a Quest the Heroes at home can staff appears, even with a Party out, or when new Heroes join ' +
+  'can also stop when a Quest your rested Heroes at home can staff appears, even with a Party out, or when new Heroes join ' +
   'the Unattached pool. ' +
   'It plays them 30 Turns, ten Days, at a time, showing how far it has come, and Stop ends it there.';
 
 /** The stops a fast forward makes only when asked (the CLI's `--until staffable` and `--until pool`). */
 const sooner: readonly { label: string; until: readonly StopCondition[] }[] = [
   // M9-S7 (#32, DL-85 item 8): even with a Party out. "You", as the page says elsewhere (DL-109 item 2, Q7).
-  { label: 'Fast forward until a Quest you can staff appears', until: ['quest-staffable'] },
+  { label: 'Fast forward until a Quest your rested Heroes can staff appears', until: ['quest-staffable'] },
   { label: 'Fast forward until new Heroes join the pool', until: ['pool-refreshed'] },
 ];
 
@@ -189,7 +189,10 @@ function TimeControls({ busy, playing, ended, play }: { busy: boolean; playing: 
                 {label}
               </button>
             ))}
-            <p className="note">A Quest you can staff is one the Heroes at home could take, even with a Party out.</p>
+            <p className="note">
+              A Quest your rested Heroes can staff is one they could take from home, even with a Party out. A Hero your rest band keeps home is not counted,
+              though you may still send them.
+            </p>
           </div>
         ) : null}
       </span>

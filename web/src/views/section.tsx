@@ -108,19 +108,20 @@ export const help: Readonly<Record<SectionId, string>> = {
     'The Quests on offer, each with its terms: a Quest’s Fame is won on a success and lost on a failure. Its name ' +
     'unfolds what it demands, the Skills that help, its Encounters and how hard it is beside the rest of the Board; ' +
     'order the Board by reward, difficulty or the Day each leaves, and this browser keeps the order. Choose a Party ' +
-    'for one: each Hero’s row says whether they can go, and their Morale, Stats and Skills for this Quest, and opens ' +
-    'their page. As you pick Heroes and Consumables, the preview says what the Party would meet and whether it would ' +
-    'be sent, and "Send the Party" sends it within the current Turn. A Party chosen and not sent is kept while you ' +
+    'for one: each Hero’s row says whether they can go, their Fatigue, and their Stats and Skills for this Quest, marks ' +
+    'the Captain, and opens their page. As you pick Heroes and Consumables, the preview says what the Party would ' +
+    'meet, what would relieve the hurt and whether it would be sent, and "Send the Party" sends it within the ' +
+    'current Turn. A Party chosen and not sent is kept while you ' +
     'look elsewhere, until it is sent, its Quest leaves the Board or another game is started or loaded. ' +
     rivalsReminder,
   roster:
-    'Your Heroes, each with their Class, Level and Age, their Morale and where they are. Open a Hero’s page for ' +
+    'Your Heroes, each with their Class, Level and Age, their Morale and Fatigue and where they are, the Captain marked. Open a Hero’s page for ' +
     'their Stats by area, with what Gear adds and a hint of how far each may grow, their Gear and Skills, their ' +
     'Relationships and their History; from it, put Gear the Guild holds on them, take it off, or transfer them to ' +
-    'another Guild, which asks first. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
+    'another Guild, which asks first, or name them your Guild’s Captain. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
     'as Quests check them, raised by Gear, Traits or your Guildmaster in green with ▲ and lowered in red with ▼; ' +
-    'choose its columns under Columns, or by tab on a phone. Show only the Heroes of some Classes, or those at the ' +
-    'Hall, injured or away, with the chips, one choice or several, each counting the Heroes it would show. ' +
+    'choose its columns under Columns, or by tab on a phone. Show only the Heroes of some Classes, those at the ' +
+    'Hall, injured or away, or those of some Morale or Fatigue band, with the chips, one choice or several, each counting the Heroes it would show. ' +
     'Sort from "Sort by" or by a column’s heading, any but Traits and Items. This browser keeps Tiles or Table, ' +
     'the order, the Table’s columns and a phone’s tab; the chips start at All each time.',
   hall:

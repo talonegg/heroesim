@@ -13,17 +13,20 @@
 
 import {
   ageOf,
-  availableHeroes,
   bestParties,
+  captainLock,
   carriedGear,
   descriptiveAttributeLabels,
   durationDaysOf,
   fameRefusal,
+  fatigueBand,
   guildmasterOf,
   isDeadly,
   itemDefinition,
   judgedHintBands,
   moraleBand,
+  moraleBandNames,
+  partyPool,
   playerGuild,
   potentialHint,
   regardBand,
@@ -37,6 +40,7 @@ import {
   unattachedHeroes,
   type BestParty,
   type BestParties,
+  type CaptainLock,
   type ChanceBand,
   type EngineDeps,
   type FameBelowMinimum,
@@ -55,9 +59,9 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { gearSlotKeys, type ClassKey, type ContentSet, type ItemDefinitionKey, type Sex, type StatKey } from '@heroesim/engine/content';
+import { fatigueBandNames, gearSlotKeys, type ClassKey, type FatigueBand, type ContentSet, type ItemDefinitionKey, type Sex, type StatKey } from '@heroesim/engine/content';
 import { modifierWords, traitEffectWords } from './effects.js';
-import { capitalised, nameIn, rowOf } from './names.js';
+import { capitalised, listed, nameIn, rowOf } from './names.js';
 import { encounterReadings, shownPercent, type EncounterReading } from './query.js';
 import type { Calendar } from './calendar.js';
 
@@ -80,7 +84,8 @@ export interface PlayerReading {
   readonly guildmaster: Guildmaster | undefined;
   readonly hintBands: Readonly<Record<PotentialHint, number>>;
   /**
-   * The Best Party of the player's free Heroes for `quest`, and the estimate it was chosen by; `null`
+   * The Best Party of the player's pool for `quest` (`partyPool`: their free Heroes less those
+   * `playerRestBand` keeps home, DL-286), and the estimate it was chosen by; `null`
    * when none meets the Quest's requirements, when the Guild may not take the Quest (`questClosed`,
    * DL-264), and with no player's Guild. Every question shares one Best Party module over the
    * reading's world, opened at the first (DL-237).
@@ -105,13 +110,19 @@ export function playerReading(document: Pick<WorldDocument, 'world'>, deps: Engi
     hintBands: judgedHintBands(guildmaster, content, config),
     bestParty(quest) {
       if (guild === undefined || fameRefusal(guild, quest, deps) !== null) return null;
-      opened ??= { best: bestParties(world, guild, deps), available: availableHeroes(world, guild) };
+      opened ??= { best: bestParties(world, guild, deps), available: partyPool(world, guild, deps) };
       return opened.best.party(quest, opened.available);
     },
   };
 }
 
 // ── A Hero as a row ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * The bands a row puts a Hero's Morale and Fatigue in, lowest first (DL-289): a front end offers them
+ * as filters from here, the one home of their names beside the readings that use them.
+ */
+export { fatigueBandNames, moraleBandNames };
 
 /** A Hero as a row of a table, a Roster's or the pool's: who they are, at a glance. */
 export interface HeroRow {
@@ -126,10 +137,17 @@ export interface HeroRow {
   /** Their Age under the rules the world plays under. */
   age: number;
   morale: number;
+  /** Morale by its band, at the rules' starts. */
+  moraleBand: MoraleBand;
+  /** Fatigue, 0 to the scale's top, and by its band (DL-282). */
+  fatigue: number;
+  fatigueBand: FatigueBand;
+  /** Whether they are their Guild's Captain (DL-287); never for an Unattached Hero. */
+  captain: boolean;
   background: string;
 }
 
-function heroRow({ world, content, calendar }: PlayerReading, hero: Hero): HeroRow {
+function heroRow({ world, content, calendar, deps }: PlayerReading, hero: Hero): HeroRow {
   return {
     id: hero.id,
     name: hero.name,
@@ -140,6 +158,10 @@ function heroRow({ world, content, calendar }: PlayerReading, hero: Hero): HeroR
     level: hero.level,
     age: ageOf(hero, world.turn, calendar),
     morale: hero.morale,
+    moraleBand: moraleBand(hero.morale, deps.config),
+    fatigue: hero.fatigue,
+    fatigueBand: fatigueBand(hero.fatigue, deps.config),
+    captain: hero.guildId !== null && rowOf(world.guilds, hero.guildId)?.captainId === hero.id,
     background: nameIn(content.backgrounds, hero.backgroundKey),
   };
 }
@@ -226,7 +248,6 @@ export interface RelationshipReading {
 
 export interface HeroReading extends HeroRow {
   xp: number;
-  moraleBand: MoraleBand;
   /** The Guild they are of, by its id, and its name while the world holds it; `null` on no Roster. */
   guild: { id: GuildId; name: string | undefined } | null;
   /** In the Unattached pool, rather than gone from it. */
@@ -267,7 +288,6 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
   return {
     ...heroRow(reading, hero),
     xp: hero.xp,
-    moraleBand: moraleBand(hero.morale, deps.config),
     guild: hero.guildId === null ? null : { id: hero.guildId, name: guild?.name },
     unattached: hero.unattachedSince !== null,
     injury: hero.injury === null ? null : { name: nameIn(content.injuries, hero.injury.typeKey), healsOnTurn: hero.injury.healsOnTurn },
@@ -357,6 +377,43 @@ function relationshipsOf({ world, content, deps }: PlayerReading, hero: Hero, gu
   });
 }
 
+// ── The Captain's post ───────────────────────────────────────────────────────────────────────
+
+/**
+ * The player's Guild's Captain post as naming another meets it (DL-287, DL-289): the Captain, the lock
+ * a change of Captain set while it holds (`captainLock`), what a change costs the one replaced as a
+ * positive number of Morale, and the Days it locks the post for. The figures are the config's.
+ */
+export interface CaptainPostReading {
+  /** The Captain by name; `null` while the post is empty. */
+  captain: { id: HeroId; name: string } | null;
+  lock: CaptainLock | null;
+  moraleCost: number;
+  lockDays: number;
+}
+
+/** The player's Guild's post; `null` with no player's Guild. */
+export function captainPost({ guild, world, deps }: PlayerReading): CaptainPostReading | null {
+  if (guild === undefined) return null;
+  const captain = guild.captainId === null ? undefined : rowOf(world.heroes, guild.captainId);
+  return {
+    captain: captain === undefined ? null : { id: captain.id, name: captain.name },
+    lock: captain === undefined ? null : captainLock(guild, world.turn, deps.config),
+    moraleCost: Math.abs(deps.config.captainChangeMoraleCost),
+    lockDays: deps.config.captainChangeLockDays,
+  };
+}
+
+/** What naming `name` Captain does, before it is done: free to an empty post, else what it costs the one replaced and the lock it sets. */
+export function namingWords(post: CaptainPostReading, name: string): string {
+  if (post.captain === null) return `Naming ${name} Captain is free: the post is empty.`;
+  const costs = [
+    ...(post.moraleCost === 0 ? [] : [`costs ${post.captain.name} ${post.moraleCost} Morale`]),
+    ...(post.lockDays === 0 ? [] : [`locks the post for ${post.lockDays} ${post.lockDays === 1 ? 'Day' : 'Days'}`]),
+  ];
+  return `Naming ${name} Captain in place of ${post.captain.name} ${costs.length === 0 ? 'costs nothing' : listed(costs)}.`;
+}
+
 // ── A Quest on the Board ─────────────────────────────────────────────────────────────────────
 
 export interface QuestReading {
@@ -441,7 +498,7 @@ export function boardReading(reading: PlayerReading): QuestReading[] {
   });
 }
 
-/** The Best Party of the player's free Heroes for a Quest: who, by name in its order, and its chance if no one falls. */
+/** The Best Party of the player's pool for a Quest (`partyPool`, DL-286): who, by name in its order, and its chance if no one falls. */
 export interface BestPartyReading {
   heroIds: HeroId[];
   names: string[];
@@ -457,6 +514,13 @@ export interface BestPartyReading {
 export function questClosed(reading: PlayerReading, quest: Quest): FameBelowMinimum | null {
   return reading.guild === undefined ? null : fameRefusal(reading.guild, quest, reading.deps);
 }
+
+/**
+ * What the Board and `show board` say when no Party of the player's pool meets a Quest's requirements
+ * (DL-289): the pool is the Heroes at home that their rest band leaves (`partyPool`, DL-286), so "rested",
+ * not "free", of whom a Hero kept home is still sendable by hand.
+ */
+export const noBestPartyWords = 'No Party of your rested Heroes meets its requirements.';
 
 /** "Your best Party" for `quest` (`PlayerReading.bestParty`), its chance the estimate the rule chose it by; `null` for none. */
 export function bestPartyReading(reading: PlayerReading, quest: Quest): BestPartyReading | null {

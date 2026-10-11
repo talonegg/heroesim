@@ -124,7 +124,7 @@ describe("the Market as tables (DL-106; the review's B3)", () => {
     const held = marketView(document).held.map(({ name, kind, does }) => ({ name, kind, does }));
 
     expect(held).toEqual([
-      { name: 'Healing draught', kind: 'Consumable', does: 'An Injury on the Quest heals 5 Days sooner' },
+      { name: 'Healing draught', kind: 'Consumable', does: 'An Injury on the Quest weighs less and heals 5 Days sooner' },
       { name: "The Barrow King's blade", kind: 'Weapon Gear, Unique Item', does: 'Weaponry +4, Strength +2, Courage +1' },
     ]);
   });

@@ -9,7 +9,8 @@ import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { durationDaysOf, nightOf } from '../time.js';
-import { buildDocument, harmlessContent, ofType, plannedStreams, playWith, setup, streamsOutOfPlace, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, deepFreeze, harmlessContent, ofType, plannedStreams, playWith, setup, streamsOutOfPlace, testContent, testDeps, withCaptaincy, withValid } from '../world.test-support.js';
+import { captainScale } from '../captain.js';
 import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.js';
 import { phaseContext } from './phase.js';
 import { applyAction } from '../actions/action.js';
@@ -186,7 +187,8 @@ describe('Morale drift', () => {
     // Only the Hero State Engine runs, so every entry the month appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
     // Inspiration still: the baseline is moraleBaseline.
-    const deps = testDeps({ inspirationMoraleShift: 0, moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 } });
+    // The walks below were worked out at the baseline 60 and these bands (DL-283 item 4, Q18).
+    const deps = testDeps({ inspirationMoraleShift: 0, moraleBaseline: 60, moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 } });
     const month = nightOf(30);
     const start = created('drift-year', deps);
     const [quiet, falling, rising] = rosterOf(start.world) as [HeroId, HeroId, HeroId];
@@ -370,15 +372,69 @@ describe('Retirement', () => {
       milestone: false,
       payload: { questId: makeId('quests', 99), partyId, guildId: guild.id, heroIds: [sent], returnsOnTurn: nightOf(12) },
     });
+    // The Party's row, on a Quest of the Board: the night away reads its Tier for Fatigue (DL-282).
+    const questId = world.board[0] as Quest['id'];
+    world.parties[partyId] = { id: partyId, questId, guildId: guild.id, heroIds: [sent], departedOnTurn: nightOf(10), returnsOnTurn: nightOf(12), fatigueAtDispatch: { [sent]: 0 } };
     hero(world, sent).partyId = partyId;
     at(11);
     hero(world, sent).partyId = null;
+    delete world.parties[partyId];
     const beforeHomecoming = structuredClone(world.rng.heroes);
 
     const events = at(12);
 
     expect(ofType(events, 'hero.retired')).toEqual([]);
     expect(world.rng.heroes).toEqual(beforeHomecoming);
+  });
+});
+
+// DL-287: the Captain at home lifts the Roster's baseline by s·captainHomeBaselineBonus. The night
+// keeps each Guild's lift once worked out, and each Hero's drift must still read the Captain as they
+// stand when that Hero's turn comes: healed of an Injury tonight, or retired tonight.
+describe("the Captain's lift through a night", () => {
+  const pins = { rivalCount: 0, moraleDrift: 1, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0, captainHomeBaselineBonus: 5 };
+
+  /** A world of three plain Heroes at Morale 50, the second the Captain, under `deps`. */
+  function captained(seed: string, deps: EngineDeps) {
+    const document = created(seed, deps);
+    const { world } = document;
+    const guild = playerGuild(world) as Guild;
+    const [before, captain, after] = guild.rosterIds.map((id) => hero(world, id)) as [Hero, Hero, Hero];
+    for (const it of [before, captain, after]) Object.assign(it, { morale: 50, traits: [], injury: null, ageAtEntry: 20 });
+    guild.captainId = captain.id;
+    return { document, world, guild, before, captain, after };
+  }
+
+  test("reads the Captain healed tonight from their own drift on: an Injury's Trait that raises the captaincy Stat lifts the Captain and those after them", () => {
+    // Scarred, which Deep cut leaves, takes Leadership from its least to its most.
+    const content = withCaptaincy(deepFreeze({ ...testContent, heroTraits: { ...testContent.heroTraits, scarred: { key: 'scarred', name: 'Scarred', excludes: [], effects: [{ kind: 'statModifiers', modifiers: { leadership: 19 } }] } } }));
+    const deps = testDeps(pins, content);
+    const { world, before, captain, after } = captained('captain-heals', deps);
+    captain.stats['leadership'] = 1;
+    captain.injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(5) };
+    expect(captainScale(captain, world, content)).toBe(0);
+
+    night(world, 5, deps);
+
+    expect(captain.traits).toContain('scarred');
+    expect(captainScale(captain, world, content)).toBe(1);
+    // The Hero before the Captain drifted toward the baseline unlifted; the Captain and the Hero after, toward 55.
+    expect([before, captain, after].map((it) => it.morale)).toEqual([50, 51, 51]);
+  });
+
+  test('lifts no Hero after a Captain who retires tonight', () => {
+    const deps = testDeps({ ...pins, heroRetirementChancePerYear: 1, turnsPerYear: 30 }, withCaptaincy());
+    const { document, world, guild, before, captain, after } = captained('captain-retires', deps);
+    captain.stats['leadership'] = 20;
+    Object.assign(captain, { enteredTurn: 0, ageAtEntry: 60 });
+    expect(captainScale(captain, world, deps.content)).toBe(1);
+
+    night(world, 10, deps, document);
+
+    expect(captain.retiredOnTurn).toBe(nightOf(10));
+    expect(guild.captainId).toBeNull();
+    // Before the Captain and the Captain, toward 55; after their Retirement, toward 50.
+    expect([before, captain, after].map((it) => it.morale)).toEqual([51, 51, 50]);
   });
 });
 

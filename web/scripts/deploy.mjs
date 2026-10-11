@@ -84,6 +84,26 @@ export const addresses = Object.freeze({
   pages: 'https://heroesims.pages.dev',
 });
 
+/**
+ * The origins of Cloudflare's Web Analytics, whose beacon Pages adds to the page at the edge when
+ * the project's analytics are on: the script, and where it reports. The page itself asks nothing
+ * of them, and the live check allows them on Pages alone, the Worker kept strict (DL-279).
+ */
+const pagesBeacon = Object.freeze(['https://static.cloudflareinsights.com', 'https://cloudflareinsights.com']);
+
+/**
+ * Whether a request the page at `baseURL` made leaves it, for the live check (DL-75): any other
+ * origin does, but on Pages, its production address or a deployment's, Cloudflare's beacon.
+ */
+export function leavesThePage(baseURL, url) {
+  const page = new URL(baseURL);
+  const origin = new URL(url).origin;
+  if (origin === page.origin) return false;
+  const pagesHost = new URL(addresses.pages).hostname;
+  const onPages = page.protocol === 'https:' && (page.hostname === pagesHost || page.hostname.endsWith(`.${pagesHost}`));
+  return !(onPages && pagesBeacon.includes(origin));
+}
+
 export const pagesProject = 'heroesims';
 export const workerConfig = 'wrangler.jsonc';
 

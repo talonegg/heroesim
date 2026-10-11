@@ -6,12 +6,13 @@ import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
 import type { QuestEncounter } from '../events.js';
 import { addStack } from '../items.js';
+import { moraleBaselineFor } from '../morale.js';
 import { heroState } from '../phases/hero-state.js';
 import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { setup, testContent, testDeps } from '../world.test-support.js';
+import { setup, testContent, testDeps, withCaptaincy } from '../world.test-support.js';
 import { capability } from './check.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { chanceBand, chanceToReach, estimateQuest, partyEstimator, type CheckEstimate, type QuestEstimate } from './estimate.js';
@@ -87,7 +88,7 @@ function scene(
   const offered = world.quests[world.board[0] as Quest['id']] as Quest;
   const quest: Quest = { ...structuredClone(offered), difficulty, durationTurns: 4 * turnsPerDay, encounterKeys: encounters.map((it) => it.key), lootTableKey: null };
   const returnsOnTurn = nightOf(dayOf(world.turn) + 4);
-  const ids: Party = { id: makeId('parties', 99), questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn };
+  const ids: Party = { id: makeId('parties', 99), questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn, fatigueAtDispatch: Object.fromEntries(heroes.map((hero) => [hero.id, hero.fatigue])) };
   for (const [definitionKey, quantity] of carried) addStack(world, definitionKey, quantity, { kind: 'party', id: ids.id });
   return { world, heroes, quest, party: ids, deps, carried: carried.map(([definitionKey, quantity]) => ({ definitionKey, quantity })) };
 }
@@ -96,8 +97,11 @@ function scene(
  * `s`'s world on the night its Party comes home, as `questsConclude` meets it: the Hero State Engine's
  * phase run on each night away, the Party's Heroes in their Party, and the Turn the return night's.
  */
-function homeNight({ world, party, deps }: Scene): World {
+function homeNight({ world, quest, party, deps }: Scene): World {
   const home = structuredClone(world);
+  // The Party and its Quest as rows: a night away reads the Quest's Tier for Fatigue (DL-282).
+  home.parties[party.id] = structuredClone(party);
+  home.quests[quest.id] = structuredClone(quest);
   for (const heroId of party.heroIds) (home.heroes[heroId] as Hero).partyId = party.id;
   for (let night = nightOf(dayOf(home.turn)); night < party.returnsOnTurn; night += turnsPerDay) {
     if (night <= world.turn) continue;
@@ -195,6 +199,9 @@ describe('one Check', () => {
       { key: 'one', kind: 'combat', checks: [draft('one', strength, 1)] },
       { key: 'gate', kind: 'combat', checks: [draft('gate', strongCount, 1, { raw: true, variance: 0 })] },
     ], { carried: [['whetstone', 2]] });
+    // At their Guild's baseline, the Morale the estimate brings them home with is the Morale they set
+    // out with, and so is Morale's factor on their form (DL-283).
+    for (const hero of s.heroes) hero.morale = moraleBaselineFor(hero, s.world, s.deps.config, s.deps.content);
     const [one, gate] = estimated(s).encounters;
     const check = one?.checks[0];
     if (check === undefined || gate === undefined) throw new Error('No Check');
@@ -275,8 +282,12 @@ describe('the estimate', () => {
     ], { morale: [19, 38, 76, 91], carried: [['grappling-line', 1]] });
     const estimate = partyEstimator(s.world, s.deps);
     const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    // Each at a Fatigue of their own, and a Quest of the same return night at another Tier, so the
+    // members kept by return night are read again at each Day's Fatigue (DL-284).
+    [a, b, c, d].forEach((hero, at) => (hero.fatigue = [5, 40, 75, 100][at] as number));
     const longer = { ...s.quest, durationTurns: s.quest.durationTurns + 2 * turnsPerDay };
-    for (const quest of [s.quest, longer]) {
+    const steeper = { ...s.quest, tier: s.quest.tier === 5 ? 1 : 5 };
+    for (const quest of [s.quest, longer, steeper]) {
       for (const party of [[], [a], [d, b], [b, d], [a, b, c, d], [c, a, d]]) {
         for (const carried of [[], s.carried]) {
           expect(estimate(quest, party, { carried, pool: [a, b] }), party.map((hero) => hero.id).join()).toEqual(estimateQuest(s.world, quest, party, s.deps, carried));
@@ -288,6 +299,28 @@ describe('the estimate', () => {
     expect(() => estimate(s.quest, [a, a])).toThrow(`A Party names ${a.id} twice`);
     expect(estimate({ ...s.quest, encounterKeys: ['no-such-encounter'] }, [a])).toBeNull();
     expect(() => estimate({ ...s.quest, difficulty: 0 }, [a])).toThrow(RangeError);
+  });
+
+  // DL-287: the Captain's factor is the proposed Party's own, whoever else the pool brought home with it.
+  test("partyEstimator gives a Party its Captain's factor, and a Party without the Captain none, though the Captain was brought home with the pool", () => {
+    const s = scene('estimate-captain', [
+      { key: 'first', kind: 'travel', checks: [draft('first', strength, 1), draft('second', wits, 1.1)], pass: ['or', 'first', 'second'] },
+      { key: 'third', kind: 'combat', checks: [draft('third', courage, 1)] },
+    ]);
+    const captained = { ...s.deps, config: { ...s.deps.config, captainFormFactor: 1.05 }, content: withCaptaincy(s.deps.content) };
+    const flat = { ...captained, config: { ...captained.config, captainFormFactor: 1 } };
+    const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    a.stats['leadership'] = 20;
+    (s.world.guilds[a.guildId as Guild['id']] as Guild).captainId = a.id;
+    const estimate = partyEstimator(s.world, captained);
+    for (const party of [[a, b], [b, c], [a, b, c, d], [d, c, b, a], [b, c, d]]) {
+      const named = party.map((hero) => hero.id).join();
+      const got = estimate(s.quest, party, { pool: [a, b, c, d] });
+      expect(got, named).toEqual(estimateQuest(s.world, s.quest, party, captained));
+      if (!party.includes(a)) expect(got, named).toEqual(estimateQuest(s.world, s.quest, party, flat));
+    }
+    // The whole Roster, its Checks' targets set at its capability, is likelier with its Captain's factor.
+    expect(estimate(s.quest, [a, b, c, d])?.success).toBeGreaterThan(estimateQuest(s.world, s.quest, [a, b, c, d], flat)?.success ?? 1);
   });
 
   // DL-237: the estimator keeps the Degree each pass formula gives each combination of Degrees it
@@ -352,8 +385,9 @@ describe('the estimate', () => {
     expect(compared).toBe(3 * 16 * 8 * 2);
   });
 
-  test("reads the Party as the resolver meets it on the night it comes home: a wretched Hero's Morale has drifted a band up", () => {
-    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50 }, { ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+  test("reads the Party as the resolver meets it on the night it comes home: a Hero far below the baseline has drifted up toward it", () => {
+    // No Fatigue on form, so the Morale drift is all that moves the Check between setting out and the night home (DL-284).
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, fatigueScaling: 0 }, { ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
     const created = createWorld('estimate-home', setup, deps).document;
     const { world } = created;
     const guild = playerGuild(world) as Guild;
@@ -374,9 +408,122 @@ describe('the estimate', () => {
       document = turned.document;
       met = turned.events.find((event): event is QuestEncounter => event.type === 'quest.encounter')?.payload;
     }
-    // Wretched (0.85) when sent; low (0.93) by the night home, the Morale 19 drifted up a point a night.
+    // Sent at Morale 19, below the baseline 50; by the night home drifted up a point a night, and Morale's
+    // factor on their form up the line with it (DL-283).
     expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
+  });
+
+  // DL-287: the Captain lifts the Roster's baseline while at home, so a Party sent without its Captain
+  // drifts up toward the higher baseline on the nights away, and one sent with the Captain does not,
+  // while bringing the Captain's factor; the estimate meets each as the resolver does.
+  test.each([
+    ['with its Captain, who lifts no baseline while away and brings their factor', true],
+    ['without its Captain, the baseline lifted by the Captain at home', false],
+  ])('reads a Party sent %s as the resolver meets it', (_name, withCaptain) => {
+    const content = withCaptaincy({ ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5, captainFormFactor: 1.05 }, content);
+    const created = createWorld(withCaptain ? 'estimate-captain-away' : 'estimate-captain-home', setup, deps).document;
+    const { world } = created;
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
+    const guild = playerGuild(world) as Guild;
+    const [captain, other] = guild.rosterIds.map((id) => world.heroes[id] as Hero) as [Hero, Hero];
+    for (const hero of [captain, other]) Object.assign(hero, { morale: 50, traits: [] });
+    captain.stats['leadership'] = 20;
+    guild.captainId = captain.id;
+    const sent = withCaptain ? captain : other;
+    const questId = world.board[0] as Quest['id'];
+    const quest = world.quests[questId] as Quest;
+    Object.assign(quest, { durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1 } });
+    const estimate = estimateQuest(world, quest, [sent], deps);
+    const asTheySetOut = capability(queryParty([sent], world, deps), { kind: 'travel' }, deps.content.encounters.march?.checks[0] as EncounterCheck, world, deps);
+
+    const dispatched = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: [sent.id] }, deps);
+    if (!dispatched.ok) throw new Error(dispatched.rejection.reason);
+    let document = dispatched.document;
+    let met: QuestEncounter['payload'] | undefined;
+    while (met === undefined) {
+      const turned = advance(document, deps);
+      document = turned.document;
+      met = turned.events.find((event): event is QuestEncounter => event.type === 'quest.encounter')?.payload;
+    }
+    expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
+    // With the Captain: Morale held at 50 away, the factor 1.05 on; without: Morale drifted up toward 55.
+    if (withCaptain) expect(met.checks?.[0]?.capability).toBeCloseTo(asTheySetOut, 9);
+    else expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
+  });
+
+  // DL-287: the Captain's lift on the nights away is the Captain's as the Party sets out, so a Captain
+  // the pool brought home, whose own nights away would change them, moves no estimate of a Party
+  // without them: each equals `estimateQuest`'s whatever the pool.
+  test("partyEstimator holds a Captain at home as they stand at setting out, whatever its pool's copy of them becomes on the nights away", () => {
+    // Scarred, which Deep cut leaves, takes Leadership from its least to its most.
+    const scarred = { key: 'scarred', name: 'Scarred', excludes: [], effects: [{ kind: 'statModifiers' as const, modifiers: { leadership: 19 } }] };
+    const content = withCaptaincy({ ...testContent, heroTraits: { ...testContent.heroTraits, scarred }, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, moraleDrift: 1, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5 }, content);
+    const { world } = createWorld('estimate-captain-pool', setup, deps).document;
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
+    const guild = playerGuild(world) as Guild;
+    const [captain, other] = guild.rosterIds.map((id) => world.heroes[id] as Hero) as [Hero, Hero];
+    for (const hero of [captain, other]) Object.assign(hero, { morale: 50, traits: [] });
+    captain.stats['leadership'] = 1;
+    captain.injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(world.turn)) };
+    guild.captainId = captain.id;
+    const quest = { ...structuredClone(world.quests[world.board[0] as Quest['id']] as Quest), durationTurns: 5 * turnsPerDay, encounterKeys: ['march'], lootTableKey: null, requirements: { partySizeMin: 1 } };
+
+    const alone = estimateQuest(world, quest, [other], deps);
+    expect(partyEstimator(world, deps)(quest, [other], { pool: [captain, other] })).toEqual(alone);
+    expect(partyEstimator(world, deps)(quest, [other], { pool: [other, captain] })).toEqual(alone);
+  });
+
+  // DL-284, candidate 8 not adopted: the estimate and the resolver work a Check out twice, so a parity
+  // test over fixed Encounters, no one falling, holds them together: every Check's capability on every
+  // Encounter, each on its own Day at its own Fatigue, to the last bit, and at no variance its Degree.
+  test('meets each Encounter on its Day as the resolver does: every capability to the last bit, Heroes setting out at any Fatigue, none read at the Fatigue they come home with', () => {
+    const march = (key: string, score: NumQuery, factor: number): Encounter => ({
+      key,
+      name: key,
+      kind: 'travel',
+      checks: [{ key, name: key, score, skills: [], difficultyFactor: factor, variance: 0 }],
+      consequences: { success: [], failure: [] },
+    });
+    const keys = ['first', 'second', 'third', 'fourth', 'fifth'];
+    const scores: NumQuery[] = [strength, wits, courage, ['sum', 'party', ['weighted', [['strength', 0.5], ['arcana', 0.5]]]], strength];
+    const encounters = Object.fromEntries(keys.map((key, at) => [key, march(key, scores[at] as NumQuery, [0.3, 0.5, 0.2, 0.25, 0.32][at] as number)]));
+    const deps = testDeps({ rivalCount: 0 }, { ...testContent, encounters: { ...testContent.encounters, ...encounters } });
+    const created = createWorld('estimate-days', setup, deps).document;
+    const { world } = created;
+    const guild = playerGuild(world) as Guild;
+    const heroes = guild.rosterIds.map((id) => world.heroes[id] as Hero);
+    heroes.forEach((hero, at) => {
+      hero.morale = [25, 50, 70, 95][at % 4] as number;
+      hero.fatigue = [0, 30, 65, 97][at % 4] as number;
+    });
+    const questId = world.board[0] as Quest['id'];
+    const quest = world.quests[questId] as Quest;
+    Object.assign(quest, { durationTurns: 10 * turnsPerDay, encounterKeys: keys, lootTableKey: null, requirements: { partySizeMin: 1 } });
+    const estimate = estimateQuest(world, quest, heroes, deps);
+    if (estimate === null) throw new Error('No estimate');
+
+    const sent = applyAction(created, { kind: 'dispatch', guildId: guild.id, questId, heroIds: heroes.map((hero) => hero.id) }, deps);
+    if (!sent.ok) throw new Error(sent.rejection.reason);
+    let document = sent.document;
+    const met: QuestEncounter['payload'][] = [];
+    while (met.length === 0) {
+      const turned = advance(document, deps);
+      document = turned.document;
+      met.push(...turned.events.filter((event): event is QuestEncounter => event.type === 'quest.encounter').map((event) => event.payload));
+    }
+
+    expect(met.map((it) => it.encounterKey)).toEqual(keys);
+    for (const [index, it] of met.entries()) {
+      const estimated = estimate.encounters[index];
+      expect(it.checks?.map((one) => one.capability), it.encounterKey).toEqual(estimated?.checks.map((one) => one.capability));
+      expect(estimated?.degrees[it.degree as Degree], it.encounterKey).toBe(1);
+    }
+    // Fatigue moved them: the same Check on the first Day and the last reads the Party lower on the last.
+    const strengthOn = (index: number) => met[index]?.checks?.[0]?.capability ?? Number.NaN;
+    expect(strengthOn(4)).toBeLessThan(strengthOn(0));
   });
 
   // A Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
@@ -410,7 +557,8 @@ describe('the estimate', () => {
     const s = scene('estimate-reroll', [
       { key: 'first', kind: 'travel', checks: [draft('first', strength, 1)] },
       { key: 'second', kind: 'travel', checks: [draft('second', strength, 1)] },
-    ], { carried: [['grappling-line', 1]] });
+      // No Fatigue on form, so the two Encounters' Checks roll alike on their two Days (DL-284).
+    ], { carried: [['grappling-line', 1]], overrides: { fatigueScaling: 0 } });
     const [first, second] = estimated(s).encounters;
     const p = (first?.checks[0]?.degrees.success ?? 0) + (first?.checks[0]?.degrees.triumph ?? 0);
     expect(p).toBeGreaterThan(0.2);

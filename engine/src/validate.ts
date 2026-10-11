@@ -67,6 +67,7 @@ export const refusalChecks = [
   'guildmaster-guild-mismatch',
   'retired-guildmaster-in-office',
   'folded-guild-in-play',
+  'captain-off-roster',
   'departed-hero-in-play',
   'quest-party-mismatch',
   'too-many-parties',
@@ -194,6 +195,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   guildmasterGuildMismatch,
   retiredGuildmasterInOffice,
   foldedGuildInPlay,
+  captainOffRoster,
   departedHeroInPlay,
   questPartyMismatch,
   tooManyParties,
@@ -350,6 +352,7 @@ type FieldKind =
   | 'list-of-one-or-more'
   | 'list-of-strings'
   | 'map'
+  | 'number-map'
   | 'string-or-null'
   | 'sex'
   | 'sex-or-null'
@@ -383,6 +386,8 @@ const kindTests: Record<FieldKind, (value: unknown) => boolean> = {
   // A Quest's Beats' lines (DL-262).
   'list-of-strings': (value) => Array.isArray(value) && value.every((item) => typeof item === 'string'),
   map: isMap,
+  // A Party's Fatigue at dispatch by Hero (DL-282): finiteness is json-safe's to report.
+  'number-map': (value) => isMap(value) && Object.values(value).every((item) => typeof item === 'number'),
   'string-or-null': (value) => value === null || typeof value === 'string',
   // One of the engine's `sexes` (v1.1.2-S6): a front end finds a Portrait's folder by it.
   sex: (value) => (sexes as readonly unknown[]).includes(value),
@@ -441,6 +446,8 @@ const guildFields: Shape<Guild> = {
   foundedTurn: 'integer',
   guildmasterId: 'string',
   rosterIds: 'list',
+  captainId: 'string-or-null',
+  captainChangedOnTurn: 'integer-or-null',
   wealth: 'number',
   fame: 'number',
   belowFloorSince: 'integer-or-null',
@@ -487,6 +494,7 @@ const heroFields: Shape<Hero> = {
   level: 'integer',
   injury: 'map-or-null',
   morale: 'number',
+  fatigue: 'number',
   diedOnTurn: 'integer-or-null',
   retiredOnTurn: 'integer-or-null',
   transferredOnTurn: 'integer-or-null',
@@ -526,6 +534,7 @@ const partyFields: Shape<Party> = {
   heroIds: 'list',
   departedOnTurn: 'integer',
   returnsOnTurn: 'integer',
+  fatigueAtDispatch: 'number-map',
 };
 
 const offerFields: Shape<TransferOffer> = {
@@ -916,10 +925,21 @@ function heroInTwoParties({ world }: WorldDocument): ValidationFailure[] {
   }));
 }
 
-/** `hero.partyId` and `party.heroIds` agree, as `quest.partyIds` and `party.questId` must. */
+/**
+ * `hero.partyId` and `party.heroIds` agree, as `quest.partyIds` and `party.questId` must, and the
+ * Party records the Fatigue at dispatch of its Heroes and of no one else (DL-282).
+ */
 function partyMemberMismatch({ world }: WorldDocument): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
   for (const [partyId, party] of Object.entries(world.parties)) {
+    const recorded = Object.keys(party.fatigueAtDispatch);
+    if (recorded.length !== party.heroIds.length || !party.heroIds.every((heroId) => Object.hasOwn(party.fatigueAtDispatch, heroId))) {
+      failures.push({
+        check: 'party-member-mismatch',
+        id: partyId,
+        detail: `${partyId} records the Fatigue at dispatch of ${q(recorded.join(', '))}, not of its Heroes ${q(party.heroIds.join(', '))}`,
+      });
+    }
     for (const heroId of party.heroIds) {
       const hero = rowOf(world.heroes, heroId);
       if (hero !== undefined && hero.partyId !== partyId) {
@@ -1002,6 +1022,32 @@ function foldedGuildInPlay({ world }: WorldDocument): ValidationFailure[] {
         check: 'folded-guild-in-play',
         id: partyId,
         detail: `${partyId} is ${party.guildId}'s, which folded on Turn ${guild.foldedOnTurn}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/**
+ * A Guild's Captain is a Hero of its Roster (DL-287): a Hero who leaves it leaves the post empty
+ * (`leaveRoster`), and a folded Guild, its Roster empty, has none. The Turn of its last change is not
+ * after the world's.
+ */
+function captainOffRoster({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [guildId, guild] of Object.entries(world.guilds)) {
+    if (guild.captainId !== null && !guild.rosterIds.includes(guild.captainId)) {
+      failures.push({
+        check: 'captain-off-roster',
+        id: guildId,
+        detail: `${guildId} names ${guild.captainId} as Captain, who is not on its Roster`,
+      });
+    }
+    if (guild.captainChangedOnTurn !== null && guild.captainChangedOnTurn > world.turn) {
+      failures.push({
+        check: 'captain-off-roster',
+        id: guildId,
+        detail: `${guildId} changed its Captain on Turn ${guild.captainChangedOnTurn}, after the world's Turn ${world.turn}`,
       });
     }
   }

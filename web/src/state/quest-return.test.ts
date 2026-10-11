@@ -1,11 +1,13 @@
 // @vitest-environment node
 import {
   entriesFor,
+  moraleBand,
   offeredQuests,
   playerGuild,
   unattachedHeroes,
   type EngineEventOf,
   type HeroId,
+  type MoraleBand,
   type PartyId,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -52,6 +54,20 @@ const base = firstSeedWhere(
   },
   'a Party of three or more out and one Hero at home',
 );
+
+/**
+ * A Hero's Morale after `deaths` Deaths on the Roster, and its band: the cost per Death is the
+ * document's `moraleOnRosterDeath`, held at the scale's foot, and the band its `moraleBands`' (DL-283
+ * item 4, Q18), so the lines below hold whatever the owner's values are.
+ */
+function grieved(before: number, deaths = 1): { after: number; band: MoraleBand } {
+  const { config } = documentOf(base).meta;
+  const after = Math.max(config.moraleMin, before + deaths * config.moraleOnRosterDeath);
+  return { after, band: moraleBand(after, config) };
+}
+
+/** The cost of one Death in words, as the Quest report's line gives a fall: "−10". */
+const deathCost = `−${Math.abs(documentOf(base).meta.config.moraleOnRosterDeath)}`;
 
 // A Party home from its Quest, one game the tests below read and none plays on or writes to (ADR-0008).
 const cameHomeState = cameHome(started('reducer-test'));
@@ -161,13 +177,14 @@ describe('questReturn', () => {
   });
 
   test('a Death with its gear returned: the Hero who died, no XP, and their gear back to the Guild that night; the others’ Morale and Regard with each other', () => {
+    const grief = grieved(50);
     const written = withReturn(base, {
       band: 'fail',
       fame: -3,
       xp: 5,
       encounters: [{ encounterKey: 'ambush-on-the-road', outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: 1, cause: 'roster-death', before: 50, after: 40, bandAfter: 'steady' }],
+      morale: [{ hero: 1, cause: 'roster-death', before: 50, after: grief.after, bandAfter: grief.band }],
       heroRegard: [{ hero: 1, mate: 2, bandBefore: 'neutral', bandAfter: 'warm' }],
       gear: [
         { hero: 0, definitionKey: 'short-sword', slot: 'weapon' },
@@ -184,7 +201,7 @@ describe('questReturn', () => {
     expect(other?.died).toBe(false);
     expect(other?.gear).toEqual([]);
     expect(other?.regard).toEqual([{ heroId: written.party.heroIds[2], name: mate, bandBefore: 'neutral', bandAfter: 'warm' }]);
-    expect(other?.words).toEqual(['gained 5 XP', 'Morale went from 50 to 40, steady', `Regard for ${mate} rose from neutral to warm`]);
+    expect(other?.words).toEqual(['gained 5 XP', `Morale went from 50 to ${grief.after}, ${grief.band}`, `Regard for ${mate} rose from neutral to warm`]);
     expect(third?.regard).toEqual([]);
   });
 
@@ -195,14 +212,16 @@ describe('questReturn', () => {
     const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
     const home = guild.rosterIds.filter((heroId) => !party.includes(heroId));
     expect(home.length).toBeGreaterThan(0);
+    const mate = grieved(50);
+    const away = grieved(40);
     const written = withReturn(base, {
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0] }],
       deaths: [0],
       morale: [
         // A Party mate's grief is in their own line, not at home's.
-        { hero: 1, cause: 'roster-death', before: 50, after: 40, bandAfter: 'steady' },
-        ...home.map((heroId) => ({ hero: heroId, cause: 'roster-death' as const, before: 40, after: 30, bandAfter: 'low' as const })),
+        { hero: 1, cause: 'roster-death', before: 50, after: mate.after, bandAfter: mate.band },
+        ...home.map((heroId) => ({ hero: heroId, cause: 'roster-death' as const, before: 40, after: away.after, bandAfter: away.band })),
       ],
     });
     const dead = nameOf(written, written.party.heroIds[0] as string);
@@ -210,11 +229,11 @@ describe('questReturn', () => {
     const heroes = `${home.length} ${home.length === 1 ? 'Hero' : 'Heroes'}`;
 
     expect(report.home).toEqual({
-      sentence: `At home: the Guild mourned ${dead}. Morale fell for ${heroes} (${home.length === 1 ? '−10' : '−10 each'}).`,
+      sentence: `At home: the Guild mourned ${dead}. Morale fell for ${heroes} (${home.length === 1 ? deathCost : `${deathCost} each`}).`,
       heroesWords: `${heroes} at home`,
-      heroes: home.map((heroId) => ({ heroId, name: nameOf(written, heroId), words: 'Morale went from 40 to 30, low' })),
+      heroes: home.map((heroId) => ({ heroId, name: nameOf(written, heroId), words: `Morale went from 40 to ${away.after}, ${away.band}` })),
     });
-    expect(report.outcomes[1]?.words).toContain('Morale went from 50 to 40, steady');
+    expect(report.outcomes[1]?.words).toContain(`Morale went from 50 to ${mate.after}, ${mate.band}`);
     // The line follows the Heroes' outcomes, in their section.
     expect(reportSections(report).find((section) => section.kind === 'heroes')).toMatchObject({ home: report.home });
   });
@@ -230,21 +249,26 @@ describe('questReturn', () => {
     const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
     const [one, two] = guild.rosterIds.filter((heroId) => !party.includes(heroId));
     if (one === undefined || two === undefined) throw new Error('fewer than two Heroes at home');
+    // One Hero at 40 falls by two Deaths' cost, the other at 2 is held at the foot of the scale.
+    const [oneOnce, oneTwice] = [grieved(40), grieved(40, 2)];
+    const [twoOnce, twoTwice] = [grieved(2), grieved(2, 2)];
+    const falls = [40 - oneTwice.after, 2 - twoTwice.after];
+    expect(falls[0]).not.toBe(falls[1]);
     const written = withReturn(more, {
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0, 1] }],
       deaths: [0, 1],
       morale: [
-        { hero: one, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' },
-        { hero: two, cause: 'roster-death', before: 2, after: 0, bandAfter: 'wretched' },
-        { hero: one, cause: 'roster-death', before: 30, after: 20, bandAfter: 'low' },
-        { hero: two, cause: 'roster-death', before: 0, after: 0, bandAfter: 'wretched' },
+        { hero: one, cause: 'roster-death', before: 40, after: oneOnce.after, bandAfter: oneOnce.band },
+        { hero: two, cause: 'roster-death', before: 2, after: twoOnce.after, bandAfter: twoOnce.band },
+        { hero: one, cause: 'roster-death', before: oneOnce.after, after: oneTwice.after, bandAfter: oneTwice.band },
+        { hero: two, cause: 'roster-death', before: twoOnce.after, after: twoTwice.after, bandAfter: twoTwice.band },
       ],
     });
     const [first, second] = written.party.heroIds.map((heroId) => nameOf(written, heroId));
 
-    expect(read(written).home?.sentence).toBe(`At home: the Guild mourned ${first} and ${second}. Morale fell for 2 Heroes (−2 to −20).`);
-    expect(read(written).home?.heroes.map((hero) => hero.words)).toEqual(['Morale went from 40 to 20, low', 'Morale went from 2 to 0, wretched']);
+    expect(read(written).home?.sentence).toBe(`At home: the Guild mourned ${first} and ${second}. Morale fell for 2 Heroes (−${Math.min(...falls)} to −${Math.max(...falls)}).`);
+    expect(read(written).home?.heroes.map((hero) => hero.words)).toEqual([`Morale went from 40 to ${oneTwice.after}, ${oneTwice.band}`, `Morale went from 2 to ${twoTwice.after}, ${twoTwice.band}`]);
     expect(read(withReturn(base, { band: 'success', wealth: 10, xp: 5 })).home).toBeNull();
   });
 
@@ -266,11 +290,12 @@ describe('questReturn', () => {
         payload: { questId: makeId('quests', 9_001), partyId: makeId('parties', 9_001), guildId: guild.id, heroIds: [away], returnsOnTurn: 99_999 },
       }),
     );
+    const grief = grieved(40);
     const written = withReturn(sent, {
       band: 'fail',
       encounters: [{ outcome: 'failure', died: [0] }],
       deaths: [0],
-      morale: [{ hero: away, cause: 'roster-death', before: 40, after: 30, bandAfter: 'low' }],
+      morale: [{ hero: away, cause: 'roster-death', before: 40, after: grief.after, bandAfter: grief.band }],
     });
     const dead = nameOf(written, written.party.heroIds[0] as string);
 
@@ -419,7 +444,7 @@ describe('the entry reads its Hero lines without building the whole report (DL-1
     const written = withReturn(base, {
       band: 'fail',
       encounters: [{ outcome: 'success' }, { outcome: 'failure', injured: [1] }],
-      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2 }],
+      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2, encounterIndex: 1 }],
       injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 9999 }],
     });
     const key = { partyId: written.party.partyId, questId: written.party.questId };
@@ -486,7 +511,7 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
     const written = withReturn(base, {
       band: 'fail',
       encounters: [{ outcome: 'failure', injured: [1], died: [0] }],
-      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2 }],
+      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2, encounterIndex: 0 }],
       injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 9999 }],
       deaths: [0],
       loot: [{ definitionKey: 'whetstone', quantity: 1 }],

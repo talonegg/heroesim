@@ -397,6 +397,10 @@ const sentences: Sentences = {
     const { heroId, before, after, bandAfter } = event.payload;
     return say`${hero(event, heroId)}'s Morale went from ${before} to ${after}, ${bandAfter}.`;
   },
+  'hero.fatigue-changed': (event) => {
+    const { heroId, before, after, bandAfter } = event.payload;
+    return say`${hero(event, heroId)}'s Fatigue went from ${before} to ${after}, ${bandAfter}.`;
+  },
   'hero.healed': (event, content) => {
     const { heroId, typeKey, traitKey } = event.payload;
     const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
@@ -428,6 +432,13 @@ const sentences: Sentences = {
   'guild.improved': (event, content) => {
     const { guildId, facility, grade, improvementKey, cost } = event.payload;
     return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`;
+  },
+  // DL-287: a Captain named to an empty post, or in another's place, the post then locked until a date.
+  'guild.captain-named': (event, _content, calendar) => {
+    const { guildId, heroId, replacedId, lockedUntilTurn } = event.payload;
+    if (replacedId === null) return say`${called(event, guildId)} named ${hero(event, heroId)} its Captain.`;
+    const locked = lockedUntilTurn === null ? '' : say`; the post cannot change again before ${dateOfTurn(lockedUntilTurn, calendar)}`;
+    return say`${called(event, guildId)} named ${hero(event, heroId)} its Captain in place of ${hero(event, replacedId)}${locked}.`;
   },
   'hero.levelled': (event, content) => {
     // The Stats that rose, never the points Potential took: Potential is shown only as a hint.
@@ -504,8 +515,11 @@ const sentences: Sentences = {
         return say`${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
       case 'reroll':
         return say`${used} to try Encounter ${payload.encounterIndex + 1} again.`;
-      case 'heal':
-        return say`${used} on ${hero(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
+      case 'heal': {
+        // Spent at the Injury's Encounter (DL-285): it eases the Injury for the rest of the Quest, and shortens it unless it was at 1 Day.
+        const sooner = payload.days === 0 ? '' : `: it heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner`;
+        return say`${used} on ${hero(event, payload.heroId)} at Encounter ${payload.encounterIndex + 1}, easing their Injury${sooner}.`;
+      }
     }
   },
 };

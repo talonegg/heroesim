@@ -82,6 +82,8 @@ const guild: Guild = {
   foundedTurn: 0,
   guildmasterId,
   rosterIds: [heroId],
+  captainId: heroId,
+  captainChangedOnTurn: null,
   wealth: 500,
   fame: 3,
   belowFloorSince: null,
@@ -97,6 +99,7 @@ const rival: Guild = {
   name: 'The Grey Wardens',
   guildmasterId: rivalGuildmasterId,
   rosterIds: [],
+  captainId: null,
   controller: { kind: 'rival', disposition: 'steady' },
   regard: {},
 };
@@ -138,6 +141,7 @@ const hero: Hero = {
   level: 1,
   injury: { typeKey: 'broken-arm', healsOnTurn: 60 },
   morale: 60,
+  fatigue: 0,
   diedOnTurn: null,
   retiredOnTurn: null,
   transferredOnTurn: 21,
@@ -183,6 +187,7 @@ const party: Party = {
   heroIds: [heroId],
   departedOnTurn: 30,
   returnsOnTurn: 44,
+  fatigueAtDispatch: { [heroId]: 0 },
 };
 
 const offer: TransferOffer = {

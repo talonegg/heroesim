@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
+import { partyPool } from '../best-party.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Hero, HeroId, Holder, PartyId, Quest, QuestId, World, WorldDocument } from '../document.js';
@@ -54,8 +55,10 @@ function rejected(document: WorldDocument, request: DispatchRequest, under: Engi
 }
 
 describe('dispatch', () => {
-  test('sends the Party: a parties row, the Quest taken and off the Board, each Hero in the Party, quest.taken', () => {
+  test("sends the Party: a parties row recording each Hero's Fatigue, the Quest taken and off the Board, each Hero in the Party, quest.taken", () => {
     const { document, ids, rogue, mage } = built();
+    heroOf(document.world, rogue).fatigue = 37;
+    heroOf(document.world, mage).fatigue = 5.5;
     const questId = ids.offeredQuest;
     const quest = questOf(document.world, questId);
     const worldBefore = structuredClone(document.world);
@@ -76,6 +79,8 @@ describe('dispatch', () => {
       heroIds: [rogue, mage],
       departedOnTurn: fixtureTurn,
       returnsOnTurn,
+      // DL-282: the Quest clock reads each Encounter's Fatigue from it.
+      fatigueAtDispatch: { [rogue]: 37, [mage]: 5.5 },
     });
     expect(world.counters.parties).toBe(3);
     expect(questOf(world, questId)).toMatchObject({ status: 'taken', partyIds: [partyId] });
@@ -105,6 +110,24 @@ describe('dispatch', () => {
     expect(document.world).toEqual(worldBefore);
     expect(next.meta).toBe(document.meta);
     expect(next.history).toBe(document.history);
+  });
+
+  // DL-280: Fatigue is no Unavailability. A rest band keeps a Hero out of the Guild's pool, which its
+  // choosers read (`partyPool`, DL-286); the player may still send anyone free.
+  test("sends a Hero at or past the player's rest band, exhausted at the top of the scale, as any free Hero", () => {
+    const tiredDeps = testDeps({ rivalCount: 0, playerRestBand: 'tired' });
+    const { document, ids, rogue, mage } = built();
+    heroOf(document.world, rogue).fatigue = tiredDeps.config.fatigueMax;
+    heroOf(document.world, mage).fatigue = tiredDeps.config.fatigueBands.tired;
+    const pool = partyPool(document.world, document.world.guilds[ids.playerGuild] as Guild, tiredDeps).map((hero) => hero.id);
+    expect(pool).not.toContain(rogue);
+    expect(pool).not.toContain(mage);
+
+    const result = applyAction(document, { kind: 'dispatch', guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, mage] }, tiredDeps);
+
+    if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
+    expect(heroOf(result.document.world, rogue).partyId).not.toBeNull();
+    expect(heroOf(result.document.world, mage).partyId).not.toBeNull();
   });
 
   test('leaves a document the validator accepts: quest.partyIds and party.questId agree, as it checks', () => {

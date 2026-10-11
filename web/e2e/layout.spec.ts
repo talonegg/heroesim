@@ -891,7 +891,7 @@ test('the Board’s chances and what each Check reads, and the Party builder’s
     const board = await openView(page, 'Board');
     const quest = board.getByRole('article').first();
     await expect(quest.getByTestId('best-party')).toHaveText(
-      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your free Heroes meets its requirements\.)$/,
+      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your rested Heroes meets its requirements\.)$/,
     );
     await expectNoHorizontalOverflow(page, `the Board's cards, ${at}`);
 
@@ -930,7 +930,7 @@ test('the Board’s chances and what each Check reads, and the Party builder’s
 // width, in the light and the dark scheme. The Guildmaster's Old soldier raises the Warrior's Weaponry and
 // Mistrusts magic lowers the Mage's Arcana, so a Stat stands raised and one lowered. No sideways scroll of
 // the page and 44px targets; the Table scrolls in its own box, its Name pinned; on a wide screen the
-// Columns panel, on a phone the five tabs; and the green and the red at 4.5:1 or more on what is under them.
+// Columns panel, on a phone the six tabs; and the green and the red at 4.5:1 or more on what is under them.
 test("the Roster's Table, its Columns panel and its tabs, in the light and the dark scheme: no sideways scroll, 44px targets, the Table in its own box, and the green and red legible", async ({
   page,
 }) => {
@@ -977,11 +977,11 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
       const raised = table.locator('td.change--up').first();
       const lowered = table.locator('td.change--down').first();
       if (phone) {
-        // The five tabs, Hero first; no Columns panel.
+        // The six tabs, Hero first and State second (DL-289); no Columns panel.
         await expect(roster.getByRole('button', { name: 'Columns', exact: true })).toHaveCount(0);
         const tabs = roster.getByRole('tablist', { name: 'Columns of the Table' });
-        await expect(tabs.getByRole('tab')).toHaveText(['Hero', 'Physical', 'Mental', 'Magical', 'Social']);
-        for (const tab of ['Hero', 'Physical', 'Mental', 'Magical', 'Social']) {
+        await expect(tabs.getByRole('tab')).toHaveText(['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']);
+        for (const tab of ['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']) {
           await tabs.getByRole('tab', { name: tab }).click();
           await expect(table.getByRole('columnheader').first()).toHaveText('Name');
           await expectNoHorizontalOverflow(page, `the Table's ${tab} tab, ${at}`);
@@ -998,6 +998,17 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
         }
         await tabs.getByRole('tab', { name: 'Hero' }).click();
       } else {
+        // The State group right after the Hero's short columns, then the areas, the long Where, Traits and Items
+        // last (DL-289, the owner's answer (a) to Q21); at 1280px Morale and Fatigue show without a scroll.
+        const headings = await table.getByRole('columnheader').allTextContents();
+        expect(headings.slice(0, 6).map((heading) => heading.trim()), `the Table's first columns, ${at}`).toEqual(['Name', 'Class', 'Level', 'Age', 'Morale', 'Fatigue']);
+        expect(headings.slice(-3).map((heading) => heading.trim()), `the Table's last columns, ${at}`).toEqual(['Where', 'Traits', 'Items']);
+        if (width >= 1280) {
+          const view = await box.boundingBox();
+          const fatigue = await table.getByRole('columnheader', { name: 'Fatigue' }).boundingBox();
+          if (view === null || fatigue === null) throw new Error(`the Table not drawn, ${at}`);
+          expect(fatigue.x + fatigue.width, `Fatigue within the box without a scroll, ${at}`).toBeLessThanOrEqual(view.x + view.width);
+        }
         await expect(raised).toHaveText(/^\d+ ▲/);
         await expect(lowered).toHaveText(/^\d+ ▼/);
         expect(await raised.evaluate(textContrast), `the green on its ground, ${at}`).toBeGreaterThanOrEqual(4.5);
@@ -1005,7 +1016,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
         // The Columns panel open, a group hidden and every column shown again.
         await roster.getByRole('button', { name: 'Columns', exact: true }).click();
         const panel = roster.getByRole('group', { name: 'Columns' });
-        await expect(panel.getByRole('checkbox')).toHaveCount(27);
+        await expect(panel.getByRole('checkbox')).toHaveCount(28);
         await expectNoHorizontalOverflow(page, `the Columns panel, ${at}`);
         await expectTargets(page, `the Columns panel, ${at}`);
         await page.screenshot({ path: test.info().outputPath(`roster-table-${scheme}-${width}.png`), fullPage: true });
@@ -1090,7 +1101,7 @@ test("the Roster's Unique Items: the picture on a tile and the gold glow on its 
       await expect(table.getByTestId('item-picture')).toHaveCount(0);
       await expect(row.locator('[data-column="items"]')).toContainText('The Lantern of Stannary');
       const box = roster.locator('.roster-table-wrap');
-      for (const tab of phone ? ['Hero', 'Physical', 'Mental', 'Magical', 'Social'] : [null]) {
+      for (const tab of phone ? ['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social'] : [null]) {
         if (tab !== null) await roster.getByRole('tablist', { name: 'Columns of the Table' }).getByRole('tab', { name: tab }).click();
         const where = tab === null ? at : `${tab} tab, ${at}`;
         await expect(row).toHaveCount(1);

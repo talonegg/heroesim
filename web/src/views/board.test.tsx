@@ -150,7 +150,7 @@ describe('a Quest card', () => {
   });
 
   // DL-148 items 15 and 17: the Party the engine would send from the free Heroes, and a word for its chance.
-  test('says "Your best Party:" with a chance word and who, or that no Party of the free Heroes meets the requirements', () => {
+  test('says "Your best Party:" with a chance word and who, or that no Party of the rested Heroes meets the requirements', () => {
     const state = changed(madeToOrder(), (document) => {
       const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
       second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
@@ -163,7 +163,7 @@ describe('a Quest card', () => {
     expect(best.querySelector('strong')?.textContent).toMatch(/^(Hopeless|Unlikely|Even|Likely|Near certain)$/);
     // The Quest needs a Hero with Herbalism, whom only the last Hero has: they are of the Party.
     expect(best.textContent).toContain(heroesOf(state).at(-1)?.name ?? '');
-    expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your free Heroes meets its requirements.');
+    expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your rested Heroes meets its requirements.');
   });
 
   // DL-264: a Quest the player's Guild may not take, its Tier's Fame minimum above the Guild's Fame.
@@ -406,7 +406,7 @@ describe('the Party builder', () => {
       const hero = document.world.heroes[guild?.rosterIds[1] ?? ('' as HeroId)] as Hero;
       const questId = document.world.board[5] as QuestId;
       const partyId = 'party-000099' as PartyId;
-      document.world.parties[partyId] = { id: partyId, questId, guildId: guild?.id as GuildId, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn: 17 };
+      document.world.parties[partyId] = { id: partyId, questId, guildId: guild?.id as GuildId, heroIds: [hero.id], departedOnTurn: 0, returnsOnTurn: 17, fatigueAtDispatch: { [hero.id]: 0 } };
       hero.partyId = partyId;
       name = hero.name;
     });
@@ -451,7 +451,7 @@ describe('the Party builder', () => {
       // The first to join is injured until Turn 20, the second away until Turn 17, the third injured until Turn 17.
       a.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
       const partyId = 'party-000099' as PartyId;
-      document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17 };
+      document.world.parties[partyId] = { id: partyId, questId: document.world.board[5] as QuestId, guildId: player.id, heroIds: [b.id], departedOnTurn: 0, returnsOnTurn: 17, fatigueAtDispatch: { [b.id]: 0 } };
       b.partyId = partyId;
       c.injury = { typeKey: 'deep-cut', healsOnTurn: 17 };
       const [early, late] = [b, c].sort(order) as [Hero, Hero];
@@ -561,8 +561,8 @@ describe('the Party builder', () => {
   test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (DL-148 item 12)", () => {
     const state = changed(madeToOrder(), (document, player) => {
       const [first, second] = player.rosterIds;
-      (document.world.heroes[first as HeroId] as Hero).morale = 10;
-      (document.world.heroes[second as HeroId] as Hero).morale = 60;
+      (document.world.heroes[first as HeroId] as Hero).morale = document.meta.config.moraleMin;
+      (document.world.heroes[second as HeroId] as Hero).morale = document.meta.config.moraleBaseline;
     });
     render(<App initial={state} />);
     const form = chooseForFirst();
@@ -575,10 +575,11 @@ describe('the Party builder', () => {
     expect(within(form).getByRole('heading', { level: 4, name: 'Morale' })).toBeDefined();
     expect(within(form).getByTestId('party-morale').textContent).toBe('Makes no difference.');
 
-    // A wretched Hero beside a steady one: a mean form of 0.925, below the low band's 0.93.
+    // A Hero at the bottom of the scale beside one at the baseline: a mean form above Morale's
+    // factor at the low band's start (DL-283).
     fireEvent.click(within(first).getByRole('checkbox'));
     const line = within(form).getByTestId('party-morale').textContent ?? '';
-    expect(line).toBe('Lowers the odds badly.');
+    expect(line).toBe('Lowers the odds a little.');
     for (const hero of heroesOf(state).slice(0, 2)) expect(line).not.toContain(hero.name);
   });
 
@@ -761,5 +762,80 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     const form = chooseForFirst();
     expect(ticked(form).some(Boolean)).toBe(false);
     expect(within(form).queryByRole('spinbutton')).toBeNull();
+  });
+});
+
+// DL-289: the builder says each Hero’s Fatigue by its band, marks the Captain, and names what
+// would relieve the hurt; the Board’s sentence for no Party says rested, of the Heroes a rest band leaves.
+describe('the Party builder’s Fatigue, Captain and relief (DL-289)', () => {
+  /** The name of a row's Hero, without the words a screen reader reads after a Captain's. */
+  const plain = (row: HTMLElement): string => (row.querySelector('.party-row__name')?.textContent ?? '').replace(/, Captain$/, '');
+  const bands = documentOf(started()).meta.config.fatigueBands;
+
+  test('shows each Hero’s Fatigue band on their row, never the figure, the tone of the band, and no Morale', () => {
+    let names: string[] = [];
+    const state = changed(madeToOrder(), (document, player) => {
+      names = player.rosterIds.map((id) => (document.world.heroes[id] as Hero).name);
+      [0, bands.weary, bands.tired, bands.exhausted].forEach((fatigue, index) => ((document.world.heroes[player.rosterIds[index] as HeroId] as Hero).fatigue = fatigue));
+    });
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+
+    const chipOn = (name: string): HTMLElement => within(rowNamed(form, name)).getByText(/^Fatigue (fresh|weary|tired|exhausted)$/).closest('.chip') as HTMLElement;
+    expect(chipOn(names[0] as string).textContent).toBe('Fatigue fresh');
+    expect(chipOn(names[1] as string).textContent).toBe('Fatigue weary');
+    expect(chipOn(names[2] as string).className).toBe('chip chip--warn');
+    expect(chipOn(names[3] as string).className).toBe('chip chip--bad');
+    expect(chipOn(names[3] as string).querySelector('svg')).not.toBeNull();
+    for (const row of rows(form)) expect(row.textContent).not.toMatch(/Morale|\b\d+, (fresh|weary|tired|exhausted)/);
+  });
+
+  test('marks the Captain’s row with the mark before their Class’s and their post read after their name, and no other', () => {
+    let captain = '';
+    const state = changed(madeToOrder(), (document, player) => {
+      player.captainId = player.rosterIds[2] ?? null;
+      captain = (document.world.heroes[player.rosterIds[2] as HeroId] as Hero).name;
+    });
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+
+    const marked = rows(form).filter((row) => row.querySelector('.captain-mark') !== null);
+    expect(marked.map(plain)).toEqual([captain]);
+    expect(marked[0]?.querySelector('.party-row__name')?.textContent).toBe(`${captain}, Captain`);
+    expect(within(marked[0] as HTMLElement).getByRole('checkbox', { name: new RegExp(`^${captain}, Captain `) })).toBeDefined();
+  });
+
+  test('names what relieves the hurt for the Party chosen: a Healer among it, the heal Items carried, or that there is none', () => {
+    const state = holding(madeToOrder(), 'healing-draught', 2);
+    const heroes = heroesOf(state);
+    const healer = heroes.find((hero) => hero.classKey === 'healer') as Hero;
+    const other = heroes.find((hero) => hero.classKey !== 'healer') as Hero;
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+    const relief = (): string[] => Array.from(within(form).getByTestId('relief').querySelectorAll('li')).map((line) => line.textContent ?? '');
+
+    // No one chosen: nothing to relieve.
+    expect(within(form).queryByTestId('relief')).toBeNull();
+    fireEvent.click(within(rowNamed(form, other.name)).getByRole('checkbox'));
+    expect(within(form).getByRole('heading', { level: 4, name: 'Relief from the hurt' })).toBeDefined();
+    expect(relief()).toEqual(['Healer in the Party: none.', 'Heal Items carried: none.']);
+
+    fireEvent.click(within(rowNamed(form, healer.name)).getByRole('checkbox'));
+    fireEvent.click(within(form).getByRole('button', { name: /^Healing draught, 2 held: .+: one more$/ }));
+    expect(relief()).toEqual([
+      `Healer in the Party: ${healer.name}, who eases the hurt of the others.`,
+      'Heal Items carried: Healing draught ×1, spent at an Injury taken on the Quest.',
+    ]);
+  });
+
+  test('says there is no best Party of the rested Heroes, not of the free ones', () => {
+    const state = changed(madeToOrder(), (document) => {
+      const second = document.world.quests[document.world.board[1] as QuestId] as Quest;
+      second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
+    });
+    render(<App initial={state} />);
+    const [, second] = within(section('Board')).getAllByRole('article') as [HTMLElement, HTMLElement];
+
+    expect(within(second).getByTestId('best-party').textContent).toBe('No Party of your rested Heroes meets its requirements.');
   });
 });

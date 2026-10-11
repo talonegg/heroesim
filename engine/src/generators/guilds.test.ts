@@ -31,6 +31,8 @@ describe('generateGuild', () => {
       foundedTurn: 5,
       wealth: 450,
       fame: deps.config.foundingFame,
+      captainId: null,
+      captainChangedOnTurn: null,
       belowFloorSince: null,
       foldedOnTurn: null,
       hall: { infirmary: 0, trainingYard: 0, quarters: 0 },

@@ -149,6 +149,26 @@ describe('check', () => {
     expect(Math.max(...results.map((it) => it.roll))).toBeGreaterThan(cap * 1.15);
   });
 
+  // DL-284's verification: formDecided rolls the raw Stats with the same bonus the formed roll took, so
+  // only form, not the bonus, can stand between the two.
+  test('sets formDecided from the raw Stats carrying the same bonus as the formed roll', () => {
+    const { world, heroes } = party('decided-bonus', 1);
+    const [hero] = heroes as [Hero];
+    hero.traits = [];
+    const tiring = testDeps({ checkVariance: 0, fatigueScaling: 0.5, fatigueMax: 100 });
+    hero.morale = tiring.config.moraleBaseline;
+    const strength = encounterWith({ demands: [['strength', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 1 });
+    const at = (bonus: number) =>
+      checkOf(queryParty(heroes, world, tiring, { fatigueByHero: { [hero.id]: 100 } }), combat, strength, { difficulty: 10 }, world, tiring, bonus);
+
+    // Strength 8, formed to 4 at full Fatigue: with a bonus of 4 the formed roll is 8 and the raw 12,
+    // either side of the target, 10.
+    expect(at(4)).toMatchObject({ capability: 8, roll: 8, outcome: 'failure', formDecided: 'lowered' });
+    // With no bonus both fall short, and form decided nothing.
+    expect(at(0)).toMatchObject({ capability: 4, outcome: 'failure' });
+    expect(at(0)).not.toHaveProperty('formDecided');
+  });
+
   test('draws from the quests stream alone', () => {
     const { world, heroes } = party('streams', 2);
     const before = structuredClone(world.rng) as Record<string, unknown>;
@@ -167,7 +187,10 @@ describe('check', () => {
 // selector, so a Guildmaster's `classStatBonus` Trait reaches the Check, and so Quest outcomes, for
 // that Guild's Heroes of that Class and no other, every Guild alike (ADR-0002).
 describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, DL-44)', () => {
-  /** The fixture world, every Guildmaster without a Trait, and a Warrior and a Mage on each Roster, every Stat 8. */
+  /**
+   * The fixture world, every Guildmaster without a Trait, and a Warrior and a Mage on each Roster, every
+   * Stat 8, at the Morale baseline, where their form is 1 (DL-283).
+   */
   function traitScene() {
     const { world } = buildDocument({ rivals: 1, rosterSize: 2 }).document;
     for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
@@ -177,6 +200,7 @@ describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, D
         hero.classKey = classKey;
         hero.stats = Object.fromEntries(heroStatKeys.map((key) => [key, 8]));
         hero.skills = {};
+        hero.morale = deps.config.moraleBaseline;
       }
       return { guild, warrior, mage };
     });
@@ -242,7 +266,9 @@ describe.each(['check.ts', 'query.ts', 'form.ts', 'query/operators.ts', 'query/p
 });
 
 describe('query.ts', () => {
-  test("imports as values only effectiveStats, ageOf and form's two, and otherwise only types: content's, the document's and the config's", () => {
+  // The Captain's scale (DL-287) is the one value read beyond the member's own: which of the Party its
+  // Guild names Captain, and their captaincy Stat's scale.
+  test("imports as values only effectiveStats, ageOf, the Captain's scale and the form module's four, and otherwise only types: content's, the document's and the config's", () => {
     const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
     const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
       from,
@@ -251,11 +277,32 @@ describe('query.ts', () => {
     }));
 
     expect(imports.filter((it) => !it.typeOnly)).toEqual([
+      { from: '../captain.js', names: ['captaincyScale'], typeOnly: false },
       { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
       { from: '../time.js', names: ['ageOf'], typeOnly: false },
-      { from: './form.js', names: ['formOf', 'workingMorale'], typeOnly: false },
+      { from: './form.js', names: ['formedStats', 'hurtRelief', 'relievesHurt', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
+  });
+});
+
+// The form module (DL-284) reads the configuration, content's Stat areas and the Stats it is given,
+// and nothing else: no value of any module, so the form path reads no rule it is not handed.
+describe('form.ts', () => {
+  test("imports only types: the config's, content's and the document's", () => {
+    const source = readFileSync(fileURLToPath(new URL('./form.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
+      from,
+      names: names.split(',').map((name) => name.trim()).filter((name) => name !== ''),
+      typeOnly: type !== undefined,
+    }));
+
+    expect(imports).toEqual([
+      { from: '../config.js', names: ['GameConfig'], typeOnly: true },
+      { from: '../content-types.js', names: ['ContentSet', 'StatArea'], typeOnly: true },
+      { from: '../document.js', names: ['StatValues'], typeOnly: true },
+    ]);
+    expect(source).not.toMatch(/^import (?!type )/m);
   });
 });
 

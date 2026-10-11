@@ -15,7 +15,7 @@ import {
   type RegardBand,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised } from '@heroesim/words';
+import { capitalised, fatigueBandNames } from '@heroesim/words';
 import { addInto, type Counter, type Gatherer, type ReportContext } from './counter.js';
 import {
   consumableCounters,
@@ -46,6 +46,7 @@ import {
   noBands,
   noConsumables,
   noDifficulty,
+  noDispatchFatigue,
   noDisposition,
   noEncounters,
   noFameGate,
@@ -56,13 +57,18 @@ import {
   noPartySize,
   noTierSide,
   noPortraits,
+  noRecovery,
+  noRelief,
+  noRestKept,
   noPurchases,
   noSynergies,
   noTransfers,
   noWealth,
+  observeDispatches,
   observeFameGate,
   observeHighestLevels,
   observeHeroes,
+  observeRestKept,
   observeSave,
   observeWorld,
   offerCounters,
@@ -81,6 +87,8 @@ import {
   questingHeroes,
   questsResolvedByController,
   questsTakenByController,
+  recoveryCounters,
+  reliefCounters,
   regardSnapshot,
   retirementAgeCounters,
   rivalFoldCounters,
@@ -101,6 +109,7 @@ import {
   type ByController,
   type ControllerKind,
   type DifficultyTally,
+  type DispatchFatigue,
   type EncounterCounts,
   type FameGate,
   type FloorTally,
@@ -114,6 +123,8 @@ import {
   type PartySizeTally,
   type PortraitTally,
   type RegardSnapshot,
+  type RecoveryTally,
+  type RestKept,
   type RivalAfternoons,
   type RivalAtYearStart,
   type RivalTransferWay,
@@ -189,6 +200,10 @@ export interface GameTotals {
   transfersShort: number;
   /** As each year begins, over the games in play then: the Board's top Tier, index k counting the games at Tier k + 1, and each side's best fours (DL-271). */
   tierUnlocks: ({ games: number; top: number[] } & Pick<TierUnlocks, 'sides'>)[];
+  /** The Parties sent by the Fatigue of their Heroes as they set out, and whether the Captain went, over the games (DL-290). */
+  dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
+  /** The free Heroes a rest band kept out of their Guild's pool, sampled once a Day, over the games (DL-290). */
+  restKept: Record<ControllerKind, RestKept>;
 }
 
 /** A side's highest Levels by year, over the games: index k by the end of year k + 1. */
@@ -2082,6 +2097,96 @@ const worlds: Declared<WorldSize[], WorldYear[]> = {
   },
 };
 
+// ── Fatigue's lines (DL-290) ──────────────────────────────────────────────────────
+
+const dispatchFatigue: Declared<GameObservations['dispatchFatigue'], SweepTotals['dispatchFatigue']> = {
+  key: 'dispatchFatigue',
+  kind: 'play',
+  observe() {
+    const taken = { player: noDispatchFatigue(), rival: noDispatchFatigue() };
+    const seen = new Set<string>();
+    return { advanced: ({ after, deps }) => observeDispatches(taken, seen, after.world, deps.config), value: () => taken };
+  },
+  zero: () => ({ player: noDispatchFatigue(), rival: noDispatchFatigue() }),
+  section: 'fatigue',
+  lines(totals: SweepTotals) {
+    const [sent, rest, recovery, relief] = [totals.dispatchFatigue, totals.restKept, totals.fatigueRecovery, totals.hurtRelief];
+    const row = (label: string, cell: (kind: ControllerKind) => string): string[] => [label, ...controllerKinds.map(cell)];
+    const share = (n: number, of: number): string => `${whole(n)} (${percent(n, of)})`;
+    // `before` says what ends the recovery, for the row of those sent again first (DL-291).
+    const recoveryRows = (below: string, before: string, pick: (kind: ControllerKind) => RecoveryTally): string[][] => [
+      row(`Days recovering to ${below}, the mean of those that ended`, (kind) => `${ratio(pick(kind).doneDays, pick(kind).done)} (over ${whole(pick(kind).done)})`),
+      row('… recoveries begun at a homecoming', (kind) => whole(pick(kind).spells)),
+      row(`… sent again before ${before}`, (kind) => `${share(pick(kind).sent, pick(kind).spells)}, after ${ratio(pick(kind).sentDays, pick(kind).sent)} Days`),
+      row('… gone from every Roster first, retired or at a fold', (kind) => share(pick(kind).left, pick(kind).spells)),
+      row('… still recovering as the game stopped', (kind) => whole(pick(kind).open)),
+    ];
+    return [
+      "Fatigue's lines (DL-290), the player's Guild and the Rivals apart. A Party is read as it set out: its Heroes' `fatigueAtDispatch` " +
+        "by `fatigueBand`, and whether its Guild's Captain is among them. The pool is sampled once a Day in the world each Guild sends " +
+        "its Parties from, the player's on a night's Turn, before the policy sends the Heroes the night brought home, and a Rival's on a morning's, " +
+        "which its afternoon reads: the free Heroes (`availableHeroes`) and those `partyPool` leaves out. " +
+        "A recovery runs from a Hero's homecoming, alive, in a band at or past the one it ends below, to the night " +
+        'a crossing takes their Fatigue below it, or is cut short when they are sent again or leave every Roster; its Days are counted from the return. ' +
+        'Relief is classed at each Injury taken on a Quest (a Healer of the Party who had not died by then, with an Encounter after it to ease; ' +
+        'a heal Item spent on the Hero at that Encounter).',
+      '',
+      markdownTable(
+        ['Line', ...controllerKinds.map(kindLabel)],
+        [
+          row('Parties sent', (kind) => whole(sent[kind].parties)),
+          row('Quests sent with a Hero tired or worse', (kind) => share(sent[kind].tired, sent[kind].parties)),
+          ...fatigueBandNames.map((band) => row(`… the most tired Hero ${band}`, (kind) => share(sent[kind].byWorstBand[band], sent[kind].parties))),
+          row('Mean Fatigue at dispatch, a Hero', (kind) => ratio(sent[kind].fatigue, sent[kind].heroes, 1)),
+          row('Free Heroes a rest band kept home', (kind) => `${share(rest[kind].kept, rest[kind].free)} of ${whole(rest[kind].free)} free`),
+          row('Guild-Days a rest band kept at least one Hero home', (kind) => share(rest[kind].guildDaysKept, rest[kind].guildDays)),
+          ...recoveryRows('below the rest band', 'they fell below it', (kind) => recovery[kind].toRest),
+          ...recoveryRows('fresh', 'they were fresh', (kind) => recovery[kind].toFresh),
+          row('Quests a Captain led', (kind) => share(sent[kind].captained, sent[kind].parties)),
+          row('… of the Parties sent while a Captain was named', (kind) => share(sent[kind].captained, sent[kind].captainNamed)),
+          row('Injuries taken on a Quest', (kind) => whole(relief[kind].injuries)),
+          row('… relieved by a Healer alone', (kind) => share(relief[kind].healer, relief[kind].injuries)),
+          row('… by a heal Item alone', (kind) => share(relief[kind].item, relief[kind].injuries)),
+          row('… by both', (kind) => share(relief[kind].both, relief[kind].injuries)),
+          row('… by neither', (kind) => share(relief[kind].neither, relief[kind].injuries)),
+          row('… at the last Encounter reached, with none after it to ease', (kind) => share(relief[kind].atLast, relief[kind].injuries)),
+        ],
+        ['left', ...controllerKinds.map(() => 'right' as const)],
+      ),
+      '',
+    ];
+  },
+};
+
+const restKept: Declared<GameObservations['restKept'], SweepTotals['restKept']> = {
+  key: 'restKept',
+  kind: 'play',
+  observe() {
+    const taken = { player: noRestKept(), rival: noRestKept() };
+    return {
+      beforeChoices: ({ document, deps }) => {
+        if (document.world.ended === null) observeRestKept(taken, document.world, deps);
+      },
+      value: () => taken,
+    };
+  },
+  zero: () => ({ player: noRestKept(), rival: noRestKept() }),
+};
+
+const fatigueRecovery: Declared<GameCounters['fatigueRecovery'], SweepTotals['fatigueRecovery']> = {
+  key: 'fatigueRecovery',
+  kind: 'play',
+  read: (document, deps) => recoveryCounters(document, deps),
+  zero: () => ({ player: noRecovery(), rival: noRecovery() }),
+};
+
+const hurtRelief: Declared<GameCounters['hurtRelief'], SweepTotals['hurtRelief']> = {
+  key: 'hurtRelief',
+  kind: 'play',
+  read: (document, deps) => reliefCounters(document, deps),
+  zero: () => ({ player: noRelief(), rival: noRelief() }),
+};
+
 /**
  * The core's counters (DL-239), in the play report's order, which is the totals' order: each section's
  * lines in it, and the Summary's rows. A counter shown in another's table (the Heroes table's, the
@@ -2155,6 +2260,10 @@ export const gameCounters: readonly Counter[] = [
   moduleEvents,
   moduleEffects,
   portraits,
+  dispatchFatigue,
+  restKept,
+  fatigueRecovery,
+  hurtRelief,
   heroes,
   saves,
   worlds,

@@ -2,8 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, PortraitAppearance } from '../content-types.js';
-import { bestParties } from '../best-party.js';
-import { availableHeroes } from '../controllers/rival.js';
+import { bestParties, partyPool } from '../best-party.js';
 import { createWorld } from '../create.js';
 import {
   takeId,
@@ -25,7 +24,7 @@ import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
 import { nightOf, retirementTurn, retiresOn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
-import { ofType, plannedStreams, playWith, streamsOutOfPlace, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
+import { ofType, plannedStreams, playWith, streamsOutOfPlace, testContent, testDeps, thriftyRivals, withCaptaincy, withDispositions, withValid } from '../world.test-support.js';
 import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
@@ -547,6 +546,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       heroIds: members,
       departedOnTurn: 0,
       returnsOnTurn: nightOf(3),
+      fatigueAtDispatch: Object.fromEntries(members.map((id) => [id, 0])),
     };
     for (const heroId of members) {
       const hero = world.heroes[heroId];
@@ -593,6 +593,21 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
         else expect(rng[name], name).toEqual(before[name]);
       }
     }
+  });
+
+  test('a fold leaves its post of Captain empty with its Roster (DL-287)', () => {
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 }, withCaptaincy(withDispositions(thriftyRivals)));
+    stillRivalControllers();
+    const start = created('fold-captain', deps);
+    const rival = firstRival(start.world);
+    arrange.bankruptcy(start.world, rival, deps);
+    rival.captainId = rival.rosterIds[0] ?? null;
+    expect(rival.captainId).not.toBeNull();
+
+    // playTo holds the document to the validator, whose captain-off-roster a Captain left behind fails.
+    const { world } = playTo(start, nightOf(0), deps).document;
+
+    expect(guildOf(world, rival.id)).toMatchObject({ foldedOnTurn: nightOf(0), rosterIds: [], captainId: null });
   });
 });
 
@@ -926,7 +941,7 @@ describe("a fold's one order (DL-54)", () => {
     // A Party in flight, its first member wearing a unique Item and common gear.
     const staffing = (questId: QuestId) => {
       const quest = world.quests[questId];
-      const heroIds = quest === undefined ? null : bestParties(world, rival, deps).party(quest, availableHeroes(world, rival))?.heroIds ?? null;
+      const heroIds = quest === undefined ? null : bestParties(world, rival, deps).party(quest, partyPool(world, rival, deps))?.heroIds ?? null;
       return quest === undefined || heroIds === null ? [] : [{ quest, heroIds }];
     };
     const [staffed] = world.board.flatMap(staffing);

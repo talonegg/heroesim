@@ -2,7 +2,9 @@
 // (`resolveQuest`) where no one falls. Each sample is a Party and a Quest drawn from its own seed:
 //
 // - a world created from the core content and `defaultConfig`, and of the player's Roster, one to four
-//   Heroes drawn, each set to a Morale drawn from 0 to 100, so that every band's form comes up;
+//   Heroes drawn, each set to a Morale drawn from 0 to 100 and a Fatigue drawn from 0 to `fatigueMax`,
+//   the Fatigue from a stream of its own (`<sample>/fatigue`) so that the rest of the sample is drawn
+//   as before it, and the whole of Morale's line and of Fatigue's factors come up (DL-284);
 // - a Quest of difficulty 10 to 100 and one to five Encounters, each the core's or one written for the
 //   sample: one to four Checks, each scored by a Query of every shape the core's and S10's content
 //   writes (sums, the best of a Class, weightings, rankings, arithmetic, a raw count against a flat),
@@ -15,7 +17,8 @@
 // minimum, DL-264) and the world advanced, every phase played, to the afternoon before the night it
 // comes home: the Quest lasts its Tier's Days (DL-262), so each Hero's
 // Morale has drifted toward their baseline, their Regard decayed, before the resolver meets them, as
-// `questsConclude` would meet them that night (v1.1.4-S5's verification). The Rivals play their own
+// `questsConclude` would meet them that night (v1.1.4-S5's verification), and each Encounter meets
+// them at their Fatigue on its Day, from the Fatigue they set out with (the Quest clock, DL-284). The Rivals play their own
 // Guilds meanwhile, and the player's Guild, which no policy plays here, does nothing.
 //
 // No one falls: every Encounter's consequences are stripped of Injuries, Deaths and Morale, the three
@@ -52,7 +55,6 @@ import {
   encounterKinds,
   estimateQuest,
   fameRefusal,
-  moraleBand,
   playerGuild,
   queryParty,
   questBands,
@@ -117,8 +119,8 @@ export interface Sample {
   /** Its Encounters of more than one Check. */
   several: number;
   carried: number;
-  /** Its Heroes whose Morale band moved between setting out and the night home. */
-  bandsMoved: number;
+  /** Its Heroes whose Morale moved between setting out and the night home: each Morale moves form (DL-283). */
+  moraleMoved: number;
   /** Its Encounters carrying a Morale consequence in the second measure. */
   moraleEncounters: number;
   /** Each chance against the resolver's rate with no one falling: Injuries, Deaths and Morale taken out. */
@@ -177,8 +179,8 @@ function without(content: ContentSet, kinds: readonly Consequence['kind'][]): Co
 /**
  * A sample's Party and Quest: the estimate made as the Party was about to be sent; the world as the
  * resolver meets it on the night the Party comes home, its Turn that night's; the Quest and the Party
- * sent, carrying `carried`; the content they meet; and how many of the Heroes' Morale bands moved
- * between setting out and that night.
+ * sent, carrying `carried`; the content they meet; and how many of the Heroes' Morale moved between
+ * setting out and that night.
  */
 export interface Drawn {
   estimate: QuestEstimate;
@@ -188,7 +190,7 @@ export interface Drawn {
   party: Party;
   carried: { definitionKey: string; quantity: number }[];
   deps: EngineDeps;
-  bandsMoved: number;
+  moraleMoved: number;
 }
 
 /** Draws the sample `seed` (see the file's head) under `deps`, whose content is already `harmless`. */
@@ -208,6 +210,8 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
     if (!heroes.includes(hero)) heroes.push(hero);
   }
   for (const hero of heroes) hero.morale = below(101);
+  const tire = drawer(`${seed}/fatigue`);
+  for (const hero of heroes) hero.fatigue = Math.floor(tire() * (deps.config.fatigueMax + 1));
 
   const difficulty = 10 + below(91);
   const statKeys = Object.keys(content.stats).filter((key) => content.stats[key]?.owner === 'hero');
@@ -264,7 +268,7 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   for (const { definitionKey, quantity } of carried) addStack(world, definitionKey, quantity, { kind: 'guild', id: guild.id });
   const estimate = estimateQuest(world, world.quests[questId] as Quest, heroes, sampled, carried);
   if (estimate === null) throw new Error(`${seed}: the Quest has no estimate`);
-  const bandsAtFirst = heroes.map((hero) => moraleBand(hero.morale, deps.config));
+  const moraleAtFirst = heroes.map((hero) => hero.morale);
 
   // Sent, and played to the afternoon before the night it comes home. The probe measures the estimate,
   // not whether the Guild may take the Quest, so its Fame is raised to the Tier's minimum (DL-264).
@@ -277,8 +281,8 @@ export function drawSample(seed: string, deps: EngineDeps): Drawn {
   while (document.world.turn < party.returnsOnTurn - 1) document = advance(document, sampled).document;
   const home = structuredClone(document.world);
   home.turn = party.returnsOnTurn;
-  const bandsMoved = heroes.filter((hero, at) => moraleBand((home.heroes[hero.id] as Hero).morale, deps.config) !== bandsAtFirst[at]).length;
-  return { estimate, world: home, heroes: heroes.length, quest: home.quests[questId] as Quest, party, carried, deps: sampled, bandsMoved };
+  const moraleMoved = heroes.filter((hero, at) => (home.heroes[hero.id] as Hero).morale !== moraleAtFirst[at]).length;
+  return { estimate, world: home, heroes: heroes.length, quest: home.quests[questId] as Quest, party, carried, deps: sampled, moraleMoved };
 }
 
 /**
@@ -332,7 +336,7 @@ function formula(keys: readonly string[], draw: () => number): PassFormula {
  * `withMorale` (`moraleIn`), and compares each chance its estimate gives with both rates.
  */
 export function compareSample(seed: string, drawn: Drawn, seeds: readonly (readonly [number, number, number, number])[], withMorale: EngineDeps): Sample {
-  const { estimate, heroes, quest, carried, deps, bandsMoved } = drawn;
+  const { estimate, heroes, quest, carried, deps, moraleMoved } = drawn;
   const counts = quest.encounterKeys.map((key) => deps.content.encounters[key]?.checks.length ?? 0);
   const checks = counts.reduce((total, count) => total + count, 0);
   const moraleEncounters = quest.encounterKeys.filter((key) => {
@@ -346,7 +350,7 @@ export function compareSample(seed: string, drawn: Drawn, seeds: readonly (reado
     checks,
     several: counts.filter((count) => count > 1).length,
     carried: carried.length,
-    bandsMoved,
+    moraleMoved,
     moraleEncounters,
     compared: measure(seed, drawn, seeds, deps),
     moraleIn: measure(seed, drawn, seeds, withMorale),
@@ -498,7 +502,7 @@ export function estimateReport(
     `# The chance estimate against the resolver (v1.1.4-S5, DL-156; v1.1.5-S7, DL-173)`,
     '',
     `Run ${startedAt.toISOString()} on ${machine.cpu} (${machine.cores} cores), Node ${machine.node}, in ${fixed(seconds, 1)} s.`,
-    `${whole(samples.length)} samples × ${whole(runs)} seeds; ${whole(count((it) => it.encounters))} Encounters of ${whole(count((it) => it.checks))} Checks, ${whole(count((it) => it.several))} of them of several; ${whole(samples.filter((it) => it.carried > 0).length)} Parties carrying consumables; ${whole(count((it) => it.bandsMoved))} Heroes in ${whole(samples.filter((it) => it.bandsMoved > 0).length)} Parties whose Morale band moved between setting out and the night home. Each sample is measured twice, on the same seeds and against the same estimate.`,
+    `${whole(samples.length)} samples × ${whole(runs)} seeds; ${whole(count((it) => it.encounters))} Encounters of ${whole(count((it) => it.checks))} Checks, ${whole(count((it) => it.several))} of them of several; ${whole(samples.filter((it) => it.carried > 0).length)} Parties carrying consumables; ${whole(count((it) => it.moraleMoved))} Heroes in ${whole(samples.filter((it) => it.moraleMoved > 0).length)} Parties whose Morale moved between setting out and the night home. Each sample is measured twice, on the same seeds and against the same estimate.`,
     '',
     ...section('compared', 'No one falls', 'Injuries, Deaths and Morale are taken out of every Encounter. Every chance is held within the limit.', estimateTolerance, 'all'),
     '',

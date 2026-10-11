@@ -39,6 +39,7 @@ import { loadContent } from '@heroesim/content/node';
 import { heroReading, playerReading, readableSeed, rowOf } from '@heroesim/words';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
+import { nameCaptain } from './commands/captain.js';
 import { equipGear, unequipGear } from './commands/equip.js';
 import { buyItems, renderMarket, sellItems } from './commands/market.js';
 import { recruitHero } from './commands/recruit.js';
@@ -116,6 +117,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return act(context, command.name, (document, deps) => dispatchParty(command, document, deps));
     case 'build':
       return act(context, command.name, (document, deps) => buildImprovement(command, document, deps));
+    case 'captain':
+      return act(context, command.name, (document, deps) => nameCaptain(command, document, deps));
     case 'equip':
       return act(context, command.name, (document, deps) => equipGear(command, document, deps));
     case 'unequip':

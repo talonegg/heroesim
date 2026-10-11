@@ -6,6 +6,7 @@ import {
   availableHeroes,
   bankruptcyCountdown,
   bestParties,
+  captainLock,
   configVersion,
   dayOf,
   defaultConfig,
@@ -15,6 +16,7 @@ import {
   guildmasterOf,
   isDeadly,
   milestoneTypes,
+  partyPool,
   rankingPlaces,
   rankings,
   signingFee,
@@ -33,7 +35,7 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { capitalised, chanceWords, dateOfTurn, heroReading, listed, shownPercent, whenOfTurn } from '@heroesim/words';
+import { capitalised, chanceWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { firstSeedWhere, newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
@@ -55,12 +57,15 @@ import {
   orderWords,
   reverseOrderName,
   rosterColumnGroups,
+  rosterTableColumns,
+  rosterFacets,
   rosterSortChoices,
   rosterRows,
   sentView,
   sortedRoster,
   stopView,
   type RosterOrder,
+  type RosterRow,
 } from './selectors';
 
 // The views' rows: every number is a document field or an engine selector's answer, read
@@ -292,7 +297,7 @@ describe("the Board's Quest cards (DL-104)", () => {
     });
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest);
     const guild = playerOf(document);
-    const available = availableHeroes(document.world, guild);
+    const available = partyPool(document.world, guild, deps);
     const heroIds = bestParties(document.world, guild, deps).party(first as Quest, available)?.heroIds ?? [];
     const estimate = estimateQuest(document.world, first as Quest, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
 
@@ -574,6 +579,9 @@ describe('the Party builder (DL-104)', () => {
       why: null,
       unavailable: null,
       chip: null,
+      // Their Fatigue by its band, not its figure, and whether they are the Captain (DL-289).
+      fatigueBand: 'fresh',
+      captain: false,
       // The Stats the Checks read, in the order the Quest meets them (`statsRead`), not the template's demands.
       stats: (['spirit', 'willpower', 'weaponry', 'power', 'courage', 'resistance', 'diplomacy', 'charisma'] as const).map((key) => ({
         name: content.stats[key]?.name,
@@ -622,6 +630,7 @@ describe('the Party builder (DL-104)', () => {
       heroIds: [ragnvald.id],
       departedOnTurn: 0,
       returnsOnTurn: 17,
+      fatigueAtDispatch: { [ragnvald.id]: 0 },
     };
     ragnvald.partyId = partyId;
 
@@ -651,6 +660,7 @@ describe('the Party builder (DL-104)', () => {
         heroIds: [hero.id],
         departedOnTurn: 0,
         returnsOnTurn,
+        fatigueAtDispatch: { [hero.id]: 0 },
       };
       hero.partyId = partyId;
     };
@@ -682,6 +692,7 @@ describe('the Party builder (DL-104)', () => {
       heroIds: [cenric.id],
       departedOnTurn: 0,
       returnsOnTurn: 29,
+      fatigueAtDispatch: { [cenric.id]: 0 },
     };
     // Ragnvald and Bram can go; at Level 3, Bram the Healer still follows Ragnvald the Mage.
     bram.level = 3;
@@ -756,7 +767,7 @@ describe('choosing a Party', () => {
 
   // DL-148 item 12: one Morale line for the Party, from its mean form, naming no Hero.
   test.each([
-    [[60, 60], 'Makes no difference.'],
+    [[defaultConfig.moraleBaseline, defaultConfig.moraleBaseline], 'Makes no difference.'],
     [[95, 50], 'Raises the odds.'],
     [[25, 50], 'Lowers the odds a little.'],
     [[5, 5], 'Lowers the odds badly.'],
@@ -795,7 +806,9 @@ describe('rosterRows and sortedRoster', () => {
     const [injured, away, home] = heroes(document);
     if (injured === undefined || away === undefined || home === undefined) throw new Error('three Heroes wanted');
     injured.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
-    injured.morale = 12;
+    // The top of the wretched band: one below the low band's start, whatever the bands are (DL-283 item 4, Q18).
+    const wretched = defaultConfig.moraleBands.low - 1;
+    injured.morale = wretched;
     away.partyId = 'party-000009' as PartyId;
     document.world.parties['party-000009' as PartyId] = {
       id: 'party-000009' as PartyId,
@@ -804,6 +817,7 @@ describe('rosterRows and sortedRoster', () => {
       heroIds: [away.id],
       departedOnTurn: 0,
       returnsOnTurn: 14,
+      fatigueAtDispatch: { [away.id]: 0 },
     };
     away.morale = 80;
     home.morale = 50;
@@ -811,7 +825,7 @@ describe('rosterRows and sortedRoster', () => {
     const rows = sortedRoster(rosterRows(document));
     const [first, second, third] = [injured, away, home].map((hero) => rows.find((row) => row.heroId === hero.id));
 
-    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Year 1 Day 7' });
+    expect(first).toMatchObject({ morale: wretched, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Year 1 Day 7' });
     expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Year 1 Day 5' });
     expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
   });
@@ -1012,22 +1026,23 @@ describe("the Roster's sort (DL-169 item 10)", () => {
   const names = (document: WorldDocument, order: RosterOrder): string[] =>
     sortedRoster(rosterRows({ ...document }), order).map((row) => row.name.split(' ')[0] ?? '');
 
-  test('offers Default, Name, Class, Level, Age, Morale, When free and each of the 20 Stats, each with its first direction', () => {
+  test('offers Default, Name, Class, Level, Age, Morale, Fatigue, When free and each of the 20 Stats, each with its first direction', () => {
     const choices = rosterSortChoices();
-    expect(choices.slice(0, 7).map(({ key, label, first }) => [key, label, first])).toEqual([
+    expect(choices.slice(0, 8).map(({ key, label, first }) => [key, label, first])).toEqual([
       ['default', 'Default', 'ascending'],
       ['name', 'Name', 'ascending'],
       ['class', 'Class', 'ascending'],
       ['level', 'Level', 'descending'],
       ['age', 'Age', 'ascending'],
       ['morale', 'Morale', 'descending'],
+      ['fatigue', 'Fatigue', 'descending'],
       ['free', 'When free', 'ascending'],
     ]);
     const stats = Object.values(content.stats).filter((each) => each.owner === 'hero');
-    expect(choices.slice(7).map(({ key, label, first, area }) => [key, label, first, area])).toEqual(
+    expect(choices.slice(8).map(({ key, label, first, area }) => [key, label, first, area])).toEqual(
       stats.map((each) => [each.key, each.name, 'descending', `${each.area.charAt(0).toUpperCase()}${each.area.slice(1)}`]),
     );
-    expect(choices.slice(0, 7).every((choice) => choice.area === null)).toBe(true);
+    expect(choices.slice(0, 8).every((choice) => choice.area === null)).toBe(true);
   });
 
   test('says each direction in words', () => {
@@ -1054,7 +1069,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     expect(reverseOrderName('age', 'ascending')).toBe('Reverse the order, now youngest first');
     expect(reverseOrderName('free', 'descending')).toBe('Reverse the order, now at the Hall last');
     // The shown words are in it, whatever their case, so a voice naming what it sees finds the button.
-    for (const key of ['default', 'name', 'class', 'level', 'age', 'morale', 'free', 'strength'] as const) {
+    for (const key of ['default', 'name', 'class', 'level', 'age', 'morale', 'fatigue', 'free', 'strength'] as const) {
       for (const direction of ['ascending', 'descending'] as const) {
         expect(reverseOrderName(key, direction).toLowerCase()).toContain(orderWords(key, direction).toLowerCase());
       }
@@ -1108,7 +1123,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     const { document, bram, liv, cenric } = sorted();
     bram.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     const partyId = 'party-000009' as PartyId;
-    document.world.parties[partyId] = { id: partyId, questId: 'quest-000001' as QuestId, guildId: playerOf(document).id, heroIds: [cenric.id], departedOnTurn: 0, returnsOnTurn: 14 };
+    document.world.parties[partyId] = { id: partyId, questId: 'quest-000001' as QuestId, guildId: playerOf(document).id, heroIds: [cenric.id], departedOnTurn: 0, returnsOnTurn: 14, fatigueAtDispatch: { [cenric.id]: 0 } };
     cenric.partyId = partyId;
     liv.partyId = 'party-000777' as PartyId;
 
@@ -1125,30 +1140,210 @@ describe("the Roster's sort (DL-169 item 10)", () => {
 });
 
 describe("the Roster's Table's columns (DL-169 item 7)", () => {
-  test('are grouped as Hero and the four areas, each Stat in its area, each column with the sort its heading orders by', () => {
+  // DL-289, the owner's answer (a) to Q21: the State group stands right after the Hero group's short
+  // columns, so that Morale and Fatigue show at 1280px; Where, Traits and Items, whose cells are long, follow
+  // the Stat areas. The phone's tabs and the Columns panel keep the groups.
+  test("stand in the wide Table's order: Class, Level, Age, then State, then each area, then Where, Traits and Items", () => {
     const groups = rosterColumnGroups();
-    expect(groups.map(({ key, label }) => [key, label])).toEqual([
-      ['hero', 'Hero'],
-      ['physical', 'Physical'],
-      ['mental', 'Mental'],
-      ['magical', 'Magical'],
-      ['social', 'Social'],
+    const keys = rosterTableColumns(groups).map((column) => column.key);
+    const stats = groups.filter((each) => each.kind === 'stat-area').flatMap((each) => each.columns.map((column) => column.key));
+    expect(keys).toEqual(['class', 'level', 'age', 'morale', 'fatigue', ...stats, 'where', 'traits', 'items']);
+    // The same columns the groups hold, none lost and none twice.
+    expect([...keys].sort()).toEqual(groups.flatMap((each) => each.columns.map((column) => column.key)).sort());
+    // The groups, which the Columns panel and the phone's tabs follow, stay Hero, State, then the areas.
+    expect(groups.map((each) => each.kind)).toEqual(['hero', 'state', 'stat-area', 'stat-area', 'stat-area', 'stat-area']);
+  });
+
+  // DL-289 (the architecture review's candidate 7): a group says what kind it is, so the phone's "Sort by"
+  // reads the Stat areas by kind and a State group is none of them.
+  test('are grouped as Hero, State and the four areas, each group of a kind, each Stat in its area, each column with the sort its heading orders by', () => {
+    const groups = rosterColumnGroups();
+    expect(groups.map(({ key, label, kind }) => [key, label, kind])).toEqual([
+      ['hero', 'Hero', 'hero'],
+      ['state', 'State', 'state'],
+      ['physical', 'Physical', 'stat-area'],
+      ['mental', 'Mental', 'stat-area'],
+      ['magical', 'Magical', 'stat-area'],
+      ['social', 'Social', 'stat-area'],
     ]);
     expect(groups[0]?.columns).toEqual([
       { key: 'class', label: 'Class', sort: 'class', number: false },
       { key: 'level', label: 'Level', sort: 'level', number: true },
       { key: 'age', label: 'Age', sort: 'age', number: true },
-      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
       { key: 'where', label: 'Where', sort: 'free', number: false },
       { key: 'traits', label: 'Traits', sort: null, number: false },
       { key: 'items', label: 'Items', sort: null, number: false },
     ]);
-    for (const group of groups.slice(1)) {
+    expect(groups[1]?.columns).toEqual([
+      { key: 'morale', label: 'Morale', sort: 'morale', number: true },
+      { key: 'fatigue', label: 'Fatigue', sort: 'fatigue', number: true },
+    ]);
+    for (const group of groups.filter((each) => each.kind === 'stat-area')) {
       for (const column of group.columns) {
         expect(content.stats[column.key]?.area).toBe(group.key);
         expect(column).toEqual({ key: column.key, label: content.stats[column.key]?.name, sort: column.key, number: true });
       }
     }
+  });
+});
+
+// DL-289: Fatigue and the Captain on the Roster, in its sorts, its filters, the Party builder and a Hero's
+// page. The bands are the words' readings (`rosterReading`), which the page does not read again.
+describe("Fatigue and the Captain on the Roster's rows (DL-289)", () => {
+  test('gives each row its Fatigue and band and whether the Hero is the Captain, from the reading', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [first, second, third] = heroes(document) as [Hero, Hero, Hero];
+    first.fatigue = 0;
+    second.fatigue = defaultConfig.fatigueBands.tired;
+    third.fatigue = defaultConfig.fatigueMax;
+    playerOf(document).captainId = second.id;
+
+    const rows = sortedRoster(rosterRows(document));
+    const row = (hero: Hero) => rows.find((each) => each.heroId === hero.id);
+
+    expect(row(first)).toMatchObject({ fatigue: 0, fatigueBand: 'fresh', captain: false });
+    expect(row(second)).toMatchObject({ fatigue: defaultConfig.fatigueBands.tired, fatigueBand: 'tired', captain: true });
+    expect(row(third)).toMatchObject({ fatigue: defaultConfig.fatigueMax, fatigueBand: 'exhausted', captain: false });
+    expect(rows.filter((each) => each.captain)).toHaveLength(1);
+    // A Roster with no Captain has none marked.
+    playerOf(document).captainId = null;
+    expect(sortedRoster(rosterRows({ ...document })).some((each) => each.captain)).toBe(false);
+  });
+
+  test('sorts by Fatigue either way, the most tired first by default, ties in the default order', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [bram, liv, cenric, ragnvald] = heroes(document) as [Hero, Hero, Hero, Hero];
+    [bram.fatigue, liv.fatigue, cenric.fatigue, ragnvald.fatigue] = [10, 90, 10, 50];
+    const names = (order: RosterOrder): string[] => sortedRoster(rosterRows({ ...document }), order).map((row) => row.name.split(' ')[0] ?? '');
+
+    expect(names({ key: 'fatigue', direction: 'descending' })).toEqual(['Liv', 'Ragnvald', 'Cenric', 'Bram']);
+    expect(names({ key: 'fatigue', direction: 'ascending' })).toEqual(['Cenric', 'Bram', 'Ragnvald', 'Liv']);
+    expect(orderWords('fatigue', 'descending')).toBe('Highest first');
+  });
+
+  test("filters by Morale's bands and by Fatigue's, the options the words' band names in their order, each row of the band it is in", () => {
+    const facets = rosterFacets();
+    expect(facets.morale.label).toBe('Morale');
+    expect(facets.morale.options).toEqual(moraleBandNames.map((key) => ({ key, label: capitalised(key) })));
+    expect(facets.fatigue.label).toBe('Fatigue');
+    expect(facets.fatigue.options).toEqual(fatigueBandNames.map((key) => ({ key, label: capitalised(key) })));
+
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document) as [Hero];
+    hero.morale = defaultConfig.moraleBands.elated;
+    hero.fatigue = defaultConfig.fatigueBands.weary;
+    const row = sortedRoster(rosterRows(document)).find((each) => each.heroId === hero.id) as RosterRow;
+    expect(facets.morale.of(row)).toBe('elated');
+    expect(facets.fatigue.of(row)).toBe('weary');
+  });
+
+  test('marks the Captain and the Fatigue band on each row of a Party builder, beside who can go', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
+    const [bram, liv] = heroes(document) as [Hero, Hero];
+    bram.fatigue = defaultConfig.fatigueBands.exhausted;
+    playerOf(document).captainId = liv.id;
+
+    const rows = partyRows(document, quest.id) ?? [];
+
+    expect(rows.find((row) => row.heroId === bram.id)).toMatchObject({ fatigueBand: 'exhausted', captain: false });
+    expect(rows.find((row) => row.heroId === liv.id)).toMatchObject({ fatigueBand: 'fresh', captain: true });
+  });
+
+  test("a Party's relief names a Healer in the Party and the heal Items carried, none when there are none", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
+    const [healer, warrior] = ['healer', 'warrior'].map((classKey) => heroes(document).find((hero) => hero.classKey === classKey) as Hero);
+    addStack(document.world, 'healing-draught', 2, { kind: 'guild', id: playerOf(document).id });
+
+    const bare = previewView(document, quest.id, [(warrior as Hero).id], []);
+    const kitted = previewView(document, quest.id, [(warrior as Hero).id, (healer as Hero).id], [{ definitionKey: 'healing-draught' as never, quantity: 1 }]);
+
+    expect(bare?.relief).toEqual(['Healer in the Party: none.', 'Heal Items carried: none.']);
+    expect(kitted?.relief).toEqual([
+      `Healer in the Party: ${(healer as Hero).name}, who eases the hurt of the others.`,
+      'Heal Items carried: Healing draught ×1, spent at an Injury taken on the Quest.',
+    ]);
+    // A Party of no one has no relief to say, as it has no form line.
+    expect(previewView(document, quest.id, [], [])?.relief).toEqual([]);
+  });
+});
+
+describe("the Captain's post on a Hero's page (DL-289)", () => {
+  test('says a Captain is the Guild’s Captain, with no control; a Hero who is not has the naming and what it does', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [captain, other] = heroes(document) as [Hero, Hero];
+    const guild = playerOf(document);
+    guild.captainId = captain.id;
+
+    const asCaptain = heroPage(document, captain.id);
+    const asOther = heroPage(document, other.id);
+
+    expect(asCaptain).toMatchObject({ captain: true });
+    expect(asCaptain?.actions).toMatchObject({ kind: 'own', captaincy: { is: true, words: `${captain.name} is The Lantern's Captain.`, locked: null } });
+    expect(asOther).toMatchObject({ captain: false });
+    expect(asOther?.actions).toMatchObject({
+      kind: 'own',
+      captaincy: {
+        is: false,
+        words: `Naming ${other.name} Captain in place of ${captain.name} costs ${captain.name} ${Math.abs(defaultConfig.captainChangeMoraleCost)} Morale and locks the post for ${defaultConfig.captainChangeLockDays} Days.`,
+        locked: null,
+      },
+    });
+  });
+
+  test('says an empty post is free to fill, and a locked one the refusal’s words with the date it opens', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [captain, other] = heroes(document) as [Hero, Hero];
+    const guild = playerOf(document);
+    guild.captainId = null;
+    expect(heroPage(document, other.id)?.actions).toMatchObject({ kind: 'own', captaincy: { is: false, words: `Naming ${other.name} Captain is free: the post is empty.`, locked: null } });
+
+    guild.captainId = captain.id;
+    guild.captainChangedOnTurn = document.world.turn;
+    const locked = heroPage(document, other.id)?.actions;
+    const until = dateOfTurn(captainLock(guild, document.world.turn, defaultConfig)?.untilTurn ?? 0, defaultConfig);
+    expect(locked).toMatchObject({
+      kind: 'own',
+      captaincy: { is: false, locked: `The Captain was last replaced on ${dateOfTurn(document.world.turn, defaultConfig)}, and the post cannot change again before ${until}.` },
+    });
+  });
+
+  test('dates a lock by the replacement that set it, not by the Captain who filled the post emptied since (DL-291)', () => {
+    // A replaced on the change's Turn, then B left the Roster and C filled the empty post free: the
+    // lock still holds from the change (`nameCaptain`), and C was not named on its date.
+    const document = structuredClone(newDocument('selectors'));
+    const [filler, other] = heroes(document) as [Hero, Hero];
+    const guild = playerOf(document);
+    const changed = document.world.turn;
+    guild.captainChangedOnTurn = changed;
+    guild.captainId = filler.id;
+    document.world.turn = changed + 6;
+
+    const locked = heroPage(document, other.id)?.actions;
+    if (locked?.kind !== 'own') throw new Error("the player's Hero");
+    expect(locked.captaincy.locked).not.toContain(`${filler.name} was named Captain on ${dateOfTurn(changed, defaultConfig)}`);
+    expect(locked.captaincy.locked).toMatch(/^The Captain was last replaced on /);
+  });
+
+  test("has no Captain post for a Hero of a Rival or in the pool, who may be one of theirs but not named by this Guild", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [pooled] = unattachedHeroes(document.world);
+    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== playerOf(document).id);
+    const theirs = document.world.heroes[(rival?.rosterIds[0] ?? '') as HeroId] as Hero;
+    if (pooled === undefined || rival === undefined) throw new Error('a pool and a Rival');
+    rival.captainId = theirs.id;
+
+    expect(heroPage(document, pooled.id)).toMatchObject({ captain: false, actions: { kind: 'pool' } });
+    expect(heroPage(document, theirs.id)).toMatchObject({ captain: true, actions: { kind: 'rival' } });
+  });
+
+  test('gives the Hero’s Fatigue and its band for their State', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document) as [Hero];
+    hero.fatigue = defaultConfig.fatigueBands.weary;
+
+    expect(heroPage(document, hero.id)?.fatigue).toEqual({ value: defaultConfig.fatigueBands.weary, band: 'weary' });
   });
 });
 

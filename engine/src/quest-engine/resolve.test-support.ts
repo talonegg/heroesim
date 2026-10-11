@@ -18,12 +18,15 @@ export const pinned = {
   checkVariance: 0,
   skillBonusPerRating: 2,
   bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
-  // DL-148's Degrees and DL-154's form factors, which these scenes' numbers were worked out under;
-  // the balance pass moved the defaults (DL-166).
+  // DL-148's Degrees and DL-154's hurt factor, which these scenes' numbers were worked out under;
+  // the balance pass moved the defaults (DL-166). Morale's factor, a line (DL-283), is read through
+  // `moraleFactor` at the defaults.
   checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
   strongTriumphShare: 0.5,
-  moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
   hurtCheckFactor: 0.85,
+  // The baseline the scenes' Morale numbers were worked out at (DL-283 item 4, Q18): a Hero set at 60
+  // is at form 1, whatever the default baseline is.
+  moraleBaseline: 60,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
   // Every Tier's XP and Death at a factor of 1, as the scenes' XP and harm were worked out before
@@ -31,6 +34,9 @@ export const pinned = {
   tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1, deathScale: 1 })),
   deathFactor: 1,
   infirmaryHealFactor: [1, 1 / 2, 1 / 3],
+  // No Fatigue on form or harm, as the scenes' numbers were worked out before it acted (DL-284); the
+  // tests of Fatigue on the Quest set it.
+  fatigueScaling: 0,
 };
 
 /** An Encounter keyed `key`: one Stat, `sum`, no Skills, which `pass` or fail any Party of 8s, with `success`/`failure`. */
@@ -80,6 +86,7 @@ export function scene(seed: string, content: ContentSet, keys: string[], { size 
     heroIds: heroes.map((hero) => hero.id),
     departedOnTurn: 0,
     returnsOnTurn: 5,
+    fatigueAtDispatch: Object.fromEntries(heroes.map((hero) => [hero.id, hero.fatigue])),
   };
   return { world, guild, heroes, quest, party, deps };
 }

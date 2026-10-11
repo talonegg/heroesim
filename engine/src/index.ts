@@ -36,6 +36,14 @@ export type {
   BuyRequest,
   NotInMarket,
 } from './actions/buy.js';
+export type {
+  NameCaptainAction,
+  NameCaptainAlreadyCaptain,
+  NameCaptainGuildFolded,
+  NameCaptainHeroNotOnRoster,
+  NameCaptainLocked,
+  NameCaptainRejection,
+} from './actions/captain.js';
 export {
   fameRefusal,
   unavailability,
@@ -127,10 +135,12 @@ export {
   configVersion,
   defaultConfig,
   flattenConfig,
+  moraleBandNames,
   questBands,
   regardBandNames,
   type ChanceBand,
   type EngineDeps,
+  type FatigueBand,
   type GameConfig,
   type LoadDeps,
   type MoraleBand,
@@ -150,6 +160,7 @@ export {
   type ClassIcon,
   type ClassKey,
   type Consequence,
+  type ConsumableEffectKind,
   type ContentSet,
   type Degree,
   type Encounter,
@@ -171,14 +182,15 @@ export {
   type Synergy,
   type TraitKey,
 } from './content-types.js';
-export { bestParties, type BestParties, type BestParty } from './best-party.js';
+export { availableHeroes, bestParties, partyPool, restBandOf, type BestParties, type BestParty } from './best-party.js';
 export {
-  availableHeroes,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
 } from './controllers/rival.js';
+export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
+export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export * from './create.js';
 export {
   describeGuildmaster,
@@ -328,6 +340,7 @@ export {
   type RegardContext,
   type ResolvedForRegard,
 } from './regard.js';
+export { fatigueBand } from './fatigue.js';
 export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
@@ -348,7 +361,7 @@ export {
   type EncounterEstimate,
   type QuestEstimate,
 } from './quest-engine/estimate.js';
-export type { FormConfig, FormEffect } from './quest-engine/form.js';
+export { relievesHurt, type FormConfig, type FormEffect } from './quest-engine/form.js';
 export type { ConsumableUse, Kit } from './quest-engine/consumables.js';
 export { passDegree, passOf, type Decided } from './quest-engine/degree.js';
 export {

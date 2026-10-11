@@ -9,7 +9,7 @@
 import { defaultConfig, type TierRow } from './config.js';
 
 export * from './content-types.js';
-export { tierFields, tierOverrideFields, type TierOverride, type TierRow } from './config.js';
+export { fatigueBandNames, tierFields, tierOverrideFields, type FatigueBand, type TierOverride, type TierRow } from './config.js';
 export { tierRowProblems } from './config-check.js';
 export { biographyTraitSentences, heroBiographyTraitSentences } from './descriptions.js';
 export { descriptiveAttributeMaxLength, facilityKeys, type FacilityKey, type Sex } from './document.js';

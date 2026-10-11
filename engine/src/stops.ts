@@ -32,11 +32,12 @@ import { unattachedHeroes } from './selectors.js';
  * - `party-returned`: Parties of the watched Guild came home this Turn and were resolved, each
  *   with a `quest.resolved` naming that Guild, in the order they resolved.
  * - `decision-needed`: the watched Guild's Roster is idle, no Hero on it away in a Party, and the
- *   Board holds Quests it could staff from its available Heroes that it could not before the Turn:
- *   new on the Board, or newly within reach because its last Party came home or a Hero healed. The
+ *   Board holds Quests it could staff from its pool that it could not before the Turn: new on the
+ *   Board, or newly within reach because its last Party came home, a Hero healed or a Hero rested out
+ *   of its rest band (`partyPool`, DL-286). The
  *   M2 reading of "a decision is needed" (M2-S11), which DL-85 item 8 keeps.
  * - `quest-staffable`: the same, whether or not a Party of the watched Guild is out: the Board holds
- *   Quests its free Heroes could staff that they could not before the Turn (M9-S1, DL-85 item 8's
+ *   Quests its pool could staff that it could not before the Turn (M9-S1, DL-85 item 8's
  *   "a Quest I can staff appears"). Opt-in.
  * - `transfer-offer`: Transfer Offers for Heroes of the watched Guild arrived this Turn, in the
  *   order they were made (M6-S2, DL-33, DL-57).
@@ -84,7 +85,7 @@ export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.free
 /**
  * Every condition, in the order a Turn that gives several reports them: an ending first, then the
  * watched Guild below the floor, the step before an ending (M9-S1), then its Parties home, then a
- * decision, then a Quest its free Heroes could staff, which on an idle Roster names what the
+ * decision, then a Quest its pool could staff, which on an idle Roster names what the
  * decision names, then a Transfer Offer, then a module's stop, then the pool.
  */
 export const stopConditions: readonly StopCondition[] = Object.freeze([
@@ -135,8 +136,8 @@ export function belowFloorStop(events: readonly TurnEvent[], guildId: GuildId): 
 
 /**
  * What a Turn's two staffable stops read of one world, for the Guild watched: whether its Roster is
- * idle, no Hero on it away in a Party, and the Quests on the Board it could staff from its free
- * Heroes (`staffableQuests`: a Party `dispatch` would send), none for a Guild not in the world. The
+ * idle, no Hero on it away in a Party, and the Quests on the Board it could staff from its pool
+ * (`staffableQuests`: a Party of it `dispatch` would send), none for a Guild not in the world. The
  * Quests are worked out once, when first asked, however many stops ask (the M9 review): each
  * search runs `requiredParty` and `dispatchRefusal` over the Board, through `staffingParty`
  * (controllers/rival.ts), and asks no chance estimate (v1.1.4-S6, DL-157; v1.1.4-S14).
@@ -191,8 +192,8 @@ export function decisionNeededStop(before: World, after: World, guildId: GuildId
 }
 
 /**
- * `quest-staffable` when, after the Turn, the Board holds Quests the Guild's free Heroes could staff
- * that they could not before (`newlyStaffable`), in the Board's order, whether or not a Party of
+ * `quest-staffable` when, after the Turn, the Board holds Quests the Guild's pool could staff that
+ * it could not before (`newlyStaffable`), in the Board's order, whether or not a Party of
  * the Guild is out (M9-S1, DL-85 item 8). On an idle Roster it names what `decision-needed` names.
  */
 export function questStaffableStop(before: World, after: World, guildId: GuildId, deps: EngineDeps): StopReason | null {

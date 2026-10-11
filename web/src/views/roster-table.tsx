@@ -1,22 +1,26 @@
 // The Roster as a Table (v1.1.5-S12, DL-169 items 7 to 9): Name with the Portrait's thumbnail, pinned
-// as in the Unattached pool; Class, Level, Age, Morale, where the Hero is, Traits and Items; and the 20
-// Stats at their effective values. A Stat a source raises is green with a ▲ after it, one lowered red
-// with a ▼, by the net change; its tooltip and the screen reader's words give the base and each source.
+// as in the Unattached pool; Class, Level and Age; their State, Morale and Fatigue, each with its band
+// (DL-289); the 20 Stats at their effective values; then where the Hero is, Traits and Items, which are long
+// and so stand last, that State shows on a wide screen (the owner's answer (a) to Q21; `rosterTableColumns`). A Stat a
+// source raises is green with a ▲ after it, one lowered red with a ▼, by the net change; its tooltip and the
+// screen reader's words give the base and each source.
 // Traits and Items by name, each effect in a tooltip and the screen reader's words. The Table scrolls in
 // its own box. Its headings sort it, the same sort as "Sort by" (`roster.tsx`). Never a Potential.
 // The row of a Hero who carries a Unique Item glows gold, with no picture: its Items cell names the
 // Item (v1.1.5-S14, DL-182 item 4).
 //
-// Which columns show is chosen in the Columns panel on a wide screen, its boxes grouped as Hero and
+// The Guild's Captain has a mark before their Class's in the Name cell (DL-289).
+//
+// Which columns show is chosen in the Columns panel on a wide screen, its boxes grouped as Hero, State and
 // the four areas, All and None for each group, and Reset; Name always shows (DL-169 item 7). On a
-// phone, five tabs show one group at a time, the columns hidden on a wide screen hidden in each.
+// phone, six tabs show one group at a time, the columns hidden on a wide screen hidden in each.
 
 import type { HeroId } from '@heroesim/engine';
 import { Fragment, type ReactNode } from 'react';
 import type { RosterColumn, RosterColumnGroup, RosterOrder, RosterRow, RosterSortKey, SortDirection } from '../state/selectors';
 import { PortraitThumb } from './pictures';
 import { HeroName } from './icons';
-import { Chip, moraleTones, SortHeader, StickyTableBox, VisuallyHidden } from './ui';
+import { Chip, fatigueTones, moraleTones, SortHeader, StickyTableBox, VisuallyHidden } from './ui';
 
 /** The id of a Hero's name, which opens their page and takes the keyboard back when it closes: the tiles' and the Table's. */
 export function nameId(heroId: HeroId): string {
@@ -76,6 +80,14 @@ function Cell({ row, column }: { row: RosterRow; column: RosterColumn }) {
         <td data-column="morale" className="number">
           <Chip tone={moraleTones[row.moraleBand]}>
             {row.morale}, {row.moraleBand}
+          </Chip>
+        </td>
+      );
+    case 'fatigue':
+      return (
+        <td data-column="fatigue" className="number">
+          <Chip tone={fatigueTones[row.fatigueBand]}>
+            {row.fatigue}, {row.fatigueBand}
           </Chip>
         </td>
       );
@@ -170,7 +182,7 @@ export function RosterTable({
                 <span className="named">
                   <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
                   <button type="button" id={nameId(row.heroId)} className="link" onClick={() => onOpen(row.heroId)}>
-                    <HeroName icon={row.classIcon} className={row.className} name={row.name} />
+                    <HeroName icon={row.classIcon} className={row.className} name={row.name} captain={row.captain} />
                   </button>
                 </span>
               </th>
@@ -186,7 +198,7 @@ export function RosterTable({
 }
 
 /**
- * The Columns panel (DL-169 item 7), on a wide screen: a box for each column, grouped as Hero and the
+ * The Columns panel (DL-169 item 7), on a wide screen: a box for each column, grouped as Hero, State and the
  * four areas, with All and None for each group, and Reset, which shows every one. Name is always shown.
  */
 export function ColumnsPanel({

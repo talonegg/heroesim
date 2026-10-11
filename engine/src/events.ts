@@ -3,7 +3,7 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { MoraleBand, RegardBand } from './config.js';
+import type { FatigueBand, MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
   EncounterKey,
@@ -207,7 +207,7 @@ export type QuestEncounter = Entry<'quest.encounter', EncounterResult & { questI
 
 /**
  * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
- * (v1.1.4-S3's verification): with every form at 1 and the same rolls, its pass formula would have
+ * (v1.1.4-S3's verification): with the raw Stats and the same rolls, its pass formula would have
  * given the other side of the Success line. The narration's one sentence of the Encounter is said
  * exactly when it is set; an entry written before DL-154 has none.
  */
@@ -293,10 +293,19 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 /**
  * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
  * Morale consequences of a Quest's Encounters, summed (M4-S2), a Hero they held in high Regard
- * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, or a module's
- * `adjustMorale` effect (M8-S2, DL-77).
+ * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, a module's
+ * `adjustMorale` effect (M8-S2, DL-77), another Hero named Captain in their place (`captain-changed`),
+ * or coming home with their Guild's Captain (`captain-homecoming`; DL-287).
  */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer' | 'module';
+export type MoraleCause =
+  | 'roster-death'
+  | 'strong-success'
+  | 'drift'
+  | 'encounters'
+  | 'transfer'
+  | 'module'
+  | 'captain-changed'
+  | 'captain-homecoming';
 
 /**
  * The causes a Quest's return makes, for each type that names the Quest on them (DL-112 item 2):
@@ -304,7 +313,7 @@ export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encount
  * validator refuses an entry of a Quest's cause without it (DL-246).
  */
 export const questCauses = {
-  'hero.morale-changed': ['encounters', 'strong-success', 'roster-death'],
+  'hero.morale-changed': ['encounters', 'strong-success', 'roster-death', 'captain-homecoming'],
   'patron.regard-changed': ['quest-success', 'quest-failure'],
   'guildmaster.regard-changed': ['quest-success', 'quest-failure'],
   'hero.regard-changed': ['shared-quest'],
@@ -349,6 +358,16 @@ export type HeroMoraleChanged = Entry<
     bandAfter: MoraleBand;
     moduleId?: ModuleId;
   } & NamingTheQuest<MoraleCause, (typeof questCauses)['hero.morale-changed'][number]>
+>;
+
+/**
+ * A Hero's Fatigue crossed from one of `fatigueBands` to another on a night, away or at home, as
+ * Morale's drift does (DL-282, data-model rule 10): never for a night that stays in its band. Names
+ * the Hero.
+ */
+export type HeroFatigueChanged = Entry<
+  'hero.fatigue-changed',
+  { heroId: HeroId; before: number; after: number; bandBefore: FatigueBand; bandAfter: FatigueBand }
 >;
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
@@ -416,6 +435,19 @@ export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: 
 export type GuildImproved = Entry<
   'guild.improved',
   { guildId: GuildId; facility: FacilityKey; grade: number; improvementKey: ImprovementKey; cost: number }
+>;
+
+// ── The Captain (DL-280 item 6, DL-287) ─────────────────────────────────────────────────────
+
+/**
+ * A Guild named `heroId` its Captain through `nameCaptain`: to an empty post, `replacedId` `null`; in
+ * another's place, `replacedId` theirs and `lockedUntilTurn` the first Turn another change may be
+ * made (`captainLock`), `null` for a vacancy filled or a lock of 0 Days. A Milestone, naming the
+ * Guild, the Hero and the Captain replaced.
+ */
+export type GuildCaptainNamed = Entry<
+  'guild.captain-named',
+  { guildId: GuildId; heroId: HeroId; replacedId: HeroId | null; lockedUntilTurn: Turn | null }
 >;
 
 // ── Progression (M3-S1, DL-36) ───────────────────────────────────────────────────────────────
@@ -525,8 +557,9 @@ export type HeroRegardChanged = Entry<
  * One consumable a Party carried was used on its Quest and expended from its stack (M5-S3, DL-50):
  * a `bonus` added `flat` to each Check of Encounter `encounterIndex`; a `reroll` had that failed
  * Encounter's Checks short of Success rolled again, `firstRoll` the deciding Check's failed roll (its
- * `quest.encounter` records the second rolls; v1.1.4-S2); a `heal`
- * took `days` Days off `heroId`'s Injury. One entry an Item, in the order used, after the Quest's
+ * `quest.encounter` records the second rolls; v1.1.4-S2); a `heal`, spent at Encounter
+ * `encounterIndex` where `heroId`'s Injury was taken, relieved its hurt for the rest of the Quest and
+ * took `days` Days off it, 0 for an Injury at 1 Day (DL-285). One entry an Item, in the order used, after the Quest's
  * `quest.encounter` entries and before its `quest.resolved`. Names the Quest, the Party, the Guild
  * and, for a heal, the Hero. Not a Milestone.
  */
@@ -700,6 +733,7 @@ export type EngineEvent =
   | HeroDied
   | HeroXpGained
   | HeroMoraleChanged
+  | HeroFatigueChanged
   | HeroHealed
   | HeroTraitGained
   | HeroTraitLost
@@ -710,6 +744,7 @@ export type EngineEvent =
   | GuildmasterSucceeded
   | HeroLeftGuild
   | GuildImproved
+  | GuildCaptainNamed
   | HeroLevelled
   | PatronRegardChanged
   | GuildmasterRegardChanged
@@ -761,6 +796,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.died': true,
   'hero.xp-gained': false,
   'hero.morale-changed': false,
+  'hero.fatigue-changed': false,
   'hero.healed': false,
   'hero.trait-gained': true,
   'hero.trait-lost': true,
@@ -771,6 +807,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': true,
+  'guild.captain-named': true,
   'hero.levelled': true,
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,

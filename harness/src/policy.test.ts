@@ -3,13 +3,13 @@ import {
   addStack,
   advance,
   applyAction,
-  availableHeroes,
   bestParties,
   compareByCodeUnit,
   createWorld,
   defaultConfig,
   gearChoices,
   holdings,
+  partyPool,
   playerGuild,
   serialise,
   signingFee,
@@ -63,10 +63,12 @@ const deps: EngineDeps = {
   content,
 };
 
+/** A new world, its player's Guild with its post of Captain held (DL-287), so that only a test of naming meets a choice to name, and the Board's Quests. */
 function scene(seed = 'policy'): { document: WorldDocument; guild: Guild; quests: Quest[] } {
   const { document } = createWorld(seed, harnessSetup, deps);
   const guild = playerGuild(document.world);
   if (guild === undefined) throw new Error('No player');
+  guild.captainId = guild.rosterIds[0] ?? null;
   const quests = document.world.board.map((questId) => {
     const quest = document.world.quests[questId];
     if (quest === undefined) throw new Error(`No Quest ${questId}`);
@@ -171,13 +173,31 @@ describe('automaticPolicy', () => {
 
     const [first] = automaticPolicy(document, deps);
 
-    const party = bestParties(document.world, guild, deps).party(best, availableHeroes(document.world, guild))?.heroIds ?? null;
+    const party = bestParties(document.world, guild, deps).party(best, partyPool(document.world, guild, deps))?.heroIds ?? null;
     expect(party?.length).toBeGreaterThanOrEqual(2);
     expect(first).toEqual({ kind: 'dispatch', guildId: guild.id, questId: best.id, heroIds: party });
     // At the player's margin of 1, the fewest the Quest allows.
     const [fewer] = automaticPolicy(document, fewest);
-    expect(fewer).toMatchObject({ questId: best.id, heroIds: bestParties(document.world, guild, fewest).party(best, availableHeroes(document.world, guild))?.heroIds });
+    expect(fewer).toMatchObject({ questId: best.id, heroIds: bestParties(document.world, guild, fewest).party(best, partyPool(document.world, guild, deps))?.heroIds });
     expect(fewer?.kind === 'dispatch' && fewer.heroIds).toHaveLength(2);
+  });
+
+  // DL-286: the policy chooses from the player's pool, the Heroes `playerRestBand` keeps home left out.
+  test("sends no Hero at or past the player's rest band, and every free Hero with no rest band", () => {
+    const { document, guild, quests } = scene();
+    openBoard(quests);
+    const resting = (playerRestBand: EngineDeps['config']['playerRestBand']): EngineDeps => ({ ...fewest, config: { ...fewest.config, playerRestBand } });
+    const roster = guild.rosterIds.map((heroId) => document.world.heroes[heroId] as Hero);
+    expect(roster).toHaveLength(4);
+    const [, , tired, exhausted] = roster as [Hero, Hero, Hero, Hero];
+    tired.fatigue = resting('tired').config.fatigueBands.tired;
+    exhausted.fatigue = resting('tired').config.fatigueBands.exhausted;
+
+    const sent = dispatches(automaticPolicy(document, resting('tired'))).flatMap((action) => action.heroIds);
+    expect(sent).toHaveLength(2);
+    expect(sent).not.toContain(tired.id);
+    expect(sent).not.toContain(exhausted.id);
+    expect(dispatches(automaticPolicy(document, resting(null))).flatMap((action) => action.heroIds)).toHaveLength(4);
   });
 
   test('keeps sending Parties while it has Heroes, of equal chances each to the next reward, no Hero twice', () => {
@@ -248,7 +268,7 @@ describe('automaticPolicy', () => {
       alike(quests);
       const [easy] = quests;
       if (easy === undefined) throw new Error('No Quest');
-      const heroes = availableHeroes(document.world, guild);
+      const heroes = partyPool(document.world, guild, deps);
       const base = deps.config.tiers
         .map((tier) => tier.difficultyMax)
         .find((difficulty) => {
@@ -264,7 +284,7 @@ describe('automaticPolicy', () => {
     test('sends a Quest of lower reward and higher chance before one of higher reward', () => {
       const { document, guild, quests, easy } = likeliestLowest();
       const top = quests.at(-1) as Quest;
-      const heroes = availableHeroes(document.world, guild);
+      const heroes = partyPool(document.world, guild, deps);
       expect(easy.reward).toBeLessThan(top.reward);
       expect(chanceOf(document, guild, easy, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, top, heroes, fewest));
 
@@ -280,7 +300,7 @@ describe('automaticPolicy', () => {
       const { document, guild, quests } = scene();
       openBoard(quests);
       alike(quests);
-      const heroes = availableHeroes(document.world, guild);
+      const heroes = partyPool(document.world, guild, deps);
       expect(new Set(quests.map((quest) => chanceOf(document, guild, quest, heroes, fewest))).size).toBe(1);
       const [lowest] = quests;
       if (lowest === undefined) throw new Error('No Quest');
@@ -300,13 +320,13 @@ describe('automaticPolicy', () => {
       const next = quests[1] as Quest;
       next.difficulty = base;
       easy.requirements = { partySizeMin: 4 };
-      const all = availableHeroes(document.world, guild);
+      const all = partyPool(document.world, guild, deps);
       expect(chanceOf(document, guild, easy, all, fewest)).toBeGreaterThan(chanceOf(document, guild, next, all, fewest));
       const [hurt] = guild.rosterIds;
       const hero = hurt === undefined ? undefined : document.world.heroes[hurt];
       if (hurt === undefined || hero === undefined) throw new Error('No Hero');
       hero.injury = { typeKey: 'bruised-ribs', healsOnTurn: 30 };
-      const heroes = availableHeroes(document.world, guild);
+      const heroes = partyPool(document.world, guild, deps);
       expect(heroes).toHaveLength(3);
       expect(bestParties(document.world, guild, fewest).party(easy, heroes)).toBeNull();
       expect(chanceOf(document, guild, next, heroes, fewest)).toBeGreaterThan(chanceOf(document, guild, quests.at(-1) as Quest, heroes, fewest));
@@ -324,7 +344,7 @@ describe('automaticPolicy', () => {
       const [a, b, c] = quests;
       if (a === undefined || b === undefined || c === undefined) throw new Error('A short Board');
       document.world.board = [a.id, b.id, c.id];
-      const heroes = availableHeroes(document.world, guild);
+      const heroes = partyPool(document.world, guild, deps);
       expect(heroes).toHaveLength(4);
       const firstParty = bestParties(document.world, guild, fewest).party(a, heroes)?.heroIds ?? [];
       const shares = (heroIds: readonly HeroId[]) => heroIds.some((heroId) => firstParty.includes(heroId));
@@ -362,7 +382,7 @@ describe('automaticPolicy', () => {
       const next = quests.at(-2) as Quest;
       // Its Encounters are none the content in use defines (data-model rule 5).
       top.encounterKeys = ['no-such-encounter'];
-      expect(bestParties(document.world, guild, fewest).party(top, availableHeroes(document.world, guild))?.estimate).toBeNull();
+      expect(bestParties(document.world, guild, fewest).party(top, partyPool(document.world, guild, deps))?.estimate).toBeNull();
       // Every other Quest unlikely, but likelier than none.
       chances.of = () => 0.05;
 
@@ -615,6 +635,28 @@ describe('automaticPolicy', () => {
     });
   });
 
+  // DL-287: the player's Guild names a Captain as a Rival does, so a harness game meets the Captain's effects.
+  test("names to an empty post its Hero highest in the captaincy Stat, by the engine's captainChoice, before it sends anyone, and no one while the post is held", () => {
+    const { document, guild, quests } = scene('policy-captain');
+    guild.captainId = null;
+    openBoard(quests);
+    const heroes = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
+    heroes.forEach((hero, at) => Object.assign(hero, { traits: [], stats: { ...hero.stats, leadership: at === 2 ? 19 : 4 } }));
+
+    const actions = automaticPolicy(document, deps, noBuilding);
+
+    expect(actions.filter((action) => action.kind === 'nameCaptain')).toEqual([{ kind: 'nameCaptain', guildId: guild.id, heroId: heroes[2]?.id }]);
+    expect(actions.findIndex((action) => action.kind === 'nameCaptain')).toBeLessThan(actions.findIndex((action) => action.kind === 'dispatch'));
+    let current = document;
+    for (const action of actions) {
+      const result = applyAction(current, action, deps);
+      expect(result.ok, action.kind).toBe(true);
+      if (result.ok) current = result.document;
+    }
+    expect(current.world.guilds[guild.id]?.captainId).toBe(heroes[2]?.id);
+    expect(automaticPolicy(current, deps, noBuilding).some((action) => action.kind === 'nameCaptain')).toBe(false);
+  });
+
   test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (DL-57)', () => {
     const { document, guild, quests } = scene('policy-offers');
     openBoard(quests);
@@ -745,7 +787,7 @@ describe('automaticPolicy', () => {
       const [heroId] = guild.rosterIds;
       if (heroId === undefined) throw new Error('An empty Roster');
       const partyId = makeId('parties', 77);
-      document.world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5 };
+      document.world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
       addStack(document.world, 'whetstone', 1, { kind: 'party', id: partyId });
       expect(automaticPolicy(document, deps, policy)).toEqual([]);
 

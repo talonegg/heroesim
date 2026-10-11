@@ -6,6 +6,7 @@
 //
 // Nothing here draws a random number or reads the History.
 
+import { leaveRoster } from './captain.js';
 import { regardBandNames, type EngineDeps, type GameConfig } from './config.js';
 import {
   compareByCodeUnit,
@@ -45,7 +46,8 @@ export interface Deal {
  *    item 8), `item.returned` for `transferred`, while the Hero is still that Guild's;
  * 2. the Guild they join pays the fee to the Guild they leave, so the two hold as much Wealth
  *    together as before;
- * 3. the Hero leaves the one Roster and joins the end of the other, their `transferredOnTurn` set to
+ * 3. the Hero leaves the one Roster, its post empty if they were its Captain (`leaveRoster`, DL-287),
+ *    and joins the end of the other, their `transferredOnTurn` set to
  *    this Turn (the lock, `transferLock`, DL-60), and `hero.transferred`, a Milestone, names the Hero,
  *    both Guilds and the offer accepted;
  * 4. each Hero left on the Roster they leave whose own Regard for the Hero is in `transferRegardBand`
@@ -67,7 +69,7 @@ export function makeTransfer(world: World, deal: Deal, deps: Pick<EngineDeps, 'c
 
   to.wealth -= fee;
   from.wealth += fee;
-  from.rosterIds = from.rosterIds.filter((heroId) => heroId !== hero.id);
+  leaveRoster(from, hero.id);
   to.rosterIds.push(hero.id);
   hero.guildId = to.id;
   hero.transferredOnTurn = world.turn;

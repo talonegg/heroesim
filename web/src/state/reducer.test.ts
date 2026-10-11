@@ -1,10 +1,10 @@
 // @vitest-environment node
 import type * as Engine from '@heroesim/engine';
 import {
-  bestParties,
   advance,
   applyAction,
   availableHeroes,
+  bestParties,
   configVersion,
   createWorld,
   defaultConfig,
@@ -464,7 +464,7 @@ describe('a refusal is stored, never thrown', () => {
     ['not JSON', 'not a save', 'malformed-json'],
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
-    ['damaged', '{"meta":{"version":9},"world":{},"history":{}}', 'invalid'],
+    ['damaged', `{"meta":{"version":${schemaVersion}},"world":{},"history":{}}`, 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
     const refused = play(before, { kind: 'load', text });

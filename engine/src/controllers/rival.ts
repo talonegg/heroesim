@@ -8,17 +8,27 @@
 // seeks a Hero from another Guild, lets one go when in debt, and answers a Transfer asked of it by its
 // Disposition (`transferAnswer`, DL-57). M6-S4 has it build every facility of its Hall and buy gear
 // at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58). M6-S3's Transfer
-// Generator asks `transferBid` which of two Rivals bids for which Hero of the other (DL-59).
+// Generator asks `transferBid` which of two Rivals bids for which Hero of the other (DL-59). It buys
+// heal Items in its gear step and carries them on dispatch (DL-288).
 //
 // A rule reads the world and writes nothing to it but the draws it takes from the `rivals`
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
-import { dispatchRefusal, fameRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
+import { dispatchRefusal, fameRefusal, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
-import { bestParties, requiredParty } from '../best-party.js';
+import { bestParties, partyPool, requiredParty } from '../best-party.js';
+import { captainChoice } from '../captain.js';
 import type { EngineDeps } from '../config.js';
-import { gearSlotKeys, purchaseSteps, type Disposition, type PurchaseStep, type SlotKey } from '../content-types.js';
+import { consumablePurchase, consumablesToCarry } from '../consumable-choices.js';
+import {
+  gearSlotKeys,
+  purchaseSteps,
+  type ConsumableEffectKind,
+  type Disposition,
+  type PurchaseStep,
+  type SlotKey,
+} from '../content-types.js';
 import {
   compareByCodeUnit,
   facilityKeys,
@@ -47,11 +57,13 @@ import {
  * The actions `guild` takes this afternoon, in the order to apply them, by the one rule every
  * Disposition shares, reading the weights of its row (M6-S1, DL-56):
  *
- * 1. put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`, M5-S2, DL-49),
- *    which moves no Wealth and sends no one;
+ * 1. name to its post, when it is empty, its Hero highest in the captaincy Stat (`captainChoice`,
+ *    DL-287), and put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`,
+ *    DL-49), each of which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it may take, by its Fame,
  *    and can staff (`preferredQuest`), drawing from `rivals` to choose among Quests of the same
- *    difficulty;
+ *    difficulty, its Party carrying one of each heal Item the Guild holds (`consumablesToCarry`,
+ *    DL-288);
  * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
  *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
@@ -60,7 +72,9 @@ import {
  *      every facility);
  *    - buy one piece of gear at the Market for its Heroes who lack it, in its `gearSlotOrder` (when it
  *      has none, armour first, then the other slots in `gearSlotKeys`' order): the dearest whose price
- *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
+ *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4); and
+ *      when there is none, heal Items toward `rivalHealItemStock` of each by the same threshold
+ *      (`healBuy`, the engine's `consumablePurchase`, DL-288);
  *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
  *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
  *      Roster has room enough by `transferAppetite`, seek the Hero it wants from another Guild with the
@@ -88,13 +102,15 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
   const disposition = chooser(guild, deps.content);
   if (disposition === 'own' || disposition === null) return [];
 
-  const choices: GuildAction[] = [...gearChoices(world, guild, deps)];
+  // DL-287: a post left empty is filled first, free; it moves no Wealth and sends no one.
+  const captain = captainChoice(world, guild, deps);
+  const choices: GuildAction[] = [...(captain === null ? [] : [captain]), ...gearChoices(world, guild, deps)];
   const quest = preferredQuest(world, guild, disposition, deps);
   if (quest !== null) choices.push(quest);
   const dispatched = new Set(quest?.heroIds ?? []);
   const attempts: Record<PurchaseStep, () => GuildAction | null> = {
     build: () => hallBuild(guild, disposition, deps),
-    gear: () => gearBuy(world, guild, disposition, deps),
+    gear: () => gearBuy(world, guild, disposition, deps) ?? healBuy(world, guild, disposition, deps),
     transfer: () => transferChoice(world, guild, disposition, deps),
     recruit: () => cheapestHire(world, guild, deps),
     debt: () => debtTransfer(world, guild, dispatched, deps),
@@ -345,32 +361,20 @@ function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId
 }
 
 /**
- * The Heroes of `guild` free to go on a Quest, in Roster order: on the Roster and neither dead,
- * retired, injured nor away in a Party, by `dispatch`'s own test (`unavailability`).
- */
-export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
-  const heroes: Hero[] = [];
-  for (const heroId of guild.rosterIds) {
-    const hero = rowOf(world.heroes, heroId);
-    if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
-  }
-  return heroes;
-}
-
-/**
  * The Quests on offer on the Board that `guild` could staff now, in the Board's order: those for
- * which `dispatch` would send some Party of its Heroes (`staffingParty`). Fast forward's
- * `decision-needed` and `quest-staffable` read it (M2-S11, DL-33; M9-S1, DL-101), so a stop, a
- * Rival and `dispatch` agree on what can be staffed.
+ * which `dispatch` would send some Party of its pool (`partyPool`, `staffingParty`), the Heroes its
+ * rest band keeps home left out (DL-286). Fast forward's `decision-needed` and `quest-staffable`
+ * read it (M2-S11, DL-33; M9-S1, DL-101), so a stop, a Rival and `dispatch` agree on what can be
+ * staffed, and a Quest only a Hero kept home could go on stops nothing.
  */
 export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Quest[] {
-  const available = availableHeroes(world, guild);
+  const available = partyPool(world, guild, deps);
   if (available.length === 0) return [];
   return offeredQuests(world).filter((quest) => staffingParty(world, guild, quest, available, deps) !== null);
 }
 
 /**
- * A Party of `available`, `guild`'s free Heroes, that `dispatch` would send on `quest` as it stands,
+ * A Party of `available`, `guild`'s pool, that `dispatch` would send on `quest` as it stands,
  * or `null` when there is none (DL-101). The search is the Best Party's own first step, the Party
  * its requirements take (`requiredParty`), and the verdict is `dispatch`'s own (`dispatchRefusal`,
  * with no consumables), so no second copy of the rule decides what can be staffed: a check
@@ -404,10 +408,12 @@ function staffingParty(world: World, guild: Guild, quest: Quest, available: read
  * picks among them, one draw however many there are. The Party is the Best Party (`bestParties`,
  * opened over the world as it stands after the draw, DL-237), for the Quest chosen only: which Quests
  * it can staff is the Best Party's first step (`requiredParty`), which the estimate cannot change
- * (DL-157).
+ * (DL-157). The Party carries one of each heal Item the Guild holds (`consumablesToCarry`, DL-288),
+ * which the Party's Heroes spend at their Injuries (DL-285); the Best Party was chosen carrying
+ * nothing, as the policy's is.
  */
 function preferredQuest(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): DispatchAction | null {
-  const available = availableHeroes(world, guild);
+  const available = partyPool(world, guild, deps);
   if (available.length === 0) return null;
   const staffable = offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null && requiredParty(quest, available) !== null);
   if (staffable.length === 0) return null;
@@ -417,7 +423,8 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
   const candidates = staffable.filter((quest) => quest.difficulty === wanted);
   const quest = pick(streamOf(world, 'rivals'), candidates);
   const heroIds = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
-  return { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds };
+  const consumables = consumablesToCarry(world, guild, healItems, deps)(quest, heroIds);
+  return { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) };
 }
 
 /**
@@ -457,6 +464,22 @@ const armourFirst: readonly SlotKey[] = [
  */
 function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
   return gearPurchase(world, guild, disposition.gearSlotOrder ?? armourFirst, disposition.gearThreshold, deps);
+}
+
+/** The consumables a Rival keeps, buys and carries: heal Items alone (DL-280 item 7, Q16 b; DL-288). */
+const healItems: readonly ConsumableEffectKind[] = ['heal'];
+
+/**
+ * Heal Items `guild` buys at the Market this afternoon when its gear step buys no wearable, or `null`
+ * (DL-288): the engine's `consumablePurchase` for `heal` alone, toward `rivalHealItemStock` of each
+ * definition at home and carried, with its Disposition's `gearThreshold` as gear's own budget rule —
+ * its Wealth above that many times the purchase's cost, and covering it, with no reserve. Of the
+ * definitions it lacks, the one it has fewest of, the lowest key among equals, as many as it lacks
+ * and the Market has. Draws nothing.
+ */
+function healBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+  const keeping = { effects: healItems, stock: deps.config.rivalHealItemStock, wealthMultiple: disposition.gearThreshold };
+  return consumablePurchase(world, guild, keeping, deps);
 }
 
 /**

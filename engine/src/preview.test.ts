@@ -6,6 +6,7 @@ import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { addStack } from './items.js';
 import { previewDispatch, skillsThatHelp, statsRead } from './preview.js';
 import { estimateQuest } from './quest-engine/estimate.js';
+import { moraleFactor } from './quest-engine/form.js';
 import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
@@ -117,13 +118,45 @@ describe('previewDispatch', () => {
       party.forEach((id, index) => ((world.heroes[id] as Hero).morale = morales[index] as number));
       return previewDispatch(world, request(setting, party), deps)?.form;
     };
-    const { moraleCheckFactor: factor } = deps.config;
+    const { moraleBaseline: base, moraleBands: bands, moraleMin } = deps.config;
+    const factor = (morale: number) => moraleFactor(morale, deps.config);
 
-    expect(at([60, 60])).toEqual({ mean: 1, effect: 'none' });
-    expect(at([95, 60])).toEqual({ mean: (factor.elated + 1) / 2, effect: 'raises' });
-    expect(at([30, 60])).toEqual({ mean: (factor.low + 1) / 2, effect: 'lowers-a-little' });
-    expect(at([10, 30])).toEqual({ mean: (factor.wretched + factor.low) / 2, effect: 'lowers-badly' });
+    // Morale's line (DL-283): 1 at the baseline; down to its value at the low band's start, a little.
+    expect(at([base, base])).toEqual({ mean: 1, effect: 'none' });
+    expect(at([95, base])).toEqual({ mean: (factor(95) + 1) / 2, effect: 'raises' });
+    expect(at([bands.low, bands.low])).toEqual({ mean: factor(bands.low), effect: 'lowers-a-little' });
+    expect(at([moraleMin, bands.low])).toEqual({ mean: (factor(moraleMin) + factor(bands.low)) / 2, effect: 'lowers-badly' });
     expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
+  });
+
+  // DL-284: each Hero's form as one figure for the line (`formFigure`), Morale's factor times the mean
+  // over content's Hero Stats of Fatigue's factor by area, so a tired Party's line lowers.
+  test("gives a tired Party's form lower: each Hero's figure the mean of Fatigue's factors over content's Hero Stats", () => {
+    const setting = proposal();
+    const { world } = setting.document;
+    const party = [setting.rogue, setting.mage];
+    const tiring = testDeps({ rivalCount: 0, fatigueScaling: 0.4 });
+    const { moraleBaseline, fatigueScaling, fatigueMax } = tiring.config;
+    const areas = Object.values(testContent.stats)
+      .filter((stat) => stat.owner === 'hero')
+      .map((stat) => stat.area);
+    /** The mean over the Hero Stats of 1 − FS·f ÷ fatigueMax on the Physical and Magical, half that on the rest. */
+    const worn = (fatigue: number) =>
+      areas.reduce((total, area) => total + 1 - ((area === 'physical' || area === 'magical' ? fatigueScaling : fatigueScaling / 2) * fatigue) / fatigueMax, 0) / areas.length;
+    const at = (fatigues: [number, number]) => {
+      party.forEach((id, index) => {
+        const hero = world.heroes[id] as Hero;
+        hero.morale = moraleBaseline;
+        hero.fatigue = fatigues[index] as number;
+      });
+      return previewDispatch(world, request(setting, party), tiring)?.form;
+    };
+
+    expect(at([0, 0])).toEqual({ mean: 1, effect: 'none' });
+    const tired = at([fatigueMax, fatigueMax / 2]);
+    expect(tired?.mean).toBeCloseTo((worn(fatigueMax) + worn(fatigueMax / 2)) / 2, 12);
+    expect(tired?.mean).toBeLessThan(1);
+    expect(['lowers-a-little', 'lowers-badly']).toContain(tired?.effect);
   });
 
   test('gives the chance estimate for the Party carrying what it would carry, and none for no one or Encounters drawn on the way', () => {

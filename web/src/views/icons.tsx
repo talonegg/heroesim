@@ -64,6 +64,19 @@ const paths = {
   // A Hero's state.
   morale: <path d="M12 20s-7.5-4.6-7.5-10.3A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z" />,
   injury: <path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z" />,
+  // Fatigue (DL-289): a battery low on charge. And the Captain: a shield with a chevron on it.
+  fatigue: (
+    <>
+      <rect x="3" y="8" width="15.5" height="8" rx="2" />
+      <path d="M21 11v2M6.5 11v2" />
+    </>
+  ),
+  captain: (
+    <>
+      <path d="M12 3.5l7 2.8v5.2c0 4.1-2.9 7.3-7 9-4.1-1.7-7-4.9-7-9V6.3z" />
+      <path d="M8.5 11.5L12 8.5l3.5 3M8.5 15L12 12l3.5 3" />
+    </>
+  ),
   // The Guild's own.
   build: (
     <>
@@ -257,22 +270,49 @@ export function ClassMark({ icon, className }: { icon: ClassIcon | null; classNa
 }
 
 /**
+ * The Captain's mark (DL-289, the design's part 11): the icon, hidden from assistive technology as every
+ * icon is, with a tooltip that names it; the words a screen reader reads are the name's (`HeroName`).
+ */
+function CaptainMark() {
+  return (
+    <span className="captain-mark" aria-hidden="true" title="Captain">
+      <Drawing className="icon">{paths.captain}</Drawing>
+    </span>
+  );
+}
+
+/**
  * One Hero's name with their Class's mark before it (DL-206 item 23, DL-212): the one element every
  * place that lists a Hero with their Class uses, so that the mark and the name stand in one place.
  * The mark and the name's first word are one unit that never parts, so the mark is never alone on a
  * line; the later words follow and wrap as words do (the owner's (b), DL-212). `nameClass` styles the
  * name where its place has a style of its own, as the Party builder's does.
  */
-export function HeroName({ icon, className, name, nameClass }: { icon: ClassIcon | null; className: string; name: string; nameClass?: string }) {
+export function HeroName({
+  icon,
+  className,
+  name,
+  nameClass,
+  captain = false,
+}: {
+  icon: ClassIcon | null;
+  className: string;
+  name: string;
+  nameClass?: string;
+  /** The Hero is their Guild's Captain: a mark stands before their Class's, and a screen reader reads it after their name (DL-289). */
+  captain?: boolean;
+}) {
   const space = name.search(/\s/);
   const [firstWord, rest] = space < 0 ? [name, ''] : [name.slice(0, space), name.slice(space)];
   return (
     <span className={nameClass === undefined ? 'hero-name' : `hero-name ${nameClass}`}>
       <span className="hero-name__lead">
+        {captain ? <CaptainMark /> : null}
         <ClassMark icon={icon} className={className} />
         <span className="hero-name__first">{firstWord}</span>
       </span>
       {rest}
+      {captain ? <span className="visually-hidden">, Captain</span> : null}
     </span>
   );
 }

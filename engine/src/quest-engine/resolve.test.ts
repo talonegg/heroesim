@@ -19,8 +19,11 @@ import { addStack } from '../items.js';
 import { makeId, type Hero } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
+import { turnsPerDay } from '../time.js';
 import { demandsCheck, encounterCapability as capability, onlyCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { capability as checkCapability } from './check.js';
+import { questClock } from './clock.js';
+import { moraleFactor } from './form.js';
 import { meanShare } from './harm.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
@@ -659,9 +662,12 @@ describe('several Checks', () => {
   });
 });
 
-// DL-148 items 9 to 11, DL-154: each Hero's form, from the band of their Morale on the
+/** The config the scenes run under, for Morale's factor at their baseline (`pinned`, DL-283 item 4). */
+const sceneConfig = { ...defaultConfig, moraleBaseline: pinned.moraleBaseline };
+
+// DL-148 items 9 to 11, DL-154, DL-283: each Hero's form, Morale's factor at their Morale on the
 // Quest and whether they are hurt on it, scales the Stats they add into a Check's score. The scene's
-// Party of three, steady at Morale 60, has Strength 24 in all; with no variance, its roll is its
+// Party of three has Strength 24 in all, its capability at form 1; with no variance, its roll is its
 // capability.
 describe('form on the Quest', () => {
   /** An Encounter keyed `key` of one Check of the Party's summed Strength at `factor`, with `success` and `failure`. */
@@ -690,17 +696,20 @@ describe('form on the Quest', () => {
       expect(outcome.moraleDelta).toBe(delta);
       return encounters.map((it) => it.checks[0]?.capability ?? Number.NaN);
     };
-    const { moraleCheckFactor: factor } = pinned;
+    /** The Party's Strength at Morale `morale`, held to the scale, by Morale's factor there (DL-283). */
+    const formed = (morale: number) => 24 * moraleFactor(Math.max(sceneConfig.moraleMin, morale), sceneConfig);
 
-    // Steady at 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
-    expect(capabilities(0)).toEqual([24, 24]);
-    const [steady, wretched] = capabilities(-45);
-    expect(steady).toBe(24);
-    expect(wretched).toBeCloseTo(24 * factor.wretched, 10);
-    expect(capabilities(-200)[1]).toBeCloseTo(24 * factor.wretched, 10);
-    expect(capabilities(-30)[1]).toBeCloseTo(24 * factor.low, 10);
-    expect(capabilities(20)[1]).toBeCloseTo(24 * factor.high, 10);
-    expect(capabilities(35)[1]).toBeCloseTo(24 * factor.elated, 10);
+    // At 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
+    const [first, second] = capabilities(0);
+    expect(first).toBeCloseTo(formed(60), 10);
+    expect(second).toBeCloseTo(formed(60), 10);
+    const [before, lowered] = capabilities(-45);
+    expect(before).toBeCloseTo(formed(60), 10);
+    expect(lowered).toBeCloseTo(formed(15), 10);
+    expect(capabilities(-200)[1]).toBeCloseTo(formed(-140), 10);
+    expect(capabilities(-30)[1]).toBeCloseTo(formed(30), 10);
+    expect(capabilities(20)[1]).toBeCloseTo(formed(80), 10);
+    expect(capabilities(35)[1]).toBeCloseTo(formed(95), 10);
   });
 
   test('a Hero hurt in Encounter 1 adds hurtCheckFactor of their Strength in Encounter 2', () => {
@@ -712,18 +721,18 @@ describe('form on the Quest', () => {
   });
 
   test("sets a Check's formDecided exactly when the same roll with every form at 1 falls on the other side of the Success line, and which way", () => {
-    // A target of 22: 24 is a Success at form 1, and 20.4, wretched, a Setback.
+    // A target of 22: 24 is a Success at form 1, and at Morale 10, far below the baseline, a Setback.
     const lowered = resolvedAt('lowered', 10, [summed('one', 0.55)]).encounters[0];
     expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
-    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * pinned.moraleCheckFactor.wretched, 10);
-    // A target of 25.2: 24 is a Setback at form 1, and 25.92, elated, a Success.
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * moraleFactor(10, sceneConfig), 10);
+    // A target of 25.2: 24 is a Setback at form 1, and at Morale 95, far above it, a Success.
     expect(resolvedAt('raised', 95, [summed('one', 0.63)]).encounters[0]).toMatchObject({
       degree: 'success',
       formDecided: 'raised',
       checks: [{ degree: 'success', formDecided: 'raised' }],
     });
     // Form moved the roll but not past the Success line: a Failure made a Setback (a target of 34),
-    // a Success made a Triumph (20), or no Degree moved at all. None is set. Nor at form 1, steady.
+    // a Success made a Triumph (20), or no Degree moved at all. None is set. Nor at Morale 60, form 1 at a baseline of 60.
     for (const [morale, factor] of [[95, 0.85], [95, 0.5], [95, 0.55], [10, 0.25], [60, 0.55], [60, 0.63]] as const) {
       const [only] = resolvedAt(`none-${morale}-${factor}`, morale, [summed('one', factor)]).encounters;
       expect(only).not.toHaveProperty('formDecided');
@@ -776,10 +785,9 @@ describe('form on the Quest', () => {
     expect(missed).toMatchObject({ degree: 'setback', formDecided: 'lowered' });
   });
 
-  test('every form factor 1 plays as before form (DL-154): the capabilities read as they are, and nothing is formDecided', () => {
-    const ones = { moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, hurtCheckFactor: 1 };
-    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'morale', delta: -50 }]);
-    const { encounters } = resolvedAt('ones', 10, [wounding, summed('after', 0.55)], ones);
+  test('every form at 1, at the baseline and hurtCheckFactor 1, plays as before form (DL-154, DL-283): the capabilities read as they are, and nothing is formDecided', () => {
+    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }]);
+    const { encounters } = resolvedAt('ones', pinned.moraleBaseline, [wounding, summed('after', 0.55)], { hurtCheckFactor: 1 });
 
     expect(encounters.map((it) => it.checks)).toEqual([
       [{ key: 'wounding', capability: 24, roll: 24, target: 10, margin: 14, degree: 'triumph' }],
@@ -792,6 +800,156 @@ describe('form on the Quest', () => {
     const { encounters } = resolvedAt('raw-form', 10, [gate]);
 
     expect(encounters[0]?.checks).toEqual([{ key: 'gate', capability: 24, roll: 24, target: 24, margin: 0, degree: 'success' }]);
+  });
+});
+
+// DL-280 item 2, DL-282, DL-284: each Hero meets each Encounter at their Fatigue on its Day, which the
+// Quest clock works out from the Fatigue the Party set out with, never their stored Fatigue (the
+// Quest's end's). It takes from their formed Stats by area, and raises the chance an Injury or a
+// Death lands on them, a Death's before the one hold at 1, which comes before their guard.
+describe('Fatigue on the Quest', () => {
+  /** An Encounter keyed `key` of one Check of the Party's summed Strength at `factor`, with `failure`, and no variance. */
+  const summed = (key: string, factor: number, failure: Consequence[] = []): Encounter => ({
+    key,
+    name: key,
+    kind: 'combat',
+    checks: [{ key, name: key, score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: factor, variance: 0 }],
+    consequences: { success: [], failure },
+  });
+
+  /**
+   * The scene through `encounters` on a Quest of `days` Days at Tier `tier`, its Heroes at the Morale
+   * baseline and setting out at Fatigue `atDispatch`, their stored Fatigue `stored`, under FS `scaling`
+   * and `config`; with the clock the resolver reads, and the `quests` stream's draws a twin takes first.
+   */
+  function sentAt(
+    seed: string,
+    encounters: Encounter[],
+    { atDispatch = 0, stored = 0, scaling = 0.4, days = 9, tier = 4, size = 3, config = {} as Partial<EngineDeps['config']> } = {},
+  ) {
+    const s = scene(seed, { ...contentWith(...encounters), synergies: {} }, encounters.map((it) => it.key), { size });
+    const deps: EngineDeps = { ...s.deps, config: { ...s.deps.config, fatigueScaling: scaling, ...config } };
+    for (const hero of s.heroes) {
+      hero.morale = deps.config.moraleBaseline;
+      hero.fatigue = stored;
+    }
+    const quest = { ...s.quest, tier, durationTurns: days * turnsPerDay };
+    const party = { ...s.party, fatigueAtDispatch: Object.fromEntries(s.heroes.map((hero) => [hero.id, atDispatch])) };
+    const twin = structuredClone(streamOf(s.world, 'quests'));
+    const clock = questClock(quest, encounters.length, deps.config);
+    return { ...s, deps, quest, party, twin, clock, resolved: () => resolveQuest(s.world, quest, party, deps) };
+  }
+
+  test("each Encounter's Check reads the Party's Strength times 1 − FS·f ÷ fatigueMax, f its Day's Fatigue from the clock, not the stored", () => {
+    const encounters = ['a', 'b', 'c', 'd'].map((key) => summed(key, 0.001));
+    const s = sentAt('fatigue-days', encounters, { atDispatch: 20, stored: 90 });
+    const { encounters: met } = s.resolved();
+    const { fatigueScaling, fatigueMax } = s.deps.config;
+
+    expect(met.map((it) => s.clock.encounterDay(it.index))).toEqual([1, 3, 4, 6]);
+    for (const it of met) {
+      const f = s.clock.fatigueAt(it.index, 20);
+      expect(it.checks[0]?.capability, `Encounter ${it.index} at ${f}`).toBeCloseTo(24 * (1 - (fatigueScaling * f) / fatigueMax), 10);
+    }
+    // The first at the Fatigue the Party set out with; each later one lower, as the Days rise.
+    expect(met[0]?.checks[0]?.capability).toBeCloseTo(24 * (1 - (fatigueScaling * 20) / fatigueMax), 10);
+    const capabilities = met.map((it) => it.checks[0]?.capability ?? Number.NaN);
+    capabilities.forEach((it, index) => index > 0 && expect(it).toBeLessThan(capabilities[index - 1] as number));
+  });
+
+  test('a Mental Stat loses half what a Physical one does', () => {
+    const scored = (stat: string): Encounter => ({ ...summed(stat, 0.001), checks: [{ key: stat, name: stat, score: ['sum', 'party', ['stat', stat]], skills: [], difficultyFactor: 0.001, variance: 0 }] });
+    // One Day: the lone Encounter on Day 1, at the Fatigue the Party set out with.
+    const capabilityOf = (stat: string) => sentAt(`fatigue-area-${stat}`, [scored(stat)], { atDispatch: 60, days: 1, config: { fatigueMax: 100 } }).resolved().encounters[0]?.checks[0]?.capability ?? Number.NaN;
+    expect(capabilityOf('strength')).toBeCloseTo(24 * (1 - (0.4 * 60) / 100), 10);
+    expect(capabilityOf('wits')).toBeCloseTo(24 * (1 - (0.2 * 60) / 100), 10);
+  });
+
+  test('at FS 0, or setting out rested on a Quest of one Day, every Check reads the Party as it is', () => {
+    const encounters = ['a', 'b', 'c'].map((key) => summed(key, 0.001));
+    expect(sentAt('fatigue-none', encounters, { atDispatch: 80, scaling: 0 }).resolved().encounters.map((it) => it.checks[0]?.capability)).toEqual([24, 24, 24]);
+    expect(sentAt('fatigue-rested', [summed('a', 0.001)], { days: 1 }).resolved().encounters[0]?.checks[0]?.capability).toBe(24);
+  });
+
+  test("formDecided reads Fatigue as it reads Morale: the formed roll against the raw one's", () => {
+    // A target of 22: the raw 24 a Success; at Fatigue 50 on Day 1, 24 × 0.8 = 19.2, a Setback.
+    const lowered = sentAt('fatigue-lowered', [summed('one', 0.55)], { atDispatch: 50, days: 1, config: { fatigueMax: 100 } }).resolved().encounters[0];
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * 0.8, 10);
+    expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
+    // Rested, the same Check is a Success, and form decided nothing.
+    const rested = sentAt('fatigue-rested-one', [summed('one', 0.55)], { atDispatch: 0, days: 1 }).resolved().encounters[0];
+    expect(rested).toMatchObject({ degree: 'success', checks: [{ capability: 24, roll: 24 }] });
+    expect(rested).not.toHaveProperty('formDecided');
+    expect(rested?.checks[0]).not.toHaveProperty('formDecided');
+  });
+
+  test('a raw Check is read as the Party is, at any Fatigue', () => {
+    const gate: Encounter = { ...summed('gate', 0), checks: [{ key: 'gate', name: 'gate', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0, flat: 24, variance: 0, raw: true }] };
+    const { encounters } = sentAt('fatigue-raw', [gate], { atDispatch: 100 }).resolved();
+    expect(encounters[0]?.checks).toEqual([{ key: 'gate', capability: 24, roll: 24, target: 24, margin: 0, degree: 'success' }]);
+  });
+
+  /** One Hero sent through one Encounter they fail, whose Failure is `harm`, at Fatigue `atDispatch`; with the draw that decides whether it lands. */
+  function harmedAt(seed: string, harm: Consequence, { atDispatch = 100, scaling = 0.4, factor = 1, guard = 0 } = {}) {
+    const s = sentAt(seed, [summed('grave', 1000, [harm])], { atDispatch, scaling, size: 1, config: { deathFactor: factor, guardRange: guard } });
+    next(s.twin);
+    const u = next(s.twin);
+    const { outcome } = s.resolved();
+    const f = s.clock.fatigueAt(0, atDispatch);
+    return { u, f: f / s.deps.config.fatigueMax, landed: outcome.injuries.length + outcome.deaths.length > 0, stream: streamOf(s.world, 'quests'), member: queryParty(s.heroes, s.world, s.deps).members[0], deps: s.deps };
+  }
+  const seeds = Array.from({ length: 80 }, (_, index) => `fatigue-harm-${index}`);
+
+  test("an Injury lands below its chance times 1 + FS·f ÷ fatigueMax, f the Hero's Fatigue on the Encounter's Day", () => {
+    const runs = seeds.map((seed) => harmedAt(seed, injury({ chance: 0.4 }), { atDispatch: 30 }));
+    // f is the Day's Fatigue as a share of the scale; the lone Encounter falls after nights away, so above the 30 set out with.
+    for (const { u, f, landed } of runs) expect(landed).toBe(u < 0.4 * (1 + 0.4 * f));
+    const [{ f } = { f: 0 }] = runs;
+    expect(f).toBeGreaterThan(0.3);
+    expect(new Set(runs.map((run) => run.landed))).toEqual(new Set([true, false]));
+    // Some draws land only because of Fatigue.
+    expect(runs.some(({ u }) => u >= 0.4 && u < 0.4 * (1 + 0.4 * f))).toBe(true);
+  });
+
+  test("a Death lands below its chance times the Quest's Death scale times 1 + (FS ÷ 2)·f ÷ fatigueMax", () => {
+    const runs = seeds.map((seed) => harmedAt(seed, { kind: 'death', chance: 0.3 }, { factor: 1.5 }));
+    for (const { u, landed } of runs) expect(landed).toBe(u < 0.3 * 1.5 * 1.2);
+    expect(new Set(runs.map((run) => run.landed))).toEqual(new Set([true, false]));
+    expect(runs.some(({ u }) => u >= 0.45 && u < 0.54)).toBe(true);
+  });
+
+  test("a Death's chance is held at 1 once, after Fatigue's factor and before the Hero's guard", () => {
+    // 0.5 × 1.8 is 0.9, under 1; with Fatigue's 1.2 it is 1.08, held to 1: the guard then is the chance.
+    // Held before Fatigue's factor, it would be 1.08 × the guard.
+    const runs = seeds.map((seed) => harmedAt(seed, { kind: 'death', chance: 0.5, guardedBy: ['constitution'] }, { factor: 1.8, guard: 0.5 }));
+    const [first] = runs;
+    if (first?.member === undefined) throw new Error('No Hero');
+    const kept = 1 - first.deps.config.guardRange * (meanShare(first.member, ['constitution'], first.deps.content) as number);
+    expect(kept * 1.08).toBeLessThan(1);
+    for (const { u, landed } of runs) expect(landed).toBe(u < kept);
+    expect(runs.some(({ u }) => u >= kept && u < 1.08 * kept)).toBe(true);
+  });
+
+  test("an Injury's chance is held at 1 too, after Fatigue's factor and before the Hero's guard", () => {
+    // 0.8 × Fatigue's 1.4 at full Fatigue is 1.12, held to 1: the guard then is the chance. Unheld, or
+    // held before Fatigue's factor, it would be 1.12 × the guard.
+    const runs = seeds.map((seed) => harmedAt(seed, injury({ chance: 0.8, guardedBy: ['constitution'] }), { guard: 0.5 }));
+    const [first] = runs;
+    if (first?.member === undefined) throw new Error('No Hero');
+    expect(first.f).toBe(1);
+    const kept = 1 - first.deps.config.guardRange * (meanShare(first.member, ['constitution'], first.deps.content) as number);
+    expect(kept * 1.12).toBeLessThan(1);
+    for (const { u, landed } of runs) expect(landed).toBe(u < kept);
+    expect(runs.some(({ u }) => u >= kept && u < 1.12 * kept)).toBe(true);
+  });
+
+  test('a chance of 0 stays 0 at full Fatigue, and Fatigue never shifts a draw', () => {
+    for (const seed of seeds.slice(0, 20)) {
+      expect(harmedAt(seed, injury({ chance: 0 })).landed).toBe(false);
+      expect(harmedAt(seed, { kind: 'death', chance: 0 }).landed).toBe(false);
+      expect(harmedAt(seed, injury({ chance: 0.5 })).stream).toEqual(harmedAt(seed, injury({ chance: 0.5 }), { scaling: 0 }).stream);
+      expect(harmedAt(seed, { kind: 'death', chance: 0.5 }).stream).toEqual(harmedAt(seed, { kind: 'death', chance: 0.5 }, { atDispatch: 0, scaling: 0 }).stream);
+    }
   });
 });
 
@@ -946,7 +1104,7 @@ describe('harm that reads the Stats', () => {
     expect(h.resolve().outcome.moraleByHero).toEqual(Object.fromEntries(h.heroes.map((hero, index) => [hero.id, index === 0 ? -1 : -2])));
   });
 
-  test("each Hero's Morale on the Quest reads their steadied losses unrounded: 40 less a half is the low band", () => {
+  test("each Hero's Morale on the Quest reads their steadied losses unrounded: 40 less a half is 39.5", () => {
     const after: Encounter = {
       key: 'after',
       name: 'after',
@@ -963,8 +1121,9 @@ describe('harm that reads the Stats', () => {
       },
     });
 
-    // The first Hero at 39.5 is low; the others, at 59.5, steady.
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
+    // The first Hero at 39.5, the others at 59.5, each by Morale's factor there (DL-283).
+    const formed = (morale: number) => 8 * moraleFactor(morale, sceneConfig);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(39.5) + 2 * formed(59.5), 10);
   });
 
   test('moraleByHero names each Hero home alive, and with no steadiedBy is moraleDelta for each', () => {
@@ -985,7 +1144,7 @@ describe('harm that reads the Stats', () => {
       checks: [{ key: 'after', name: 'after', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.25 }],
       consequences: { success: [], failure: [] },
     };
-    // From 60: −30 at the bottom of Courage, to 30, low; −15 at the top, to 45, steady.
+    // From 60: −30 at the bottom of Courage, to 30; −15 at the top, to 45.
     const h = harmed('own-form', [failing('gloom', [{ kind: 'morale', delta: -30, steadiedBy: ['courage'] }]), after], {
       set: (heroes) => {
         heroes.forEach((hero, index) => {
@@ -995,7 +1154,8 @@ describe('harm that reads the Stats', () => {
       },
     });
 
-    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * pinned.moraleCheckFactor.low + 16, 10);
+    const formed = (morale: number) => 8 * moraleFactor(morale, sceneConfig);
+    expect(h.resolve().encounters[1]?.checks[0]?.capability).toBeCloseTo(formed(30) + 2 * formed(45), 10);
   });
 
   test("a share reads effective Stats, so armour's Constitution steadies, and never form", () => {
@@ -1203,7 +1363,9 @@ describe("a Hero Trait's effects in a Check", () => {
     const check = (s.deps.content.encounters['strength'] as Encounter);
     const before = checkCapability(party(), check, onlyCheck(check), s.world, s.deps);
     (s.heroes[0] as Hero).traits.push('lame');
-    const form = party().members[0]?.form ?? 1;
+    // What the Party's form makes of the lame Hero's Strength: their formed Strength's share of it.
+    const [lame] = party().members;
+    const form = (lame?.formed['strength'] ?? 0) / (lame?.stats['strength'] ?? 1);
     expect(checkCapability(party(), check, onlyCheck(check), s.world, s.deps)).toBeCloseTo(before - 2 * form * teamwork(s.heroes, s.world, s.deps), 10);
   });
 
@@ -1371,6 +1533,7 @@ describe('harm and earned Traits across seeds, draw for draw', () => {
     }
     expect([...seen.degrees].sort()).toEqual(['failure', 'setback', 'success', 'triumph']);
     expect(Math.min(seen.injuries, seen.deaths, seen.positive, seen.negative)).toBeGreaterThan(0);
-    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('d1d94ff799486005decad797feadd798c574b6009f8e456406d5db8bee9db80f');
+    // Moved by Morale's form made a line, each Morale consequence now moving form (DL-283; d1d94ff7… before).
+    expect(createHash('sha256').update(JSON.stringify(resolutions)).digest('hex')).toBe('e3360864c5da55c2ce8586df3380169dee2c20e893ed65e38214c0771dab9987');
   });
 });

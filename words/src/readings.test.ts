@@ -2,16 +2,19 @@ import { loadContent } from '@heroesim/content/node';
 import {
   addStack,
   ageOf,
-  availableHeroes,
   bestParties,
+  captainLock,
   createWorld,
   defaultConfig,
   descriptiveAttributeLabels,
   effectiveStats,
   estimateQuest,
+  fatigueBand,
   guildmasterOf,
   isDeadly,
   judgedHintBands,
+  moraleBand,
+  partyPool,
   playerGuild,
   potentialHint,
   signingFee,
@@ -33,8 +36,13 @@ import { encounterReadings, shownPercent } from './query.js';
 import {
   bestPartyReading,
   boardReading,
+  captainPost,
   deadlyWords,
+  fatigueBandNames,
   heroReading,
+  moraleBandNames,
+  namingWords,
+  noBestPartyWords,
   partyFloorWords,
   playerReading,
   poolNote,
@@ -43,7 +51,9 @@ import {
   rosterReading,
   signsWords,
   tierWords,
+  type CaptainPostReading,
   type HeroReading,
+  type HeroRow,
   type PlayerReading,
 } from './readings.js';
 
@@ -254,6 +264,19 @@ describe("a Hero's reading", () => {
     expect(read(document, other)).toMatchObject({ injury: null, traits: [] });
   });
 
+  // DL-289: Fatigue read by its band as Morale is, and whether the Hero is their Guild's Captain.
+  test("gives Fatigue with its band, and whether the Hero is their Guild's Captain", () => {
+    const document = newGame();
+    const guild = player(document);
+    const [hero, other] = heroes(document) as [Hero, Hero];
+    hero.fatigue = defaultConfig.fatigueBands.tired;
+    other.fatigue = 0;
+    guild.captainId = hero.id;
+
+    expect(read(document, hero)).toMatchObject({ fatigue: defaultConfig.fatigueBands.tired, fatigueBand: 'tired', captain: true });
+    expect(read(document, other)).toMatchObject({ fatigue: 0, fatigueBand: 'fresh', captain: false });
+  });
+
   test("gives the effective value a Check reads, with the Hero's gear, the Guildmaster's Traits and the Hero's own", () => {
     const document = newGame();
     const [hero] = heroes(document) as [Hero];
@@ -415,6 +438,10 @@ describe('the rows of a Roster and of the pool', () => {
         level: hero.level,
         age: ageOf(hero, document.world.turn, defaultConfig),
         morale: hero.morale,
+        moraleBand: moraleBand(hero.morale, defaultConfig),
+        fatigue: hero.fatigue,
+        fatigueBand: fatigueBand(hero.fatigue, defaultConfig),
+        captain: guild.captainId === hero.id,
         background: content.backgrounds[hero.backgroundKey]?.name,
         transferFee: null,
       });
@@ -422,6 +449,59 @@ describe('the rows of a Roster and of the pool', () => {
     expect(rosterReading(reading, rival).map((row) => [row.id, row.transferFee])).toEqual(
       rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, deps)]),
     );
+  });
+
+  test('names the bands a row puts a Hero in, lowest first, so that a front end offers them without the engine', () => {
+    expect(moraleBandNames).toEqual(['wretched', 'low', 'steady', 'high', 'elated']);
+    expect(fatigueBandNames).toEqual(['fresh', 'weary', 'tired', 'exhausted']);
+  });
+
+  // DL-289: a row reads Morale and Fatigue each by its band, and says who is the Captain, once, for the
+  // page and the CLI: neither lays out a band of its own from the engine.
+  test("gives each Hero's Morale and Fatigue by their bands at the config's starts, and who is the Captain", () => {
+    const document = newGame();
+    const guild = player(document);
+    const roster = heroes(document);
+    const config: GameConfig = {
+      ...defaultConfig,
+      moraleBands: { wretched: 0, low: 10, steady: 20, high: 30, elated: 40 },
+      fatigueBands: { fresh: 0, weary: 20, tired: 40, exhausted: 60 },
+    };
+    const [hero] = roster as [Hero, ...Hero[]];
+    const readOne = (): HeroRow => rosterReading(playerReading(document, { config, content }), guild)[0] as HeroRow;
+    const bandsOf = (morale: number, fatigue: number): [string, string] => {
+      hero.morale = morale;
+      hero.fatigue = fatigue;
+      const row = readOne();
+      expect([row.morale, row.fatigue]).toEqual([morale, fatigue]);
+      return [row.moraleBand, row.fatigueBand];
+    };
+
+    expect([bandsOf(5, 0), bandsOf(15, 20), bandsOf(25, 39), bandsOf(35, 40), bandsOf(45, 99)]).toEqual([
+      ['wretched', 'fresh'],
+      ['low', 'weary'],
+      ['steady', 'weary'],
+      ['high', 'tired'],
+      ['elated', 'exhausted'],
+    ]);
+    guild.captainId = (roster[1] as Hero).id;
+    const rows = rosterReading(playerReading(document, { config, content }), guild);
+
+    expect(rows.map((row) => row.captain)).toEqual(roster.map((hero) => hero.id === guild.captainId));
+    expect(rows.filter((row) => row.captain)).toHaveLength(1);
+  });
+
+  test("a Roster with no Captain names none; a Rival's Captain is read on its Roster; an Unattached Hero is no one's", () => {
+    const document = newGame();
+    const rival = rivalOf(document);
+    player(document).captainId = null;
+    rival.captainId = rival.rosterIds[1] as HeroId;
+    const reading = playerReading(document, deps);
+
+    expect(rosterReading(reading, player(document)).some((row) => row.captain)).toBe(false);
+    expect(rosterReading(reading, rival).map((row) => row.captain)).toEqual(rival.rosterIds.map((id) => id === rival.captainId));
+    expect(poolReading(reading).some((row) => row.captain)).toBe(false);
+    for (const hero of unattachedHeroes(document.world)) expect(read(document, hero).captain).toBe(false);
   });
 
   test("gives every Unattached Hero and no Hero on a Roster, each with the signing fee the player's Guild would pay and whether they sign", () => {
@@ -463,6 +543,51 @@ describe('the rows of a Roster and of the pool', () => {
   });
 });
 
+// DL-289: the player's Guild's Captaincy as a Hero's page meets it, and what naming another says.
+describe("the Guild's Captain post", () => {
+  test('reads the Captain, the lock a change set, and what naming another costs and locks, from the config', () => {
+    const document = newGame();
+    const guild = player(document);
+    const [first, second] = heroes(document) as [Hero, Hero];
+    guild.captainId = first.id;
+    guild.captainChangedOnTurn = null;
+    const config: GameConfig = { ...defaultConfig, captainChangeMoraleCost: -12, captainChangeLockDays: 7 };
+
+    const open = captainPost(playerReading(document, { config, content }));
+    expect(open).toEqual({ captain: { id: first.id, name: first.name }, lock: null, moraleCost: 12, lockDays: 7 });
+
+    guild.captainChangedOnTurn = document.world.turn;
+    const locked = captainPost(playerReading(document, { config, content }));
+    expect(locked?.lock).toEqual(captainLock(guild, document.world.turn, config));
+    expect(locked?.lock).not.toBeNull();
+    // A vacancy holds no lock to read, and nobody to pay.
+    guild.captainId = null;
+    expect(captainPost(playerReading(document, { config, content }))?.captain).toBeNull();
+    expect(captainPost(playerReading(document, { config, content }))?.lock).toBeNull();
+    expect(second).toBeDefined();
+  });
+
+  test("with no player's Guild there is no post to read", () => {
+    const document = newGame();
+    player(document).controller = { kind: 'rival', disposition: 'steady' };
+
+    expect(captainPost(playerReading(document, deps))).toBeNull();
+  });
+
+  test('says what naming a Hero does: free to an empty post, else the outgoing Captain’s Morale and the lock', () => {
+    const post: CaptainPostReading = { captain: { id: 'hero-000001' as HeroId, name: 'Brenna Ashcombe' }, lock: null, moraleCost: 10, lockDays: 30 };
+
+    expect(namingWords({ ...post, captain: null }, 'Odo Thistle')).toBe('Naming Odo Thistle Captain is free: the post is empty.');
+    expect(namingWords(post, 'Odo Thistle')).toBe('Naming Odo Thistle Captain in place of Brenna Ashcombe costs Brenna Ashcombe 10 Morale and locks the post for 30 Days.');
+    expect(namingWords({ ...post, moraleCost: 0 }, 'Odo Thistle')).toBe('Naming Odo Thistle Captain in place of Brenna Ashcombe locks the post for 30 Days.');
+    expect(namingWords({ ...post, lockDays: 0 }, 'Odo Thistle')).toBe('Naming Odo Thistle Captain in place of Brenna Ashcombe costs Brenna Ashcombe 10 Morale.');
+    expect(namingWords({ ...post, lockDays: 1 }, 'Odo Thistle')).toBe(
+      'Naming Odo Thistle Captain in place of Brenna Ashcombe costs Brenna Ashcombe 10 Morale and locks the post for 1 Day.',
+    );
+    expect(namingWords({ ...post, moraleCost: 0, lockDays: 0 }, 'Odo Thistle')).toBe('Naming Odo Thistle Captain in place of Brenna Ashcombe costs nothing.');
+  });
+});
+
 describe("a Quest's reading", () => {
   test("gives the Quests on the Board in its order, each with its template's name, its Patron, its terms and what it requires", () => {
     const document = newGame();
@@ -499,6 +624,11 @@ describe("a Quest's reading", () => {
     expect(tierWords(3)).toBe('Tier 3');
     expect(deadlyWords).toEqual({ mark: 'Deadly', meaning: 'a Hero may die on this Quest' });
     expect(partyFloorWords(2)).toBe('A Party of at least 2');
+  });
+
+  // DL-289: "Your best Party" is of the Heroes the rest band leaves, so the sentence for none says rested, once for both.
+  test('says there is no best Party of the rested Heroes, not of the free ones a rest band keeps home from it', () => {
+    expect(noBestPartyWords).toBe('No Party of your rested Heroes meets its requirements.');
   });
 
   test("gives a Quest's Beats' lines in the order it plays them, one for each Encounter, the Finale's last (DL-262)", () => {
@@ -556,11 +686,11 @@ describe("a Quest's reading", () => {
     const [first, second] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest, Quest];
     first.requirements = { partySizeMin: 1 };
     second.requirements = { partySizeMin: 1, classKey: 'no-such-class' };
-    // One Hero away: the Best Party is of the free Heroes only.
+    // One Hero away: the Best Party is of the pool, free Heroes only.
     const [away] = heroes(document) as [Hero];
     away.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
     const guild = player(document);
-    const heroIds = bestParties(document.world, guild, deps).party(first, availableHeroes(document.world, guild))?.heroIds ?? [];
+    const heroIds = bestParties(document.world, guild, deps).party(first, partyPool(document.world, guild, deps))?.heroIds ?? [];
     const estimate = estimateQuest(document.world, first, heroIds.map((id) => document.world.heroes[id] as Hero), deps);
     const reading: PlayerReading = playerReading(document, deps);
 
@@ -574,5 +704,19 @@ describe("a Quest's reading", () => {
     expect(bestPartyReading(reading, second)).toBeNull();
     // Asked again, of the same reading, the same.
     expect(bestPartyReading(reading, first)?.heroIds).toEqual(heroIds);
+  });
+
+  // DL-286: the Board's best Party is of the player's pool, the Heroes `playerRestBand` keeps home left out.
+  test("leaves out of the Best Party each free Hero at or past the player's rest band, and none with no rest band", () => {
+    const document = newGame();
+    const [first] = document.world.board.map((id) => document.world.quests[id] as Quest) as [Quest];
+    first.requirements = { partySizeMin: 1 };
+    const resting = (playerRestBand: GameConfig['playerRestBand']): EngineDeps => ({ ...deps, config: { ...deps.config, playerRestBand, playerPartyMargin: 0 } });
+    const free = heroes(document);
+    // Every Hero but one tired.
+    for (const hero of free.slice(1)) hero.fatigue = resting('tired').config.fatigueBands.tired;
+
+    expect(bestPartyReading(playerReading(document, resting('tired')), first)?.heroIds).toEqual([free[0]?.id]);
+    expect(bestPartyReading(playerReading(document, resting(null)), first)?.heroIds.length).toBeGreaterThan(1);
   });
 });

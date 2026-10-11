@@ -10,6 +10,9 @@ export declare const productionBranch: string;
 /** The page's two addresses: the Worker's and the Pages project's. */
 export declare const addresses: { readonly worker: string; readonly pages: string };
 
+/** Whether a request the page at `baseURL` made leaves it; Pages may ask Cloudflare's beacon (DL-279). */
+export declare function leavesThePage(baseURL: string, url: string): boolean;
+
 export declare const pagesProject: string;
 export declare const workerConfig: string;
 

@@ -548,7 +548,7 @@ export function spotCheck(pools: readonly Pool[], settings: CalibrationSettings,
     if (estimate === null) continue;
     const returns = world.turn + quest.durationTurns;
     const home: World = { ...world, turn: returns, rng: { ...world.rng } };
-    const party: Party = { id: 'party-calibrate' as Party['id'], questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn: returns };
+    const party: Party = { id: 'party-calibrate' as Party['id'], questId: quest.id, guildId: guild.id, heroIds: heroes.map((hero) => hero.id), departedOnTurn: world.turn, returnsOnTurn: returns, fatigueAtDispatch: Object.fromEntries(heroes.map((hero) => [hero.id, hero.fatigue])) };
     const encounterRates = estimate.encounters.map(zero);
     const bandRates = noBands();
     for (let at = 0; at < settings.spotSeeds; at += 1) {

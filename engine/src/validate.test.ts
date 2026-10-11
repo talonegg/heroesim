@@ -85,7 +85,7 @@ const regard = (): RegardEntry => ({ value: 5, since: 20, reason: 'quest.resolve
 /** A second Party, the Rival's, on `questId`, which lists it. */
 function secondParty(document: Doc, questId: Quest['id'], heroIds: Hero['id'][]): Party {
   const id = makeId('parties', document.world.counters.parties++);
-  const second: Party = { id, questId, guildId: ids.rivalGuild, heroIds, departedOnTurn: 39, returnsOnTurn: 47 };
+  const second: Party = { id, questId, guildId: ids.rivalGuild, heroIds, departedOnTurn: 39, returnsOnTurn: 47, fatigueAtDispatch: Object.fromEntries(heroIds.map((heroId) => [heroId, 0])) };
   document.world.parties[id] = second;
   quest(document, questId).partyIds.push(id);
   return second;
@@ -164,7 +164,15 @@ describe('§6: an id referenced by a row that does not exist in its table', () =
     ["a Quest's Parties", (d) => quest(d, ids.offeredQuest).partyIds.push(nowhere.party), ids.offeredQuest],
     ["a Party's Quest", (d) => delete d.world.quests[ids.takenQuest], ids.party],
     ["a Party's Guild", (d) => (party(d, ids.party).guildId = nowhere.guild), ids.party],
-    ["a Party's Heroes", (d) => party(d, ids.party).heroIds.push(nowhere.hero), ids.party],
+    [
+      "a Party's Heroes",
+      // Its Fatigue at dispatch recorded, so that only the reference is wrong.
+      (d) => {
+        party(d, ids.party).heroIds.push(nowhere.hero);
+        party(d, ids.party).fatigueAtDispatch[nowhere.hero] = 0;
+      },
+      ids.party,
+    ],
     ["an offer's Guild", (d) => (offer(d, ids.offer).toGuildId = nowhere.guild), ids.offer],
     [
       "an offer's Hero",
@@ -243,6 +251,12 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
     expect(refusals((d) => (hero(d, ids.partyHero).partyId = null))).toEqual([
       failure('party-member-mismatch', ids.partyHero),
     ]);
+  });
+
+  test("a Party whose Fatigue at dispatch misses one of its Heroes, or names another, naming the Party (DL-282)", () => {
+    expect(refusals((d) => (party(d, ids.party).fatigueAtDispatch = {}))).toEqual([failure('party-member-mismatch', ids.party)]);
+    expect(refusals((d) => (party(d, ids.party).fatigueAtDispatch[idleHero] = 0))).toEqual([failure('party-member-mismatch', ids.party)]);
+    expect(refusals((d) => (party(d, ids.party).fatigueAtDispatch = { [idleHero]: 0 }))).toEqual([failure('party-member-mismatch', ids.party)]);
   });
 });
 
@@ -664,6 +678,19 @@ describe('document-shape', () => {
     ['a Quest with a line that is not a string', (d) => set(quest(d, ids.offeredQuest), 'beatLines', [7]), `$.world.quests["${ids.offeredQuest}"].beatLines`],
     ['a Quest with more lines than Encounters', (d) => set(quest(d, ids.offeredQuest), 'beatLines', ['One.', 'Two.']), `$.world.quests["${ids.offeredQuest}"].beatLines`],
     ['a Quest with fewer lines than Encounters', (d) => set(quest(d, ids.offeredQuest), 'beatLines', []), `$.world.quests["${ids.offeredQuest}"].beatLines`],
+    // DL-282: a Hero's Fatigue, and their Party's record of it at dispatch.
+    ['a Hero without Fatigue, as schema 9 wrote them', (d) => drop(hero(d, ids.partyHero), 'fatigue'), `${heroPath}.fatigue`],
+    ['a Hero whose Fatigue is not a number', (d) => set(hero(d, ids.partyHero), 'fatigue', '0'), `${heroPath}.fatigue`],
+    [
+      'a Party without its Fatigue at dispatch, as schema 9 wrote them',
+      (d) => drop(party(d, ids.party), 'fatigueAtDispatch'),
+      `$.world.parties["${ids.party}"].fatigueAtDispatch`,
+    ],
+    [
+      'a Party whose Fatigue at dispatch is not a number for each Hero',
+      (d) => set(party(d, ids.party), 'fatigueAtDispatch', { [ids.partyHero]: null }),
+      `$.world.parties["${ids.party}"].fatigueAtDispatch`,
+    ],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });

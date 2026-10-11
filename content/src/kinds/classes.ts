@@ -1,9 +1,10 @@
 // The Classes (R9; `classes.json`), and their order (`class-order.json`, DL-186 item 24): a Class's
-// leading Stats and the Skills it gates, its growth weights, its draw weight and its icon.
+// leading Stats and the Skills it gates, its growth weights, its draw weight, its icon and its mark
+// as a Class that relieves the hurt (DL-285).
 
 import type { Class, ClassKey } from '@heroesim/engine/content';
 import { classIcons, isClassIcon } from '@heroesim/engine/content';
-import { numbers, optional, strings, table, text, number, type KindReader } from './read.js';
+import { boolean, numbers, optional, strings, table, text, number, type KindReader } from './read.js';
 import { checkReferences, checkRowKeys, checkWeight, type KindRules } from './rules.js';
 
 /**
@@ -24,6 +25,9 @@ export const classesKind = table<'classes', Class>(
     weight: optional(number),
     // One the page draws (DL-206 item 22, DL-212); that it is one is the rules'.
     icon: optional(text),
+    // The Healer's mark (DL-285; the architecture review's candidate 5): true or false on the Class's
+    // own row, so it can name no other Class; absent, false.
+    relievesHurt: optional(boolean),
   },
   'a Class',
 );

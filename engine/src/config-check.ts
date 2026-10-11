@@ -9,6 +9,7 @@
 import {
   chanceBandNames,
   defaultConfig,
+  fatigueBandNames,
   moraleBandNames,
   potentialHints,
   questBands,
@@ -150,7 +151,8 @@ function each(keys: readonly string[], spec: NumberSpec): ConfigRule {
 
 /**
  * Bands: a record of exactly `keys`, each a number `spec` allows, rising strictly in `keys`' order,
- * where each band starts (`moraleBands`, `regardBands`, `potentialHintBands`, `chanceBands`).
+ * where each band starts (`moraleBands`, `fatigueBands`, `regardBands`, `potentialHintBands`,
+ * `chanceBands`).
  */
 function bands(keys: readonly string[], spec: NumberSpec): ConfigRule {
   return (value, settings) => {
@@ -163,6 +165,11 @@ function bands(keys: readonly string[], spec: NumberSpec): ConfigRule {
 /** One of `members`. */
 function oneOf(members: readonly string[]): ConfigRule {
   return (value) => (members.includes(value as string) ? undefined : `it is one of ${members.join(', ')}`);
+}
+
+/** One of `members`, or `null` for none. */
+function oneOfOrNone(members: readonly string[]): ConfigRule {
+  return (value) => (value === null || members.includes(value as string) ? undefined : `it is one of ${members.join(', ')}, or null`);
 }
 
 /** A list of `members`, none twice. */
@@ -192,18 +199,6 @@ const degreeThresholds: ConfigRule = (value, settings) => {
     : 'triumph > success > setback > 0';
 };
 
-/**
- * The form factors (DL-154): one for every Morale band, each a finite number above 0, `steady`'s 1
- * and the rest in the bands' order, so that better spirits never bring less.
- */
-const formFactors: ConfigRule = (value, settings) => {
-  const factors = numbersOf(value, moraleBandNames, { above: 0 }, settings);
-  const ordered = factors?.every((factor, index) => index === 0 || factor >= (factors[index - 1] as number));
-  return ordered === true && factors?.[moraleBandNames.indexOf('steady')] === 1
-    ? undefined
-    : `it holds ${moraleBandNames.join(' ≤ ')}, each a finite number above 0, steady 1, the band that changes nothing`;
-};
-
 /** A Quest's band by its share of Encounters succeeded (M4-S2): two shares, `successAbove` below `strongAtLeast`. */
 const successShares: ConfigRule = (value, settings) => {
   const [successAbove, strongAtLeast] = numbersOf(value, ['successAbove', 'strongAtLeast'], { min: 0, max: 1 }, settings) ?? [];
@@ -221,6 +216,19 @@ const healFactors: ConfigRule = (value) =>
   Array.isArray(value) && value.length >= 1 && value.every((factor) => isNumber(factor) && factor > 0)
     ? undefined
     : 'it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0';
+
+/**
+ * Fatigue's figures a night by a ladder's rung (DL-282): `fatigueRiseByTier`'s by Tier and
+ * `fatigueFallByQuarters`' by quarters grade, at least one, each a finite number of 0 or more, so no
+ * night away rests a Hero nor a night at home tires one. One past the list reads the last, so a
+ * longer ladder or a content release with more grades leaves the list sound (DL-193).
+ */
+function fatigueSteps(each: string, one: string): ConfigRule {
+  return (value) =>
+    Array.isArray(value) && value.length >= 1 && value.every((step) => isNumber(step) && step >= 0)
+      ? undefined
+      : `it is a list of at least one figure, one for each ${each}, a ${one} past the list reading the last, each a finite number of 0 or more`;
+}
 
 /**
  * The Stat areas a decline draws from (M3-S4): any of the Stat areas, none twice. An area content has
@@ -330,6 +338,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   rivalRosterMin: whole({ min: 0 }),
   rivalRosterMax: drawnMax('rivalRosterMin'),
   rivalHireReserveUpkeeps: finite({ min: 0 }),
+  rivalHealItemStock: whole({ min: 0 }),
   rivalStartingWealthMin: whole({ min: 0 }),
   rivalStartingWealthMax: drawnMax('rivalStartingWealthMin'),
   patronCount: whole({ min: 1 }),
@@ -395,9 +404,11 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   bandBySuccessShare: successShares,
   checkDegrees: degreeThresholds,
   strongTriumphShare: share,
-  moraleCheckFactor: formFactors,
   // A wound never helps (DL-154).
   hurtCheckFactor: finite({ above: 0, max: 1 }),
+  // Relief never widens the gap nor turns it past closed (DL-285).
+  healerHurtRelief: share,
+  healItemHurtRelief: share,
   // No weight in the draw of who is hit falls below 1 (DL-155).
   exposureRange: finite({ min: 0 }),
   // A guard never raises a chance nor turns it below 0 (DL-155).
@@ -409,6 +420,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   moraleMin: whole(),
   moraleMax: whole({ min: 'moraleMin' }),
   moraleDrift: finite({ min: 0 }),
+  // Rising starts inside the scale keep it wider than 0, which Morale's factor divides by (DL-283).
   moraleBands: bands(moraleBandNames, { min: 'moraleMin', max: 'moraleMax' }),
   moraleOnRosterDeath: finite({ max: 0 }),
   moraleOnStrongSuccess: finite({ min: 0 }),
@@ -417,6 +429,22 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   heroRetirementInjuredMultiplier: finite({ min: 0 }),
   infirmaryHealFactor: healFactors,
   quartersMoraleBonus: finite({ min: 0 }),
+
+  fatigueMax: whole({ min: 1 }),
+  fatigueBands: bands(fatigueBandNames, { min: 0, max: 'fatigueMax' }),
+  fatigueRiseByTier: fatigueSteps('Tier from 1', 'Tier'),
+  fatigueFallByQuarters: fatigueSteps('quarters grade from 0', 'grade'),
+  // A share, so Fatigue never takes a Stat below nothing (DL-284).
+  fatigueScaling: share,
+  // A band a Hero can reach, or none (DL-286).
+  playerRestBand: oneOfOrNone(fatigueBandNames),
+
+  // A Captain never takes from their Party, nor from its Morale, and a change never raises the outgoing Captain's (DL-287).
+  captainFormFactor: finite({ min: 1 }),
+  captainHomecomingMorale: finite({ min: 0 }),
+  captainHomeBaselineBonus: finite({ min: 0 }),
+  captainChangeMoraleCost: finite({ max: 0 }),
+  captainChangeLockDays: whole({ min: 0 }),
 
   potentialHintBands: bands(potentialHints, { min: 0 }),
   declineAge: whole({ min: 0 }),

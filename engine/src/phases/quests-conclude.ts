@@ -6,10 +6,12 @@
 // `quest.resolved`; any Loot to the Guild's holding with `quest.loot` (M5-S5, quest-engine/loot.ts,
 // DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
 // night); a Hero injured carries the Injury until its night; a Hero who died leaves
-// the Roster and keeps their row (data-model rule 8); each Trait a Hero earned joins their Traits,
+// the Roster, and the post of Captain empty if it was theirs (`leaveRoster`), and keeps their row
+// (data-model rule 8); each Trait a Hero earned joins their Traits,
 // with `hero.trait-gained` (v1.1.4-S7, DL-148 item 25); each Hero who came home gains the XP; Morale
-// moves by each Hero's own of the Encounters' Morale (v1.1.4-S4), on a strong success and on a Death in the Roster, each change
-// emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
+// moves by each Hero's own of the Encounters' Morale (v1.1.4-S4), on a strong success, for coming home
+// with the Guild's Captain (DL-287) and on a Death in the Roster, each change emitting
+// `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
 // Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
 // Quest (M4-S4, hero-regard.ts, events only on a band crossing); every event of the XP, Morale and
@@ -23,6 +25,7 @@
 // A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
 // from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
 
+import { captainScale, leaveRoster } from '../captain.js';
 import { compareByCodeUnit, requireRow, type Guild, type Party, type Quest, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { regardOnSharedQuest } from '../hero-regard.js';
@@ -106,7 +109,7 @@ export function conclude(world: World, ctx: PhaseContext, { party, guild, quest,
     const hero = requireRow(world.heroes, heroId);
     hero.diedOnTurn = turn;
     hero.partyId = null;
-    guild.rosterIds = guild.rosterIds.filter((id) => id !== heroId);
+    leaveRoster(guild, heroId);
     events.push(emit({ type: 'hero.died', participants: [heroId, quest.id], payload: { heroId, questId: quest.id } }));
   }
 
@@ -142,6 +145,15 @@ export function conclude(world: World, ctx: PhaseContext, { party, guild, quest,
   if (outcome.band === 'strong') {
     for (const hero of survivors) {
       events.push(changeMorale(hero, config.moraleOnStrongSuccess, 'strong-success', config, emit, quest.id));
+    }
+  }
+  // DL-287: home with their Guild's Captain alive among them, the others gain s·captainHomecomingMorale,
+  // rounded to a whole number as the Encounters' Morale is; a Captain who fell has left the post by now.
+  const captain = survivors.find((hero) => hero.id === guild.captainId);
+  if (captain !== undefined) {
+    const lift = Math.round(captainScale(captain, world, ctx.content) * config.captainHomecomingMorale);
+    for (const hero of survivors) {
+      if (hero !== captain && lift !== 0) events.push(changeMorale(hero, lift, 'captain-homecoming', config, emit, quest.id));
     }
   }
   // Each Death costs every Hero left on the Roster, those away on other Quests included.

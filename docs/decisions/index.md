@@ -59,7 +59,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-47 | 2026-09-26 | Merging M3's close into M4: both version-4 defaults kept, `configVersion` 5 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-48 | 2026-09-26 | Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1) | item 2 in part by DL-49; in part by DL-49 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-49 | 2026-09-26 | Equip and unequip, gear in effective Stats, gear going back to its Guild, and the controllers … | item 7 in part by DL-54 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-50 | 2026-09-26 | Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-50 | 2026-09-26 | Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3) | item 3 in part by DL-285; item 6 by DL-285; item 8 in part by DL-285 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-51 | 2026-09-26 | The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the … | item 6 in part by DL-54; item 8 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-52 | 2026-09-26 | Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-53 | 2026-09-26 | M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -157,13 +157,13 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-145 | 2026-10-02 | v1.1.3-S7 built: the setup grid of one sex's thumbnails, a thumbnail beside each name in the lists … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
 | DL-146 | 2026-10-02 | v1.1.3 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
 | DL-147 | 2026-10-02 | The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a … |  | [DL-134-147-v1.1.3](archive/DL-134-147-v1.1.3.md) |
-| DL-148 | 2026-10-02 | Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter … | item 3 in part by DL-181; item 8 in part by DL-168; item 10 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-148 | 2026-10-02 | Richer Quests as v1.1.4: Checks as Queries over the Party, several named Checks to an Encounter … | item 3 in part by DL-181; item 8 in part by DL-168; item 9 in part by DL-283; item 10 in part by DL-168; item 10 in part by DL-284 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-149 | 2026-10-02 | The Guildmaster's setup in v1.1.4: "Choose for me" for the whole Guildmaster, or the player's own … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-150 | 2026-10-02 | Traits in two lists, each a list of effects; a content editor for the owner with Traits as its … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-151 | 2026-10-02 | v1.1.4-S1 built: Checks scored by Queries over the Party, Synergy requirements written in them, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-152 | 2026-10-02 | v1.1.4-S2 built: several Checks to an Encounter, combined by a pass formula into a Degree … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-153 | 2026-10-02 | v1.1.4-S11 built: "Choose for me" for the whole Guildmaster, or "Choose myself" with the sex, the … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
-| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 5 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-154 | 2026-10-02 | v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds … | item 1 in part by DL-283; item 1 in part by DL-284; item 2 in part by DL-284; item 5 in part by DL-168; item 5 in part by DL-283; item 7 in part by DL-283 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-155 | 2026-10-02 | v1.1.4-S4 built: harm that reads the Stats, an Injury's and a Death's `among`, `exposedBy` and … | item 3 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-156 | 2026-10-02 | v1.1.4-S5 built: the chance estimate, worked out exactly from what the resolver draws, the chance … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-157 | 2026-10-02 | v1.1.4-S6 built: the Board's cards show each Encounter and what each Check reads with "Your best … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
@@ -177,7 +177,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-165 | 2026-10-03 | v1.1.4: the owner's answers to S9's review: the Quest target deferred, `checkVariance` 0.4 in … | item 1 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-166 | 2026-10-03 | v1.1.4-S10 built: the approved drafts in content, the balance pass tuned for few bankruptcies, the … | item 6 in part by DL-168 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-167 | 2026-10-03 | v1.1.4 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 … |  | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
-| DL-168 | 2026-10-03 | The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing … | item 4 in part by DL-179; item 16 in part by DL-182; in part by DL-169 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
+| DL-168 | 2026-10-03 | The owner's answers to v1.1.4's open questions: v1.1.4 released, the harness's player choosing … | item 4 in part by DL-179; item 9 in part by DL-283; item 9 in part by DL-284; item 16 in part by DL-182; in part by DL-169 | [DL-148-168-v1.1.4](archive/DL-148-168-v1.1.4.md) |
 | DL-169 | 2026-10-03 | The owner's answers on the Board's unavailable Heroes and the Roster's Table: the Away and the … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-170 | 2026-10-03 | v1.1.5-S11 built: the Board's Party builder lists the Heroes who can go first in the default order … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
 | DL-171 | 2026-10-03 | v1.1.5-S12 built: the Roster as Tiles or a Table of effective Stats, its columns chosen in a panel … |  | [DL-169-185-v1.1.5](archive/DL-169-185-v1.1.5.md) |
@@ -266,27 +266,43 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-254 | 2026-10-10 | v1.1.9: DL-253's four follow-ups answered: saves players make gzipped, the harness's sample a … |  | [DL-231-254-v1.1.9](archive/DL-231-254-v1.1.9.md) |
 | DL-255 | 2026-10-10 | A merge of docs, records and the release pipeline alone releases nothing: no tag, no deploy |  | [decision-log](../decision-log.md) |
 | DL-256 | 2026-10-10 | The `v1.2` line: the Guild as an institution, from an independent design brief; the owner's answers … | item 2 in part by DL-257 | [decision-log](../decision-log.md) |
-| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … | item 3 in part by DL-271 | [decision-log](../decision-log.md) |
-| DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [decision-log](../decision-log.md) |
-| DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [decision-log](../decision-log.md) |
-| DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [decision-log](../decision-log.md) |
-| DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [decision-log](../decision-log.md) |
-| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … | item 1 in part by DL-271; item 3 in part by DL-271 | [decision-log](../decision-log.md) |
-| DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [decision-log](../decision-log.md) |
-| DL-264 | 2026-10-11 | v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every … |  | [decision-log](../decision-log.md) |
-| DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [decision-log](../decision-log.md) |
-| DL-266 | 2026-10-11 | v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39 |  | [decision-log](../decision-log.md) |
-| DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [decision-log](../decision-log.md) |
-| DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [decision-log](../decision-log.md) |
-| DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [decision-log](../decision-log.md) |
-| DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [decision-log](../decision-log.md) |
-| DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [decision-log](../decision-log.md) |
-| DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [decision-log](../decision-log.md) |
-| DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [decision-log](../decision-log.md) |
-| DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [decision-log](../decision-log.md) |
-| DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [decision-log](../decision-log.md) |
-| DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [decision-log](../decision-log.md) |
-| DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [decision-log](../decision-log.md) |
+| DL-257 | 2026-10-10 | v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a … | item 3 in part by DL-271 | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-258 | 2026-10-10 | v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-259 | 2026-10-10 | v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-260 | 2026-10-10 | v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-261 | 2026-10-11 | v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-262 | 2026-10-11 | v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and … | item 1 in part by DL-271; item 3 in part by DL-271 | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-263 | 2026-10-11 | v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-264 | 2026-10-11 | v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-265 | 2026-10-11 | v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-266 | 2026-10-11 | v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39 |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-267 | 2026-10-11 | v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-268 | 2026-10-11 | v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-269 | 2026-10-11 | v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-270 | 2026-10-11 | v1.2.0-S13: the release's review and its findings fixed |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-271 | 2026-10-11 | v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-272 | 2026-10-11 | v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-273 | 2026-10-11 | v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-274 | 2026-10-11 | v1.2.0-S13: the close: the Gate line by line |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-275 | 2026-10-11 | v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to … |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-278 | 2026-10-11 | v1.2.0 released; the live check failed on Pages, Cloudflare's Web Analytics beacon; with the owner |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
+| DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone | item 1 in part by DL-280; item 4 in part by DL-280 | [decision-log](../decision-log.md) |
+| DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … | item 9 in part by DL-292 | [decision-log](../decision-log.md) |
+| DL-281 | 2026-10-11 | v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a … |  | [decision-log](../decision-log.md) |
+| DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [decision-log](../decision-log.md) |
+| DL-283 | 2026-10-11 | v1.2.1-S3 built: Morale's form made continuous, a line through the baseline | item 1 in part by DL-284 | [decision-log](../decision-log.md) |
+| DL-284 | 2026-10-11 | v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm |  | [decision-log](../decision-log.md) |
+| DL-285 | 2026-10-11 | v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the … |  | [decision-log](../decision-log.md) |
+| DL-286 | 2026-10-11 | v1.2.1-S6 built: rest bands and the Party's pool |  | [decision-log](../decision-log.md) |
+| DL-287 | 2026-10-11 | v1.2.1-S7 built: the Captain |  | [decision-log](../decision-log.md) |
+| DL-288 | 2026-10-12 | v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine |  | [decision-log](../decision-log.md) |
+| DL-289 | 2026-10-12 | v1.2.1-S9 built: the page, the CLI and the words |  | [decision-log](../decision-log.md) |
+| DL-290 | 2026-10-12 | v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed |  | [decision-log](../decision-log.md) |
+| DL-291 | 2026-10-12 | v1.2.1-S12 (part): the release's commits reviewed to S10 |  | [decision-log](../decision-log.md) |
+| DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [decision-log](../decision-log.md) |
+| DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

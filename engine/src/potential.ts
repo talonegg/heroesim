@@ -6,6 +6,7 @@
 // The bands are config and the only thing the hint reads beside the Hero, so M4-S5's Judgement
 // sharpens hints by passing narrowed bands (pre-M0 review D9), with no change here.
 
+import { bandOf } from './bands.js';
 import { potentialHints, type GameConfig, type PotentialHint } from './config.js';
 import type { StatKey } from './content-types.js';
 import type { Hero } from './document.js';
@@ -24,12 +25,7 @@ export function potentialHint(
   statKey: StatKey,
   config: Pick<GameConfig, 'potentialHintBands'>,
 ): PotentialHint {
-  const gap = potentialGap(hero, statKey);
-  let hint: PotentialHint = potentialHints[0];
-  for (const name of potentialHints) {
-    if (gap >= config.potentialHintBands[name]) hint = name;
-  }
-  return hint;
+  return bandOf(potentialHints, config.potentialHintBands, potentialGap(hero, statKey));
 }
 
 /** Potential less the base, in Stat points; 0 when the row lacks either. */

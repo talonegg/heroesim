@@ -1,5 +1,5 @@
 // The Best Party (CONTEXT.md; DL-148 item 17, DL-157, DL-175): the Party the engine would send on a
-// Quest from a Guild's free Heroes, chosen by the chance estimate. One module answers it for every
+// Quest from a Guild's pool, chosen by the chance estimate. One module answers it for every
 // caller (DL-237): the Rivals' controllers, the harness's policy, the Board's "Your best Party" on the
 // page and in the CLI, and the harness's calibration. It is opened over one world, which does not
 // change while it is open, and a Guild, and it keeps each Hero as they will come home and every
@@ -8,11 +8,17 @@
 // call, one `automaticPolicy` call, one document on the page. It is never module-global and never
 // stored in the document, and it refuses a question once its world has changed. It weighs who would
 // go, not whether the Guild may take the Quest: each caller that offers a Quest passes by one whose
-// Tier's Fame minimum is above the Guild's Fame first (`fameRefusal`, DL-264).
+// Tier's Fame minimum is above the Guild's Fame first (`fameRefusal`, DL-264). Which Heroes it weighs
+// is the Guild's pool (`partyPool`, DL-286): its free Heroes less those its rest band keeps home, which
+// every caller that chooses a Party for a Guild asks of this module rather than build its own.
 
-import type { EngineDeps } from './config.js';
+import { unavailability } from './actions/dispatch.js';
+import { atOrPast } from './bands.js';
+import { fatigueBandNames, type EngineDeps, type FatigueBand, type GameConfig } from './config.js';
+import type { Disposition } from './content-types.js';
 import { chooser } from './controllers/chooser.js';
 import { compareByCodeUnit, rowOf, type Guild, type Hero, type HeroId, type Quest, type World } from './document.js';
+import { fatigueBand } from './fatigue.js';
 import { partyEstimator, type EstimatedQuest, type QuestEstimate } from './quest-engine/estimate.js';
 
 /** The Best Party for a Quest, and the estimate it was chosen by (`estimateQuest`'s for it, carrying nothing); `null` for no estimate. */
@@ -64,7 +70,7 @@ export interface BestParties {
  */
 export function bestParties(world: World, guild: Pick<Guild, 'controller'>, deps: EngineDeps): BestParties {
   const opened = stampOf(world);
-  const margin = partyMarginOf(guild, deps);
+  const margin = guildSetting(guild, 'partyMargin', deps);
   const estimate = partyEstimator(world, deps);
   // Each Party weighed, by what the estimate reads of its Quest and then its Heroes in order.
   const weighed = new Map<string, Map<string, QuestEstimate | null>>();
@@ -171,13 +177,63 @@ function better(chance: Chance, hero: Hero, otherChance: Chance, other: Hero): b
 }
 
 /**
- * How much more than this a Hero must raise the chance to join `guild`'s Best Party past
- * `partySizeMin`: its Disposition's `partyMargin`; for a Guild with no Disposition, the player's, or
- * with one content does not define, the configuration's `playerPartyMargin` (DL-157, DL-175).
+ * The Heroes of `guild` free to go on a Quest, in Roster order: on the Roster and neither dead,
+ * retired, injured nor away in a Party, by `dispatch`'s own test (`unavailability`). What a Guild may
+ * send; what it chooses to send from is its pool (`partyPool`).
  */
-function partyMarginOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 'config' | 'content'>): number {
+export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
+  const heroes: Hero[] = [];
+  for (const heroId of guild.rosterIds) {
+    const hero = rowOf(world.heroes, heroId);
+    if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
+  }
+  return heroes;
+}
+
+/**
+ * The Heroes `guild` chooses a Party from, in Roster order: its free Heroes (`availableHeroes`) less
+ * those whose Fatigue as it stands is at or past its rest band (its Disposition's `restBand`; for a
+ * Guild with none, `playerRestBand`), none kept home for a rest band of `null` (DL-280 item 5, Q4 a;
+ * DL-286). A Hero kept home is no Unavailability: `dispatch` sends anyone free, so the player may send
+ * them by hand (DL-280). Every chooser of a Party asks this, so a Guild never picks a Quest it then
+ * cannot staff from it: a Rival's choice of Quest, `staffableQuests`, the harness's policy and the
+ * Board's best Party. Reads, never writes, and draws nothing.
+ */
+export function partyPool(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'controller' | 'rosterIds'>, deps: Pick<EngineDeps, 'config' | 'content'>): Hero[] {
+  const available = availableHeroes(world, guild);
+  const restBand = restBandOf(guild, deps);
+  if (restBand === null) return available;
+  return available.filter((hero) => !atOrPast(fatigueBandNames, fatigueBand(hero.fatigue, deps.config), restBand));
+}
+
+/**
+ * The Fatigue band at or past which `guild` keeps a free Hero home (`partyPool`): its Disposition's
+ * `restBand`, or for a Guild with none `playerRestBand`; `null` keeps no one home (DL-286). The pool
+ * and the harness's Fatigue lines, which count the Days a Hero takes to clear it, read it here, so the
+ * band the lines measure is the band the pool keeps (DL-290).
+ */
+export function restBandOf(guild: Pick<Guild, 'controller'>, deps: Pick<EngineDeps, 'config' | 'content'>): FatigueBand | null {
+  return guildSetting(guild, 'restBand', deps);
+}
+
+/** The settings a Guild's Disposition gives it, each read for a Guild with none from the player's in the configuration. */
+const playerSettings: { readonly [Setting in 'partyMargin' | 'restBand']: (config: GameConfig) => Disposition[Setting] } = {
+  partyMargin: (config) => config.playerPartyMargin,
+  restBand: (config) => config.playerRestBand,
+};
+
+/**
+ * `guild`'s `setting`: its Disposition's; for a Guild with no Disposition, the player's, or with one
+ * content does not define, the configuration's (`playerPartyMargin`, `playerRestBand`; DL-157,
+ * DL-175, DL-286). The one reader of a setting each Guild has its own of.
+ */
+function guildSetting<Setting extends keyof typeof playerSettings>(
+  guild: Pick<Guild, 'controller'>,
+  setting: Setting,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): Disposition[Setting] {
   const disposition = chooser(guild, deps.content);
-  return disposition === 'own' || disposition === null ? deps.config.playerPartyMargin : disposition.partyMargin;
+  return disposition === 'own' || disposition === null ? playerSettings[setting](deps.config) : disposition[setting];
 }
 
 /**

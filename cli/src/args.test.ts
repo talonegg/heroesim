@@ -151,7 +151,20 @@ describe('parseArgs', () => {
       expect(fastForward).toContain(word);
     }
     expect(fastForward).toMatch(/falls below the\s+Bankruptcy floor/);
-    expect(fastForward).toMatch(/staffable \(a Quest the Heroes at home could take reaches the Board, even with a\s+Party out\)/);
+    // DL-289: both stops follow the pool a rest band leaves, so the help says rested Heroes.
+    expect(fastForward.replace(/\s+/g, ' ')).toContain('staffable (a Quest the rested Heroes at home could take reaches the Board, even with a Party out)');
+    expect(fastForward.replace(/\s+/g, ' ')).toContain("a Quest the Guild's rested Heroes could take reaches the Board");
+  });
+
+  test('the usage says that the Board and the stops are of the rested Heroes, and that show and preview give Fatigue and the Captain', () => {
+    const said = usage.replace(/\s+/g, ' ');
+    expect(said).toContain('the best Party of your rested Heroes');
+    expect(said).not.toContain('free Heroes');
+    expect(said).toContain("each Hero's Morale and Fatigue and who its Captain is");
+    // DL-291: hall's clause says what hall shows, not the roster's Morale, Fatigue and Captain.
+    expect(said).not.toContain('Captain is, and so does hall');
+    expect(said).toContain("hall shows the player's Guild unless given another too, each facility's grade");
+    expect(said).toContain("each Hero's Fatigue and the Captain among them, what would relieve the hurt");
   });
 
   test('reads dispatch: a Quest id and Hero ids joined by commas', () => {

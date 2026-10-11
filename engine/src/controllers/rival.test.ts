@@ -4,17 +4,18 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, facilityKeys, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { addStack, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { applyTransferOut } from '../actions/transfer.js';
-import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
-import { applyGuildAction, type GuildAction } from '../actions/action.js';
-import { bestParties } from '../best-party.js';
-import { availableHeroes, rivalChoices, staffableQuests } from './rival.js';
+import type { TurnEvent } from '../events.js';
+import { deepFreeze, harmlessContent, setEncounters, setup, testContent, testDeps, withCaptaincy, withDispositions, withEncounters, withValid } from '../world.test-support.js';
+import { applyAction, applyGuildAction, type GuildAction } from '../actions/action.js';
+import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
+import { rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
 
 // DL-175: a test may name the chance of success by the size of the Party, in place of
@@ -527,6 +528,82 @@ describe('staffing agrees with dispatch', () => {
   });
 });
 
+// The rest band (DL-280 item 5, Q4 a; DL-286): a Rival chooses its Quest and its Party from its pool,
+// its free Heroes less those its Disposition's rest band keeps home, so it never picks a Quest it
+// then cannot staff.
+describe('the rest band: a Rival chooses from its pool', () => {
+  const restDeps = (restBand: Disposition['restBand']): EngineDeps =>
+    testDeps(
+      { rivalRosterMin: 6, rivalRosterMax: 6, fatigueBands: { fresh: 0, weary: 25, tired: 50, exhausted: 75 } },
+      withDispositions({ restBand, partyMargin: 1 }),
+    );
+
+  test('passes over a Quest only the Heroes it keeps home could staff, and sends none of them', () => {
+    const { world, rival, deps } = scene('rest-pass-over', restDeps('tired'));
+    // The easiest Quest, steady's, needs four; the rest one.
+    const [easiest, ...rest] = openBoard(world, [10, 50, 60, 70, 80, 90], 1) as [Quest, ...Quest[]];
+    easiest.requirements = { partySizeMin: 4 };
+    const heroes = byId(availableHeroes(world, rival));
+    expect(heroes).toHaveLength(6);
+    // Three rested, three tired or worse.
+    heroes.forEach((hero, index) => (hero.fatigue = [0, 49, 50, 10, 75, 100][index] as number));
+
+    // Free, the six could staff the easiest; its pool of three cannot.
+    expect(requiredParty(easiest, heroes)).not.toBeNull();
+    expect(partyPool(world, rival, deps).map((hero) => hero.fatigue)).toEqual([0, 49, 10]);
+    const action = dispatchOf(world, rival, deps);
+    expect(action?.questId).toBe(rest[0]?.id);
+    for (const heroId of action?.heroIds ?? []) expect(heroOf(world, heroId).fatigue, heroId).toBeLessThan(50);
+    expect(staffableQuests(world, rival, deps).map((quest) => quest.id)).toEqual(rest.map((quest) => quest.id));
+
+    // With no rest band it takes the easiest, as before.
+    const { world: free, rival: freeRival, deps: freeDeps } = scene('rest-pass-over', restDeps(null));
+    openBoard(free, [10, 50, 60, 70, 80, 90], 1)[0]!.requirements = { partySizeMin: 4 };
+    byId(availableHeroes(free, freeRival)).forEach((hero, index) => (hero.fatigue = [0, 49, 50, 10, 75, 100][index] as number));
+    expect(dispatchOf(free, freeRival, freeDeps)?.questId).toBe(easiest.id);
+  });
+
+  test('sends no one, and can staff nothing, when its rest band keeps every free Hero home', () => {
+    const { world, rival, deps } = scene('rest-all-home', restDeps('weary'));
+    openBoard(world, [10, 50, 60, 70, 80, 90], 1);
+    for (const hero of availableHeroes(world, rival)) hero.fatigue = 25;
+
+    expect(partyPool(world, rival, deps)).toEqual([]);
+    expect(dispatchOf(world, rival, deps)).toBeUndefined();
+    expect(staffableQuests(world, rival, deps)).toEqual([]);
+  });
+
+  test('never picks a Quest it cannot staff from its pool, whatever its Disposition and its Heroes’ Fatigue', () => {
+    let dispatched = 0;
+    for (const disposition of ['steady', 'ambitious', 'miserly', 'reckless'] as const) {
+      for (const restBand of [null, 'weary', 'tired', 'exhausted'] as const) {
+        for (const seed of ['a', 'b', 'c']) {
+          const { world, rival, deps } = scene(`rest-any-${seed}`, restDeps(restBand), disposition);
+          const quests = openBoard(world, [10, 30, 50, 70, 90, 95], 1);
+          quests.forEach((quest, index) => (quest.requirements = { partySizeMin: 1 + (index % 4) }));
+          // Fatigues spread over the scale, differently for each seed.
+          availableHeroes(world, rival).forEach((hero, index) => (hero.fatigue = (index * 37 + seed.charCodeAt(0) * 11) % 101));
+          const pool = partyPool(world, rival, deps);
+
+          const action = dispatchOf(world, rival, deps);
+
+          const where = `${disposition} ${restBand} ${seed}`;
+          if (action === undefined) {
+            expect(staffableQuests(world, rival, deps), where).toEqual([]);
+            continue;
+          }
+          dispatched += 1;
+          const quest = world.quests[action.questId] as Quest;
+          expect(requiredParty(quest, pool), where).not.toBeNull();
+          for (const heroId of action.heroIds) expect(pool.map((hero) => hero.id), where).toContain(heroId);
+          expect(dispatchRefusal(world, action, deps), where).toBeNull();
+        }
+      }
+    }
+    expect(dispatched).toBeGreaterThan(20);
+  });
+});
+
 describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost. Both
@@ -853,6 +930,69 @@ describe('rivalChoices', () => {
   });
 });
 
+// DL-280 item 6, DL-287: a Rival names to an empty post its Hero highest in the captaincy Stat, first
+// of all its choices and beside them, drawing nothing; a post held, or content marking no captaincy Stat,
+// it names no one. The test content marks none, so these tests mark Leadership.
+describe('a Rival names its Captain', () => {
+  const captained = testDeps({}, withCaptaincy(withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 })));
+
+  test('to an empty post, first, its Hero highest in the captaincy Stat, ties to the first in Roster order, drawing nothing', () => {
+    const { world, rival, deps } = scene('rival-captain', captained);
+    const heroes = rival.rosterIds.map((id) => heroOf(world, id));
+    heroes.forEach((hero, at) => Object.assign(hero, { traits: [], stats: { ...hero.stats, leadership: at === 1 ? 18 : 6 } }));
+    const held = structuredClone(world);
+    const heldRival = held.guilds[rival.id] as Guild;
+    heldRival.captainId = heroes[0]?.id ?? null;
+
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices[0]).toEqual({ kind: 'nameCaptain', guildId: rival.id, heroId: heroes[1]?.id });
+    // Beside its other choices, which are as they would be with the post held, and with the same draws.
+    expect(choices.slice(1)).toEqual(rivalChoices(held, heldRival, deps));
+    expect(world.rng).toEqual(held.rng);
+
+    const tied = scene('rival-captain', captained);
+    for (const id of tied.rival.rosterIds) Object.assign(heroOf(tied.world, id), { traits: [], stats: { ...heroOf(tied.world, id).stats, leadership: 12 } });
+    expect(rivalChoices(tied.world, tied.rival, deps)[0]).toEqual({ kind: 'nameCaptain', guildId: tied.rival.id, heroId: tied.rival.rosterIds[0] });
+  });
+
+  test('none while its post is held, nor where content marks no captaincy Stat', () => {
+    const { world, rival, deps } = scene('rival-captain-held', captained);
+    rival.captainId = rival.rosterIds[0] ?? null;
+    expect(rivalChoices(world, rival, deps).some((action) => action.kind === 'nameCaptain')).toBe(false);
+    rival.captainId = null;
+    expect(rivalChoices(world, rival, testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }))).some((action) => action.kind === 'nameCaptain')).toBe(false);
+  });
+
+  test('applied in the afternoon, the post filled with no cost and no lock; a Captain gone is replaced the next afternoon', () => {
+    // A Rival that sells whatever it is asked (transferAppetite 1), so the player's Guild can take its Captain.
+    const deps = testDeps({ rivalCount: 1 }, withCaptaincy(withDispositions({ transferAppetite: 1 })));
+    let document = createWorld('rival-captain-play', setup, deps).document;
+    const rivalId = (rivalsOf(document.world)[0] as Guild).id;
+    const rivalOf = (it: WorldDocument): Guild => it.world.guilds[rivalId] as Guild;
+    // The first afternoon, its first.
+    for (let turn = 0; turn < 4 && rivalOf(document).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
+    const first = rivalOf(document).captainId as HeroId;
+    expect(first).not.toBeNull();
+    const named = document.history.byType['guild.captain-named'] ?? [];
+    expect(named).toHaveLength(1);
+    expect(document.history.entries[named[0] as number]).toMatchObject({ payload: { guildId: rivalId, replacedId: null, lockedUntilTurn: null } });
+    expect(rivalOf(document).captainChangedOnTurn).toBeNull();
+
+    // The player's Guild takes the Rival's Captain once they are home: the post is empty, and filled the next afternoon, free.
+    while ((document.world.heroes[first] as Hero).partyId !== null) document = withValid(advance(document, deps).document, deps);
+    (playerGuild(document.world) as Guild).wealth = 1_000_000;
+    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first }, deps);
+    if (!taken.ok) throw new Error(taken.rejection.reason);
+    document = withValid(taken.document, deps);
+    expect(rivalOf(document).captainId).toBeNull();
+    for (let turn = 0; turn < 4 && rivalOf(document).captainId === null; turn += 1) document = withValid(advance(document, deps).document, deps);
+    const again = (document.history.byType['guild.captain-named'] ?? []).map((at) => document.history.entries[at]);
+    expect(again).toHaveLength(2);
+    expect(again[1]).toMatchObject({ payload: { guildId: rivalId, replacedId: null, lockedUntilTurn: null } });
+    expect(rivalOf(document).captainId).not.toBe(first);
+  });
+});
+
 // ── One rule, reading each Disposition's row (INPUTS 7.5, DL-56) ─────────────────────────
 
 describe('one rule for every Disposition, reading its row', () => {
@@ -925,6 +1065,7 @@ describe('one rule for every Disposition, reading its row', () => {
       gearThreshold: 4,
       transferAppetite: 0.3,
       partyMargin: 0.2,
+      restBand: 'weary',
     };
     const withFifth = (row: Disposition = cautious): ContentSet =>
       deepFreeze({ ...testContent, dispositions: { ...testContent.dispositions, [row.key]: row } });
@@ -1149,5 +1290,161 @@ describe('buying gear at the Market', () => {
 
     expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'buy']);
     expect(world).toEqual(expected);
+  });
+});
+
+// ── Heal Items: bought in the gear step after any wearable, carried on dispatch (DL-288) ──────
+
+describe('heal Items: a Rival buys them in its gear step and carries them on dispatch', () => {
+  /** No hiring, no building and no Transfer, so that the gear step is the afternoon's purchase. */
+  const healing = (gearThreshold: number, config: Partial<EngineDeps['config']> = {}, content: ContentSet = testContent): EngineDeps =>
+    testDeps(
+      { negotiationRange: 0, ...config },
+      withDispositions({ gearThreshold, buildThreshold: 1_000_000, recruitThreshold: 1_000_000, transferAppetite: 0 }, content),
+    );
+  /** A `disposition` Rival, rich, with the Market holding `stacks` alone. */
+  function stocked(seed: string, deps: EngineDeps, stacks: readonly (readonly [string, number])[], disposition: DispositionKey = 'steady'): Scene {
+    const found = scene(seed, deps, disposition);
+    found.rival.wealth = 100_000;
+    stockMarket(found.world, stacks);
+    return found;
+  }
+  const buysOf = (world: World, guild: Guild, deps: EngineDeps): string[] =>
+    rivalChoices(world, guild, deps).flatMap((action) => (action.kind === 'buy' ? [`${action.definitionKey}×${action.quantity}`] : []));
+  const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
+
+  test("each Disposition buys them only while its Wealth is above its row's gearThreshold times their cost: rivalHealItemStock of each, the draught first", () => {
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ buildThreshold: 1_000_000, recruitThreshold: 1_000_000, transferAppetite: 0 }));
+    const stock = deps.config.rivalHealItemStock;
+    expect(stock).toBeGreaterThan(0);
+    for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady'] as const) {
+      const { world, rival } = stocked(`heal-means-${disposition}`, deps, [['healing-draught', 5], ['physicians-kit', 5]], disposition);
+      const { gearThreshold } = rowOf(rival, deps);
+      const bought = () => buysOf(world, rival, deps);
+
+      rival.wealth = gearThreshold * 30 * stock;
+      expect(bought(), disposition).toEqual([]);
+      rival.wealth = gearThreshold * 30 * stock + 1;
+      expect(bought(), disposition).toEqual([`healing-draught×${stock}`]);
+      addStack(world, 'healing-draught', stock, vaultOf(rival));
+      rival.wealth = gearThreshold * 70 * stock;
+      expect(bought(), disposition).toEqual([]);
+      rival.wealth = gearThreshold * 70 * stock + 1;
+      expect(bought(), disposition).toEqual([`physicians-kit×${stock}`]);
+      addStack(world, 'physicians-kit', stock, vaultOf(rival));
+      expect(bought(), disposition).toEqual([]);
+    }
+  });
+
+  test('keeps rivalHealItemStock of each, counting what its Parties carry; 0 keeps none', () => {
+    const { world, rival } = stocked('heal-stock', healing(3), [['healing-draught', 5]]);
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 3 }))).toEqual(['healing-draught×3']);
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 0 }))).toEqual([]);
+    const [heroId] = rival.rosterIds as [HeroId];
+    const partyId = makeId('parties', 99);
+    world.parties[partyId] = { id: partyId, questId: makeId('quests', 99), guildId: rival.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5, fatigueAtDispatch: { [heroId]: 0 } };
+    addStack(world, 'healing-draught', 2, { kind: 'party', id: partyId });
+    expect(buysOf(world, rival, healing(3, { rivalHealItemStock: 3 }))).toEqual(['healing-draught×1']);
+  });
+
+  test('buys no consumable but a heal Item', () => {
+    const { world, rival } = stocked('heal-only', healing(3), [['whetstone', 5], ['grappling-line', 5], ['lockpicks', 5], ['blessed-candle', 5]]);
+    expect(buysOf(world, rival, healing(3))).toEqual([]);
+  });
+
+  test('follows a wearable: the gear step buys a piece while a Hero lacks one it can afford, then heal Items', () => {
+    const deps = healing(3);
+    const { world, rival } = stocked('heal-after-gear', deps, [['padded-jack', 20], ['healing-draught', 5]]);
+    const heroes = rival.rosterIds.length;
+    const bought: string[] = [];
+    for (let afternoon = 0; afternoon < heroes + 3; afternoon += 1) {
+      const [buy] = rivalChoices(world, rival, deps).filter((action) => action.kind === 'buy');
+      if (buy === undefined) break;
+      expect(applyGuildAction(world, buy, deps)).toMatchObject({ ok: true });
+      bought.push(`${buy.definitionKey}×${buy.quantity}`);
+    }
+    expect(bought).toEqual([...Array<string>(heroes).fill('padded-jack×1'), `healing-draught×${deps.config.rivalHealItemStock}`]);
+  });
+
+  test('one purchase an afternoon: a heal purchase takes the place of the recruit after it, which waits until it is stocked', () => {
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ buildThreshold: 1_000_000, gearThreshold: 3, recruitThreshold: 1, transferAppetite: 0 }));
+    const { world, rival } = stocked('heal-then-recruit', deps, [['healing-draught', 5]]);
+    const purchase = () =>
+      rivalChoices(world, rival, deps)
+        .filter((action) => !['dispatch', 'equip', 'nameCaptain'].includes(action.kind))
+        .map((action) => action.kind);
+
+    expect(purchase()).toEqual(['buy']);
+    addStack(world, 'healing-draught', deps.config.rivalHealItemStock, vaultOf(rival));
+    expect(purchase()).toEqual(['recruit']);
+  });
+
+  test('carries one of each heal Item it holds on its dispatch, and nothing else it holds', () => {
+    const deps = healing(1_000_000);
+    const { world, rival } = scene('heal-carry', deps);
+    openBoard(world, [10, 20, 30]);
+    expect(dispatchOf(world, rival, deps)).not.toHaveProperty('consumables');
+
+    addStack(world, 'whetstone', 3, vaultOf(rival));
+    addStack(world, 'physicians-kit', 1, vaultOf(rival));
+    addStack(world, 'healing-draught', 2, vaultOf(rival));
+    const dispatch = dispatchOf(world, rival, deps) as DispatchAction;
+    expect(dispatch.consumables).toEqual([
+      { definitionKey: 'healing-draught', quantity: 1 },
+      { definitionKey: 'physicians-kit', quantity: 1 },
+    ]);
+    expect(dispatchRefusal(world, dispatch, deps)).toBeNull();
+  });
+
+  test('changes nothing in the world but the rivals stream when it buys and carries them, which only its dispatch draws from', () => {
+    const deps = healing(3);
+    const { world, rival } = stocked('heal-pure', deps, [['healing-draught', 5]]);
+    addStack(world, 'physicians-kit', 1, vaultOf(rival));
+    const expected = frozenButRivals(world);
+
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices.map((action) => action.kind)).toEqual(['dispatch', 'buy']);
+    expect(choices[0]).toHaveProperty('consumables', [{ definitionKey: 'physicians-kit', quantity: 1 }]);
+    expect(world).toEqual(expected);
+  });
+
+  test("played: the heal Items its Party carries are spent at its Heroes' Injuries, and what is left comes home", () => {
+    // Every Encounter, passed or failed, injures one Hero, and none dies: a Party meets an Injury on its first.
+    const injury = { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 } as const;
+    const deps = healing(1_000_000, { rivalCount: 1 }, withEncounters({ success: [injury], failure: [injury] }));
+    let document = createWorld('heal-spent', setup, deps).document;
+    const rival = rivalsOf(document.world)[0] as Guild;
+    addStack(document.world, 'healing-draught', 2, vaultOf(rival));
+    addStack(document.world, 'physicians-kit', 1, vaultOf(rival));
+
+    const events: TurnEvent[] = [];
+    const payloadOf = (event: TurnEvent | undefined) => (event?.payload ?? {}) as Record<string, unknown>;
+    const ofRival = (type: string) => events.filter((event) => event.type === type && payloadOf(event)['guildId'] === rival.id);
+    const firstQuest = () => payloadOf(ofRival('quest.taken')[0])['questId'];
+    const home = () => ofRival('quest.resolved').some((event) => payloadOf(event)['questId'] === firstQuest());
+    for (let turn = 0; turn < 300 && !home(); turn += 1) {
+      const result = advance(document, deps);
+      document = withValid(result.document, deps);
+      events.push(...result.events);
+    }
+    expect(home()).toBe(true);
+
+    expect(payloadOf(ofRival('quest.taken')[0])['consumables']).toEqual([
+      { definitionKey: 'healing-draught', quantity: 1 },
+      { definitionKey: 'physicians-kit', quantity: 1 },
+    ]);
+    const spent = ofRival('item.expended').map((event) => payloadOf(event) as { questId: string; effect: string; definitionKey: string; heroId: HeroId });
+    // Its first Party's first Injury took the kit, healing most Days (DL-285); every use a heal, at an
+    // Injury of one of the Rival's own Heroes.
+    expect(spent.find((use) => use.questId === firstQuest())).toMatchObject({ effect: 'heal', definitionKey: 'physicians-kit' });
+    for (const use of spent) expect(use.effect).toBe('heal');
+    for (const use of spent) expect(document.world.guilds[rival.id]?.rosterIds).toContain(use.heroId);
+    // What was not spent is the Guild's still, at home or carried by a Party away.
+    const parties = Object.values(document.world.parties).filter((party) => party.guildId === rival.id);
+    const holders = [vaultOf(rival), ...parties.map((party) => ({ kind: 'party', id: party.id }) as const)];
+    const left = (key: string) =>
+      holders.flatMap((holder) => holdings(document.world, holder).stacks).reduce((sum, stack) => sum + (stack.definitionKey === key ? stack.quantity : 0), 0);
+    expect(left('healing-draught')).toBe(2 - spent.filter((use) => use.definitionKey === 'healing-draught').length);
+    expect(left('physicians-kit')).toBe(0);
   });
 });

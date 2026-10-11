@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
-import { bestParties } from '../best-party.js';
-import { availableHeroes } from '../controllers/rival.js';
+import { bestParties, partyPool } from '../best-party.js';
 import { createWorld } from '../create.js';
 import { facilityKeys, makeId, type FacilityKey, type Guild, type Guildmaster, type Hero, type World, type WorldDocument } from '../document.js';
 import type { TurnEvent } from '../events.js';
@@ -254,9 +253,9 @@ describe('what a grade built does', () => {
   });
 
   test('the baseline is held inside the Morale scale, and a Hero on no Roster has no quarters', () => {
-    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100, inspirationMoraleShift: 0 };
+    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100, inspirationMoraleShift: 0, captainHomeBaselineBonus: 0 };
     const hall = { infirmary: 0, trainingYard: 0, quarters: 2 };
-    const world = { guilds: { [makeId('guilds', 1)]: { hall, guildmasterId: makeId('guildmasters', 1) } }, guildmasters: {} } as never;
+    const world = { guilds: { [makeId('guilds', 1)]: { hall, guildmasterId: makeId('guildmasters', 1), captainId: null } }, guildmasters: {}, heroes: {} } as never;
 
     expect(moraleBaselineFor({ guildId: makeId('guilds', 1) }, world, config, testContent)).toBe(100);
     expect(moraleBaselineFor({ guildId: null }, world, config, testContent)).toBe(60);
@@ -276,7 +275,7 @@ describe('what a grade built does', () => {
       const quest = questId === undefined ? undefined : document.world.quests[questId];
       if (quest === undefined) throw new Error('An empty Board');
       quest.requirements = { partySizeMin: 1 };
-      const heroIds = bestParties(document.world, guild, hurt).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
+      const heroIds = bestParties(document.world, guild, hurt).party(quest, partyPool(document.world, guild, hurt))?.heroIds ?? null;
       if (heroIds === null) throw new Error('No Party');
       const sent = applyAction(document, { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds }, hurt);
       if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);

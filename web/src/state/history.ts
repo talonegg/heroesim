@@ -174,8 +174,8 @@ export interface HistoryView {
  * so that `tsc -b` refuses a type the engine adds until it is decided.
  *
  * Routine is what a Guild's ordinary running leaves behind every Day and at every return, changing
- * nothing on the Board, in the Rankings or on a Roster: its Heroes' XP, Morale, Injuries, healing
- * and Decline; Regard crossing a band; its Upkeep; and its Items, bought, sold, put on, taken off,
+ * nothing on the Board, in the Rankings or on a Roster: its Heroes' XP, Morale, Fatigue, Injuries,
+ * healing and Decline; Regard crossing a band; its Upkeep; and its Items, bought, sold, put on, taken off,
  * gone back, used on a Quest, and common Loot. Never routine: what changes the player's world (a
  * Quest taken or resolved, a Hero recruited, leaving or moving, an offer), a Guild's standing (the
  * Bankruptcy floor, a fold), and every Milestone, whatever its type.
@@ -202,6 +202,7 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'hero.died': null,
   'hero.xp-gained': 'XP',
   'hero.morale-changed': 'Morale',
+  'hero.fatigue-changed': 'Fatigue',
   'hero.healed': 'healing',
   // v1.1.4-S7: a Trait gained or lost is a Milestone, so never routine.
   'hero.trait-gained': null,
@@ -214,6 +215,8 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'guildmaster.succeeded': null,
   'hero.left-guild': null,
   'guild.improved': null,
+  // DL-287: a Milestone, so never routine.
+  'guild.captain-named': null,
   'hero.levelled': null,
   'patron.regard-changed': 'Regard',
   'guildmaster.regard-changed': 'Regard',
@@ -250,13 +253,14 @@ export function entityName(document: WorldDocument, entityId: EntityId): string 
 // ── The scopes: what each History leaves out (M9-F4) ─────────────────────────────────────────
 
 /**
- * What the player's Guild's History leaves out (DL-111 item 4): its Heroes' XP and Morale, Regard
- * moving, its Upkeep, and its purchases and sales. A Hero's own History keeps their XP, Morale and
- * Regard; the Treasury reads the Upkeep and the Market's entries; the debug view keeps everything.
+ * What the player's Guild's History leaves out (DL-111 item 4): its Heroes' XP, Morale and Fatigue
+ * (DL-282), Regard moving, its Upkeep, and its purchases and sales. A Hero's own History keeps their
+ * XP, Morale, Fatigue and Regard; the Treasury reads the Upkeep and the Market's entries; the debug view keeps everything.
  */
 export const leftOutOfYourGuild: ReadonlySet<string> = new Set<EngineEventType>([
   'hero.xp-gained',
   'hero.morale-changed',
+  'hero.fatigue-changed',
   'patron.regard-changed',
   'guildmaster.regard-changed',
   'hero.regard-changed',
@@ -298,6 +302,7 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'hero.died': false,
   'hero.xp-gained': false,
   'hero.morale-changed': false,
+  'hero.fatigue-changed': false,
   'hero.healed': false,
   'hero.trait-gained': false,
   'hero.trait-lost': false,
@@ -308,6 +313,7 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': false,
+  'guild.captain-named': false,
   'hero.levelled': false,
   'patron.regard-changed': true,
   'guildmaster.regard-changed': false,

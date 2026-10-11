@@ -12,7 +12,7 @@
 // Content is read, never written: nothing in the engine mutates a row.
 
 import type { FacilityKey, Sex } from './document.js';
-import type { TierOverride } from './config.js';
+import type { FatigueBand, TierOverride } from './config.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
 // plain strings: type safety over them comes from content validation at load, not from the
@@ -88,6 +88,12 @@ export interface Stat {
   /** What a Stat missing from a Hero or Guildmaster reads as (data-model rule 5). */
   default: number;
   owner: StatOwner;
+  /**
+   * The captaincy Stat's mark (DL-280 item 6; DL-287; the architecture review's candidate 5): the one
+   * Hero Stat a Captain's effects are scaled by (`captaincyScale`), so the engine names no Stat
+   * (ADR-0006). Content's check holds exactly one Stat to it; absent, false.
+   */
+  captaincy?: boolean;
 }
 
 /**
@@ -131,6 +137,12 @@ export interface Class {
    * that it is in the set is `validateContent`'s rule, which names the Class.
    */
   icon?: string;
+  /**
+   * Whether a member of this Class relieves the hurt of another member of their Party on a Quest, by
+   * `healerHurtRelief` of the gap (DL-280 item 4, Q15 a; DL-285): the Healer's mark, the engine naming
+   * no Class (ADR-0006; the architecture review's candidate 5). Absent or false, it relieves nothing.
+   */
+  relievesHurt?: boolean;
 }
 
 /** A Skill, rated 1 to 5 on a Hero (R15; `skills.json`). */
@@ -693,6 +705,12 @@ export interface Disposition {
    */
   partyMargin: number;
   /**
+   * The Fatigue band at or past which it keeps a free Hero home rather than send them, or `null` to
+   * keep no one home for Fatigue (DL-280 item 5, Q4 a; `partyPool`, DL-286). Only its own choices
+   * read it: a Hero it keeps home is no Unavailability.
+   */
+  restBand: FatigueBand | null;
+  /**
    * The order it tries its purchases in, the first that applies made (v1.1.6-S16, DL-186 item 16,
    * DL-202): each of `purchaseSteps` once. When absent, `purchaseSteps`' own order.
    */
@@ -737,7 +755,8 @@ export type ItemKind = 'gear' | 'consumable';
  *   rolled again, once (v1.1.4-S2);
  * - `bonus`: `flat` is added to the capability of every Check of the first Encounter of one of
  *   `kinds` (v1.1.4-S2, DL-148 item 13);
- * - `heal`: an Injury taken on the Quest heals `days` Days sooner.
+ * - `heal`: spent at an Injury taken on the Quest, it relieves the hurt for the rest of the Quest
+ *   (`healItemHurtRelief`, DL-285) and the Injury heals `days` Days sooner.
  *
  * `kinds` holds one or more Encounter kinds, none twice; `flat` is above 0; `days` a whole number
  * from 1.

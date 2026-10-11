@@ -198,7 +198,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
   const named = (offer: TransferOffer) => offer.fromGuildId === guild.id || offer.toGuildId === guild.id;
   events.push(...withdrawOffers(world, (offer) => (named(offer) ? 'guild-folded' : null), ctx.emit));
 
-  // 6. Its Heroes to the pool.
+  // 6. Its Heroes to the pool, and its post empty (DL-287).
   for (const hero of roster) {
     events.push(
       ctx.emit({ type: 'hero.left-guild', participants: [hero.id, guild.id], payload: { heroId: hero.id, guildId: guild.id } }),
@@ -207,6 +207,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     hero.unattachedSince = ctx.turn;
   }
   guild.rosterIds = [];
+  guild.captainId = null;
   guild.foldedOnTurn = ctx.turn;
 
   // 7. The fold itself.

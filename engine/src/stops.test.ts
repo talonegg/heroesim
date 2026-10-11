@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { dispatchRefusal } from './actions/dispatch.js';
 import { advance } from './advance.js';
-import { bestParties } from './best-party.js';
-import { availableHeroes, staffableQuests } from './controllers/rival.js';
+import { bestParties, partyPool } from './best-party.js';
+import { staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from './document.js';
 import type { EngineEvent } from './events.js';
@@ -170,6 +170,49 @@ describe('decision-needed', () => {
     // them as well; listening to every condition, all three are reported, in order.
     expect(stops.map((stop) => stop.kind)).toEqual(['party-returned', 'decision-needed', 'quest-staffable']);
     expect(stops[0]).toEqual({ kind: 'party-returned', guildId: guild.id, partyIds: [party.id] });
+  });
+});
+
+// DL-286: both staffing stops read the Guild's pool (`staffableQuests`, `partyPool`), so a Quest only
+// a Hero its rest band keeps home could go on stops nothing, and a Hero resting out of the band stops it.
+describe('the staffing stops and the rest band (DL-286)', () => {
+  const resting = testDeps({ rivalCount: 0, playerRestBand: 'tired' });
+  const unbanded = testDeps({ rivalCount: 0, playerRestBand: null });
+
+  /** A copy of `world` with every Hero of the player's Roster at `fatigue`. */
+  function at(world: World, fatigue: number): World {
+    const copy = structuredClone(world);
+    for (const heroId of player(copy).rosterIds) (copy.heroes[heroId] as Hero).fatigue = fatigue;
+    return copy;
+  }
+
+  test("stops for no new Quest when the rest band keeps every Hero home, and for it with no rest band", () => {
+    const { world } = created();
+    const guild = player(world);
+    const [questId] = world.board;
+    if (questId === undefined) throw new Error('An empty Board');
+    const after = at(world, resting.config.fatigueBands.tired);
+    const before = structuredClone(after);
+    before.board = before.board.filter((id) => id !== questId);
+
+    expect(staffableQuests(after, guild, resting)).toEqual([]);
+    expect(decisionNeededStop(before, after, guild.id, resting)).toBeNull();
+    expect(questStaffableStop(before, after, guild.id, resting)).toBeNull();
+    expect(decisionNeededStop(before, after, guild.id, unbanded)).toEqual({ kind: 'decision-needed', guildId: guild.id, questIds: [questId] });
+  });
+
+  test('stops when the Heroes rest out of the band, for the Quests on the Board they now could staff', () => {
+    const { world } = created();
+    const guild = player(world);
+    const before = at(world, resting.config.fatigueBands.tired);
+    const after = at(world, resting.config.fatigueBands.tired - 1);
+    const now = staffableQuests(after, guild, resting).map((quest) => quest.id);
+    expect(now.length).toBeGreaterThan(0);
+
+    expect(decisionNeededStop(before, after, guild.id, resting)).toEqual({ kind: 'decision-needed', guildId: guild.id, questIds: now });
+    expect(questStaffableStop(before, after, guild.id, resting)).toEqual({ kind: 'quest-staffable', guildId: guild.id, questIds: now });
+    // With no rest band, the same Heroes could staff them all along: nothing new to stop for.
+    expect(decisionNeededStop(before, after, guild.id, unbanded)).toBeNull();
   });
 });
 
@@ -391,7 +434,7 @@ describe('stopsOfTurn', () => {
       const guild = player(document.world);
       const idle = guild.rosterIds.every((heroId) => document.world.heroes[heroId]?.partyId === null);
       const [quest] = idle && turn % 3 === 0 ? staffableQuests(document.world, guild, deps) : [];
-      const heroIds = quest === undefined ? null : bestParties(document.world, guild, deps).party(quest, availableHeroes(document.world, guild))?.heroIds ?? null;
+      const heroIds = quest === undefined ? null : bestParties(document.world, guild, deps).party(quest, partyPool(document.world, guild, deps))?.heroIds ?? null;
       if (quest !== undefined && heroIds !== null) {
         const sent = applyAction(document, { kind: 'dispatch', guildId, questId: quest.id, heroIds }, deps);
         if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);

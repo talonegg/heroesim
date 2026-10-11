@@ -15,19 +15,24 @@
 // `transfer --in`; in the Unattached pool, its `recruit`. The fees are the engine's, and a play the
 // engine refuses is said as a sentence.
 //
+// The Guild's Captain is marked among their State, and on the page of a Hero of the player's Roster a
+// "Captain" part says who holds the post or what naming them does, with "Name Captain", which plays
+// `nameCaptain`, disabled while a change of Captain still locks the post, the engine's own words saying so
+// (DL-289). Their Fatigue and its band stand beside Morale's.
+//
 // Their Portrait stands beside who they are, the Silhouette of their sex, and a Unique Item's picture
 // before its name in their Gear and in the Gear the Guild holds (v1.1.2-S2, DL-125 items 2 and 8).
 // Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
-import { heroPage, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
+import { heroPage, type Captaincy, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
 import { HeroName, Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
 import { Terms } from './section';
-import { Chip, Confirm, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
+import { Chip, Confirm, fatigueTones, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
 type Levels = 3 | 4;
@@ -226,9 +231,9 @@ export function HeroPage({
   );
 }
 
-/** The Hero's State as chips: Morale and its band, where they are, an Injury, XP, Traits with what each does (v1.1.4-S7), and the fee to take them in. */
+/** The Hero's State as chips: Morale and its band, Fatigue and its band, the Captain's post, where they are, an Injury, XP, Traits with what each does (v1.1.4-S7), and the fee to take them in. */
 function State({ view }: { view: HeroPageView }) {
-  const { morale, where } = view;
+  const { morale, fatigue, where } = view;
   return (
     <ul className="chips hero-page__state" aria-label={`${view.name}'s State`}>
       <li>
@@ -236,6 +241,18 @@ function State({ view }: { view: HeroPageView }) {
           Morale {morale.value}, {morale.band}
         </Chip>
       </li>
+      <li>
+        <Chip tone={fatigueTones[fatigue.band]} icon="fatigue">
+          Fatigue {fatigue.value}, {fatigue.band}
+        </Chip>
+      </li>
+      {view.captain ? (
+        <li>
+          <Chip tone="brass" icon="captain">
+            Captain
+          </Chip>
+        </li>
+      ) : null}
       <li>
         {where.why === null ? <Chip icon="hall">{where.words}</Chip> : <Chip tone={whereTones[where.why]} icon={whereIcons[where.why]}>{where.words}</Chip>}
       </li>
@@ -355,8 +372,62 @@ function HeroActionsView({
         </div>
       );
     case 'own':
-      return <Transfer actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />;
+      return (
+        <>
+          <CaptainPost captaincy={actions.captaincy} heroId={heroId} name={name} busy={busy} play={play} level={level} />
+          <Transfer actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />
+        </>
+      );
   }
+}
+
+/**
+ * The Captain's post (DL-287, DL-289): who holds it, or what naming this Hero does; "Name Captain" plays
+ * `nameCaptain`. Disabled while a change of Captain still locks the post, the lock said in the refusal's
+ * own words, as Recruit is disabled for a Hero who will not sign (DL-109 item 2); whether the post can
+ * change is the engine's, which refuses a play made anyway.
+ */
+function CaptainPost({
+  captaincy,
+  heroId,
+  name,
+  busy,
+  play,
+  level,
+}: {
+  captaincy: Captaincy;
+  heroId: HeroId;
+  name: string;
+  busy: boolean;
+  play: (action: GameAction) => void;
+  level: Levels;
+}) {
+  // The lock's sentence describes the disabled button, so a screen reader that reaches it hears why.
+  const lockId = useId();
+  return (
+    <>
+      <Sub level={level}>Captain</Sub>
+      <p>{captaincy.words}</p>
+      {captaincy.locked === null ? null : (
+        <p id={lockId} className="subtle">
+          {captaincy.locked}
+        </p>
+      )}
+      {captaincy.is ? null : (
+        <div className="actions">
+          <button
+            type="button"
+            aria-label={`Name ${name} Captain`}
+            aria-describedby={captaincy.locked === null ? undefined : lockId}
+            disabled={busy || captaincy.locked !== null}
+            onClick={() => play({ kind: 'nameCaptain', heroId })}
+          >
+            Name Captain
+          </button>
+        </div>
+      )}
+    </>
+  );
 }
 
 /**

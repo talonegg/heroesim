@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chanceBandNames, defaultConfig, moraleBandNames, type GameConfig, type TierRow } from './config.js';
+import { chanceBandNames, defaultConfig, type GameConfig, type TierRow } from './config.js';
 import { checkConfig, configRules, playConfig, playDeps, tierRowProblems } from './config-check.js';
 import type { Module } from './modules.js';
 import { cyrb128, int } from './rng.js';
@@ -61,9 +61,12 @@ describe('the rules', () => {
   });
 
   test('never throws, whatever a save holds', () => {
+    // The settings whose `null` is a value: none, for a rest band (DL-286).
+    const nullable = ['playerRestBand'];
     for (const value of [null, 'x', {}, true, Number.NaN, undefined]) {
       for (const setting of Object.keys(defaultConfig)) {
         expect(() => checkConfig({ ...defaultConfig, [setting]: value }), `${setting} = ${String(value)}`).not.toThrow();
+        if (value === null && nullable.includes(setting)) continue;
         expect(broken({ [setting]: value }), `${setting} = ${String(value)}`).toContain(setting);
       }
     }
@@ -98,6 +101,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   rivalRosterMin: { refused: [-1, 0.5], allowed: [0, defaultConfig.rivalRosterMax] },
   rivalRosterMax: maxOf('rivalRosterMin', 'rivalRosterMax'),
   rivalHireReserveUpkeeps: finiteFrom(0),
+  rivalHealItemStock: wholeFrom(0),
   rivalStartingWealthMin: { refused: [-1, 1.5, Number.NaN], allowed: [0, defaultConfig.rivalStartingWealthMax] },
   rivalStartingWealthMax: maxOf('rivalStartingWealthMin', 'rivalStartingWealthMax'),
   patronCount: wholeFrom(1),
@@ -207,19 +211,9 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     allowed: [{ triumph: 1.01, success: 1, setback: 0.01 }],
   },
   strongTriumphShare: share,
-  moraleCheckFactor: {
-    refused: [
-      ...[0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined].flatMap((bad) => moraleBandNames.map((band) => ({ ...defaultConfig.moraleCheckFactor, [band]: bad }))),
-      { wretched: 0.93, low: 0.97, high: 1.03, elated: 1.06 },
-      { ...defaultConfig.moraleCheckFactor, steady: 1.02 },
-      { ...defaultConfig.moraleCheckFactor, wretched: 0.95, low: 0.93 },
-      { ...defaultConfig.moraleCheckFactor, low: 1.01 },
-      { ...defaultConfig.moraleCheckFactor, high: 0.99 },
-      { ...defaultConfig.moraleCheckFactor, elated: 1.02 },
-    ],
-    allowed: [{ wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, { wretched: 0.5, low: 0.5, steady: 1, high: 2, elated: 2 }],
-  },
   hurtCheckFactor: { refused: [0, -0.5, 1.01, Number.NaN, Number.POSITIVE_INFINITY], allowed: [0.01, 1] },
+  healerHurtRelief: share,
+  healItemHurtRelief: share,
   exposureRange: { refused: [-1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 2] },
   guardRange: { refused: [-0.1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 1] },
   chanceBands: {
@@ -256,6 +250,27 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   heroRetirementInjuredMultiplier: finiteFrom(0),
   infirmaryHealFactor: { refused: [[], [1, 0.5, 0, 0.25], [1, 0.5, Number.NaN, 0.25], [1, Number.POSITIVE_INFINITY], [1, '0.5'], 1], allowed: [[1], [1, 0.5, 0.3], [1, 1, 1, 1], [1, 0.5, 0.3, 0.2, 0.1], [2, 1, 0.5, 0.01]] },
   quartersMoraleBonus: finiteFrom(0),
+  fatigueMax: { refused: [0, 75.5, Number.NaN, Number.POSITIVE_INFINITY], allowed: [75, 200] },
+  fatigueBands: {
+    refused: [
+      { fresh: -1, weary: 25, tired: 50, exhausted: 75 },
+      { fresh: 0, weary: 25, tired: 50, exhausted: 101 },
+      { fresh: 0, weary: 50, tired: 50, exhausted: 75 },
+      { fresh: 0, weary: 50, tired: 25, exhausted: 75 },
+      { fresh: 0, weary: 25, tired: 50 },
+    ],
+    allowed: [{ fresh: 0, weary: 1, tired: 2, exhausted: 100 }],
+  },
+  fatigueRiseByTier: { refused: [[], [4, -1], [4, Number.NaN], [4, Number.POSITIVE_INFINITY], [4, '5'], 4], allowed: [[0], [4, 5, 6, 7, 8], [8, 4], [0.5, 1, 1.5]] },
+  fatigueFallByQuarters: { refused: [[], [5, -1], [5, Number.NaN], [5, Number.POSITIVE_INFINITY], [5, '6'], 5], allowed: [[0], [5, 6, 7, 8], [8, 5], [0.5, 1, 1.5, 2, 2.5]] },
+  fatigueScaling: share,
+  playerRestBand: { refused: ['sleepy', '', 'none', 3], allowed: ['fresh', 'tired', 'exhausted', null] },
+  // DL-287: a Captain adds to their Party's form and Morale, never takes; a change only costs.
+  captainFormFactor: { refused: [0.99, 0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [1, 1.05, 2] },
+  captainHomecomingMorale: { refused: [-0.5, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 5, 2.5] },
+  captainHomeBaselineBonus: { refused: [-1, Number.NaN, Number.POSITIVE_INFINITY, undefined], allowed: [0, 5, 0.5] },
+  captainChangeMoraleCost: { refused: [1, 0.5, Number.NaN, Number.NEGATIVE_INFINITY, undefined], allowed: [0, -10, -2.5] },
+  captainChangeLockDays: wholeFrom(0),
   potentialHintBands: {
     refused: [{ modest: -1, promising: 6, exceptional: 10 }, { modest: 0, promising: 10, exceptional: 6 }, { modest: 0, promising: 6, exceptional: 6 }],
     allowed: [{ modest: 0, promising: 0.5, exceptional: 30 }],
@@ -502,6 +517,15 @@ describe('the bands, in their order', () => {
     expect(broken({ moraleMin: defaultConfig.moraleBaseline + 1 })).toEqual(['moraleBaseline', 'moraleBands']);
   });
 
+  test("the Morale bands keep the scale Morale's factor divides by wider than 0 (DL-283)", () => {
+    expect(broken({ moraleMax: defaultConfig.moraleMin })).toContain('moraleBands');
+  });
+
+  test('the Fatigue bands lie within 0 and fatigueMax (DL-282)', () => {
+    expect(broken({ fatigueMax: defaultConfig.fatigueBands.exhausted - 1 })).toEqual(['fatigueBands']);
+    expect(broken({ fatigueMax: defaultConfig.fatigueBands.exhausted })).toEqual([]);
+  });
+
   test('the Regard bands lie within regardMin and regardMax', () => {
     expect(broken({ regardMin: defaultConfig.regardBands.hostile + 1 })).toEqual(['regardBands']);
     expect(broken({ regardMax: defaultConfig.regardBands.close - 1 })).toEqual(['regardBands']);
@@ -523,6 +547,19 @@ describe('the lists a content release may outgrow: no rule reads the content (DL
     expect(broken({ infirmaryHealFactor: [] })).toEqual(['infirmaryHealFactor']);
     expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] })[0]?.message).toBe(
       'infirmaryHealFactor is []; it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0',
+    );
+  });
+
+  test("Fatigue's rise by Tier and fall by quarters grade are lists of at least one, whatever the ladder or the grades, one past the list reading the last (DL-282)", () => {
+    expect(broken({ fatigueRiseByTier: [4] })).toEqual([]);
+    expect(broken({ fatigueRiseByTier: [4, 5, 6, 7, 8, 9, 10] })).toEqual([]);
+    expect(broken({ fatigueFallByQuarters: [5] })).toEqual([]);
+    expect(broken({ fatigueFallByQuarters: [5, 6, 7, 8, 9, 10] })).toEqual([]);
+    expect(checkConfig({ ...defaultConfig, fatigueRiseByTier: [] })[0]?.message).toBe(
+      "fatigueRiseByTier is []; it is a list of at least one figure, one for each Tier from 1, a Tier past the list reading the last, each a finite number of 0 or more",
+    );
+    expect(checkConfig({ ...defaultConfig, fatigueFallByQuarters: [] })[0]?.message).toBe(
+      "fatigueFallByQuarters is []; it is a list of at least one figure, one for each quarters grade from 0, a grade past the list reading the last, each a finite number of 0 or more",
     );
   });
 

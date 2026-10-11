@@ -8,7 +8,8 @@
 // Hero who cannot go, the Synergies the Party would have and on how many of the Quest's Encounters
 // (M4-S3, DL-45), what it would carry, the reward its `negotiatedReward` for the player's
 // Guildmaster, and the verdict `dispatch`'s own checks. The preview is a list of sections of words.
-// One line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12, DL-154).
+// One line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12, DL-154); then each
+// Hero's Fatigue with its band and the Captain marked, and what would relieve the hurt (DL-289).
 // The chance of each Encounter and of the Quest in a word, with its percentage floored to 5, if no
 // one falls: the engine's estimate (`estimateQuest`, through the preview; DL-148 item 15, DL-157).
 
@@ -19,12 +20,25 @@ import {
   type ChanceBand,
   type DispatchPreview,
   type EngineDeps,
-  type FormEffect,
   type Hero,
   type Synergy,
   type WorldDocument,
 } from '@heroesim/engine';
-import { chanceWords, consumableEffectWords, listed, nameIn, partyFloorWords, requirementWords, shownPercent, unavailableWords } from '@heroesim/words';
+import {
+  chanceWords,
+  consumableEffectWords,
+  formEffectWords,
+  listed,
+  nameIn,
+  partyFloorWords,
+  playerReading,
+  reliefWords,
+  requirementWords,
+  rosterReading,
+  shownPercent,
+  unavailableWords,
+  type RosterRowReading,
+} from '@heroesim/words';
 import type { Command } from '../args.js';
 import { refusalLine } from '../namer.js';
 
@@ -88,17 +102,27 @@ function synergyLines(preview: DispatchPreview): string[] {
   return ['Synergies', ...lines];
 }
 
-/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the page's words too. */
-const formEffectWords: Readonly<Record<FormEffect, string>> = {
-  raises: 'Raises the odds',
-  none: 'Makes no difference',
-  'lowers-a-little': 'Lowers the odds a little',
-  'lowers-badly': 'Lowers the odds badly',
-};
-
 /** The Party's Morale, one line for the Party from its mean form, naming no Hero (DL-148 item 12); none for no one. */
 function moraleLines({ form }: DispatchPreview): string[] {
   return form === null ? [] : ['Morale', `  ${formEffectWords[form.effect]}.`];
+}
+
+/**
+ * Each Hero's Fatigue and its band (DL-282), the Guild's Captain among them marked (DL-287): the band the
+ * page's builder shows, with the figure it leaves out (DL-289), read from the Roster's rows (`rosterReading`); a Hero not on the Roster is
+ * said by `heroLines`, and none for a Party of no one.
+ */
+function fatigueLines({ heroes }: DispatchPreview, roster: readonly RosterRowReading[]): string[] {
+  const lines = heroes.flatMap((hero) => {
+    const row = roster.find((each) => each.id === hero.id);
+    return row === undefined ? [] : [`  ${heroName(hero)}: ${row.fatigue}, ${row.fatigueBand}${row.captain ? ', the Captain' : ''}`];
+  });
+  return lines.length === 0 ? [] : ['Fatigue', ...lines];
+}
+
+/** What would relieve the hurt on the Quest: a Healer in the Party, the heal Items carried (DL-285, DL-289); none for a Party of no one. */
+function reliefLines({ heroes, consumables }: DispatchPreview, deps: EngineDeps): string[] {
+  return heroes.length === 0 ? [] : ['Relief from the hurt', ...reliefWords(heroes, consumables, deps.content).map((line) => `  ${line}`)];
 }
 
 /**
@@ -176,6 +200,8 @@ export function previewParty(
     heroLines(preview, guild.name),
     synergyLines(preview),
     moraleLines(preview),
+    fatigueLines(preview, rosterReading(playerReading(document, deps), guild)),
+    reliefLines(preview, deps),
     chanceLines(preview, deps),
     consumableLines(preview, deps),
     [`Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`],

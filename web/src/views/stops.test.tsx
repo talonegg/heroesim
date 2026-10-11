@@ -4,7 +4,7 @@ import { App } from '../app';
 import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
 import { described, idle, navButton, openView, section, time } from './page.test-support';
 
-// The page's side of #32: the split button's opt-in stops, "until a Quest you can staff
+// The page's side of #32: the split button's opt-in stops, "until a Quest your rested Heroes can staff
 // appears" (`quest-staffable`) beside "until new Heroes join the pool"; the words that say
 // which stops are always on; and the Bankruptcy stop (`below-floor`) in the home view, a warning
 // card with the Day it falls on, what can be done, and the ways to what the Guild holds and the Board. Driven
@@ -21,19 +21,21 @@ function otherWays(): HTMLElement {
 }
 
 describe('the ways to fast forward (#32)', () => {
-  test('the split button offers "until a Quest you can staff appears" beside "until new Heroes join the pool", and says which stops are always on', () => {
+  test('the split button offers "until a Quest your rested Heroes can staff appears" beside "until new Heroes join the pool", and says which stops are always on', () => {
     render(<App initial={started()} />);
     const ways = otherWays();
 
     expect(within(ways).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Fast forward until a Quest you can staff appears',
+      'Fast forward until a Quest your rested Heroes can staff appears',
       'Fast forward until new Heroes join the pool',
     ]);
     expect(ways.textContent).toContain(
       'Fast forward stops of its own accord when a Party of yours comes home, a decision is needed, a Transfer Offer ' +
         'arrives, your Guild falls below the Bankruptcy floor or the game ends.',
     );
-    expect(ways.textContent).toContain('A Quest you can staff is one the Heroes at home could take, even with a Party out.');
+    expect(ways.textContent).toContain(
+      'A Quest your rested Heroes can staff is one they could take from home, even with a Party out. A Hero your rest band keeps home is not counted, though you may still send them.',
+    );
   });
 
   test("the time controls' words and the home view's name every stop the page offers", () => {
@@ -46,7 +48,7 @@ describe('the ways to fast forward (#32)', () => {
       'a Transfer Offer arrives',
       'your Guild falls below the Bankruptcy floor',
       'the game ends',
-      'a Quest the Heroes at home can staff appears, even with a Party out',
+      'a Quest your rested Heroes at home can staff appears, even with a Party out',
       'new Heroes join the Unattached pool',
     ]) {
       expect(words, stop).toContain(stop);
@@ -55,10 +57,10 @@ describe('the ways to fast forward (#32)', () => {
     expect(described(section('Home'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
   });
 
-  test('with a Party out, "until a Quest you can staff appears" stops before it is home, naming a Quest it offers a Party for', async () => {
+  test('with a Party out, "until a Quest your rested Heroes can staff appears" stops before it is home, naming a Quest it offers a Party for', async () => {
     render(<App initial={withPartyOut(started('reducer-test'), 2)} />);
 
-    fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest you can staff appears' }));
+    fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest your rested Heroes can staff appears' }));
     await idle();
 
     const stop = screen.getByTestId('stop');

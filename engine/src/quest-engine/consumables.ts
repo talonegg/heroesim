@@ -8,8 +8,10 @@
 // - a `reroll` has a failed Encounter of one of its kinds rolled again, once: one Item, and one more
 //   draw from `quests` for each of its Checks that fell short of Success, in the order listed,
 //   straight after its Checks; the new rolls stand (v1.1.4-S2);
-// - a `heal`, once the sequence is over, shortens an Injury the Quest inflicted by its `days`, to no
-//   fewer than 1 Day: the longest Injury first, one Item an Injury.
+// - a `heal` is spent at the moment of an Injury, one Item an Injury while any is left, the one healing
+//   most Days first (DL-280 item 4, Q15 a; DL-285): it relieves `healItemHurtRelief` of the hurt's gap
+//   for the rest of the Quest (form.ts, `hurtRelief`), and shortens the Injury by its `days`, to no
+//   fewer than 1 Day, which the return applies. Spent on a Hero who then dies, it is lost (DL-280).
 //
 // Which Items an Encounter takes is `takeBonuses`' and `rerollFor`'s, which the chance estimate reads
 // too (v1.1.4-S5, estimate.ts), so that it spends them as the kit does.
@@ -33,12 +35,12 @@ import { holdings, itemDefinition, moveItem, moveStack, removeFromStack } from '
  * One Item of a stack the Party carried, used on its Quest (DL-50 items 4 to 6): what `item.expended`
  * records. A `bonus` names the Encounter it added `flat` to, by its place in the sequence; a `reroll`
  * the Encounter whose failed roll, `firstRoll`, it replaced; a `heal` the Hero whose Injury it took
- * `days` Days off.
+ * `days` Days off, 0 for an Injury at 1 Day, and the Encounter the Injury was taken at (DL-285).
  */
 export type ConsumableUse = { stackId: StackId; definitionKey: ItemDefinitionKey } & (
   | { effect: 'bonus'; encounterIndex: number; flat: number }
   | { effect: 'reroll'; encounterIndex: number; firstRoll: number }
-  | { effect: 'heal'; heroId: HeroId; days: number }
+  | { effect: 'heal'; heroId: HeroId; days: number; encounterIndex: number }
 );
 
 /** An Injury as the kit reads and shortens it: `resolve.ts`'s `QuestInjury`. */
@@ -62,11 +64,12 @@ export interface Kit {
    */
   reroll(kind: EncounterKind, index: number, firstRoll: number): boolean;
   /**
-   * Shortens `injuries` in place, the heal Items carried given out one at a time, the definition
-   * healing most Days first (ties by key), each to the Injury with the most Days not yet treated
-   * (ties to the first), by its `days`, to no fewer than 1. An Injury at 1 Day takes none.
+   * Spends a heal Item on `injury`, just taken at Encounter `index` (DL-285): of the heal definitions
+   * carried with an Item left, the one healing most Days (ties by key). It shortens the Injury in
+   * place by its `days`, to no fewer than 1, and the Hero is relieved for the rest of the Quest. False
+   * when none is left.
    */
-  heal(injuries: Healable[]): void;
+  heal(injury: Healable, index: number): boolean;
   /** Every Item used so far, in the order used. */
   readonly used: ConsumableUse[];
 }
@@ -131,25 +134,18 @@ export function kitOf(world: Pick<World, 'items' | 'stacks'>, party: Pick<Party,
       used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'reroll', encounterIndex: index, firstRoll });
       return true;
     },
-    heal(injuries) {
-      const heals = carried
-        .filter((it) => it.effect.kind === 'heal')
-        .sort((a, b) => healDays(b) - healDays(a) || compareByCodeUnit(a.definitionKey, b.definitionKey));
-      const treated = new Set<Healable>();
-      for (const it of heals) {
-        while (it.left > 0) {
-          const longest = injuries
-            .filter((injury) => !treated.has(injury) && injury.healDays > 1)
-            .reduce<Healable | undefined>((best, injury) => (best === undefined || injury.healDays > best.healDays ? injury : best), undefined);
-          if (longest === undefined) return;
-          const after = Math.max(1, longest.healDays - healDays(it));
-          const days = longest.healDays - after;
-          longest.healDays = after;
-          treated.add(longest);
-          it.left -= 1;
-          used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'heal', heroId: longest.heroId, days });
-        }
-      }
+    heal(injury, index) {
+      // `carried` is in key order, so the first of the most Days is the first by key.
+      const it = carried
+        .filter((each) => each.effect.kind === 'heal' && each.left > 0)
+        .reduce<Carried | undefined>((best, each) => (best === undefined || healDays(each) > healDays(best) ? each : best), undefined);
+      if (it === undefined) return false;
+      const after = Math.max(1, injury.healDays - healDays(it));
+      const days = injury.healDays - after;
+      injury.healDays = after;
+      it.left -= 1;
+      used.push({ stackId: it.stackId, definitionKey: it.definitionKey, effect: 'heal', heroId: injury.heroId, days, encounterIndex: index });
+      return true;
     },
   };
 }

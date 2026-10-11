@@ -65,6 +65,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.1.7` | 2026-10-07 | #58 | `25f8fa0` | DL-206 to DL-214 | [v1.1.7](./planning/archive/v1.1.7-release.md) |
 | `v1.1.8` | 2026-10-09 | #59 | `10f17aa` | DL-215 to DL-230 | [v1.1.8](./planning/archive/v1.1.8-release.md) |
 | `v1.1.9` | 2026-10-10 | #60 | `4fa8d0e` | DL-231 to DL-254 | [v1.1.9](./planning/archive/v1.1.9-release.md) |
+| `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, on Cloudflare's beacon (DL-278), allowed from `v1.2.1` (DL-279) |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -80,16 +81,19 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
 (#51) is spread across the releases that change what it tunes.
 
-- **Now: `v1.2.0`, fewer, weightier Quests** ([its epic](./planning/epics/v1.2.0-release.md),
-  DL-257): tiered Quest templates with Beats, the Board's Tiers unlocked by each Guild's best four, Death
-  by Tier and the Deadly mark, a Party floor of two, content in one file per row, and the editor's
-  commands and skills to write it. Nothing is tuned: every DL-83 target is reported against
-  `v1.1.9`'s. It takes in #19, #22's Board scaling and #40.
+- **Now: [`v1.2.1`, Fatigue and the Captain](./planning/epics/v1.2.1-release.md)** (DL-280), on
+  `v1.2.1-dev`, released as is on the owner's word (DL-293), though its closing Gate found every one
+  of the player's games bankrupt before 20 years (DL-292). It brings Fatigue rising
+  away and falling at home, weighing on Stats by area and on harm; Morale's form a line around its
+  baseline; the hurt relieved by a Healer or a heal Item; rest bands for every Guild; one Captain a
+  Guild; the Rivals' heal Items (#25's consumables); the Roster's Tiles, Table and phone views as the
+  design's part 11 sets them; and #51's form factors. It carries
+  `v1.2.0`'s record and DL-279's patch to the live check. `v1.2.0` was released on 2026-10-11 (§2),
+  untuned (DL-277): the targets, the unlock Levels, the Death factor and the Rivals' Rosters are tuned
+  in a later release (Alongside, below).
 - **Short term: choices that cost something.**
-  1. `v1.2.1`, Fatigue and the Captain, the Roster's Tiles, Table and phone views as the design's
-     part 11 sets them, and #51's form factors. It takes in #41.
-  2. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, #25 and #51's Rival
-     income.
+  1. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
+     upgraded, the surplus sold) and #51's Rival income.
 - **Medium term: the management core,** in this order:
   - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
   - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
@@ -128,13 +132,21 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
   - Patron pictures, drawn on a `patron-portraits` stream, through the portrait tool (DL-135
     item 10).
 - **Alongside, their place decided as each release closes:**
+  - The economy pass, deferred by the owner (DL-293): Guilds that can live with v1.2.1's Fatigue and
+    form, measured in a full Gate against [v1.2.1's outcomes](./planning/epics/v1.2.1-outcomes.md).
+    It restores the player's solvency (bankrupt in every game at v1.2.1, none at v1.2.0), the Rivals'
+    failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their
+    folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save
+    is measured there; Fatigue's tuning to DL-290's bands follows it (DL-292).
   - The targets reset and tuned against, once more of the line is built (DL-257): DL-83's bands as
     restated; #51's Quests' volume, Wealth and the Market's size or draws by slot (DL-168 items 9 and
     12); #22's strong-success premium; the Death band (DL-256 item 10); the Tiers' factors, the
     Board's growth and the Fame minimums; the Rivals' Rosters and Wealth, a Rival hiring with no
     Roster cap while its Wealth exceeds its Disposition's `recruitThreshold` Upkeeps (R1, DL-270,
     DL-274).
-  - Taken into the release that touches their code: #16, #46 and #52.
+  - Taken into the release that touches their code: #16, #41, #46 and #52.
+  - A Healer's relief of the hurt growing with their Field surgery rating, with the Development
+    release's Skill growth (DL-280).
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below
     `rivalRosterMax` (DL-59), kept only as a development measure to constrain testing load
     (DL-185).

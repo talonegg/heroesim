@@ -924,7 +924,7 @@ describe('dispatch', () => {
         [
           'Consumables',
           `  Whetstone ×1, of 1 the Guild holds: +3 to a Check on combat Encounters, one a Check; ${combat} of this Quest's ${kinds.length}.`,
-          '  Healing draught ×2, of 3 the Guild holds: an Injury taken on the Quest heals 5 Days sooner, one an Injury.',
+          '  Healing draught ×2, of 3 the Guild holds: an Injury taken on the Quest weighs less on the rest of it and heals 5 Days sooner, one an Injury.',
         ].join('\n'),
       );
       expect(carrying.out).toContain('Dispatch would send this Party.');
@@ -1622,10 +1622,10 @@ describe('preview lists the Synergies a proposed Party would have', () => {
 
   // DL-148 item 12: one line for the Party's Morale, from its mean form, naming no Hero.
   test.each([
-    [[60, 60], 'Makes no difference'],
+    [[defaultConfig.moraleBaseline, defaultConfig.moraleBaseline], 'Makes no difference'],
     [[80, 60], 'Raises the odds'],
     [[30, 30], 'Lowers the odds a little'],
-    [[10, 60], 'Lowers the odds badly'],
+    [[0, 10], 'Lowers the odds badly'],
   ])('with Morale %j, says once for the Party: %s', (morales, words) => {
     const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'rogue');
     edit((edited) => heroIds.forEach((id, index) => ((edited.world.heroes[id] as Hero).morale = morales[index] ?? 60)));
@@ -1637,6 +1637,58 @@ describe('preview lists the Synergies a proposed Party would have', () => {
     expect(lines.slice(start, start + 3)).toEqual(['Morale', `  ${words}.`, '']);
     const names = heroIds.map((id) => document().world.heroes[id]?.name ?? id);
     for (const name of names) expect(lines[start + 1]).not.toContain(name);
+  });
+
+  /** The lines of `output`'s section called `heading`, up to the blank line after it. */
+  function section(output: string, heading: string): string[] {
+    const lines = output.split('\n');
+    const start = lines.indexOf(heading);
+    if (start === -1) throw new Error(`No ${heading} section in:\n${output}`);
+    const end = lines.indexOf('', start);
+    return lines.slice(start + 1, end === -1 ? undefined : end);
+  }
+
+  // DL-289: each Hero's Fatigue band and the Captain, and what relieves the hurt, beside the form line.
+  test("says each Hero's Fatigue with its band, the Captain among them, and what would relieve the hurt: a Healer in the Party, a heal Item carried", () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'healer', 'rogue');
+    edit((edited) => {
+      [0, defaultConfig.fatigueBands.tired, defaultConfig.fatigueBands.weary].forEach((fatigue, index) => ((edited.world.heroes[heroIds[index] as HeroId] as Hero).fatigue = fatigue));
+      (edited.world.guilds[playerId] as Guild).captainId = heroIds[1] as HeroId;
+    });
+    const names = heroIds.map((id) => document().world.heroes[id]?.name ?? id);
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(section(run.out, 'Fatigue')).toEqual([
+      `  ${names[0]} (${heroIds[0]}): 0, fresh`,
+      `  ${names[1]} (${heroIds[1]}): ${defaultConfig.fatigueBands.tired}, tired, the Captain`,
+      `  ${names[2]} (${heroIds[2]}): ${defaultConfig.fatigueBands.weary}, weary`,
+    ]);
+    expect(section(run.out, 'Relief from the hurt')).toEqual([`  Healer in the Party: ${names[1]}, who eases the hurt of the others.`, '  Heal Items carried: none.']);
+  });
+
+  test('says none when the Party has no Healer, and names the heal Items it carries', () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'rogue');
+    edit((edited) => addStack(edited.world, 'healing-draught', 3, { kind: 'guild', id: playerId }));
+
+    const bare = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+    expect(section(bare.out, 'Relief from the hurt')).toEqual(['  Healer in the Party: none.', '  Heal Items carried: none.']);
+
+    const carrying = play(['preview', '--quest', questId, '--heroes', heroIds.join(','), '--consumables', 'healing-draught:1']);
+    expect(section(carrying.out, 'Relief from the hurt')).toEqual([
+      '  Healer in the Party: none.',
+      '  Heal Items carried: Healing draught ×1, spent at an Injury taken on the Quest.',
+    ]);
+  });
+
+  test('a Party of no one the world holds has no Fatigue or relief to say', () => {
+    const { questId } = proposed(['ambush-on-the-road'], 'warrior');
+
+    const run = play(['preview', '--quest', questId, '--heroes', 'hero-999999']);
+
+    expect(run.out.split('\n')).not.toContain('Fatigue');
+    expect(run.out.split('\n')).not.toContain('Relief from the hurt');
   });
 });
 

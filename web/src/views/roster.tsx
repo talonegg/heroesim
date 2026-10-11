@@ -9,7 +9,8 @@
 // page opens with the keyboard on their name, and closing it returns the keyboard to their card, or
 // to the Roster's heading when a filter now hides them or they left (DL-213).
 // Their thumbnail stands beside their name (v1.1.3-S7, DL-135 item 9), the small Silhouette while
-// they have no picture.
+// they have no picture. The Guild's Captain has a mark before their Class's, on the tile, in the Table and
+// beside the name on a phone, and a tile has a Fatigue chip beside Morale's (DL-289).
 //
 // Tiles or a Table (v1.1.5-S12, DL-169 items 6 to 11): "Tiles | Table" at the top, Tiles the first
 // time; the tiles add each Trait with what it does and each Item the Hero carries, and no Stat; the
@@ -20,8 +21,8 @@
 // Unique Items (v1.1.5-S14, DL-182 item 4): on a tile, a Unique Item's picture before its name in its
 // chip, and the tile of a Hero who carries one a thin gold glow; in the Table, their row the glow.
 //
-// Filters (DL-206 items 25 to 29, DL-213): by Class and by availability, several choices each, each
-// group's name (Class, Where) shown before its chips, not kept; the tiles, the Table and the phone's
+// Filters (DL-206 items 25 to 29, DL-213, DL-289): by Class, by availability, and by the band of Morale and of
+// Fatigue, several choices each, each group's name (Class, Where, Morale, Fatigue) shown before its chips, not kept; the tiles, the Table and the phone's
 // tabs show the same Heroes, the rows kept for the document sorted and then filtered
 // (`rosterFacets`). Tiles or Table is a choice of one of its own (`OneChoice`).
 
@@ -35,6 +36,7 @@ import {
   rosterFacets,
   rosterRows,
   rosterSortChoices,
+  rosterTableColumns,
   sortedRoster,
   type RosterOrder,
   type RosterRow,
@@ -48,7 +50,7 @@ import { Pool } from './pool';
 import { preferences, useRemembered } from './remembered';
 import { ColumnsPanel, nameId, RosterTable } from './roster-table';
 import { headingOf, View } from './section';
-import { Chip, FilterChips, moraleTones, OneChoice, Tabs, useFacets, useNarrow, useReturn } from './ui';
+import { Chip, fatigueTones, FilterChips, moraleTones, OneChoice, Tabs, useFacets, useNarrow, useReturn } from './ui';
 
 /** How the Roster shows its Heroes. */
 type ShownAs = 'tiles' | 'table';
@@ -72,6 +74,7 @@ function orderKept(kept: string): RosterOrder {
 export function Roster({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const groups = useMemo(() => rosterColumnGroups(), []);
   const sorts = useMemo(() => rosterSortChoices(), []);
+  const tableColumns = useMemo(() => rosterTableColumns(groups), [groups]);
   const columnKeys = useMemo(() => groups.flatMap((group) => group.columns.map((column) => column.key)), [groups]);
   const [shownAs, setShownAs] = useRemembered(preferences.rosterView);
   const [keptOrderOf, keepOrder] = useRemembered(preferences.rosterOrder);
@@ -132,8 +135,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   const table = (columns: RosterGroupColumns) => (
     <RosterTable rows={rows} columns={columns} order={order} firstDirection={firstDirection} onSort={sortByHeading} onOpen={opened} />
   );
-  const shownColumns = (keys: readonly string[]): RosterGroupColumns =>
-    groups.flatMap((group) => group.columns).filter((column) => keys.includes(column.key) && !hidden.includes(column.key));
+  // In the wide Table's order, State after the Hero's short columns (DL-289, Q21 a); a phone's tab keeps its group's.
+  const shownColumns = (keys: readonly string[]): RosterGroupColumns => tableColumns.filter((column) => keys.includes(column.key) && !hidden.includes(column.key));
   const tabGroup = groups.find((group) => group.key === tab) ?? groups[0];
   const tabColumns = shownColumns(tabGroup?.columns.map((column) => column.key) ?? []);
 
@@ -155,17 +158,20 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
                         {sort.label}
                       </option>
                     ))}
-                  {groups.slice(1).map((group) => (
-                    <optgroup key={group.key} label={group.label}>
-                      {sorts
-                        .filter((sort) => sort.area === group.label)
-                        .map((sort) => (
-                          <option key={sort.key} value={sort.key}>
-                            {sort.label}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ))}
+                  {/* The Stat areas by their kind, not by where a group stands: State has no Stat to sort by (DL-289). */}
+                  {groups
+                    .filter((group) => group.kind === 'stat-area')
+                    .map((group) => (
+                      <optgroup key={group.key} label={group.label}>
+                        {sorts
+                          .filter((sort) => sort.area === group.label)
+                          .map((sort) => (
+                            <option key={sort.key} value={sort.key}>
+                              {sort.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
                 </select>
               </label>
               <button
@@ -192,6 +198,8 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
           <div className="roster__filters">
             <FilterChips {...filters.class} labelShown />
             <FilterChips {...filters.availability} labelShown />
+            <FilterChips {...filters.morale} labelShown />
+            <FilterChips {...filters.fatigue} labelShown />
           </div>
           {/* Said as a filter changes it (DL-206 item 28). */}
           <div role="status" className="roster__shown">
@@ -239,7 +247,7 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
 type RosterGroupColumns = ReturnType<typeof rosterColumnGroups>[number]['columns'];
 
 /**
- * A Hero on the Roster: who, their Class, Level and Age, their Morale, and where they are; then each
+ * A Hero on the Roster: who, their Class, Level and Age, their Morale and Fatigue, and where they are; then each
  * Trait with what it does, and each Item they carry, its effect in its tooltip and the screen
  * reader's words (v1.1.5-S12, DL-169 item 9). No Stat (Q12). A Unique Item's picture stands before
  * its name, and a Hero who carries one has their tile glow gold, which says nothing the Items' names
@@ -251,7 +259,7 @@ function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
       <span className="named">
         <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
         <button type="button" id={nameId(row.heroId)} className="link" onClick={onOpen}>
-          <HeroName icon={row.classIcon} className={row.className} name={row.name} />
+          <HeroName icon={row.classIcon} className={row.className} name={row.name} captain={row.captain} />
         </button>
       </span>
       <p className="hero-card__line">
@@ -260,6 +268,9 @@ function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
       <p className="hero-card__state">
         <Chip tone={moraleTones[row.moraleBand]} icon="morale">
           Morale {row.morale}, {row.moraleBand}
+        </Chip>
+        <Chip tone={fatigueTones[row.fatigueBand]} icon="fatigue">
+          Fatigue {row.fatigue}, {row.fatigueBand}
         </Chip>
         {row.why === 'injured' ? (
           <Chip tone="warn" icon="injury">

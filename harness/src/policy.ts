@@ -7,35 +7,36 @@
 // it plays the same game (ADR-0001). It sends Parties through the engine's own staffing rule,
 // the Best Party, the one the Rivals send (DL-30; by the chance estimate, DL-157), at the player's
 // margin, `playerPartyMargin`: the Party the Board gives as "Your best Party". It chooses its Quests
-// by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from the Heroes still
-// free, the likeliest first, ties to the higher reward, then the Quest id, and then again from the
-// Heroes left. One Best Party module serves a call (DL-237), so a Quest asked again from the Heroes
-// left weighs only the Parties it has not weighed, and keeps its Party when none of it was sent.
+// by that Party's chance (DL-168 item 2, DL-176): of the Quests it can staff from its pool still at
+// home (`partyPool`, DL-286), the likeliest first, ties to the higher reward, then the Quest id, and
+// then again from the Heroes left. One Best Party module serves a call (DL-237), so a Quest asked
+// again from the Heroes left weighs only the Parties it has not weighed, and keeps its Party when
+// none of it was sent.
 
 import {
   affordableImprovement,
-  availableHeroes,
   bestParties,
+  captainChoice,
   cheapestUnattached,
   compareByCodeUnit,
+  consumablePurchase,
+  consumablesToCarry,
   fameRefusal,
   gearChoices,
   gearPurchase,
-  holdings,
-  itemDefinition,
-  marketStock,
   offeredQuests,
   offersTo,
+  partyPool,
   playerGuild,
   upkeep,
   type BestParties,
-  type ConsumableRequest,
+  type ConsumableEffectKind,
+  type ConsumableKeeping,
   type EngineDeps,
   type Guild,
   type GuildAction,
   type Hero,
   type HeroId,
-  type ItemDefinitionKey,
   type Quest,
   type World,
   type WorldDocument,
@@ -59,8 +60,8 @@ export interface PolicyConfig {
   buyWealthMultiple: number;
   /**
    * Keep this many of each consumable, at home and carried by the Guild's Parties together, buying
-   * toward it when nothing else is bought (the M5 close, DL-62). Its price is read with
-   * `buyWealthMultiple`, as armour's is.
+   * toward it when nothing else is bought (the M5 close, DL-62; the engine's `consumablePurchase`,
+   * DL-288). Its price is read with `buyWealthMultiple`, as armour's is.
    */
   consumableStock: number;
   /**
@@ -80,24 +81,29 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 });
 
 /**
- * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57):
- * decline, equip, dispatch, then one purchase.
+ * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
+ * DL-287): decline, name a Captain, equip, dispatch, then one purchase.
  *
  * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
  *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
  *   seen). Declining moves nothing else, so the choices after it are made on the same document.
+ * - **Name a Captain** to an empty post, as a Rival does: its Hero highest in the captaincy Stat, the
+ *   first in Roster order among those tied (the engine's `captainChoice`, DL-287), so that a harness
+ *   game meets the Captain's effects. It never changes a Captain it has. Naming moves no Wealth and
+ *   sends no one, so the choices after it are made on the same document, the estimate's before the
+ *   naming: a Party chosen that Turn is weighed without the new Captain's factor, as a Rival's is (DL-291).
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch, the likeliest Quest first** (v1.1.5-S2, DL-168 item 2; `likeliest`). To each offered
- *   Quest on the Board its Party is the one the engine would send from the Guild's Heroes still free
- *   (the Best Party: those the requirements take, then whoever most raises the estimated chance of
- *   success up to `partySizeMin`, then while each raises it by more than `playerPartyMargin`,
- *   v1.1.4-S6). Of the Quests it can staff, it sends the one whose Party has the highest chance of
- *   success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
+ *   Quest on the Board its Party is the one the engine would send from the Guild's pool, its Heroes
+ *   still free whom `playerRestBand` does not keep home (`partyPool`, DL-286): the Best Party, those
+ *   the requirements take, then whoever most raises the estimated chance of success up to
+ *   `partySizeMin`, then while each raises it by more than `playerPartyMargin` (v1.1.4-S6). Of the
+ *   Quests it can staff, it sends the one whose Party has the highest chance of success by that estimate (the Best Party's), ties to the higher reward, then the lower Quest id;
  *   then chooses again, each Quest's Party and chance asked again of the Heroes left, until no Hero is
  *   left or no Quest can be staffed. A Quest it cannot staff is passed over, and a Quest of a Tier
  *   whose Fame minimum is above the Guild's Fame, which it may not take (`fameRefusal`, DL-264). Each Party **carries one
- *   of each consumable** the Guild holds that could serve its Quest (`consumablesFor`, DL-62), while
+ *   of each consumable** the Guild holds that could serve its Quest (the engine's `consumablesToCarry`, DL-62, DL-288), while
  *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
  *   carrying nothing, as the Best Party weighs it.
  * - **One purchase a Turn**, the first of these that applies:
@@ -112,7 +118,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
  *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
- *   - **Buy consumables** toward `consumableStock` of each (DL-62): of the consumables the Market
+ *   - **Buy consumables** toward `consumableStock` of each (DL-62; the engine's `consumablePurchase`,
+ *     DL-288, as a Rival buys its heal Items): of the consumables the Market
  *     has for sale, the one the Guild has fewest of, lowest key among equals, as many as it lacks
  *     and the Market has, when Wealth is above `buyWealthMultiple` times their cost and would stay
  *     above `consumableReserveUpkeeps` Upkeeps after paying it.
@@ -133,19 +140,21 @@ export function automaticPolicy(
   const guild = playerGuild(world);
   if (world.ended !== null || guild === undefined || guild.foldedOnTurn !== null) return [];
 
+  const captain = captainChoice(world, guild, deps);
   const actions: GuildAction[] = [
     ...offersTo(world, guild.id).map((offer): GuildAction => ({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id })),
+    ...(captain === null ? [] : [captain]),
     ...gearChoices(world, guild, deps),
   ];
   // The world does not change in this call, so one Best Party module answers every question (DL-237).
   const best = bestParties(world, guild, deps);
-  let available = availableHeroes(world, guild);
+  let available = partyPool(world, guild, deps);
   // A Quest of a Tier whose Fame minimum is above the Guild's Fame is passed over: dispatch would refuse it (DL-264).
   let choices = staffed(best, offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null), available);
-  const left = heldConsumables(world, guild, deps);
+  const carry = consumablesToCarry(world, guild, everyEffect, deps);
   for (let choice = likeliest(choices); choice !== undefined; choice = likeliest(choices)) {
     const { quest, heroIds } = choice;
-    const consumables = consumablesFor(quest, heroIds, left, deps);
+    const consumables = carry(quest, heroIds);
     actions.push({ kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) });
     const sent = new Set<HeroId>(heroIds);
     available = available.filter((hero) => !sent.has(hero.id));
@@ -158,7 +167,7 @@ export function automaticPolicy(
     infirmaryBuild(guild, deps, policy) ??
     armourPurchase(document, guild, deps, policy) ??
     recruitment(world, guild, deps, policy) ??
-    consumablePurchase(world, guild, deps, policy);
+    consumablePurchase(world, guild, keeping(policy), deps);
   if (purchase !== null) actions.push(purchase);
   return actions;
 }
@@ -175,73 +184,17 @@ function recruitment(world: World, guild: Guild, deps: EngineDeps, policy: Reado
   return cheapest !== null && cheapest.fee <= guild.wealth ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id } : null;
 }
 
-/** Whether content defines `definitionKey` as a consumable. */
-function isConsumable(definitionKey: ItemDefinitionKey, deps: EngineDeps): boolean {
-  return itemDefinition(deps.content, definitionKey)?.kind === 'consumable';
-}
+/** Every consumable's effect: the policy keeps every consumable, a Rival its heal Items alone (DL-288). */
+const everyEffect = ['bonus', 'reroll', 'heal'] as const satisfies readonly ConsumableEffectKind[];
 
-/** How many of each consumable the Guild's own holding has, by definition. */
-function heldConsumables(world: World, guild: Guild, deps: EngineDeps): Map<ItemDefinitionKey, number> {
-  const held = new Map<ItemDefinitionKey, number>();
-  for (const stack of holdings(world, { kind: 'guild', id: guild.id }).stacks) {
-    if (isConsumable(stack.definitionKey, deps)) held.set(stack.definitionKey, (held.get(stack.definitionKey) ?? 0) + stack.quantity);
-  }
-  return held;
-}
-
-/**
- * What a Party of `heroIds` sent on `quest` carries (DL-62): one of each consumable in `left`, in key
- * order, that could serve the Quest — a `bonus` or a `reroll` whose kinds hold the kind of one of its
- * Encounters, and any `heal` — taking each from `left`, so that the Parties sent the same Turn never
- * ask for more than the Guild holds. None when the Party is empty of such needs or the Guild of them.
- */
-function consumablesFor(quest: Quest, heroIds: readonly HeroId[], left: Map<ItemDefinitionKey, number>, deps: EngineDeps): ConsumableRequest[] {
-  if (heroIds.length === 0) return [];
-  const kinds = new Set(
-    quest.encounterKeys.flatMap((key) => (Object.hasOwn(deps.content.encounters, key) ? [deps.content.encounters[key]?.kind] : [])),
-  );
-  const carried: ConsumableRequest[] = [];
-  for (const definitionKey of [...left.keys()].sort(compareByCodeUnit)) {
-    const definition = itemDefinition(deps.content, definitionKey);
-    if (definition?.kind !== 'consumable' || (left.get(definitionKey) ?? 0) === 0) continue;
-    const { effect } = definition;
-    const serves = effect.kind === 'heal' || effect.kinds.some((kind) => kinds.has(kind));
-    if (!serves) continue;
-    carried.push({ definitionKey, quantity: 1 });
-    left.set(definitionKey, (left.get(definitionKey) ?? 0) - 1);
-  }
-  return carried;
-}
-
-/**
- * Consumables to buy toward `consumableStock` of each (DL-62): the Guild's count of a definition is
- * its own holding's and its Parties' together, since what a Party carries comes home unless used. Of
- * the consumables on the Market it has fewer of, the one it has fewest of, lowest key among equals,
- * as many as it lacks and the Market has, when Wealth is above `buyWealthMultiple` times their cost
- * and, once it is paid, above `consumableReserveUpkeeps` Upkeeps, so that consumables are bought from
- * what the Guild can spare; `null` when none is lacking, for sale or affordable.
- */
-function consumablePurchase(world: World, guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
-  const owned = heldConsumables(world, guild, deps);
-  for (const party of Object.values(world.parties)) {
-    if (party.guildId !== guild.id) continue;
-    for (const stack of holdings(world, { kind: 'party', id: party.id }).stacks) {
-      if (isConsumable(stack.definitionKey, deps)) owned.set(stack.definitionKey, (owned.get(stack.definitionKey) ?? 0) + stack.quantity);
-    }
-  }
-  const reserve = policy.consumableReserveUpkeeps * upkeep(guild, world, deps.config, deps.content);
-  const [best] = marketStock(world, deps)
-    .filter(({ definition }) => definition.kind === 'consumable')
-    .map(({ definition, quantity, price }) => {
-      const have = owned.get(definition.key) ?? 0;
-      return { key: definition.key, have, quantity: Math.min(quantity, policy.consumableStock - have), price };
-    })
-    .filter(
-      ({ quantity, price }) =>
-        quantity > 0 && guild.wealth > policy.buyWealthMultiple * price * quantity && guild.wealth - price * quantity > reserve,
-    )
-    .sort((a, b) => a.have - b.have || compareByCodeUnit(a.key, b.key));
-  return best === undefined ? null : { kind: 'buy', guildId: guild.id, definitionKey: best.key, quantity: best.quantity };
+/** The policy's own numbers as the engine's `consumablePurchase` reads them (DL-62, DL-288). */
+function keeping(policy: Readonly<PolicyConfig>): ConsumableKeeping {
+  return {
+    effects: everyEffect,
+    stock: policy.consumableStock,
+    wealthMultiple: policy.buyWealthMultiple,
+    reserveUpkeeps: policy.consumableReserveUpkeeps,
+  };
 }
 
 /**
@@ -294,8 +247,8 @@ function staffed(best: BestParties, quests: readonly Quest[], available: readonl
 
 /**
  * The Quest to send a Party on next (v1.1.5-S2, DL-168 item 2): of `choices`, the Quests the policy
- * can staff from the Heroes still free, the one whose Party has the highest chance of success, ties
- * to the higher reward, then the lower Quest id; `undefined` when there is none.
+ * can staff from its pool still at home (`partyPool`), the one whose Party has the highest chance of
+ * success, ties to the higher reward, then the lower Quest id; `undefined` when there is none.
  */
 function likeliest(choices: readonly Choice[]): Choice | undefined {
   let chosen: Choice | undefined;

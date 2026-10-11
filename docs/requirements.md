@@ -40,6 +40,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Turns and Fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills, Traits, States | Yes | Skill growth, Class change |
 | Portraits and Descriptive Attributes | Guildmasters' and Heroes', the Portraits chosen to fit; content has no Hero picture yet | Patron pictures; Guild Banners' heraldry |
+| Fatigue: a Hero's weariness, rising away and falling at home, in bands; rest bands for every Guild | The State, its bands and the Quest clock (DL-282); its effect on Checks and harm (DL-284); rest bands (DL-286) | Rest bands by a Guild's Hall; Fatigue as a Random Event's cause |
+| The Captain: one a Guild, scaled by Leadership | The post, its change's cost and lock, and its three effects (DL-287) | Rival Guilds that compete for the post's Heroes (v1.2.2) |
 | Progression: XP, Level, Potential, Decline | Yes | The Guildmaster Trait that sharpens Potential hints |
 | Quest Engine | Encounters, Checks, Degrees, Synergies, Relationship, Items | Mid-Quest reports |
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
@@ -71,7 +73,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   DL-210).
 - R3. Fixed rhythm: the Board and the Market refresh in the morning; the Rivals act in the
   afternoon; at night training, the Quests whose Parties return, Levels, healing, Morale drift,
-  ageing, Upkeep, Transfers, the Unattached pool's refresh and the Ending checks fall, and Random
+  Fatigue, ageing, Upkeep, Transfers, the Unattached pool's refresh and the Ending checks fall, and Random
   Events will fall too. The order is [`approach.md`](./approach.md) §2's.
 - R4. A Guild is to have one Outing per Turn (the Market; later scouting and Patron visits) and
   has unlimited Hall actions (dispatch, recruit, equip, build, and Transfer bids and answers). The
@@ -89,8 +91,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
 
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a Controller. The player controls
   theirs; each Rival is controlled by one of four Dispositions (`content/dispositions.json`), whose
-  weights and thresholds decide the Quests it takes, whom it recruits, what it builds and buys, how
-  it bids for Heroes, and its Party margin (DL-56).
+  weights and thresholds decide the Quests it takes, whom it recruits, what it builds and buys, the
+  heal Items it buys and carries, how it bids for Heroes, its Party margin and its rest band (DL-56,
+  DL-286, DL-288).
 - R8. The Guildmaster has Attributes (name, sex and age), three Descriptive Attributes no rule
   reads (Birthplace, Appearance and Biography), a Portrait, five Stats and Traits that buff or
   penalise the Guild or a Class (DL-88, DL-100). The Stats bear on the Guild alone: Negotiation
@@ -147,10 +150,25 @@ Loot and Campaigns are kept as features serving Reputation and History.
   along the Class's growth profile up to the Hero's Potential. Potential is a hidden per-Stat
   ceiling, shown only as a hint. Stats decline past an age.
 - R18. States: Injury (a type and Days to heal, faster with an infirmary; some types leave a
-  Trait), Morale, Death (permanent; the Hero stays in the History), and Regard for others.
+  Trait), Morale, Fatigue (R39), Death (permanent; the Hero stays in the History), and Regard for
+  others.
 - R19. Relationship between two entities is computed from their mutual Regard. Relationship
   within a Party scales teamwork in the Quest Engine.
 - R20. Retirement of a Hero is likelier with age and with injury.
+- R39. Fatigue is a State from 0 to 100, 0 for a Hero generated: it rises each Day a Hero is away,
+  by the Quest's Tier, and falls each night at home by the Guild's quarters, read Day by Day on a
+  Quest and projected by the estimate, and read in four named bands, fresh, weary, tired and
+  exhausted. The higher it is, the more it takes from a Hero's Stats on a Check, from the Physical
+  and Magical more than from the Mental and Social, and the more it raises their Injury and Death
+  chances. A Guild's rest band, its Disposition's or the player's, leaves its Heroes at or past it
+  out of the Parties it chooses, and the player may still send anyone. Every figure is a setting
+  (DL-280; the State, its bands and its Day on a Quest by DL-282, its effect on Stats and chances
+  by DL-284, the rest band by DL-286).
+- R40. A Guild names one Captain from its Roster, freely, by its Guildmaster's controller; changing
+  it costs the outgoing Captain Morale and locks the post for a time, and a post left empty is
+  filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come
+  home with more Morale, and the Roster's Morale baseline is higher while they are at home, each
+  scaled by the Captain's Leadership (DL-280, DL-287).
 
 ### 3.4 Quests
 
@@ -199,7 +217,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R30. Items are Gear or Consumables. A Hero carries Gear in three slots, weapon, armour and
   trinket, one Item to a slot, and it changes their Stats. Consumables are assigned to a Party at
   dispatch and expended by the Quest Engine: a bonus to an Encounter's Checks, a reroll of a
-  failed Encounter, or healing (DL-50). There is no trade-goods economy.
+  failed Encounter, or healing, spent at an Injury as it is taken, easing it for the rest of the
+  Quest and shortening it (DL-50, DL-285). There is no trade-goods economy.
 - R31. The Market buys and sells Items; the sell price is below the purchase price. It
   refreshes each morning.
 - R32. Loot is an Item, or a stack of a common one, drawn from a Quest's Loot table and awarded

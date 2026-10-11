@@ -181,1151 +181,906 @@ for Items); the model page is the Guild Management Design, `docs/management-desi
 avoids Model for the World State); and item 20's area scores are a summary figure for each Stat area,
 named when the tile is designed.
 
-## DL-257 — v1.2.0 planned: fewer, weightier Quests as tiered Quest templates with Beats, Death by Tier, a Party floor of two, and content built to grow; nothing tuned
+## DL-279 — v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone
 
-**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner, answering Q1–Q26 on
-2026-10-10 (the epic's §6); the defaults, the stories and their order are the agent's, approved by
-Q24 and Q26
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner, answering on 2026-10-11 (b)
+on DL-278's failure and (a) on how the patch is cut; the test's shape by the agent, marked below
 
-**Context.** DL-256 made `v1.2.0` the line's first release: fewer, longer, weightier Quests, Party
-minimums, the Death factor, rewards rebalanced. The engine at `0443c58` refills a Board of 6 each
-morning, draws durations apart from difficulty and prices a Quest by difficulty alone. Party sizes
-live in the templates, from 1–2 to 3–5. XP is divided by the Party, and no setting scales Death. The
-owner was grilled in four rounds.
+**Context.** v1.2.0's live check failed on Pages (DL-278): with Web Analytics on, Pages adds
+Cloudflare's beacon at the edge, and the page then asks `static.cloudflareinsights.com` for its
+script and reports to `cloudflareinsights.com`. The test's rule that nothing leaves the page's
+origin (DL-75) cannot tell the beacon from the page's own requests. The owner chose (b), to let the
+test allow the beacon in a patch, over (a), turning Web Analytics off, and (c), leaving it recorded.
 
 **Decision.**
 
-1. **Tiers** (Q4, Q9, Q13, Q24). A template offers consecutive Tiers of a five-row ladder in config:
-   for each, a difficulty band, days, Beats, Loot, `rewardFactor`, `xpFactor`, `deathScale` and
-   `fameMinimum`. A template may override any figure for any Tier. A Quest's days sit in its Tier's at
-   the place its difficulty sits in its band. Built in full now, for much more content later.
-2. **Beats** (Q14). A template is an ordered list of Beats, each a narrative line and an Encounter
-   pool by kind, tag or name. A Quest plays its Tier's count of them, one Encounter drawn from each,
-   none twice; a Finale is last.
-3. **The Board** (Q7, Q15, #22). Tiers are drawn around 1 + ⌊the world's mean Level ÷
-   `levelsPerTier`⌋, the same for every Guild. A Guild below a Tier's `fameMinimum` may not take it;
-   the minimums are 0.
-   *Superseded in part by DL-271, 2026-10-11: the Tiers up to the highest any Guild in play has unlocked by its best four, the lower kept; the Fame minimum stands. The record: [superseded/DL-257.md](decisions/archive/superseded/DL-257.md).*
-4. **The growing Board** (Q3, Q10). Its size is the smaller of a cap and a start plus growth by the
-   Year, at 6, 0 and 6: the rule built, play unchanged.
-5. **Death** (Q5, Q17). An Encounter's Death chance × `deathFactor` (1) × its Tier's `deathScale`: 0
-   for Tiers 1–3, 1 for 4–5. A Quest that can kill is marked Deadly on the Board card (Q18), with no
-   figure in the Party builder.
-6. **Parties** (Q1, Q2, Q8). Templates at a minimum of 1 are written at 2, and the rest keep theirs.
-   No template has a maximum, and nothing caps the Parties out. XP stays divided by the Party sent
-   (DL-182 stands).
-7. **Nothing tuned** (Q6, Q11, Q12, Q23).
-   - Every DL-83 band is reported against v1.1.9's figure, none to be met.
-   - `gate.json` drops the player's Bankruptcies for the Targets and keeps its correctness and
-     performance lines.
-   - The reward and XP factors keep a Party's Wealth and XP a Day away at v1.1.9's.
-   - The player's Deaths are reported against DL-256 item 10's 3–8 a game, which supersedes DL-83
-     item 6's 25–40.
-   - #51 and #22's premium wait for the release that tunes the economy.
-8. **Content built to grow** (Q16, Q19, Q22). Quest templates, Encounters, Items and Loot tables move
-   to one file per row, through a loader any kind can use. Editor commands and the skills
-   `quest-draft` and `encounter-draft` are the only way Quest templates and Encounters change, with
-   `quests doctor`.
-9. **Words** (Q21). Tier and Beat enter the glossary, the entries avoiding them rewritten, with
-   Deadly and Death factor.
-10. **The aim** (Q20): "He needs another year of development" and "I need to give him a chance".
-11. **The backlog** gains Parties below the floor at a penalty, Unique Items from the hardest Tiers,
-    and tuning the Board's growth and the Fame minimums.
-12. **The plan**: the epic `docs/planning/epics/v1.2.0-release.md`, S1–S13, with #19 and #40.
+1. **The patch is `v1.2.1`,** built on `v1.2.1-dev`, cut on this machine from `v1.2.0`'s record
+   (`cacc87a`) on the owner's answer (a). It carries that record, so no separate "Record (no
+   release)" pull request is raised. Like `v1.1.1`, it has no epic and no Gate: no play changes.
+   *Superseded in part by DL-280, 2026-10-11: `v1.2.1` is the epic Fatigue and the Captain, with its Gate, and ships this patch. The record: [superseded/DL-279.md](decisions/archive/superseded/DL-279.md).*
+2. **`leavesThePage(baseURL, url)`** in `web/scripts/deploy.mjs`, beside the addresses it reads,
+   decides for `web/e2e/deployed.live.ts` whether a request leaves the page. Any other origin does,
+   except the beacon's two origins, `https://static.cloudflareinsights.com` and
+   `https://cloudflareinsights.com`, when the page is on Pages, its production address or a
+   deployment's subdomain of it.
+3. **The Worker stays strict.** The beacon there, or any other origin on either address, still
+   fails the check.
+4. **`plan.md` §3 moves on.** The short term's releases are renumbered: Fatigue and the Captain is
+   `v1.2.2`, Rivals who compete `v1.2.3`. `docs/deploy.md` names the allowance.
+   *Superseded in part by DL-280, 2026-10-11: Fatigue and the Captain is `v1.2.1`, Rivals who compete `v1.2.2`. The record: [superseded/DL-279.md](decisions/archive/superseded/DL-279.md).*
 
 *Judgement calls, for the owner to see.*
-- The world's mean Level is that of every Hero on a Roster, the player's and the Rivals' alike.
-- A Tier's Loot flag replaces `lootDifficultyThreshold`, the ladder's Tier 3 starting above its 35.
-- The Board card shows the name, Tier, Deadly, days and reward; the narrative is in the Party builder.
-- DL-256's Consequences said this entry would supersede DL-182's XP split and DL-83's Deaths band.
-  The split stands (Q8). The band becomes item 10's 3–8, its figure taken as written, reported only.
+- The allowance is by exact origin, so `http:` and look-alike hosts are still refused. It is not
+  by path, so a change of the beacon's file name passes.
+- A Pages deployment's own address (`<id>.heroesims.pages.dev`) counts as Pages. It is what
+  `HEROESIM_LIVE_URL` may name.
+- The scheduled watch of 2026-10-10 had failed on Pages with 2-minute timeouts. This patch does not
+  address them; the run named below met none.
 
-**Consequences.** DL-256 item 2 is superseded in part, and DL-83 item 6 in full. `plan.md` §3 makes `v1.2.0` "Now".
-Play changes from S5. A playtest that cannot reach its second year is the owner's to decide at the
-close.
+**Consequences.** The live check proves the page's own requests stay at home on both addresses,
+and Pages may keep its analytics. Merging `v1.2.1` tags and deploys it, a page no player can tell
+from `v1.2.0`'s, and the live check runs again on both addresses. Dependabot's `target-branch` stays
+on `v1.2.0-dev` until the owner's word moves it.
 
-**Evidence.** The commit `v1.2.0 (DL-257)`. The epic's §5 lists the facts checked at `0443c58`.
+**Evidence.** The commit `v1.2.1 (DL-279)`. Its tests are in `web/src/deploy.test.ts`'s "the live
+check". `npm run e2e:live -w web` against the deployed `v1.2.0` passed all four projects, where CI's
+release run 38109053584 had failed both Pages projects.
+Verified 2026-10-11 at `c2c9b07`: the allowance is exact and narrow, but a page on `http:`, a
+beacon on another port and the page's host on another scheme or port went untested, so four
+mutations survived; tests now refuse each.
 
+*Note, 2026-10-11 (the owner's answer (a)).* Dependabot's two `target-branch`es move to `v1.2.1-dev`
+(DL-147 item 6), taking effect when `v1.2.1` is merged.
 
-## DL-258 — v1.2.0-S1 built: the glossary's Tier, Beat, Deadly and Death factor
+*Note, 2026-10-11 (the owner's word).* The owner made `v1.2.0`'s GitHub Release a full release, the
+latest, in place of the pre-release CI had made when the live check failed. Its first line now says
+the check failed on Pages only on the beacon (DL-278); the deploy record beneath it is unchanged.
 
-**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+## DL-280 — v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the Rivals' heal Items
 
-**Context.** DL-257 item 9 (Q21 a) put Tier and Beat in the glossary, with Deadly and Death factor,
-before any code reads them (principle 13). Five entries avoided "Tier" for another thing, and
-Encounter avoided "Beat".
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner, answering Q1–Q16 on
+2026-10-11 and setting Fatigue's, Morale's and the hurt's formulas; the code's shape by the agent,
+from the architecture review of the same day, marked below
+
+**Context.** `v1.2.0`'s playtest said neither of its sentences (DL-276), and its Targets were left
+untuned (DL-277). DL-256 items 13, 19 and 20 put Fatigue, the Captain and the Roster's layers next.
+`v1.2.1` had been planned as DL-279's patch alone; the owner chose to make it this epic instead.
 
 **Decision.**
 
-1. **Four entries** in `CONTEXT.md`: Tier and Beat after Quest template, Deadly and Death factor
-   after Finale, each marked "To be built" and citing DL-257.
-2. **Quest template's entry** names its Tiers and its Beats as to be built, in the place of its ranges
-   of difficulty and duration and its kinds of Encounter.
-3. **Five avoid lists**: Level's, Morale band's, Regard band's and Degree's read "Tier (a Quest's is
-   another thing)", Quest band's "Tier (the one a Quest is posted at is another thing)". Encounter's
-   drops Beat.
-4. **The Guild Management Design's table of words** gains Tier and Beat with their clashes, its count
-   of clashes five to seven, and Deadly in the words that raise none.
-5. **No other live page** lists Tier or Beat as a word to avoid: `docs/agents/ui-text.md` and the
-   rest hold none. No code changes.
+1. **`v1.2.1` is the epic** [Fatigue and the Captain](planning/epics/v1.2.1-release.md), on
+   `v1.2.1-dev`, shipping DL-279's patch with it (Q1 a). Rivals who compete become `v1.2.2`.
+2. **Fatigue** is a State from 0 to 100, rising each Day away by Tier and falling each night at home
+   by quarters grade (Q2 a), read Day by Day on a Quest and projected by the estimate (Q11 a). With f
+   the Fatigue and FS `fatigueScaling` (0.4, from 0 to 1, no floor; Q13, Q14 c): Physical and Magical
+   Stats × (1 − FS·f/100), Mental and Social × (1 − (FS/2)·f/100); a Hero's Injury chance
+   × (1 + FS·f/100) and Death chance × (1 + (FS/2)·f/100) (Q13 a).
+3. **Morale's form** is 1 + (m − `moraleBaseline`) ÷ (2 × (`moraleMax` − `moraleMin`)) on every Stat,
+   `moraleCheckFactor` removed; `moraleBaseline` 50, the bands' starts 0, 11, 35, 66 and 90,
+   `moraleOnRosterDeath` −20; every other Morale bonus unchanged.
+4. **The hurt:** `hurtCheckFactor` 0.6, its gap taken whole by Physical Stats and half by the others;
+   relieved by half by a Healer in the Party and by half by a heal Item, now spent at the Injury
+   (Q15 a). Field surgery's scaling is in the backlog.
+5. **Rest bands** for every Guild: a Disposition's `restBand`, the player's `playerRestBand` (Q4 a).
+6. **The Captain:** one a Guild, named freely; its effects scaled by Leadership; a change costs the
+   outgoing Captain Morale and locks the post (Q3 c); each figure a setting (Q12).
+7. **The Rivals buy and carry heal Items** (Q16 b), the consumables part of #25.
+8. **The page:** part 11's layers for what exists (Q5 a); the script budget 900 kB (Q6 a).
+9. **Tuning:** Fatigue's settings to bands the owner approves; DL-83's Targets reported (Q8 a).
+   #51's form-factor item closes at the close (Q9). No riders (Q10 d): #41 returns to `plan.md` §3.
+   *Superseded in part by DL-292 items 1 and 2, 2026-10-12: Fatigue's settings tuned to bands the owner approves (S11); now S11 is not built, the bands stay proposed, and `v1.2.1` is held unreleased until an economy release. The record: [superseded/DL-280.md](decisions/archive/superseded/DL-280.md).*
+10. **The sentences aimed at:** 1 and 3 (Q7 b).
 
 *Judgement calls, for the owner to see.*
-- Tier and Beat each avoid a few near words (Grade, Rank, Scene, Step), and Beat avoids
-  Encounter, the step it draws. Deadly avoids Lethal, Dangerous and Fatal, Death factor Death rate,
-  Mortality and Lethality.
-- Milestone's "a Campaign beat" is left as it is: lower case, a Campaign's own, no glossary term.
+- The architecture review's candidates 1 to 7 shape the stories (the epic's *How it is built*):
+  a form module of formed Stats by area, a Quest clock shared by the resolver and the estimate, the
+  Party's pool in the Best Party module, consumable choices in the engine, roles marked in content
+  (ADR-0006), one band function, and Roster groups that say their kind. Candidate 8, one Encounter
+  step for the estimate and the resolver, is not adopted; a parity test stands in.
+- Fatigue and the hurt do not move a Hero's Exposure or Guard (`CONTEXT.md` Form).
+- A heal Item spent on a Hero who later dies on the Quest is lost.
+- A post left empty by a Death, a Retirement or a departure is filled without cost or lock.
+- A tired Hero is never an Unavailability: the player may send anyone (DL-256 part 2).
 
-**Consequences.** S2 onwards may use the four words in docs, comments and text. A word's "To be built"
-goes at the story that builds it (S5 for Tier and Beat, S7 for Deadly and the Death factor, S12 for the page).
+**Consequences.** Sending a Hero costs the next Quest, so a Guild must rotate, and Morale, the Hall's
+quarters and the Guildmaster's Inspiration now move Checks by up to a quarter. Every Target moves; the
+report shows by how much. The saves of `v1.2.0` do not load (schema 10, then 11).
 
-**Evidence.** The commit `v1.2.0-S1 (DL-258)`. The epic's S1 boxes are ticked.
-Verified 2026-10-10 at 1c08a21: the Quest template's entry claimed Tiers and Beats it does not carry yet
-and now marks them to be built; Quest band's avoid list, Tier's "grades" (Grade is avoided, and an
-Improvement raises a grade) and Beat's "Stage" (a clash for the line's Career stage) were reworded or
-dropped; no live page or player-facing text uses "tier" or "beat" in another sense.
+**Evidence.** The epic `docs/planning/epics/v1.2.1-release.md`, its §6 the answers; `plan.md` §3; the
+architecture review of 2026-10-11 (outside the repository).
 
-## DL-259 — v1.2.0-S2 built: the harness's Targets, their counters and the baseline they read, and the player's Bankruptcies out of the Gate
+## DL-281 — v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a strong leader"
 
-**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 7 (Q6, Q11 a) reports every DL-83 band against v1.1.9's figure, none to be
-met, and takes the player's Bankruptcies out of `harness/gate.json`. #19 asked for the bands in the
-report, a highest-Level counter, DL-69 item 4's scratch measures as counters, the Rankings without
-the new world's tie, the twenty-year slice named and per-seed fingerprints. The epic adds the Quest
-weight.
+**Context.** DL-280 item 6 and Q3 make the Captain a post a Guild names. The content already had a
+Synergy "Under a captain", for a Party of three or more with a Hero of Leadership 14 or more, which
+would give one word two meanings. The glossary and the requirements had no Fatigue, Fatigue band or
+Captain (the epic's S1; principle 13, the words first).
 
 **Decision.**
 
-1. **The Targets** (`harness/src/targets.ts`), each declared once with its source and band: the
-   player's Bankruptcy or wiped Roster (DL-83 item 2), first in the Rankings by Fame and by Wealth
-   (item 3, DL-91 item 2), Quests failed and strong (item 4), Rival folds (item 5), the player's
-   Deaths at 3 to 8 a game (DL-256 item 10), Wealth in months of Upkeep (item 7), the mean Level
-   after 10 years (item 21), the highest Level by year 20 (item 22), and DL-69 item 4's lines:
-   each Disposition's hoarding, Transfers back, back within 90 Days, and sellers left short.
-   - Each is a ratio of two sums of the totals: measured, its standard error over the games (each
-     game totalled alone, a cluster), the baseline's value, and inside or outside its band.
-   - Nothing fails a run. The section follows the Summary and the Gate; the JSON holds `targets`.
-2. **The baseline** is the run report `HEROESIM_BASELINE` names, a path or a name in
-   `harness/reports/`: v1.1.9's closing gate unless set, `none` for none. A target whose counter
-   the baseline's report lacks reads a dash there.
-3. **The Quest weight**: Quests a Guild-year, the mean Party and the mean Days away, the player's
-   and each Disposition's, beside the bands.
-4. **Six counters**, each declared once (DL-239) with a fixture test written first: `highestLevels`
-   (the Rosters every Turn and each `hero.levelled`), `playerWealthMonths` and `rivalsAtFloor` (as
-   each year begins), `questWeight` and `transfersBackSoon` (from the History), and
-   `transfersShort` (each seller's Roster followed through the Turn).
-5. **The rest of #19.** The Rankings tables gain a row "After 1 year or more", which says it leaves
-   the new world's tie out, as the Targets do. The header names the slice measured (DL-83 item 18).
-   The Summary names where each seed's fingerprint is: the JSON's `games[].fingerprint` (DL-188
-   item 6).
-6. **The Gate.** `playerBankruptcies` leaves `gate.json`, `GateSpec` and `checkGate`, and a note
-   cites DL-257.
+1. `CONTEXT.md` gains **Fatigue** (a State, 0 to 100, rising each Day away by Tier, falling each night
+   at home by the quarters, never an Unavailability), **Fatigue band** (fresh, weary, tired,
+   exhausted; the names a rest band and the page read) and **Captain** (one a Guild, named freely by
+   its Guildmaster's controller, a change costing Morale and locking the post, a vacancy filled
+   free). **State** lists Fatigue. **Form** is rewritten as factors that multiply: Morale's line
+   around the baseline, Fatigue's by Stat area, the hurt's gap by area and its relief, the Captain's,
+   and Fatigue's raising of the Injury and Death chances, leaving Exposure and Guard alone. The new
+   parts say "to be built" until the stories that build them remove it. **Synergy** says the Captain
+   is a post, not a Synergy.
+2. The Synergy is renamed "Under a strong leader" and its key `under-a-captain` becomes
+   `under-a-strong-leader`, in `content/synergies.json`, in place (its order, requirements, bonus and
+   kinds unchanged). The content editor has no Synergy kind (its kinds are Traits, config, Quest
+   templates and Encounters), so the file was edited by hand and the content version raised by hand
+   to 42 with a changelog line in the form `content/version.json` keeps.
+3. `requirements.md`: §2 rows for Fatigue and the Captain, "To be built, v1.2.1 (DL-280)"; §3.3 R39
+   (Fatigue) and R40 (the Captain), new numbers and no renumbering; R18 lists Fatigue.
+4. The epic: S1's boxes ticked, its Status set, the key named.
 
 *Judgement calls, for the owner to see.*
-- A month of Upkeep is a twelfth of a year's Upkeeps, 3 of the 36 due every 10 Days, at the Upkeep
-  owed as the year begins. The band reads the mean over year-starts after 2 years or more (#19 left
-  the month to the owner).
-- The Rankings' shares count every year-start after 1 year or more, the census after the last year
-  among them.
-- The highest Level by year 20 is the mean of the player's highest over the games still in play at
-  year 20 (corrected at the close, DL-270). The greatest of any game is in the by-year table.
-- Hoarding counts a Rival at `rivalRosterMin` Heroes or fewer, DL-69's "4 or fewer". Ping-pong is
-  fewer than 90 Days after the buyer's last sale of the Hero, DL-69 item 6's "(< 90)". A Guild
-  founded on the Turn of a Transfer is not followed.
-- DL-69's "none" lines read as at most 0 a game, and its hoarding line as under 50%.
-- S2 plays v1.1.9's games, so its gate's values for the new counters are v1.1.9's too.
+- *The key changed with the name.* The epic and the brief leaned to keeping `under-a-captain`. I
+  changed it because identifiers use the glossary exactly (`CONTEXT.md`) and a key reading
+  `captain` would be found by every search for the post S7 builds. Nothing but the file reads the
+  key (no code, test, doc or save cites it), so the change costs nothing; the key can be put back
+  with one edit if the owner prefers it kept.
+- *Hand edit of a Synergy.* No editor command covers Synergies, so neither the rule that Traits,
+  Quest templates and Encounters change only through the editor nor `quests doctor` applies; the
+  doctors were run before and after all the same.
+- *"To be built" marks* in the glossary and the requirements follow the glossary's own convention
+  for a decision the build does not carry yet. S2 to S7 each remove the marks for what they build.
+- *Left as they are:* `docs/quests/drafts/synergies.json` and `notes.json` (v1.1.4-S9's review
+  drafts, historic, already unlike the content in layout), the harness reports, the archived entries
+  and the epic's §5 fact about v1.2.0, all of which name the old Synergy as it was.
+- The **Morale band** entry still says Form reads the bands; S3 rewrites it with the line.
 
-**Consequences.** S5 to S13 set their Targets and `compare` against S2's gate
-(`HEROESIM_BASELINE=v1.2.0-s2-gate-2026-10-10`). The bands stay reported, not gated, in v1.2.0. A Bankruptcy
-fails no run.
+**Consequences.** A Party meeting the Synergy's requirements gets the bonus it did. The play is
+unchanged; the content version is 42, so a game created under 41 differs only in that name.
+Later stories use the three words by these entries.
 
-**Evidence.** The commit `v1.2.0-S2 (DL-259)`. The reports `harness/reports/v1.2.0-s2-neutral-2026-10-10` and
-`harness/reports/v1.2.0-s2-gate-2026-10-10`, the latter committed as the baseline. The epic's S2 boxes.
-Verified 2026-10-10 at 0f6d53e: the bands and sources, the standard error and the baseline read (all
-47 reports, none crashing) held, and the counters matched a hand count of a three-year game;
-`transfersShort` sought a dead Hero's Guild in `hero.died`'s participants, which name only the Hero and
-the Quest, and now follows the Hero, its fixture corrected, with tests killing the ten mutants that
-survived; no reading moved (the Generator keeps its seller at `rivalRosterMin`, the quick run identical).
+**Evidence.** The commit `v1.2.1-S1 (DL-281)`. The epic's S1 boxes. `quests doctor` and
+`traits doctor` read the same before and after; the readings and the checks' counts are in the commit
+message.
+Verified 2026-10-11 at 22b446f: the key's rename is safe (no code, test, fixture or save names it,
+only historic reports and drafts) and the changelog check catches a broken raise; fixed in the words,
+Form claiming the hurt by Stat area as built and drawing Morale's line around the Guild's baseline
+rather than `moraleBaseline`, Fatigue capitalising Unavailability (no glossary term), the Captain
+leading "its Parties", and R39 reading the effect by band.
 
-## DL-260 — v1.2.0-S3 built: content in folders, Quest templates, Encounters, Items and Loot tables a file a row
+## DL-282 — v1.2.1-S2 built: Fatigue, its bands and the Quest clock
 
-**Status:** Accepted · **Date:** 2026-10-10 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 8 (Q19 b, Q22 b) moves Quest templates, Encounters, Items and Loot tables to
-one file per row, through a loader any kind can use, so that S9's editor commands and S10's skills
-write a row without touching the rest. Each kind's content was one JSON file, the page's bundle taking
-`content/*.json` and the editor writing whole files (DL-243, DL-244).
+**Context.** DL-280 item 2 makes Fatigue a State that rises each Day away by Tier and falls each night
+at home by the quarters, read Day by Day on a Quest (Q11 a). The resolver meets a Party on its return
+night, after every night away has run (`pipeline.ts`), so a Hero's stored Fatigue is the Quest's end's
+(the architecture review's candidate 2). Three copies of one band loop stood where Fatigue's band and
+S6's rest band would add more (candidate 6). Nothing reads Fatigue for play until S4.
 
 **Decision.**
 
-1. **A kind declares its source** (`content/src/files.ts`, `kinds/`): one file, `stats.json`, or a
-   folder of one file a row named by its key, `items/`. `contentSources`, derived from the kinds,
-   replaces the list of files; moving a kind later is its one line. Content's files are named by their
-   path in the content directory, `items/short-sword.json`.
-2. **The readers.** A folder's rows are read as one object by key, a refusal naming the row's file:
-   `items/short-sword.json: slot is missing`. The Node entry reads a folder's `.json` files
-   (`readSource`, `readContentDir`), a drafted folder taken whole in place of the core's (`loadDrafts`).
-   The page's bundle finds them by `import.meta.glob`'s pattern, `../../content/*/*.json`, no list kept;
-   the build compacts and validates them as before.
-3. **The row order.** A folder has none, so its rows are read in key order, by code unit, the order
-   the engine draws in (DL-19 item 3). The old files were in authored order.
-4. **The editor** writes a folder's rows each to its own file through the edit session: a row changed
-   in its file, added as a new file (`formatJson`), removed by deleting its file, a key changed by
-   both. The journal holds every such file's bytes or its absence, so a test that fails or a "Finish"
-   cut off puts every file back. A use's place names the row's file:
-   `encounters/hold-the-line.json: consequences.failure.2`; the path alone still finds it.
-5. **The move,** by a script run once: each row's text kept, two spaces in; a row on one line opened
-   out a field a line, each field's text kept; LF. The drafts in `docs/quests/drafts/` moved the same.
-   136 files: 12 Quest templates, 29 Encounters, 26 Items, 2 Loot tables and the drafts' 67.
-6. **Words.** `approach.md` §4, the Content kind entry, the editor's README, the register, the
-   `trait-assign` skill and `HEROESIM_DRAFTS` say what is true now.
+1. **The State.** A Hero's `fatigue`, 0 for a Hero generated. A `fatigue` config section after
+   `heroState`: `fatigueMax` 100 (the scale from 0), `fatigueBands` fresh 0, weary 25, tired 50,
+   exhausted 75, `fatigueRiseByTier` 4, 5, 6, 7, 8 and `fatigueFallByQuarters` 5, 6, 7, 8, each with
+   its rule in `configRules`; the config version 22.
+2. **The night.** `heroNight` gains a Fatigue step after Morale's drift (`fatigue.ts`): a Hero away
+   rises by the Party's Quest's Tier, one at home falls by their Guild's quarters grade, held inside 0
+   to `fatigueMax`, with `hero.fatigue-changed` (heroId, before, after, both bands) only when a band
+   is crossed. The return night is a night at home, `questsConclude` having freed the Party first.
+   The estimate's homecoming passes the Quest to `heroNight`, so its copies, in no Party, rise.
+3. **The Party** records each Hero's Fatigue at dispatch, `fatigueAtDispatch`.
+4. **The Quest clock**, `quest-engine/clock.ts`: `questClock(quest, encounters, config)` gives
+   `days`, `encounterDay(i)` and `fatigueAt(i, atDispatch)`. Day k of a Quest comes after k − 1 of
+   its nights away. The first Encounter falls on Day 1, the last on the last Day, the i-th of n on
+   Day 1 + round(i(D − 1) ÷ (n − 1)), half up; a lone Encounter on the last Day. The Fatigue on Day k
+   is the Fatigue at dispatch plus the Tier's rise × (k − 1), held at `fatigueMax`. Nothing reads it
+   yet; S4's form module will, in the resolver and the estimate alike.
+   *Changed 2026-10-11 by the owner: the last Encounter falls on Day L = ceil(2D ÷ 3), worked out in
+   whole numbers as (2D + 2) div 3, a lone one there too, and the i-th of n on Day
+   1 + round(i(L − 1) ÷ (n − 1)); the Days after L are the Heroes' trip home, Fatigue rising on them
+   as on any night away. The clock gives `lastEncounterDay`. This replaces the judgement call below
+   that put the last Encounter on the last Day; the 2/3 is the clock's, no setting.*
+5. **Bands**, `bands.ts`: `bandOf(names, starts, value)` and `atOrPast(names, band, threshold)`.
+   `moraleBand`, `regardBand`, `chanceBand`, `potentialHint` and the new `fatigueBand` are adapters
+   over it; their loops are gone.
+6. **The save:** `schemaVersion` 10, no migration. The validator holds a Hero's `fatigue` a number
+   and a Party's `fatigueAtDispatch` a map of numbers naming exactly its Heroes
+   (`party-member-mismatch`).
+7. **The words:** the event narrated as Morale's is ("…'s Fatigue went from a to b, tired."), routine
+   ("Fatigue"), left out of the player's Guild's History as Morale is, in no World History, never a
+   Milestone. `CONTEXT.md`, `requirements.md`, `data-model.md`, `approach.md` and `config.md` say
+   what is built; the effect on Form and the rest band stay "to be built".
 
 *Judgement calls, for the owner to see.*
-- **Key order, not the authored order** (item 3). Play is unchanged: the engine sorts every draw by key
-  (`neutral --expect` identical). Three things read content's order and now read key order: the
-  harness's `estimate` and `calibrate` samples, which draw by index, and the order of the Items' and
-  Loot tables' rows in a run report. A list beside the rows would have kept the old order, at the cost
-  of a file every addition must touch.
-- **A folder with no row holds none,** as git keeps no empty folder: `items/: missing` is no refusal,
-  where `items.json: missing` was. Items and Loot tables may hold none; a missing `encounters/` or
-  `quest-templates/` is refused by their rules ("no Quest template names it", "no Encounter is of
-  kind").
-- The rules' refusals name the table and key, `items.short-sword.buyPrice`, as before, not the file.
-- A row in a folder within a folder (`items/old/x.json`) is not read.
-- The result's `changed` names the files written, `encounters/hold-the-line.json`, as it named
-  `encounters.json`.
+- *The scale* is `fatigueMax` alone, from a fixed 0: a Hero generated is rested, and a floor above 0
+  would mean nothing.
+- *The lists* are not tied to the ladder's length or the content's grades: one past the end reads the
+  last, as `infirmaryHealFactor` does, so a sixth Tier needs no second edit.
+- *The Encounter's Day.* The last on the last Day, so a Finale meets the Party at its most tired;
+  the first on Day 1, at the Fatigue the Hero set out with. A Party sent before the night is away D nights, one more
+  than the last Encounter's Day reads: the walk home, which the stored Fatigue carries.
+- *A fourth loop.* `potentialHint` had the same loop; it is read through `bandOf` too.
+- *The event* names no Quest and has no cause: only a night moves Fatigue.
+- *Not exported* from the engine's entry yet: `fatigueBand` and the clock wait for S4 and S9.
 
-**Consequences.** S9's Quest template and Encounter commands are kinds whose list is a folder. A
-merge of two drafts touches only their rows' files.
+**Consequences.** Play is unchanged: no rule reads Fatigue. Every History gains Fatigue's band
+crossings, and every save the two fields; saves of schema 9 do not load. S4 reads the clock, S6
+`atOrPast`.
 
-**Evidence.** The commit `v1.2.0-S3 (DL-260)`. The content read at `08387a7` and after the move: deep-equal,
-and identical with the four tables in key order, the drafts too. `neutral --expect` identical alone:
-`harness/reports/v1.2.0-s3-neutral-2026-10-10`. The epic's S3 boxes. Verified 2026-10-11 at 9f054b3: the content read by 08387a7's own code deep-equal to the content now, the four tables in key order, the drafts too; every missing folder still refused through the rules, a stray non-JSON file or a nested folder ignored as the bundle's pattern ignores it; 18 mutants, five surviving until tests of a row that is not JSON, a folder's non-JSON files, a source of the wrong shape and the build's gate over a folder's row killed four, the fifth equivalent; found that the key order moves the estimate probe's samples, its Morale-in limit 1.61 points in the authored order and 4.84 in key order, beyond its 3, left for the owner.
+**Evidence.** The commit `v1.2.1-S2 (DL-282)`; the epic's S2 boxes. The 120-Day History fingerprints
+of `quests-conclude.test.ts` hold with Fatigue's events set aside. A quick run before the change and
+one after, `compare` moving none of their play counters, and the doctors' readings are in the commit
+message; the reports are not committed.
+Verified 2026-10-11 at e22e4f1: the clock's Days hold against play (a Party sent before the night
+is away its Days in nights, its last Encounter one rise short of the stored Fatigue, the walk home;
+one sent at night a night fewer, the two equal; the return night rests), the band readers are the
+old loops exactly, and the save grows by the band crossings alone (+26 KB gzipped a game in two
+years, 2%; some 0.3 MiB on the Gate's 16.31 MiB mean at twenty years, under 30); of 30 mutations
+one survives, the estimate's copies marked away, unseen until S4 reads Fatigue (which must take
+the set-out Fatigue from the Heroes proposed, not the brought-home copies, cached by return night
+whatever the Tier); tests added for a Quest played against the clock, a Hero generated rested and
+a Quest of no Days.
 
-## DL-261 — v1.2.0-S4 built: the growing Board, `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax` in place of `boardSize`, and the founding Fame, `foundingFame`; config version 18
+## DL-283 — v1.2.1-S3 built: Morale's form made continuous, a line through the baseline
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 4 (Q3, Q10 a) builds the growing Board with neutral defaults: the smaller of
-a cap and a start plus growth by the Year, at 6, 0 and 6. #40 (N9) asks for the Fame a Guild is
-founded with as a setting, in place of the constant `foundingFame = 0` in
-`engine/src/generators/guilds.ts`. The Board held `boardSize`, 6, each morning.
+**Context.** DL-280 item 3 makes Morale's part of a Hero's form a line, 1 + (m − `moraleBaseline`) ÷
+(2 × (`moraleMax` − `moraleMin`)), in place of the band factors `moraleCheckFactor` (DL-148 item 9,
+DL-154, DL-168 item 9), with the owner's Morale values: `moraleBaseline` 50, the bands' starts 0, 11,
+35, 66 and 90, `moraleOnRosterDeath` −20. Form stays one number a Hero carries until S4's module.
 
 **Decision.**
 
-1. **The Board's size** is `boardSizeAt(turn, config)` (`engine/src/phases/board-refresh.ts`): the
-   floor of `boardSizeStart` + `boardGrowthPerYear` × the Years played, never above `boardSizeMax`.
-   - *The Years played* are `yearOf(turn)`, the whole Years since Turn 0, as ages count them. A Year
-     begins on a morning (DL-210), so the Board grows at the first refresh of each Year; a new world
-     opens on `boardSizeStart`.
-   - *Growth may be a part of a Quest*: at 0.5 a Year the Board gains a Quest every second Year.
-2. **`boardSize` is gone,** its three settings in the `board` section in its place. Their rules:
-   `boardSizeStart` a whole number of 0 or more, `boardGrowthPerYear` a finite number of 0 or more,
-   `boardSizeMax` a whole number at least `boardSizeStart`, so a start above the cap names the cap:
-   `boardSizeMax is 6; it is a whole number, at least boardSizeStart (7)`.
-3. **`foundingFame`,** 0, in the `guilds` section after `fameFloor`, is the Fame of every Guild the
-   Guild Generator founds: the player's, each founding Rival's and a folded Rival's replacement. Its
-   rule: a whole number at least `fameFloor`. The constant is gone; it draws nothing.
-4. **Config version 18,** its changelog line citing this entry. A save of 17 plays with its
-   `boardSize` left out and the four settings at their defaults (`playConfig`).
-5. **Readers and words.** The engine's tests read `boardSizeAt`; the tests that used `boardSize` as a
-   sample setting (the CLI's, the page's, the harness's, the editor's) use `boardSizeStart` or
-   `boardSizeMax`; `docs/agents/config.md`, the editor's README, R22 and the harness's Rankings note
-   say what is true now. The Patron Regard box pins the three at 6, 0 and 6.
+1. **The line.** `moraleFactor(morale, config)` in `quest-engine/form.ts`: 1 at `moraleBaseline`, a
+   quarter more half the scale above it and a quarter less half the scale below, the same for every
+   Guild. `formOf` is it, times `hurtCheckFactor` once hurt; `queryParty`, so the resolver, the
+   estimate and the Party builder, reads it there and nowhere else. The Morale bands' rule keeps the
+   scale it divides by wider than 0.
+   *Superseded in part by DL-284 items 1 and 2, 2026-10-11: `formOf`, Morale's factor times `hurtCheckFactor` once hurt; now `formedStats`, Morale's factor on every Stat times Fatigue's and the hurt's by area. The record: [superseded/DL-283.md](decisions/archive/superseded/DL-283.md).*
+2. **`moraleCheckFactor` removed** from `GameConfig`, `config.json`, `configRules` and the tests, by
+   hand as `config.md` says for a setting removed; the config version 23 with its changelog line.
+3. **The Party builder's line** keeps its meaning: "lowers a little" down to the line's value at the
+   low band's start (`formEffect`), below it "badly"; above 1 it raises, at 1 none. The thresholds live
+   in `formEffect` alone; the page's and the CLI's maps only word its four effects, unchanged.
+4. **The owner's values are pending.** `config set` took `moraleBaseline` 50, the bands' starts 0,
+   11, 35, 66 and 90 and `moraleOnRosterDeath` −20, and `config finish` ran the tests: 15 failed in
+   9 files, each pinning or resting on the old values, so the file was put back and the edits
+   discarded. The defaults stay 60, 0/20/40/75/90 and −10 until the owner rules on those tests
+   (delivery.md rule 4); then the three `config set`s and `finish` raise the config to 24.
+   *Applied 2026-10-11 on the owner's answer to Q18 (fix each test by its kind): the three values through
+   `config set` and `config finish`, the config version 26. The scenes worked out at the baseline 60 pin
+   `moraleBaseline: 60` (the resolver's `pinned`, so its hurt, formDecided and 300-seed tests, and the
+   20-day drift test beside its bands), their Morale lines worked out from that pin; the Party builder's
+   "Makes no difference" rows (CLI, selectors) take the config's baseline; the Roster's "wretched"
+   Morale is the low band's start less one; the Death's cost and the band after it, in the return and
+   report tests, are worked out from the document's `moraleOnRosterDeath` and bands; the estimate's
+   Morale test asserts over the baseline, the low band's start and 10. The 120-Day History's three
+   fingerprints are re-recorded, the old in its comment. Of the 15, none fails after these changes.*
+5. **The words.** `CONTEXT.md`'s Morale band and Form say what is built; `config.ts`, `resolve.ts`
+   and the estimate probe's comments read the line.
+6. **Superseded in part:** DL-148 item 9 and DL-154 item 1 (each Hero's band's factor) and DL-168
+   item 9 (`moraleCheckFactor`'s provisional values), with their notes and records.
 
 *Judgement calls, for the owner to see.*
-- **A Board of 0 stays allowed,** as `boardSize`'s rule allowed it (a count is a whole number of 0 or
-  more) and a test of the first Board's draw uses one. The brief named "sizes below 1" as nonsense;
-  refusing them is a one-line change to the two rules.
-- **The floor of the sum,** not of the growth alone; the same while the start is whole. A growth not
-  exactly a binary fraction (1.16 × 25 is 28.999…) is counted whole within 1e-9, so the Board gains
-  its Quest in the Year the decimal parts make one (the verification).
-- **`foundingFame` at least `fameFloor`,** where a lower one would be raised the first night: so
-  `fameFloor`'s own case allows 0 only, its edges above 0 held beside `foundingFame`'s.
-- **The neutral fingerprint moves by construction:** each save records `configVersion` and the
-  whole `meta.config`, as DL-202 and DL-208 found. Play is shown unchanged instead (Evidence).
+- *Tests that pinned `moraleCheckFactor` or the band rule* are rewritten through `moraleFactor` over
+  the deps' config or set at the baseline (form, query, resolve, preview, check, estimate, the
+  harness's Morale-in test, the page's and the CLI's Morale lines), so they change with a default
+  rather than pin it (DL-231 Q10 b). The 120-Day History fingerprints and the resolver's 300 seeds
+  cannot be made form-neutral by any setting now: re-recorded, the old values in their comments.
+  Tests the line did not fail were left as they were, so the owner's values meet them as they stand;
+  the harness's Morale-in test, rewritten here, is among the 15 (its 500 rolls cross no threshold at
+  the baseline 50), reported, not rewritten again.
+- *"Raises" and "none".* Any mean above 1 raises the odds, however slightly; only a Party at the
+  baseline makes none. Under the bands most Heroes were steady at 1; under the line almost none are.
+- *The estimate probe* still counts the Heroes whose Morale band moved on the way home; every Morale
+  change now moves form. Left to S4, which measures the probe.
 
-**Consequences.** A later release tunes the Board's growth and cap and the founding Fame in config
-(DL-257 item 11). `harness/README.md`'s `neutral` baseline is S4's; the full `gate`'s moves with its
-next run, and S5 onward compare with S2's gate.
+**Consequences.** Morale's form spans 0.7 to 1.2 at the baseline 60, 0.75 to 1.25 at the owner's 50,
+against 0.93 to 1.06, and every Morale change moves it. Heroes above the baseline gain: the Rivals,
+who build quarters, most. In a quick run (4 × 2 years) the Rivals' strong successes rise from 55.5%
+to 62.9% of their Quests and their failures fall from 8.2% to 5.8%; the player's strong successes
+from 76.9% to 78.9%. A trial of the owner's values on the same seeds (`HEROESIM_CONFIG`) gives 62.5%
+and 5.7%, and the player's 77.6%. Every save's `meta.config` loses one setting.
 
-**Evidence.** The commit `v1.2.0-S4 (DL-261)`. `neutral v1.2.0-s4-neutral --expect 29c09fb4…` alone
-(`harness/reports/v1.2.0-s4-neutral-2026-10-11`): every line PASS but the fingerprint,
-`661789f1d2811cfac869463d6dd1a0164874e3222f13690ba6adf9c43bdf2d6f`; `compare` with S3's: the config's
-five keys alone, 0 counters moved of 547, the saves 12,400 bytes longer. With the settings put back (version 17,
-`boardSize` 6, the rules, `boardSizeAt` given 6, 0 and 6, Fame 0) the 4 × 2 quick check gave
-`38d1c0d4…`, the baseline, the files then restored by SHA-256; at the build, `7ae6defa…`. The epic's
-S4 boxes.
-Verified 2026-10-11 at 3344e92: play unchanged, every one of the 208 year-end saves of the S4 `neutral` and a
-4 × 2 quick check exactly 62 characters longer than S3's and S2's verifier's, the config's five keys,
-547 and 481 counters the same, and the quick check's `7ae6defa…` and the `neutral` `661789f1…` reproduced;
-fixed, test first: the Board floored a Quest short at decimal growths (1,331 of 804,000 tried, growths
-in hundredths to 10, Years to 200, four starts), and a test kills a surviving mutant counting part of a
-Year; two stale comments. The put-back was not repeated: its temporary edit was denied.
+**Evidence.** The commit `v1.2.1-S3 (DL-283)`; the epic's S3 boxes. The quick runs before and after
+and `compare`, the doctors' readings and the checks' counts are in the commit message; the reports
+are not committed.
+Verified 2026-10-11 at 92fa6b7: the line is the epic's formula in every path (`formOf` through
+`queryParty` for the resolver, both estimates and the Party builder; the CLI and the page only word
+`formEffect`), nothing live reads `moraleCheckFactor` or a band's factor, the rewritten tests follow
+the rule change without weakening, and all 21 mutations of the line, the hurt, `formEffect`'s
+thresholds and the bands' guard go red; DL-154 items 5 and 7 (the factors' rule, the builder's
+thresholds) gained their supersession notes and records, and a stale test comment and two lines'
+wrapping were fixed.
 
-## DL-262 — v1.2.0-S5 built: the Tier engine, the `questTiers` ladder with `levelsPerTier` and `tierDrawWeights`, Quest templates in Tiers and Beats, `schemaVersion` 8; config version 19, content 38
+## DL-284 — v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 items 1–3 (Q4, Q13–Q15, Q23, Q24) build #22's Board scaling: a ladder of Tiers,
-templates offering Tiers and played as Beats, the Tier drawn around the world's mean Level, its
-factors neutral a Party-Day against v1.1.9. A template held its own difficulty, Days and Encounter
-counts, and `lootDifficultyThreshold` gave Loot.
+**Context.** DL-280 items 2 and 4 make Fatigue and the hurt act by Stat area, with no floor (Q13,
+Q14 c, Q15), and Fatigue raise a Hero's Injury and Death chances (Q13 a). Form was one number a Hero
+carried into a Check (DL-283); the architecture review's candidate 1 puts each member's formed Stats
+in one module, read where `queryParty` builds the member, from the Quest clock's Fatigue (DL-282).
 
 **Decision.**
 
-1. **The ladder,** `tiers` in a `questTiers` section after `board` (§2's figures), one row a Tier
-   (`TierRow`, `tierFields`), with `levelsPerTier` 3 and `tierDrawWeights` 1, 0.5, 0.2. The rules
-   hold each row whole (`tierRowProblems`) and its band not below the Tier's beneath, its Days free to
-   overlap, as tuning (corrected at the close, DL-270).
-   `lootDifficultyThreshold` is gone, a Tier's `loot` in its place. Config version 19.
-   *Superseded in part by DL-271, 2026-10-11: `levelsPerTier` gone, each Tier's `unlockLevel` and `unlockHeroes` in its place. The record: [superseded/DL-262.md](decisions/archive/superseded/DL-262.md).*
-2. **The template** (`content/src/kinds/quest-templates.ts`): `tierMin`/`tierMax` within the ladder;
-   `beats`, each a line and a pool (kinds, tags or named Encounters; a Finale in none); `finale` with
-   `finaleLine`; `overrides` by Tier, each merged row held by the ladder's rules. A pool too small to
-   draw its Beats none twice is refused, naming the Beat. Twelve templates and their drafts converted
-   by a script (content version 38): Tiers from the midpoints of the Tier bands their difficulty spans,
-   a Beat a kind with a working line, S11's to write.
-3. **The Generator** (`engine/src/tiers.ts`, `generators/quests.ts`): the centre 1 + ⌊mean Level ÷
-   `levelsPerTier`⌋, the Tier drawn by its distance among those the template offers; the difficulty
-   within the band, the Days at its place in the Tier's Days; the first k−1 Beats and the Finale, or
-   the first k; reward × `rewardFactor`; Loot by `loot`. XP × `xpFactor`, read live at resolution.
-   *Superseded in part by DL-271, 2026-10-11: the Tier drawn up to the Board's top Tier by its distance below it, not around the centre. The record: [superseded/DL-262.md](decisions/archive/superseded/DL-262.md).*
-4. **The Quest** carries `tier` and `beatLines`; `schemaVersion` 8, a save of 7 refused (rule 5); the
-   validator holds a line an Encounter. `quest.offered` and `quest.taken` name the Tier.
-5. **The factors** (Q23 a), each v1.1.9's figure a Day at the Tier's difficulties over v1.2.0's at
-   factor 1 (the epic's §2): reward 1.36, 1.64, 2.04, 2.43, 2.55; XP 1.40, 1.64, 2.04, 2.42, 2.51.
-6. **The report** reads Quests by Tier and controller (`questTiers`): offered, taken, Party, Days,
-   bands, Wealth and XP a Party-Day, Loot a Quest.
+1. **The form module**, `quest-engine/form.ts`: `formedStats(stats, { morale, fatigue, hurt }, deps)`
+   is each Stat times Morale's factor, Fatigue's by its area (1 − FS·f ÷ `fatigueMax` on the Physical
+   and Magical, half that on the Mental and Social) and the hurt's by its area (`hurtCheckFactor` on
+   the Physical, 1 − (1 − it) ÷ 2 on the rest), multiplied; the area is content's. `fatigueHarm(f)`
+   gives the Injury's 1 + FS·f ÷ `fatigueMax` and the Death's 1 + (FS ÷ 2)·f ÷ `fatigueMax`.
+2. **The member.** `queryParty` gives each `formed` beside `stats`, and `fatigue`, the Day's from
+   `OnQuest.fatigueByHero`, else the stored. `statOf` reads `formed` with form; the scalar `form`,
+   `formOf` and the operators' multiplication are gone. `atFatigue` reads a member at another Day's.
+3. **The resolver** gives each Encounter its Day's Fatigue from the clock and `fatigueAtDispatch`.
+   `strike` takes the chosen Hero's chance: an Injury's times Fatigue's, held at 1; a Death's times
+   the Death scale and Fatigue's, held at 1 once, both before the guard. `formDecided` compares the
+   formed roll with the raw Stats' roll.
+4. **The estimate** takes one Party a distinct Day, each Hero at the clock's Fatigue from the
+   proposed Heroes' own (not the brought-home copies'); members kept by return night, Hero and
+   Fatigue; a Day's Party meets its `base`'s Synergies, which read no formed Stat.
+5. **Config:** `fatigueScaling` 0.4, a share (`checkConfig`), by hand; the config version 24. Then
+   `hurtCheckFactor` 0.6, the owner's, through `config set` and `config finish`, every test passing
+   at it; the config version 25.
+6. **The guards** (`check.test.ts`): `query.ts` imports as values `effectiveStats`, `ageOf`,
+   `formedStats` and `workingMorale`; `form.ts` imports only types, the config's, content's and the
+   document's.
+7. **The estimate probe** counts the Heroes whose Morale moved (`moraleMoved`), any Morale moving
+   form; each Hero sets out at a Fatigue drawn from a stream of its own, the rest of a sample as it was.
+8. **Superseded in part:** DL-148 item 10 and DL-154 items 1 and 2 (the hurt one factor; form one
+   number), DL-168 item 9 (`hurtCheckFactor` 0.93, provisional) and DL-283 item 1 (`formOf`), with
+   their notes and records.
 
 *Judgement calls, for the owner to see.*
-- **Three templates offer fewer than three Tiers:** the Sickness and the Tithe Tier 1 alone, the Quiet
-  word 1–2, their v1.1.9 difficulties narrow. Q25 asked for three or more; S11's content to widen.
-- **The section is `questTiers`,** not `tiers`, as a setting's key stands once in the config's text.
-- **`daysMax` whole,** as `daysMin`; no draw span is asked of a band, the scale clamping it.
-- **A Tier is given only with its template,** refused before any draw (the CLI's and tests' Quests).
-- **A pool's empty list, and a tag no Encounter carries, are refused**, as a typo would be.
-- **The factors rounded to two places:** the design's 2.05 (Tier 3 reward) and 2.43 (Tier 4 XP) are
-  2.04 and 2.42 by the arithmetic.
-- **The counter splits by controller,** player and Rivals; its Deaths column waits for S7.
-- **The Board's templates, Patrons and stream are unchanged** (still three draws a Quest), so seed
-  pins moved only in their figures: the Board pin (`quests.test.ts`), three History prints and the
-  harm fingerprint (`quests-conclude`, `resolve`), the estimate's seed (0023 → 0011, the
-  first Board's Quest drawn anew), web tests' Day of return, and fixtures given a Tier and Beats. No test pinned a
-  default this story changed.
+- *The scale.* f is read over `fatigueMax`, the owner's f ÷ 100 at the default scale of 100.
+- *An Injury's chance* is held at 1 too, before the guard, as a Death's is.
+- *The Party builder's line* reads each Hero's form as one figure, `formFigure`: Morale's factor
+  times the mean over content's Hero Stats of Fatigue's and the hurt's, so a tired Party's line
+  lowers; rested and unhurt, Morale's factor exactly, as before.
+- *A Stat content does not define* takes Morale's factor alone.
+- *Tests not about Fatigue* set `fatigueScaling` 0 through their config (the resolver's and the
+  consumables' scenes, the estimate's reroll and drift tests, the Best Party margin test), so they
+  hold what they held; the 120-Day History fingerprints are re-recorded, the old in their comment.
+- *The Synergies of a Day's Party* are its base's, worked out once.
 
-**Consequences.** S6 and S7 read the ladder's `fameMinimum` and `deathScale`; S11
-writes the Beats' lines and widens the Tiers; DL-257 item 11 tunes. The quick run's moves (Evidence)
-are the owner's to read against S2's: the player's Quest rewards 21% more over two Years
-(`wealth.player.questRewards`), the factors working as decided, a Party-Day neutral: each Tier's
-Wealth a Party-Day is v1.1.9's for its band times the share paid (0.94, 1.00, 1.02, 1.07), and the
-21% is Party-Days ×1.144 (11,981 → 13,707: per-Quest overheads, Days home and Injuries 93 → 47,
-spread over longer Quests; Parties smaller, alone 44% → 51%) times Wealth a Party-Day ×1.057 (more
-of the Days in the better-paid Tiers 2–3, ×1.031; paid 80.1% → 81.9%).
+**Consequences.** A Hero brings less to each Encounter as a Quest's Days pass, and is hurt and
+killed more often. Before S11 tunes Fatigue, play moves a long way: in a quick run (4 × 2 years)
+against 4040242's, the player's failed Quests rise from 1.7% to 9.2% and strong successes fall from
+78.9% to 55.5%; the Rivals' from 5.8% to 26.2% and from 62.9% to 26.0%, their Injuries fivefold,
+and, poorer, they recruit no one. A Turn's mean `advance` 1.63 to 1.67 ms. Every save records the
+config version 25 and `fatigueScaling`.
 
-**Evidence.** The commit `v1.2.0-S5 (DL-262)`. The doctor before and after: no drift, 104 reads.
-`neutral v1.2.0-s5-quick` (4 × 2, `harness/reports/v1.2.0-s5-quick-2026-10-11`): refusals 0,
-invalid 0, the replay identical, `7e0eed8f…`. `compare` with S2's gate: the config's keys, 568
-counters moved of 662, the run's shape apart; with S2's 4 × 2 quick check, the same shape, 391 of 590,
-S2 → S5: the player's Quests a Guild-year 378 → 284, its Party 1.66 → 1.54, Days away 3.96 → 6.04,
-failed 19.9% → 18.1%, Deaths a game 1.75 → 1.25, Wealth at Year 2 15.6 → 22.3 months of Upkeep;
-Bankruptcies 0 and 0. Offered by Tier: 20.9%, 38.6%, 29.4%, 9.9%, 1.1%; the player took 35.8%,
-48.3%, 14.9%, 0.9%, 0. Tests 6,192 (6,188 passed, 4 skipped); lint, typecheck and the build pass.
-Verified 2026-10-11 at d8c0474: the factors, the midpoints and the Beats re-derived alike, the rise
-read as above, 75 mutations red but two, killed by tests (`daysAt` off its band, `beatsDrawn`'s cap).
+**Evidence.** The commit `v1.2.1-S4 (DL-284)`; the epic's S4 boxes. The checks' counts, the
+doctors' readings, the quick runs and `compare`, the estimate probe's two lines and the mutations
+are in the commit message; the reports are not committed.
+Verified 2026-10-11 at 30eba5a (a496124 and the Q18 commit after it): the formed Stats and the harm
+multipliers are the epic's §2 table in every path, each chance held at 1 once after Fatigue's factor
+and before the guard, the hurt's factor applied once, the resolver reads the clock
+and never the stored Fatigue, the estimate's member cache (return night, Hero, Fatigue) is complete and
+its parity test genuine, the builder's two caching survivors are speed alone, and the quick run's moves
+come from untuned Fatigue with no rest band yet (both sides' Heroes set out at a mean Fatigue of 82 to
+88, over 80% exhausted, Fatigue falling at home for every Guild and never rising), not a bug; of 49 mutations five
+survived, and tests were added for them: an Injury's chance held at 1 before the guard, the Party
+builder's line reading Fatigue, `formDecided`'s raw roll carrying the bonus, and the probe's drawn
+Fatigue.
 
-## DL-263 — v1.2.0: the owner's answers on the estimate probe's sample after S3, and S4's neutral box
+## DL-285 — v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the Injury
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** S3's verification (DL-260) found `npm run harness -- estimate`, run alone, failing its
-Morale-in limit: a Quest's success out by 4.84 points (sample estimate-0150) against 3 (DL-173),
-where the old file order passes at 1.61. Play is unchanged; the probe picks its core Encounter and
-lends Morale by position, and S3 read the folders' rows in key order. S4 (DL-261) raised the config
-version, so its `neutral` fingerprint moved by the save's config record alone, with play shown
-unchanged by `compare` (0 of 547 counters moved) and the year-end saves' lengths.
+**Context.** DL-280 item 4 (Q15 a) relieves the hurt's gap, 1 − `hurtCheckFactor` (DL-284), by a
+Healer in the Party and by a heal Item, now spent at the Injury, the two multiplying. The engine names
+no Class (ADR-0006), so the Healer is a mark in content (the architecture review's candidate 5).
+Heal Items were spent after the sequence, longest Injury first (DL-50 item 6).
 
 **Decision.**
 
-1. **The estimate probe keeps the key-order sample** (the owner: "S3 decision: a"). The owner decides
-   at the close whether the Morale-in limit is widened or the probe made to account for Morale; S5's
-   Tiers move the sample again before then. No test or limit changes until that answer.
-2. **S4's `neutral --expect` box is met as play unchanged** (the owner: "accept s4 neutral change"),
-   the fingerprint moved by `configVersion` and `meta.config` alone, as DL-202 and DL-208 found.
-
-**Consequences.** S13's Gate reads the estimate's two limits against the owner's answer at the
-close. A story that raises the config version proves play unchanged by `compare`, not by the
-fingerprint.
-
-**Evidence.** DL-260's Verified line and its reports `v1.2.0-s3v-estimate-2026-10-11` and
-`v1.2.0-s3v-estimate-old-order-2026-10-11` (not committed); DL-261's Evidence. The epic's S4 boxes.
-
-## DL-264 — v1.2.0-S6 built: the Fame minimum, `fame-below-minimum` refused by dispatch and passed by by every chooser of a Quest
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
-
-**Context.** DL-257 item 3 (Q15 b): a Guild below a Tier's `fameMinimum` may not take its Quests;
-the minimums are 0. S5 (DL-262) put `fameMinimum` in every `questTiers` row, read by no rule.
-
-**Decision.**
-
-1. **The rule** (`fameRefusal`, `engine/src/actions/dispatch.ts`): a Guild whose Fame is below the
-   Fame minimum of its Quest's Tier, the template's override read (`tierFigures`, live as the XP
-   factor is), may not take it. `dispatch` refuses it as `fame-below-minimum`, naming the Guild, the
-   Quest, the Tier, the minimum and the Fame, after `quest-not-offered` and before the Heroes, since
-   no Party changes it. `previewDispatch` gives it as its verdict, being `dispatch`'s own checks.
-2. **Its sentence** (`words/src/refusals.ts`, DL-240): "A quiet word is a Tier 3 Quest, open to a
-   Guild of 20 Fame or more; The Lantern has 12, 8 short." The CLI's Namer adds the Quest's id; the
-   page's names "that Quest" and "that Guild" with no world.
-3. **The choosers pass it by:** a Rival's `preferredQuest` ranks only the Quests it may take; the
-   harness's player (`automaticPolicy`) weighs only those; `staffableQuests`, and so the Fast-forward
-   stops, by `dispatchRefusal`. The player's reading names no Best Party for it (`PlayerReading.
-   bestParty`), and the Board says why in the Best Party's place, in the refusal's words
-   (`questClosed` in `words`; the CLI's `show board`, the page's card).
-4. **No setting and no version:** the minimums stay 0, so the config version stays 19; with them
-   at 0 and Fame never below `fameFloor` (at least 0), no Quest is closed and play is unchanged.
+1. **The relief** (form.ts): `hurtFactor(area, { hurt, relief })` takes the gap × (1 − relief), the
+   Physical Stats the whole of what is left and the others half; `hurtRelief({ healer, item })` is
+   1 − (1 − `healerHurtRelief`) × (1 − `healItemHurtRelief`). `queryParty` gives each member
+   `relief`, 0 unhurt; `atFatigue` keeps it.
+2. **The Healer:** a Class's `relievesHurt`, true or false on its own row (`classes.json`), read by
+   `relievesHurt(classKey, content)`. A member of a marked Class among the members on the Encounter,
+   other than the hurt Hero, relieves; several give one relief. The content's checks refuse a mark not
+   true or false and a misspelt one (a field no Class has). The Healer is marked by hand (the editor
+   has no Class kind); the content version 43. A test holds the engine's source to no Class key.
+3. **A heal Item at the Injury:** the kit reaches the Injury's step (`Applying.kit`); as an Injury
+   lands, the infirmary applied, `kit.heal(injury, index)` spends the heal definition healing most
+   Days (ties by key), one an Injury while any is left, shortening it to no fewer than 1 Day, which
+   the return applies, and the Hero joins `OnQuest.relieved` for the rest of the Quest. Spent on a
+   Hero who then dies, it is lost. `item.expended` for a heal names its Encounter, `encounterIndex`.
+4. **Config:** `healerHurtRelief` and `healItemHurtRelief`, 0.5 each, shares (`checkConfig`), in the
+   `quest` section by hand; the config version 27.
+5. **The estimate** is unchanged: it assumes no one is hurt, so relief moves nothing there.
+6. **The words:** the History says where a heal Item was spent and that it eased the Injury; the heal's
+   effect words say so; `CONTEXT.md` (Form, Class) and R30 say what is built.
+7. **The script budget** 900 kB (DL-280 item 8, Q6 a), S9's first item brought forward: this story's
+   build came to 850,413 bytes, over 850 kB (the epic's §4: the budget rises first).
+8. **Superseded:** DL-50 item 6 in full, items 3 and 8 in part, with the stub, notes and record.
 
 *Judgement calls, for the owner to see.*
-- **The Best Party module stays a search of who would go**, the Fame read by each caller that
-  offers a Quest; its "null exactly when `requiredParty` is" holds, and the calibration's probes ask
-  it of Quests no Guild takes.
-- **The Board's line for a closed Quest** is the refusal's sentence, where it said "No Party of your
-  free Heroes meets its requirements"; S12 words the card.
-- **The order:** after the Quest is found on the Board, before the Heroes; a Party of no one is
-  refused for the Fame.
-- **The proof's minimums** (0, 10, 40, 100, 200 for Tiers 1–5) are a trial through `HEROESIM_CONFIG`,
-  not a proposal; tuning them is DL-257 item 11's.
+- *The mark* is a boolean on the Class's row, as the review drew it, not a list of roles (the glossary
+  avoids Role for a Class). It can name no Class but its own, so the acceptance's "a role on an
+  unknown Class" cannot arise; the checks refuse a malformed or misspelt mark instead.
+- *The Healer must be present:* among the members on that Encounter, so a Healer who died relieves
+  nothing after. A hurt Healer relieves others, never themself. Several Healers do not stack.
+- *An Injury at 1 Day* still takes a heal Item, for its relief, taking 0 Days off (the epic: spent at
+  the moment of an Injury); before, it took none.
+- *The test content* marks no Class, so the scenes with a Healer keep their numbers; the relief
+  tests mark the Class they read, a Warrior among them.
+- *The budget* was raised here rather than bytes cut; S9 keeps the rest of its items.
 
-**Consequences.** A Tier's Fame minimum works when a later release sets it. CONTEXT.md's Tier and
-Fame, requirements R23 and the TierRow's field say it.
+**Consequences.** A hurt Hero with a Healer beside them, or a heal Item spent, keeps 0.8 of a
+Physical Stat rather than 0.6, both 0.9. The Rivals carry no heal Item until S8. In a quick run
+(4 × 2 years) against aaed35a's, play moves by the noise of changed draws: the player's strong
+successes 55.5% to 54.3%, failed Quests 9.2% to 9.5%; the Rivals' strong successes 26.0% to 26.9%.
+Every save records the config version 27 and the content version 43.
 
-**Evidence.** The commit `v1.2.0-S6 (DL-264)`. Tests: the refusal, its order, a template's override
-and the preview (`dispatch.test.ts`); its words, the CLI's and the page's; a Rival and the harness's
-player passing a closed Quest by; the reading, `show board` and the card. `neutral
-v1.2.0-s6-quick` (4 × 2): play identical to S5's, `7e0eed8f…`, 0 of 576 counters moved.
-`neutral v1.2.0-s6-fame-quick` with the trial minimums: refusals 0, invalid 0, the replay
-identical, `cc178d34…`; against the first, 402 of 589 counters moved: the Rivals' Quests taken at
-Tiers 1, 3, 4 and 5 918 → 1,195, 1,194 → 1,086, 223 → 137 and 17 → 4, their Bankruptcies 0 → 6.
-The epic's S6 boxes.
-Verified 2026-10-11 at 30380c3: every chooser of a Quest searched, Fame at the minimum taking it and
-none moving between a choice and its dispatch, the sentence per ui-text.md, 20 mutations each red;
-fixed, test first: the estimate probe sent its sample's Party whatever the Tier's Fame minimum, which
-a non-zero minimum refuses (158 of 200 samples above Tier 1), now raising the Guild's Fame to it.
+**Evidence.** The commit `v1.2.1-S5 (DL-285)`; the epic's S5 boxes. The checks' counts, the
+doctors' readings and the quick run's `compare` against `v1.2.1-s4-verify-quick` are in the commit
+message; the report `v1.2.1-s5-quick` is not committed.
+Verified 2026-10-11 at 7f061c0: the relief is the gap times (1 − relief) in `hurtFactor` alone, read once
+through `queryParty` (the resolver; the Party builder sees no one hurt; the estimate none), a Healer
+present on the Encounter and not the hurt Hero, one relief however many, a heal Item spent at the Injury
+after the infirmary, never twice, its Days kept to the return and lost with a Hero who dies; of 38
+mutations four survived, one equivalent (`relievesHurt`'s own-key guard), and tests were added for
+the rest: a Class marked false relieving nothing, two heals of the same Days spent first by key, and
+a Healer who falls relieving no one after; the DL-50 record's quotes made DL-285 item 3's own words.
 
-## DL-265 — v1.2.0-S7 built: Death by Tier, `deathFactor` and each Tier's `deathScale` read, and the Deadly reading; config version 20
+## DL-286 — v1.2.1-S6 built: rest bands and the Party's pool
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 5 (Q5 c, Q17 b, Q18 b): an Encounter's Death chance × `deathFactor` (1) ×
-its Tier's `deathScale` (0 for Tiers 1–3, 1 for 4–5); a Quest that can kill marked Deadly, with no
-figure in the Party builder. S5 (DL-262) put `deathScale` in every `questTiers` row, read by no rule.
+**Context.** DL-280 item 5 (Q4 a) gives every Guild a rest band: a Disposition's `restBand` and the
+player's `playerRestBand`. Each chooser of a Party built its own pool from `availableHeroes`, which
+reads no config, so a band applied in the Best Party alone would let a Rival pick a Quest it then
+sends no one on (the architecture review's candidate 3).
 
 **Decision.**
 
-1. **The setting:** `deathFactor`, a finite number of 0 or more, in `questTiers` after
-   `tierDrawWeights`, at 1. Config version 20.
-2. **The chance** (`engine/src/tiers.ts`): `deathScaleOf` is `deathFactor` × the Tier's `deathScale`,
-   the template's override read through `tierFigures`, live as the XP factor is;
-   `scaledDeathChance` is the Encounter's chance times it, held at 1. `resolveQuest` reads the scale
-   once a Quest and gives `strike` the scaled chance.
-3. **The draws:** `strike` already takes its two draws whether or not a Death lands (DL-186 item 4),
-   so a scale of 0 kills no one and shifts no later draw: the Tier changes what a draw decides,
-   never how many are taken.
-4. **Deadly** (`isDeadly`, exported): the Quest's Death scale is above 0 and one of its Encounters,
-   drawn at posting, has a Death chance above 0 at any Degree; an Encounter content no longer defines
-   is passed over. The words' `QuestReading.deadly` carries it; the CLI's `show board` says "Deadly: a
-   Hero may die on this Quest." after the Quest's Encounters. The page's card is S12's.
-5. **The report:** Quests by Tier gain Deaths and Deaths a Quest, by controller, from
-   `quest.resolved`'s `deaths` (the same Heroes `hero.died` names, with the Quest's Tier at hand).
-6. **The words:** CONTEXT.md's Deadly and Death factor, requirements R24, the harness README's last
-   quick fingerprint.
+1. **The settings.** A Disposition's `restBand`, content: steady and miserly `tired`, ambitious
+   `exhausted`, reckless `null`, none; the content version 44. The config's `playerRestBand`, `tired`,
+   in the `fatigue` section, by hand, its rule a Fatigue band or `null`; the config version 28. None is
+   `null` in both, read by the content's `oneOfOrNull` field and refused otherwise by its rules.
+2. **One per-Guild reader.** `partyMarginOf` becomes `guildSetting(guild, setting, deps)` in
+   `best-party.ts`: the Disposition's field, else the player's (`playerPartyMargin`,
+   `playerRestBand`) for a Guild with none or one content does not define.
+3. **`partyPool(world, guild, deps)`** in the Best Party module: `availableHeroes` (moved there) less
+   each Hero whose `fatigueBand` is `atOrPast` the Guild's rest band; all of them for `null`. It reads
+   the Hero's Fatigue as it stands at the choice, which is the Fatigue they set out with: a dispatch
+   records it before the night.
+4. **Every chooser reads it:** a Rival's choice of Quest and its Party (`preferredQuest`),
+   `staffableQuests`, the harness's policy and the Board's best Party (`playerReading`). No caller
+   builds its own pool; `availableHeroes` leaves the engine's entry for `@heroesim/engine/testing`.
+5. **Fatigue is no Unavailability:** `dispatch` sends any free Hero, a tired one by hand included.
+6. **The fixture** `disposition(key, weights)` takes its weights named; the engine's test content
+   gives its four rows the core's rest bands.
+7. **The words:** `CONTEXT.md` (Fatigue, Fatigue band, Disposition, Fast-forward stop) and
+   `requirements.md` (R7, R39, the scope row) say what is built.
 
 *Judgement calls, for the owner to see.*
-- **Held at 1 before the guard:** a chance scaled past 1 is 1, then the Hero's guard by `guardedBy`
-  lowers it, so a strong Hero still shrugs some off.
-- **Deadly reads a Triumph's or a Success's Death too**, and a chance of 0 is no Death chance.
-- **The review page** (`npm run quest-review`) still gives content's chances, unscaled: it reviews
-  Encounters, not Quests.
-- **Tests whose Deaths fell at Tiers 1–3** (an engine change, not a default's pin) were given Death at
-  every Tier, their assertions unchanged: the resolver's shared scene (`pinned`), the consumables' and
-  the Synergies' configs, and content's `certainHarmContent` and three Quests of
-  `quests-conclude.test.ts` through `deadlyAtEveryTier` (template overrides). They are 8 in
-  `resolve.test.ts` (the harm fingerprint of 300 seeds among them), 9 in `quests-conclude.test.ts`
-  (the History of 86c7afa among them), and one each in `consumables`, `synergy`, `gear` and
-  `hero-regard`. Each passes as before with the scale at 1, which proves the draws unmoved. No test
-  pinned a default this story changed.
+- *None is `null`*, not a fifth word: no band to be at or past, and `config set playerRestBand null`
+  writes it.
+- *The stops follow the pool.* `staffableQuests` is the player's `decision-needed` and
+  `quest-staffable` stops' too, so a fast forward no longer stops for a Quest only a tired Hero could
+  staff, and stops when a Hero rests out of the band and makes one staffable.
+  *Confirmed 2026-10-11 by the owner (Q19 a): kept as built.*
+- *Stored Fatigue at the choice*, not projected: the two are equal, a Party setting out before the
+  night's rise.
+- *The Board's sentence* for no Party still says "free Heroes"; S9 words the pool.
+- *A rest band of `fresh`* is allowed and keeps every Hero home.
 
-**Consequences.** Below Tier 4 no Hero dies, and the quick run's player takes almost no Quest of Tier 4
-or 5: its Deaths fall to 0 a game against DL-256 item 10's 3–8, reported, not tuned (DL-257 item 7).
-`deathFactor` and the scales are DL-257 item 11's to tune; S12 shows Deadly on the card.
+**Consequences.** In a quick run (4 × 2 years) against `v1.2.1-s5-quick`, the player's Heroes set out
+at a mean Fatigue of 43 (87 before) and none tired or worse (93% before); the Rivals' at 56 (82), 45%
+tired or worse (90%), ambitious and reckless sending theirs. Fewer Quests are taken (the player's
+2,246 to 1,706, the Rivals' 4,450 to 3,751) and fewer fail: the player's 9.5% to 5.3%, strong
+successes 54.3% to 65.5%; the Rivals' 26.4% to 24.5% and 26.9% to 31.7%. Poorer for it, the Rivals
+still recruit no one and two fold to Bankruptcy (none before). Every save records the config version
+28 and the content version 44.
 
-**Evidence.** The commit `v1.2.0-S7 (DL-265)`. `neutral v1.2.0-s7-quick` (4 × 2,
-`harness/reports/v1.2.0-s7-quick-2026-10-11`): refusals 0, the replay identical, `e919219b…`. `compare`
-with S6's quick run: 381 counters moved of 599; Deaths, the player's 5 → 0 and the Rivals' 14 → 1 (that
-one at Tier 4); Quests taken, the player's 2,269 → 2,256 and the Rivals' 4,056 → 4,467; Bankruptcies
-and folds 0. Deaths by Tier, Tiers 1–5: the player 0, 0, 0, 0, 0 of 801, 1,113, 316, 25 and 1 taken;
-the Rivals 0, 0, 0, 1, 0 of 1,009, 1,884, 1,308, 247 and 19. The player's Deaths a game 0.00 (S6 1.25,
-S2's quick 1.75, S2's gate 4.28 over 20 years). The epic's S7 boxes.
-Verified 2026-10-11 at 3c64efe: `strike` the only path to a Death, so every Death is scaled; the 21
-moved tests each red without their Death at every Tier and each about a Death; Deaths by Tier equal
-`hero.died` Quest by Quest in played games, none below Tier 4 at the defaults; the quick run
-reproduced, `e919219b…`; of 30 mutations 25 red, the default `deathFactor` moved living as no test
-pins a default (DL-231 Q10 b), and 4 killed by tests added: Deadly read from a Setback's or a
-Success's list alone, a Quest of two Deaths, and Deaths a Quest over those resolved, not taken.
+**Evidence.** The commit `v1.2.1-S6 (DL-286)`; the epic's S6 boxes. The checks' counts, the
+doctors' readings and the quick run's fingerprint are in the commit message; the report
+`v1.2.1-s6-quick` is not committed.
+Verified 2026-10-11 at c67173d: no production chooser builds its own pool, a tired Hero is refused by
+no dispatch path, each band edge and `null` keep home whom they should, the re-recorded fingerprints
+return exactly with the rest-band filter off, and the stops follow the pool as the epic's candidate 3
+names `staffableQuests`; of 21 mutations none survived the suite, and the staffing stops gained tests
+of their own for the rest band; stale "free Heroes" comments made the pool's, and S9 given the words a
+player reads.
 
-## DL-266 — v1.2.0-S8 built: the Party floor of two, no Party's most, `schemaVersion` 9; content version 39
+## DL-287 — v1.2.1-S7 built: the Captain
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 6 (Q1 b, Q2, Q8 a): templates at a least Party of 1 are written at 2, the
-rest keep theirs; no template has a most; nothing caps the Parties out; XP stays divided by the Party
-sent (DL-182). At `639ba67` every template and Quest carried `partySizeMin` and `partySizeMax`,
-dispatch refused a Party above the most, and the Best Party (DL-237) stopped there.
+**Context.** DL-280 item 6 (Q3 c, Q12 a) gives each Guild one Captain, named freely, a change costing
+the outgoing Captain Morale and locking the post, a vacancy filled free, and three effects scaled by
+Leadership. The engine names no Stat (ADR-0006), so the captaincy Stat is a mark in content (the
+architecture review's candidate 5); the Captain's factor joins the form module (candidate 1, DL-284).
 
 **Decision.**
 
-1. **The content.** The four templates at 1 (A quiet word, Escort the tithe, Recover the strongbox,
-   The sickness at the mill) are at 2; `partySizeMax` is out of all twelve and their drafts. The
-   editor has no Quest-template command yet (S9's), so a script run once made the change, each
-   file's text otherwise kept. Content version 39.
-2. **The check.** A template's `partySizeMin` is at least 2 (the content kind's `partyFloor`), and
-   `partySizeMax` is refused as a field it does not have.
-3. **The Quest.** `QuestRequirements` loses `partySizeMax`, so the save's shape changes:
-   `schemaVersion` 9, a save of 8 refused (rule 5).
-4. **The dispatch.** `unmetRequirements` refuses a Party below `partySizeMin` alone; its
-   `party-size` and `previewDispatch`'s carry `size` and `partySizeMin`. The words: "a Party of at
-   least 2 Heroes (1 named)" in the refusal, "A Party of at least 2" in the CLI's preview and the
-   page's Party builder, "2 or more" in the CLI's Board and "2 or more Heroes" on the card (S12 makes
-   the card), "Parties of 2 or more" on the review page.
-5. **The Best Party.** It adds the Hero who most raises the chance while that Hero raises it by more
-   than the Guild's margin (`playerPartyMargin`, a Disposition's `partyMargin`; no new setting),
-   bounded by the Heroes given alone. Still greedy: each Hero added weighs a Party for each Hero left,
-   at most n(n + 1)/2 + 1 Parties of n Heroes, never every Party; `requiredParty` names a Party
-   whenever the Heroes reach the least.
-6. **XP** stays divided by the Party sent: the split's test runs to a Party of 7.
-7. **No cap on Parties out** (Q2): none in the engine (`maxPartiesPerQuest` is one Party a Quest),
-   the harness's player sends while a Hero and a Quest are left. A Rival's "at most one dispatch an
-   afternoon" (`rivalChoices`) is how a Rival chooses, not a cap, and stays.
-8. **Every reader** of `partySizeMax`: engine, words, CLI, page, harness (calibrate, estimate),
-   CONTEXT.md's Party, Quest template and Best Party, R21, R23, data-model.md.
+1. **The post:** a Guild's `captainId` and `captainChangedOnTurn`, schema 11, no migration; the
+   validator's `captain-off-roster` holds the Captain to the Roster. `leaveRoster` (captain.ts) is the
+   one way a Hero leaves a Roster, emptying the post, for a Death, a Retirement and a Transfer; a fold
+   empties it too.
+2. **The action `nameCaptain`:** any Hero of the Roster, at home or away; to an empty post free; in
+   another's place the outgoing Captain loses `captainChangeMoraleCost` (`captain-changed`) and the
+   post is locked to the morning of Day d + `captainChangeLockDays` (`captainLock`, the Transfer lock's
+   pattern). Refusals: `guild-folded`, `hero-not-on-roster`, `already-captain`, `captain-locked`.
+   `guild.captain-named`, a Milestone, names the Captain replaced and the lock.
+3. **s**, the Captain's effective captaincy Stat from its least, 0, to its most, 1 (`captaincyScale`).
+   The Stat is the one content marks `captaincy`, Leadership (content 45); content's check refuses
+   none, two, a Guildmaster's, or a malformed or misspelt mark.
+4. **The effects**, each times s: every formed Stat of every member on an Encounter with the Captain
+   among them × 1 + s·(`captainFormFactor` − 1), in `queryParty` (`partyCaptaincy`, `reformed`); the
+   others of the Party coming home with the Captain alive + round(s·`captainHomecomingMorale`)
+   (`captain-homecoming`, a Quest's cause); the Roster's baseline + s·`captainHomeBaselineBonus` while
+   the Captain is in no Party (`moraleBaselineFor`, its lift kept once a night a Guild).
+5. **The estimate** takes the proposed Party's own factor, not its pool's, and its homecoming leaves
+   the baseline unlifted for a Guild whose Captain the Party takes away, as the nights away do.
+6. **Choosers:** a Rival names to an empty post its Hero highest in the captaincy Stat, ties to Roster
+   order, first of its choices, drawing nothing (`captainChoice`); the harness's policy names by the
+   same rule.
+7. **Config** 29, a `captain` section by hand: `captainFormFactor` 1.05 (at least 1),
+   `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5 (each at least 0),
+   `captainChangeMoraleCost` −10 (at most 0), `captainChangeLockDays` 30 (whole, at least 0).
+8. **The words:** the History's sentence, the refusals', the CLI's `captain --hero <heroId>`;
+   `CONTEXT.md` (Captain, Form), R40 and the data model say what is built.
 
 *Judgement calls, for the owner to see.*
-- **The floor in the content check:** 2, a constant of the content kind, not a setting.
-- **The test content keeps its least Parties of 1** (engine fixtures, not content); only the most went.
-- **`schemaVersion` 9** (rule 5): the Quest's requirements lost a field.
-- **Tests moved with the rule** (an engine change, no default changed): the History of 86c7afa's
-  prints for two of three seeds (`quests-conclude.test.ts`); a Best Party test's margin 0 to 1 and
-  its least 1 to 2, so Parties still share no Hero; a pair sent by the first two of a Best Party
-  (`fast-forward.test.ts`); the page's Party out leaving two at home for the stop tests
-  (`withPartyOut`'s `atHome`); a Hero signed before the Party leaves (`capitals.test.tsx`); the
-  report's seed `report-l` to `report-o`, whose Party still comes home hurt; the Loot counter's
-  player sending every free Hero.
+- *No clearing:* the post empties only by a Death, a Retirement, a Transfer or a fold. The Captain
+  named again is refused, not charged. A vacancy is filled whatever the lock.
+- *The baseline is scaled* by s, as S7's "each scaled" and R40 say; §2's row reads unscaled.
+  *Confirmed 2026-10-12 by the owner (Q20 a): scaled, as built.*
+- *The homecoming:* the others, not the Captain; none if the Captain fell; on any outcome; rounded
+  to a whole number, as a Quest's Morale is.
+- *The factor* needs the Captain on that Encounter, so a fallen Captain lifts no one after; it is on
+  every Stat, a Stat content does not define too.
+- *s reads effective Stats*, Traits and Gear counting.
+- *A Rival never changes its Captain*, and names none where content marks no captaincy Stat; the
+  test content marks none, so scenes keep their numbers and the Captain's tests mark Leadership.
+- *The kind* is `nameCaptain`, camelCase as every action's; the CLI's command is `captain`.
+- *The homecoming Morale is not estimated*: it lands after the Quest is resolved.
 
-**Consequences.** Every Party is two Heroes or more. With the margins at 0.05 and 0.1 the Parties
-grow by about half a Hero, not to every Hero free: fewer Quests are taken, more succeed, and Rosters
-earn less (reported, not tuned, DL-257 item 7). S12 writes the card's words in full.
+**Consequences.** Every Guild in a harness game has a Captain from its first afternoon. In a quick
+run (4 × 2 years) against `v1.2.1-s6-quick`: the player's failed Quests 5.3% to 3.4%, strong
+successes 65.5% to 65.1%; the Rivals' 24.5% to 22.6% and 31.7% to 32.5%, their Quests 3,751 to
+3,821, one Bankruptcy fold where there were two. A Turn's mean `advance` 1.54 to 1.80 ms, part the
+play's, part the Captain's lift reading the Captain's effective Stats. Every save records the
+config version 29, the content version 45 and schema 11.
 
-**Evidence.** The commit `v1.2.0-S8 (DL-266)`. `neutral v1.2.0-s8-quick` (4 × 2, alone,
-`harness/reports/v1.2.0-s8-quick-2026-10-11`): refusals 0, the replay identical, `62fab24b…`.
-`compare` with S7's quick run: 377 counters moved of 600; with S2's gate 576 of 683. S7 → S8, the
-player: mean Party 1.54 → 2.07, Quests a Guild-year 282.00 → 219.75, failed 18.5% → 5.6%, strong
-45.1% → 65.2%, Days away 6.03 → 6.04, Quest rewards 420,989 → 383,422; the Rivals' mean Party
-1.65 → 2.13, Quests taken 4,467 → 3,237; Deaths, the player's 0 → 0 and the Rivals' 1 → 2 (Tier 4);
-Bankruptcies and folds 0. The profile, one game of 20 years in
-one process under `--cpu-prof` (`v1.2.0-s8-profile`): `advance` a mean of 2.803 ms, `copyWorld`
-0.876 ms, a share of 0.313 against the line's 0.4875 (v1.1.9's close 1.861 ms and 0.302, before
-S5's Tiers); the game 80.5 s, the estimate 29.8%, the Rivals 31.0%, `copyWorld` 28.1%; the quick
-run's `advance` 1.768 → 1.534 ms from S7. The epic's S8 boxes.
-Verified 2026-10-11 at 3aa2768: the Best Party weighs the estimate's chance of success alone, fills
-the floor greedily before the margin, and names no Party below it nor of one free Hero; no reader of
-`partySizeMax` is left but the check's refusal; the Rivals and the player send the Best Party, and
-nothing else caps one; 18 mutations all red; tests added for the floor at margins 0 and 1 and for at
-most n(n + 1)/2 + 1 Parties weighed of 20 Heroes (57 to 90 of 211); the profile reproduced,
-`1e68aeb6…`, its rise from v1.1.9 the Rivals' Rosters (a mean of 20 against 10 by Year 10), not code.
+**Evidence.** The commit `v1.2.1-S7 (DL-287)`; the epic's S7 boxes. The checks' counts, the
+doctors' readings and the quick run's fingerprint are in the commit message; the report
+`v1.2.1-s7-quick` is not committed.
+Verified 2026-10-12 at 830afea: every way off a Roster empties the post, the lock meets the
+Transfer lock's arithmetic, the factor applies once and only with the Captain present, and the
+quick run's fingerprint holds with both caches off; of 43 mutations nine survived, one equivalent,
+three now killed by new tests (a fold, a Stat whose least is its most, the choice by effective
+Stats) and five on the night's lift, which reached a stale case: a Captain healed of an Injury
+whose Trait moves their captaincy Stat drifted by the lift from before; fixed test first (the lift
+forgotten as the Captain's night begins), the estimate made to hold the lift as the Party sets out,
+the same whatever its pool, and a Rival's Captain bought away shown replaced.
 
-## DL-267 — v1.2.0-S9 built: the editor's Quest templates and Encounters, `quests …` and `encounters …`, and `quests doctor`
+## DL-288 — v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 8 (Q16 c): editor commands and two skills are the only way Quest templates
-and Encounters change, with `quests doctor`. At `d2ddd6d` the editor edited the Traits and the tuning
-values; S3 put both kinds in folders (DL-260), and S5–S8 gave a template its Tiers, Beats, overrides,
-Finale and a floor of two (DL-262, DL-266).
+**Context.** DL-280 item 7 (Q16 b) has the Rivals buy and carry heal Items, the consumables part of
+#25. What to buy and carry was the harness's policy's alone (`consumablesFor`, `consumablePurchase`,
+DL-62); a Rival bought wearables and carried nothing, so the heal Item spent at the Injury (DL-285)
+reached the player's Parties only. The architecture review's candidate 4 lifts both into the engine.
 
 **Decision.**
 
-1. **One kind, two lists** (`tools/editor/src/quests-kind.ts`): the Quest templates and the
-   Encounters, each a folder, keyed apart (`Kind.keysApart`), on the content files' adapter. Their
-   edits are held together in `.editor/quests.json`, since a Beat's pool reads the Encounters: an
-   Encounter added and a Beat that draws it are checked as one, and either family's `finish` writes
-   both and raises the content version once.
-2. **The commands** (`quests-commands.ts`, `quests-editor.ts`): `quests list`, `show`, `add`,
-   `change`, `remove`, `tiers`, `beat add|change|move|remove`, `override set|clear`,
-   `finale set|clear`; `encounters list`, `show`, `add`, `change`, `remove`,
-   `check add|change|remove` (with `--pass`), `consequence add|change|remove`; and both families'
-   `pending`, `discard`, `finish`, `recover`. The Traits' forms: `--row <json or @file>`, `--name`,
-   `<field>=<value>` read as JSON where it is JSON; new `--tags a,b` and `--no-tags`. `null` takes out
-   a field a row may leave out. A part's change is held as a change of the fields it touched; a change
-   of nothing is not held; places count from 0, as the refusals name them. Every refusal names why:
-   the content's checks', or the editor's (a place not there, a figure no Tier has, an Encounter a
-   pool or a Finale names, each use listed).
-3. **`quests doctor`** (`quests-doctor.ts`): the content's checks; every Beat's pool large enough for
-   its draws (`shortBeats`); every Tier offered a Tier of the ladder playing from one Beat to its Beats
-   and Finale; every Encounter drawn by some pool or a Finale; every Finale placed (an Encounter, with
-   its line, named by no pool, played last); the pending edits held to all of them. A Beat no Tier
-   plays is noted, not failed. Exit 1 on a problem.
-4. **Both adapters:** the command line and the page's JSON API (`GET` or `POST /api/<family>/<command…>`),
-   one core giving the same JSON; each command is tested through both, side by side.
-5. **Read for it:** content's `rowFields(source)`, a row's fields in order, each optional or not
-   (`Field.optional`); the engine's `beatsDrawn`, exported from `@heroesim/engine/content`. No play
-   change, no content change.
-6. **The rule:** AGENTS.md's "Quest templates and Encounters", `docs/agents/quests.md`, and
-   `delivery.md`'s rule 2 naming `quests doctor`; the editor's README; CONTEXT.md's Content editor and
-   Edit session.
+1. **The choices in the engine,** `consumable-choices.ts` beside `gear.ts`, each reading and drawing
+   nothing: `consumablesToCarry(world, guild, effects, deps)` gives each Party sent one of each
+   consumable of `effects` the Guild holds that could serve its Quest, in key order, taking it from
+   what is left; `consumablePurchase(world, guild, keeping, deps)` buys toward `stock` of each,
+   counting the holding and the Guild's Parties, the one it has fewest of, the lowest key among
+   equals, as many as it lacks and the Market has, while Wealth is above `wealthMultiple` times the
+   cost and covers it, and above `reserveUpkeeps` Upkeeps once paid where one is given.
+2. **The policy unchanged:** the harness's two functions are gone; the policy passes every effect and
+   its own `consumableStock`, `buyWealthMultiple` and `consumableReserveUpkeeps`. The move alone, the
+   Rivals as they were, played `v1.2.1-s7-verify-quick`'s fingerprint `89c4c91f…` exactly.
+3. **A Rival buys heal Items in its gear step,** when `gearPurchase` names no wearable:
+   `consumablePurchase` for `heal` alone, by its Disposition's `gearThreshold` as gear is bought (Wealth
+   above that many times the cost, and covering it), no reserve. No new `purchaseSteps` member.
+4. **How many:** `rivalHealItemStock`, 2 of each heal definition, at home and carried together (the
+   policy's stock), a setting by hand in the `world` section beside the Rivals' others, whole and at
+   least 0, 0 keeping none; the config version 30.
+5. **A Rival carries** one of each heal Item it holds on its dispatch, its Best Party chosen carrying
+   nothing as the policy's is; the kit spends them at its Heroes' Injuries (DL-285).
+6. **Draws:** neither choice draws from any stream. The Rival's own, `rivals` (ADR-0009), moves only
+   because an afternoon that buys heal Items does not reach the `transfer` step and its draw.
+7. **The words:** R7.
 
 *Judgement calls, for the owner to see.*
-- **"Both adapters."** In the editor the words name the edit session's two adapters, the content
-  files and the config file (DL-244); these commands write content files alone, so the config file's
-  cannot carry them. They are read as the commands' two front ends, the command line and the page's
-  API. The page has no control for them, as it has none for `assign` or the config kind.
-- **One session for both lists:** `pending` lists both families' edits; `discard` drops its own.
-- **Keys apart:** an Encounter may share a template's key, as content allows.
-- **An emptied Degree list stays** `[]`, since a Degree with no list reads another's.
-- **Two notes, not problems:** `escort-the-tithe` beats.2 and `survey-the-old-workings` beats.3 are
-  played at no Tier they offer, for S11.
-- **The order:** the code was drafted before its tests. Each test was then shown red with the core
-  stubbed, and 20 mutations of the code went red, two only once their tests were strengthened.
+- *One setting, not a Disposition field:* every Rival keeps the policy's 2; a Disposition's character
+  is in its `gearThreshold`, which prices them as it prices gear.
+- *It follows a wearable,* not competing with one: armour first keeps Heroes alive (DL-58), and the gear
+  step stays one purchase. A Rival makes one purchase an afternoon (`rivalChoices`), so an afternoon
+  that buys heal Items tries no Transfer, recruit or debt Transfer after it (`purchaseSteps`' order);
+  it comes again only as Items are spent.
+- *No reserve:* a Rival's heal budget is gear's, as the story says, not the policy's 20 Upkeeps.
+- *Heal Items alone,* bought and carried: a bonus or a reroll a Rival holds from Loot stays home.
+- *Beside `gear.ts`, not in it:* a consumable is no Gear (`CONTEXT.md`), and `gear.ts` reading
+  `upkeep` would close an import cycle through `selectors.ts`.
 
-**Consequences.** S10's skills run these commands, and S11 writes the content through them. Nothing
-in content changed, so no sweep: play is unchanged.
+**Consequences.** In a quick run (4 × 2 years) against `v1.2.1-s7-verify-quick`: the Rivals carry
+1.41 consumables a Quest (none before) and spend 103 heal Items (93 kits, 10 draughts); their Market
+purchases 309 to 462 and the Items' cost 17,860 to 28,415, about 330 a Guild-year of the 16,400 they
+spend; their Heroes injured 188 to 150, failed Quests 22.6% to 22.0%; their Wealth a Guild at the
+second year's start 6,343 to 6,940; still no recruit, since their Wealth stays far below
+`recruitThreshold` times their Upkeep, heal Items or none (the S6 finding, untuned Fatigue's). One
+Bankruptcy fold, as before. The player's counters move through the Board and the Market they share.
+The History fingerprints in `quests-conclude.test.ts` are re-recorded; `rivalHealItemStock` 0 gives
+the old ones. Every save records the config version 30.
 
-**Evidence.** The commit `v1.2.0-S9 (DL-267)`. `tools/editor/src/quests.test.ts` (17 tests, each
-command through both adapters), `quests-doctor.test.ts` (8), content's `kinds.test.ts` (`rowFields`,
-red first). `quests doctor` clean: 38 Beats of 12 templates, 23 Tiers, 29 Encounters, 4 Finales, two
-notes. A scratch session on the repository (a Beat added, an override set, shown, discarded) left
-`git diff` of the content empty. The epic's S9 boxes.
-Verified 2026-10-11 at 4b14363: every command run on a scratch copy, done and refused, "Finish" (39 to
-40), undone and cut off; each kind of the doctor's problem planted, each exit 1; "both adapters" read
-as the commands' two front ends, as the repository names a CLI's and a page's adapters, and tested in
-DL-244's sense too ("Finish" undone and cut off for this kind); of 58 mutations 39 went red, 2 are
-equivalent and 17 were killed by tests added; fixed, test first: the API's one long-lived editor never
-named the files a "Finish" cut off put back and its `recover` named them again, now an editor a call
-naming `recovered` as the command line does.
+**Evidence.** The commit `v1.2.1-S8 (DL-288)`; the epic's S8 boxes. The checks' counts, the doctors'
+readings, the quick runs' fingerprints and the twenty-year boxes' result are in the commit message;
+the reports `v1.2.1-s8-move-quick` and `v1.2.1-s8-quick` are not committed.
+Verified 2026-10-12 at 5f54090: the move maps every branch of the policy's old functions (its every
+effect, Parties counted, its reserve, the added "covers it" implied by the reserve), a Rival prices
+heal Items by `gearThreshold` as gear and carries one of each from home, unspent Items come home even
+from a Party none of whose Heroes return, and a heal purchase pre-empted no transfer, recruit or debt
+step in 63,200 Rival afternoons of four 20-year games (691 purchases); of 37 mutations three fell to
+a History fingerprint alone, now killed by tests: another Guild's Party counted, a wiped Party's
+Items kept or lost.
 
-## DL-268 — v1.2.0-S10 built: the drafting skills, `quest-draft` and `encounter-draft`, each writing a draft for review before "Finish"
+## DL-289 — v1.2.1-S9 built: the page, the CLI and the words
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** DL-257 item 8 (Q16 c): editor commands and two skills are the only way Quest templates
-and Encounters change. S9 built the commands and `quests doctor` (DL-267). The shipped Encounters'
-targets were set by the harness's calibration (DL-162), tuned at DL-166 item 2's aim.
+**Context.** DL-280 item 8 (Q5 a) gives the page part 11's layers for what exists, and S1 to S8 built
+Fatigue, the Captain, relief and rest bands in the engine with the CLI's `captain` alone. The page showed
+none of them; the form line's words were copied in the page and the CLI, the page read Morale's band again
+from the engine, the phone's "Sort by" took every group after the first for a Stat area (the architecture
+review's candidate 7), and "free Heroes" was untrue where a rest band keeps tired ones home (DL-286).
 
 **Decision.**
 
-1. **`quest-draft`** (`.claude/skills/quest-draft/SKILL.md`): from a brief, a template's fields from
-   its peers; at least three consecutive Tiers (Q25 c); its Beats written in the order the Tiers play
-   them, a Tier of k Beats playing the first k − 1 and the Finale (DL-262), each Tier's story written
-   out and read whole; lines by `ui-text.md`; pools by kind, tag or name, each large enough
-   (`shortBeats`); overrides only where the brief asks, named with their reason; the edits through
-   `quests …`; `quests doctor`; a review draft in the scratchpad (each Tier's figures, whether it may
-   be Deadly, the story it plays with each Beat's pool and draws); "Finish" only on the owner's
-   approval, else `discard`.
-2. **The hand-off:** a pool too short or unfitting, a Finale of its own, or a scene no Encounter
-   plays goes to `encounter-draft` in the same session: its steps 1–3, then the template, then its
-   calibration and doctor, since a Finale is aimed by its template and the doctor fails an Encounter
-   nothing plays.
-3. **`encounter-draft`** (`.claude/skills/encounter-draft/SKILL.md`): kind, tags, one to four Checks
-   with a placeholder target, the pass formula and consequences by Degree from its peers; a Death only
-   where the brief kills, scaled by the Tier (DL-265); an earned Trait left to `trait-assign` after
-   "Finish". **Its targets by the calibration**, as DL-166 item 2 set the shipped ones: a scratch
-   copy of both folders with the pending rows, `HEROESIM_DRAFTS=<copy> HEROESIM_TUNE=0.56
-   HEROESIM_FLAT=0.4 HEROESIM_CALIBRATION_OUT=<scratch> npm run harness -- calibrate`, the drafted
-   Encounter's numbers alone put in with `encounters check change`; then an untuned run read for its
-   rows beside its peers'. Then the doctor, a review draft, and "Finish" or `discard`.
-4. **The docs:** `docs/agents/quests.md` names the skills as built; AGENTS.md's line already named
-   them.
+1. **One reading of State.** A `HeroRow` of `@heroesim/words` carries `moraleBand`, `fatigue`,
+   `fatigueBand` and `captain`, so a Roster's row, the pool's and a Hero's reading all say them; the page's
+   `rosterRows` takes the bands from it and the web's second `moraleBand` call is gone. `moraleBandNames`
+   and `fatigueBandNames` are the words' lists. The engine's entry exports `fatigueBand`, `captainLock`
+   and `relievesHurt`.
+2. **Roster groups say their kind:** `hero`, `state` or `stat-area`. State holds Morale and Fatigue, the
+   phone's sixth tab and a Columns group; "Sort by" offers the `stat-area` groups by kind. Sorts: `fatigue`,
+   most tired first. Filters: Morale's bands and Fatigue's, each group's name shown.
+3. **The Captain's mark** (an icon of a shield) stands before the Class's in `HeroName` on the tile, in the
+   Table's Name cell on every tab, and in the builder; its post is read after the name (", Captain").
+   A Fatigue chip (tone: plain to weary, warn tired, bad exhausted) stands beside Morale's, with the Table's
+   Fatigue column.
+4. **The Hero's page:** Fatigue and Captain chips, and a "Captain" part for a Hero of the player's Roster:
+   who holds the post, or what naming them does (`namingWords`: free to an empty post, else the outgoing
+   Captain's Morale and the lock), "Name Captain" playing `nameCaptain`, disabled while the lock holds with
+   the refusal's own sentence (`captain-locked`) said under it.
+5. **The Party builder:** each row's Fatigue band, never the figure; the Captain marked; for the Party
+   chosen, "Relief from the hurt": the Healer's Classes in the Party and the heal Items carried, or none
+   (`reliefWords`, words).
+6. **The form line's words** `formEffectWords` live in `words/src/party.ts`, read by the page and the
+   CLI; both copies are gone (`imports.test.ts` holds it).
+7. **The CLI:** Fatigue beside Morale in every Hero table and `show hero` (with the bands), a Captain
+   column in `show roster`, `Captain` in `show hero`, and `preview`'s Fatigue and Relief sections.
+8. **The pool's words:** `noBestPartyWords`, "No Party of your rested Heroes meets its requirements.",
+   one for the Board and `show board`; the CLI's help, and the page's fast forward "until a Quest your
+   rested Heroes can staff appears" with its note and help, say rested; `CONTEXT.md` defines rested.
+9. **The script budget** 900 kB: its doc comment and test were confirmed (DL-285); the build is 863,084
+   bytes.
 
 *Judgement calls, for the owner to see.*
-- **The calibration is not a sweep**, but a harness run: it runs alone, as rule 6 says, and always
-  with `HEROESIM_CALIBRATION_OUT`, so `docs/quests/calibration.md` is never written over.
-- **The tuned numbers go in through the editor,** never by copying the tuned file: the tuning writes
-  every Encounter of the copy, the shipped ones retuned under today's config, which are not wanted.
-- **Two runs,** tune then read: the review's figures are those of the pending content beside the
-  shipped Encounters, not of the retuned copy.
-- **No helper code:** the skills drive S9's commands and the harness as they stand.
+- *Morale moves in the wide Table* from after Age to after Items, since columns follow their groups.
+  *Changed 2026-10-12 by the owner (Q21 a): the State group sits right after the Hero group.* The Table
+  draws Class, Level and Age, State, the areas, then Where, Traits and Items (`rosterTableColumns`); Where
+  too, since at 1280px the box is 664px wide and Where's 192px left Fatigue 61px past it. The groups,
+  the Columns panel and the phone's tabs are as built.
+- *"Rested"*, not "free", as the owner's example had it; it is also said where no rest band is set.
+- *The stop sentence* "a Quest to staff: …'s Heroes at home could go on …" is left as it was: it is true
+  of any Hero at home, and not in the story's list.
+- *The form line's heading* stays "Morale", though the line reads Fatigue and the hurt too (DL-284).
+- *The lock disables the button* rather than refuse a click, as Recruit does; no rule is on the page.
+- *Fatigue by band on the builder's rows*, Morale's none, as DL-148 item 12 left it.
+- *Tones:* fresh and weary plain, so a new game's chips stay quiet.
 
-**Consequences.** S11 writes the content through these skills. Nothing in content, engine or config
-changed: no play change, no sweep.
+**Consequences.** The page and the CLI show what S1 to S8 built. No rule, config or content changed: the
+config version stays 30, the content version 45, schema 11.
 
-**Evidence.** The commit `v1.2.0-S10 (DL-268)`. The trial on the repository, then discarded: the brief
-"Raise the drowned bell" (a fen village's bell tolling under the mere); `encounters add
-the-drowned-bell` (travel; The dive, The toll, Raising the bell, at least 2 of 3; a Death of 3% on a
-Failure), `quests add raise-the-drowned-bell` (Tiers 2–4, three Beats, the Finale),
-`quests override set … 2 beats=2`; tuned at its template's middle, 55: 3.46 + 0.094, 2.36 + 0.064,
-5.43 + 0.148 × difficulty, put in by three `check change`s; read: 48% at 60 at Level 5 with Parties
-of 3, its travel peers 55% and 57%; `quests doctor` ok with 6 pending edits; both drafts written for
-review. `encounters discard` first was refused (the template's Finale names it); `quests discard`
-then `encounters discard` left no pending edit, `.editor/` empty and `git diff -- content` empty.
-The epic's S10 box.
-Verified 2026-10-11 at 4f6355b: both skills followed literally on a second brief (`break-the-smugglers-ring`, Tiers 2–4, tag, kind and named pools, no Finale, Tier 2 `daysMax` 6; `the-tide-ledger`, lore, tuned to 3.18 + 0.08 and 1.61 + 0.04, 57% at 60, its lore peers 54–60%), every command as written, then discarded, `git diff -- content docs/quests` empty; the tuning rewrote all 29 copies, 13 shipped Checks' numbers moved, so the editor route holds; fixed: the shell named (PowerShell strips a JSON argument's quotes), a new Encounter's place in shipped pools and a Finale's leaving them named for the draft, the template's calibration rows added to its draft.
+**Evidence.** The commit `v1.2.1-S9 (DL-289)`; the epic's S9 boxes. The checks' counts, the doctors'
+readings and the e2e count are in the commit message.
+Verified 2026-10-12 at 6a9bee7: the acceptance holds ("Sort by" reads the groups by kind, still right
+with the groups reordered; one home for the form line's words and the bands; the Captain control plays
+`nameCaptain` for the player's Guild, its refusals through the namer; relief reads the engine's
+`relievesHurt` and the kit chosen), and screenshots at 360, 820 and 1280px show no overlap or sideways
+scroll; of 31 mutations one fell through (a vacancy's lock, now pinned). Fixed: the disabled "Name
+Captain" is described by the lock's sentence (`aria-describedby`, with an e2e check); `CONTEXT.md`
+defines the rested Heroes as the pool (free Heroes less those the rest band keeps home) in the Fatigue
+band, Best Party and Fast-forward stop entries; a guard keeps the form line, relief and pool words out
+of both front ends; the Captain's cost and lock in the tests read the config. For the owner: at 1280px
+the Table's State group sits after Items, off screen until scrolled, and on a phone the State tab's
+Fatigue column needs its box scrolled.
+Verified 2026-10-12 at e44c85a: Q21's order holds at 820 and 1280px (Morale and Fatigue after Age, inside
+the 1280px box; Where, Traits and Items last), the phone's tabs and "Sort by" by kind unchanged, sorting by
+a heading, a hidden column and Reset keeping the order; of 8 mutations of `rosterTableColumns` and its
+reader one fell through (the order once a column is hidden), now pinned.
 
-## DL-269 — v1.2.0-S12 built: the Board card's Tier and Deadly mark, the Party builder's Beats, and the CLI's the same through `words`
+## DL-290 — v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280; the bands in item 5 are proposals, awaiting the owner's approval
 
-**Context.** DL-257's judgement call (Q18 b): the Board card shows the name, Tier, Deadly, days and
-reward, and the narrative is in the Party builder. A Quest carries its `tier` and `beatLines` (DL-262),
-the reading its Deadly (`QuestReading.deadly`, DL-265, the CLI's line after its Encounters); the card
-says why a Quest is closed (DL-264), and the builder "A Party of at least N" (DL-266). No front end
-showed the Tier or the Beats, and the card no Deadly.
+**Context.** The Gate's "Fatigue felt" (Q8 a, DL-280 item 9) asks the report for Fatigue's lines, and S11 tunes against bands the owner approves first. S6 and S7 had measured Fatigue with throwaway scripts.
 
 **Decision.**
 
-1. **The reading** (`words/src/readings.ts`, DL-241): `QuestReading` gains `tier` and `beats`, the
-   Quest's `beatLines` in the order it plays them, a Finale's last. The words: `tierWords` ("Tier 3"),
-   the page's alone, the CLI's table giving the number under its Tier heading; and, both front ends',
-   `deadlyWords` (the mark "Deadly", meaning "a Hero may die on this Quest") and `partyFloorWords`
-   ("A Party of at least 2") (corrected at the close, DL-270).
-2. **The card** (`board.tsx`; `QuestCard` gains `tier`, `deadly` and `beats`): its chips lead with the
-   Tier, Deadly where the Quest can kill (red, the alert icon, its title "A Hero may die on this
-   Quest", no figure), the Days and the reward; then, as before, the difficulty, the Fame, the Party
-   ("2 or more Heroes"), what else it needs and the Day it leaves. "Your best Party" and the
-   closed-Quest line (DL-264) are unchanged.
-3. **The Party builder** opens on "Beats", the Quest's lines as an ordered list, before the Heroes.
-   The least Party stays the checklist's first line, "A Party of at least 2 (0 chosen): missed", from
-   `partyFloorWords`. No Death figure.
-4. **The CLI:** `show board`'s table is Id, Quest, Patron, Tier, Deadly ("Yes" or "No"), Days, Reward,
-   Difficulty, Fame, Party, Requires, On offer through, the card's order; its Deadly line from
-   `deadlyWords`. `preview` gives a "Beats" section after its heading and before the requirements,
-   whose first line is `partyFloorWords`'. The usage says both.
-5. **e2e** (`web/e2e/board.spec.ts`, at the three widths): a new game whose first Board holds a
-   Deadly Quest and one that is not, found seed by seed in the saved content and loaded as a save;
-   each card's lead held to its Quest's row; a Deadly Quest's builder: "Beats" first with its lines in
-   order, the floor's line missed then met, the chances, and no "Death", "die" or "Deadly".
+1. **The report's `## Fatigue and the Captain` section**, the player's Guild and the Rivals apart, from four counters declared in `game-counters.ts` (play kind, so `compare` lists them): `dispatchFatigue` and `restKept`, observed; `fatigueRecovery` and `hurtRelief`, read from the History. They draw nothing. Their definitions are in `harness/README.md`; tests derive each over a hand-built History or World State (`fatigue-counters.test.ts`, `sweep.test.ts`).
+2. **Sent tired or worse, mean Fatigue, Captain led:** each Party met in `advance`'s `after` world the Turn it set out: its `fatigueAtDispatch` by `fatigueBand`, and whether its Guild's Captain is among its Heroes.
+3. **Kept home:** once a Day, in the world each Guild sends its Parties from, its free Heroes (`availableHeroes`) and those `partyPool` leaves out: the player's on a night's Turn, before the policy sends the Heroes the night brought home; a Rival's on a morning's, which its afternoon reads.
+4. **Days recovering:** from a Hero's homecoming, alive, in a band at or past the Guild's rest band (`restBandOf`), to the night a crossing takes them below it; likewise to fresh. A Hero sent first cuts it short. **Hurt relief:** each Injury on a Quest by a Healer of the Party not dead by that Encounter with an Encounter after it (the engine eases from the next on), by a heal Item spent there, both, or neither.
+5. **Proposed bands (proposed; awaiting the owner's approval), not in `gate.json`.** Measured in the quick run `v1.2.1-s10-quick` (4 games, 2 years), the kept-home and relief lines in `v1.2.1-s10v-quick` as the verification corrected them; v1.2.0 had no Fatigue, Captain or relief, so 0 or none.
+
+| Line | Now: player / Rivals | Proposed: player / Rivals | Reasoning |
+| --- | --- | --- | --- |
+| Quests sent with a Hero tired or worse | 0.0% / 47.1% | 0–5% / 25–45% | "I can't send her": the policy's rest band keeps the player's home (0 by construction); the Rivals who rest no one (`reckless`) or only the exhausted (`ambitious`) carry the rest |
+| Free Heroes a rest band kept home | 59.3% / 51.7% | 45–70% / 35–55% | the cost seen on most days, with fresh Heroes left to send; the player took a quarter fewer Quests than at v1.2.0 (1,733 against 2,322, all of v1.2.1 together) |
+| Days recovering, below the rest band | 2.03 / 2.59 | 1.5–3.0 / 1.5–3.5 | "give him a chance": back within a Quest's length (4.5 Days away), not at once |
+| Quests a Captain led | 25.6% / 34.5% | 25–45% / 30–50% | about the share a random Hero goes (Party 2.05 of a Roster near 6); the Captain neither idled by Fatigue nor on every Quest |
+| Injuries relieved by a Healer or an Item | 57% (8 of 14) / 75% (112 of 150) | 50–85% both, read in the full gate | relief common enough to matter; the player's 14 are too few to read |
+
+The mean Fatigue at dispatch, 43.5 and 56.9, has no band, and S11 reads it.
 
 *Judgement calls, for the owner to see.*
-- **The card keeps its other terms** after the five DL-257 names: the difficulty orders the
-  Board and the Party chip is DL-266's. Moving them into the unfolded details is the owner's to ask.
-- **Deadly is a chip** among the terms, red with the alert icon, its word carrying it (never colour
-  alone).
-- **No narrative on the card or in `show board`;** the builder and `preview` have it, paired as the
-  card and `show board` are.
-- **"A Party of at least N" is the checklist's line,** as S8 placed it, not a second line by the Beats.
-- **The CLI's Deadly cell is "Yes" or "No",** a table's cell where the page has a mark or none.
-- **The e2e finds its seed** rather than pinning one, so that it holds through S11's content.
+- *The sampling point, the recovery's definition and the relief's classes* are the agent's (items 3 and 4); the mean Days to fresh reads low, since 98% and 96% are sent again first, so the band is for the rest band's.
+- *`availableHeroes` and `restBandOf`* are exported from the engine's entry (`availableHeroes` leaves the testing entry); no rule changed.
+- *An Injury with no Encounter* in a hand-built History counts as relieved by neither.
+- *A 2-year, 4-game run* is Tier 1 and early rosters; S11 re-reads the bands in a full `gate`.
+- *The player's tired share* is 0 by construction, so S11 cannot tune it; the band holds it there.
 
-**Consequences.** Words and the page only: no engine, content or config change, no play change, no
-sweep, no doctor. S11's lines replace the working ones the listing shows (The beast of the fells
-plays "A hard road." twice).
+**Consequences.** The report shows Fatigue's cost. The Rivals, against v1.2.0's quick run: failed Quests 8.2% to 22.0%, strong successes 55.5% to 31.9%, recruits 17 to 0, Wealth a Rival at the third year-start 22,011 to 6,940, a Rival folding once. They have recruited nothing since S4: Wealth stays under `recruitThreshold` Upkeeps. Config 30, content 45, schema 11 as before.
 
-**Evidence.** The commit `v1.2.0-S12 (DL-269)`. Tests first, 10 red then green: `readings.test.ts`
-3, `render.test.ts` 2, `main.test.ts` 1, `selectors.test.ts` 1, `board.test.tsx` 3. The rows before
-and after, for the owner (seed `s12-board-5`, Turn 0, at `bcac8d4` and after): Break the sealed vault's
-chips `[Difficulty 68] [13 Days away] [661 Wealth] [Fame ±5] [3 or more Heroes] [Needs a Mage] [Until
-Year 1 Day 3]` became `[Tier 4] [Deadly] [13 Days away] [661 Wealth] [Difficulty 68] [Fame ±5] …`, and
-The beast of the fells is Tier 4 and not Deadly, none of its Encounters killing; `show board` gained
-Tier and Deadly after Patron and moved Difficulty after Reward; the first builder opens on "Beats",
-"Words to be had." and "Somewhere not to be seen."; `preview` gained its Beats. The epic's S12 box.
-Verified 2026-10-11 at fd9421d: the rows re-derived (`s12-board-5`'s `show board` and `preview` as listed), every new word by `ui-text.md` and the glossary, one source in `words` for both front ends (but
-`tierWords`, the page's alone, and "2 or more" and "2 or more Heroes", each front end's own: corrected at the close, DL-270), the e2e's seed search (139 of its 200 seeds qualify, seed 0 the first; none found fails naming why); 35 mutations of the reading, card, builder and CLI, 30 red at once, 5 surviving the unit tests (the mark's icon dropped or swapped, a Death figure in a Deadly Quest's builder as text, a tooltip or an `aria-label`) killed by tests added: the builder's no-Death check now on a Deadly Quest, reading tooltips and screen-reader labels too, and the mark's alert icon held; the e2e now holds the card's lead and the Beats visible at each width (the mark and Beats hidden at the phone's width, red there).
+**Evidence.** The commit `v1.2.1-S10 (DL-290)`; the report `v1.2.1-s10-quick` (not committed), fingerprint `290b6d18…`, the same as S8's `v1.2.1-s8-quick`: play is unchanged. S9 ran no quick run. The epic's S10 counters box. Verified 2026-10-12 at 59de016: each counter re-derived against the engine and every mutation red; it found `restKept` reading the player's pool on the morning, after the policy had sent the Heroes the night brought home (88.2%, 59.3% sampled on the night's Turn it sends from), and a Healer counted for an Injury at the last Encounter, which the engine never eases, and fixed both test first, with tests of a hurt Healer and a Hero who died, the Fatigue section moved from under `gameCounters`' comment and `partyPool` reading `restBandOf`; `v1.2.1-s10v-quick`, the same fingerprint.
 
-## DL-270 — v1.2.0-S13: the release's review and its findings fixed
+## DL-291 — v1.2.1-S12 (part): the release's commits reviewed to S10
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-280
 
-**Context.** The close begins with a review of the release's commits, `0badc22..f30f18a`, read only:
-2 bugs, 6 risks, 13 findings in the docs and 12 nits, each checked against the code or a report. A
-bug is fixed test first; a risk of balance is the owner's. S11's batch stays pending, untouched.
+**Context.** The epic's S12 asks for a review of the release's commits, its findings fixed test first.
+This part reviews `4ed5372..HEAD`, S1 to S10 and their verifications (DL-281 to DL-290), in the
+engine, the words, the page, the CLI, the harness, content and the tools, before S11 tunes; no sweep
+runs and no setting changes while the owner's Q21 and Q22 are open.
 
 **Decision.**
 
-1. **The bundle's content version.** `compactContent` (now `web/compact-content.ts`) empties the
-   changelog of `content/version.json` alone, by its full path; a folder's row keyed `version` is
-   bundled as written, where it gained a field the page's reader refuses.
-2. **The calibration's write-back.** `writeTunedEncounters` (`calibrate.ts`) writes each tuned
-   drafted Encounter with its final newline, leaves an Encounter it does not tune unwritten, and
-   refuses a drafts directory with no `encounters/` folder, naming it.
-3. **What a Quest meets.** `quests doctor` and `encounters show`'s `drawnBy` read only the Beats a
-   Tier of their template plays (`playedBeats`, DL-262 item 3), so an Encounter only a trailing Beat
-   draws is one "no Quest meets". The content's check has no such rule; its pool rule, every Beat's,
-   and the doctor's stay alike. S11's batch passes it.
-4. **A Tier ladder held to the templates.** The content's ladder rules, unchanged, are one function
-   (`templateLadderProblems`, `ladderProblems`), which the config kind runs on a changed `tiers`
-   against the templates on disk, so `config set tiers` refuses a ladder a template cannot play.
-   `config.md` names what is left: a ladder and a `quests` edit pending at once meet only at "Finish".
-5. **The Targets' default baseline** is `v1.2.0-s2-gate-2026-10-10`, which holds every counter the
-   Targets read (DL-259), in `settings.ts`, `environment.md` and the harness README.
-6. **Year 20's highest Level** stays the mean over the games still in play at year 20, now said in
-   its row, the by-year table and DL-259: DL-83 item 22 measures the pace of progression, which a game
-   ended early does not show, as item 21's year-10 mean reads only the games in play.
-7. **The review page's Beats** read each pool whole: its kinds or "Any", tagged its tags, or the
-   Encounters it names. A pool of tags or names is listed, and a change of either shown.
-8. **Smaller fixes.** `quests finale set` refuses a field but `line`; a key is content's `kebabCase`,
-   a letter first; a Transfer back is counted between Rivals only, DL-69 item 4's lines being the
-   Rivals'; a run shorter than DL-83 item 18's slice says so; content's test of the Encounters a Tier
-   draws reads the overrides.
-9. **The words.** Live pages and comments say what is true: a template's live figures (XP factor,
-   Death scale, Fame minimum; CONTEXT.md, data-model.md, the engine), the estimate's Party and Days,
-   a Quest's Days, `HEROESIM_DRAFTS`, the editor's `null` and `--no-tags`, the encounters commands
-   and a Trait's use (`quests.md`), the root README. `loot.ts` cites the pillars (DL-256 item 1) and
-   `plan.md` §3's item goes. Three facts of this release's entries are corrected in place, each
-   marked: DL-262 item 1 (the ladder's Days may overlap, as `checkConfig` holds), DL-259 (year 20's
-   mean) and DL-269 (`tierWords` the page's alone).
+1. **The seams hold.** The form module is the one path from `queryParty` (the resolver, the estimate,
+   the Party builder); the resolver reads the Quest clock's Fatigue, never the stored; relief, the
+   Captain's factor and the hurt multiply once; Fatigue's harm is applied before the one hold at 1;
+   the estimate's Day Parties, its caches and its Captain's lift match the resolver's reading; every
+   chooser reads `partyPool`; every way off a Roster empties the post. The engine names no Class and
+   no Stat (`class-keys.test.ts`), and no new draw or stream is taken; the S8 shift of `rivals` is
+   DL-288 item 6's. No path a candidate replaced is left beside it.
+2. **Fixed, test first** (each red, then green):
+   - *The lock's sentence* (`captain-locked`, words): it said the Captain who holds the post was named
+     on the date of the last replacement, false once a vacancy is filled under a lock (DL-287 item 2:
+     a vacancy fills whatever the lock). It now says "The Captain was last replaced on …, and the post
+     cannot change again before …".
+   - *Days recovering* (`recoveryCounters`, the harness): a Hero who retired or went to the pool at a
+     fold mid-recovery was counted still recovering, or, recruited later, sent again after Days in the
+     pool. Such a recovery now ends as gone (`left`), a row of its own in the report.
+   - *The to-fresh row* read "sent again before they fell below it"; it now reads "before they were
+     fresh".
+   - *The CLI's `show` help* read as if `hall` showed each Hero's Morale, Fatigue and Captain.
+3. **Fixed, words and comments:** the e2e layout check's sentence for no Party ("free" for "rested",
+   DL-289 item 8); the policy's claim that naming a Captain changes nothing its choices read (the
+   estimate is the document's before the naming, as a Rival's is); `observeDispatches`' claim that no
+   night changes the Captain; "free Heroes" for the pool in the policy, `best-party.ts` and
+   `estimate.ts`; the CLI preview's claim to show what the builder shows; the page's Hero actions
+   without the Captain; `tiredBand`'s default.
 
 *Judgement calls, for the owner to see.*
-- **The Rivals' Rosters (R1), not tuned or changed.** A Rival hires while its Wealth exceeds
-  `recruitThreshold` Upkeeps, with no Roster cap, a rule this release left alone; its Wealth rose
-  (16,121 a Rival at year 2 in S2's quick run, 22,950 in S5's) and S7 took almost every Rival Death
-  below Tier 4 away. On S8's one profiled game, `v1.2.0-s8-profile`, the Rivals hold 20.3 Heroes and
-  120,829 Wealth each at year 10 (v1.1.9's close profile: 11.3 and 42,738), `ambitious` a mean of
-  29.85 Heroes over its year-starts and `steady` 20.95 (7.81 and 5.33 there, where a `reckless` Rival
-  grew instead). The world's mean Level counts every Hero on a Roster (DL-257's call), so these
-  Rosters set the Board's centre: the Rivals' mean Level 7.05 over 81 Heroes at year 10 against the
-  player's 8.38 over 8. The timing is within the spread of identical games, so DL-266's "not code" is
-  plausible, not established. For the close: read the full gate's Rival Rosters before its speed
-  lines; Rival income or a Roster cap is tuning, reported not tuned (DL-257 item 7).
-- **DL-262's Days:** the record corrected, not the rule: `checkConfig` calls overlapping Days tuning.
-- **`docs/quests/calibration.md`** is kept as it is: a dated report of content version 31, headed by
-  its run, a record DL-218 keeps rather than a live page.
-- **Rankings' "Ladder"** is qualified in CONTEXT.md, not made a term.
+- *Speed.* A three-year game of the default config, profiled, gives a mean `advance` of 1.03 to
+  1.08 ms at HEAD against 1.06 to 1.20 at `4ed5372` (two runs each, one seed): no new hot spot in
+  that game. The new per-Turn costs are a Rival's heal purchase, tried every afternoon its gear step
+  buys nothing (about 1.7% of the game's time, mostly `holdings` scanned once for the Guild and once
+  a Party), and the estimate's homecoming, run once more a return night for a Party taking its Guild's
+  Captain (its key, DL-287 item 5). Left as they are: the rise to 1.8 ms reads as the play's.
+- *Not changed, for the owner:* the policy and a Rival weigh a Turn's Parties before the Captain they
+  name that Turn (as gear equipped that Turn); changing it would move play.
+- *Style left:* the page's `captaincyOf` branch for no post, which cannot be reached; the policy's
+  effect list not checked for completeness by the compiler; the hidden ", Captain"'s space; a lone
+  Healer's relief sentence; a rest band of `fresh` beginning a recovery that never ends.
 
-**Consequences.** No play, content or config change: the engine's edits are comments, and the
-harness's are its reports' words and a counter the policy never moves, so no sweep. A drafted
-Encounter tuned in place keeps its newline; a ladder that would fail "Finish" fails `config set`.
+**Consequences.** No rule, setting or content changed: config 30, content 45, schema 11. Play cannot
+move; the report's recovery lines gain the row of those gone. The player reads the lock's new
+sentence on the Hero's page and in the CLI.
 
-**Evidence.** The commit `v1.2.0-S13 (DL-270)`. Tests first, 14 red then green: `web/src/content.test.ts`
-1, `calibrate.test.ts` 2, `quests-doctor.test.ts` 1, `quests.test.ts` 3, `config-kind.test.ts` 1,
-`settings.test.ts` 1, `targets.test.ts` 1, `quest-review.test.ts` 1, `counters.test.ts` 1,
-`sweep.test.ts` 1. The review: the session's scratchpad, `s13-review.md`. The epic's S13 Status.
-Verified 2026-10-11 at 6154cf3: each fix re-derived (the built script's changelog empty; `playedBeats`
-the engine's `beatsDrawn` through `tiersOf`; the S2 gate's `transfersBack` 24, all between Rivals,
-so unchanged; R1's figures as its reports give them; the corrections facts); 27 mutations, 20 red,
-6 killed by tests added (an untuned file rewritten, a sound ladder refused, the by-year words, an
-unescaped name, the 20- and 25-year slice words), 1 equivalent; the flaky test, `release.test.ts`'s
-git repositories, 4.3 to 4.6 s of a 5 s default, timing out under load, given 30 s.
+**Evidence.** The commit `v1.2.1-S12 (DL-291)`; its message has the findings, the checks' counts and
+the doctors' readings. The e2e specs whose sentences changed were not run (no build, a machine short
+of memory); S12's close runs them.
 
-## DL-271 — v1.2.0-S14 built: the Board's Tiers unlocked by each Guild's best four, each Tier's `unlockLevel` and `unlockHeroes` in place of `levelsPerTier`; config version 21
+## DL-292 — v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c)
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answer of 2026-10-11 (b, the Board only); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner, answering Q22 on 2026-10-12:
+"q 22 c. document all outcomes from 1.2.1 against 1.2.0 and 1.1.8/9 in a table in an md file for
+tracking later", option (c) being "Stop S11. Record the finding and plan an economy release next, with
+v1.2.1 held unreleased until then."; the record and S12's part without S11 by the agent, marked below
 
-**Context.** DL-257 item 3 and DL-262 drew a Quest's Tier around 1 + ⌊the world's mean Level ÷
-`levelsPerTier`⌋, the Tiers above the centre weighed as the Tiers below. The owner: "lower tier story
-should still be offered through the game, the higher tiers are unlocked based on average level of top
-4 heroes per guild"; offered a per-Guild gate (a), the Board only (b) or per-Guild hidden cards (c),
-b.
+**Context.** S11 was to tune Fatigue's settings to DL-290's bands once the owner approved them (DL-280
+item 9). Its first full `gate`, alone at `3170082` with the settings as built (config 30, content 45,
+schema 11), `v1.2.1-s11-baseline-2026-10-12` (fingerprint `027d238a…`), found the economy broken: the
+player bankrupt in 50 of 50 games, at a mean 9.45 years (v1.2.0: none), so no game reached 20 years and
+the Gate's save line could not be measured; the Rivals folding 10.94 times a game (2.18), failing 22.3%
+of their Quests (5.6%) and recruiting 2.56 Heroes a game (85.6); the player taking 139.9 Quests a
+Guild-year (189.4), its rewards less Upkeep 1,533 a Guild-year (12,797), no longer covering Upkeep. A
+trial with `fatigueFallByQuarters` [10,12,14,16] (shipped [5,6,7,8]),
+`v1.2.1-s11-trial-fall2x-2026-10-12` (`45da60b7…`), left the player bankrupt in 62% of games and the
+Rivals folding 40.58 times a game. A second trial, `fatigueScaling` 0 with the doubled fall, was stopped
+by the system for low memory and not rerun. The quick runs had shown the Rivals recruiting nothing
+since S4 (DL-290), but a 2-year run cannot show a Bankruptcy in year 9.
 
 **Decision.**
 
-1. **The unlock** (`engine/src/tiers.ts`). A Guild's best four (`bestFourLevel`) is the mean Level of
-   its `unlockHeroes` best Heroes on its Roster, away or injured counted, the sum divided by
-   `unlockHeroes` whatever the Roster holds, a missing Hero at Level 0, so one strong Hero unlocks
-   nothing alone. It unlocks the highest Tier whose `unlockLevel` that reaches (`unlockedTier`).
-2. **The Board's top Tier** (`boardTopTier`): the highest any Guild in play has unlocked, the player's
-   and the Rivals' alike; Tier 1 with none. Read once a refresh (`fillBoard`, `QuestOptions.topTier`).
-3. **The draw.** A Tier above the top weighs 0; one at or below it `tierDrawWeights` at its distance
-   below the top, the last held (`tierWeights`), so the lower Tiers stay on offer. The template is
-   drawn among the Patron's open at the top (`templatesOpenAt`); where none is, among all of them, as
-   before, each at its lowest Tier. Three `board` draws a Quest, as before. No per-Guild gate; the
-   Fame minimum (DL-264) stands.
-4. **Settings,** config version 21: each `questTiers` row's `unlockLevel`, at 0, 3, 6, 9 and 12, the
-   thresholds `levelsPerTier` 3 gave, whole, Tier 1's 0, none below the Tier's beneath;
-   `unlockHeroes` 4, whole, 1 or more; `levelsPerTier` gone. `tierDrawWeights` keeps 1, 0.5, 0.2,
-   each now above 0. No template overrides `unlockLevel` (`TierOverride`, `tierOverrideFields`).
-5. **The report:** `tierUnlocks`, the Board's top Tier and each side's best four and unlocked Tier as
-   each year begins.
-6. **Words:** CONTEXT.md's Tier, R21, the management design, `plan.md` §3, `config.md`, the editor's
-   README, `quest-draft`. No player's text named the mean Level.
+1. **S11 is not built** (Q22 c). No setting changes; DL-290 item 5's bands stay proposed, never
+   approved, and are not in `harness/gate.json`.
+2. **`v1.2.1` is held unreleased** on `v1.2.1-dev` until an economy release, planned next (`plan.md`
+   §3), restores the player's solvency, the Rivals' failed Quests, recruiting and folds, and games that
+   reach 20 years so that the save is measured there.
+   *Superseded in part by DL-293 items 1 and 2, 2026-10-12: `v1.2.1` held unreleased until an economy release planned next; now it is released as is and the economy pass deferred. The record: [superseded/DL-292.md](decisions/archive/superseded/DL-292.md).*
+3. **The outcomes are kept for tracking** in
+   [v1.2.1-outcomes.md](planning/epics/v1.2.1-outcomes.md) (`e45373a`): v1.2.1 at S10 and the trial
+   beside the closing Gates of v1.2.0, v1.1.9 and v1.1.8. A later release adds its column; the file is
+   archived with the epic.
+4. **S12 without S11** (the agent, on the epic's S12). The epic is brought up to date, its Gate's
+   unmet lines noted under it, and every check that needs no sweep run. `hurtCheckFactor`'s 0.6 is the
+   design's value (DL-280 item 4; the config version 25), and `moraleCheckFactor` is removed (DL-283
+   item 2; the config version 23): #51's form-factor item (its item 3) is met, and the issue is ready
+   to close on the owner's word. It is not touched here.
+5. **Not run:** the full `gate`, the estimate's limits, the engine's twenty-year boxes, the boxes kept
+   apart and the speed run. The machine is short of memory, and the game is known broken, so they would
+   measure nothing the outcomes do not; they run at the close after the economy release, as does the
+   owner's playtest.
+   *Changed 2026-10-12 on the owner's word ("run Gate to record results but don't block release"):
+   the full `gate` was run alone at `10f2ffb`, report `v1.2.1-close-gate-2026-10-12`, fingerprint
+   `027d238a…`, the same as the baseline's. Seven of its eight lines pass; the save after 20 years
+   fails, no game reaching it (50 of 50 bankrupt, mean 9.45 years; Rival folds 10.94 a game). The
+   result is recorded and does not block the release.*
 
 *Judgement calls, for the owner to see.*
-- **The fallback, as designed,** offers at the top Tier 1 the Scholars' vault at Tier 4, Deadly, and
-  the Crown's fort at 3: 108 and 120 offers in year 1 of the quick run, the Rivals taking 31 at Tier
-  4, no Death. A narrower one, the templates whose lowest Tier is the nearest above the top, was built
-  and run (no Tier above 2 offered) but moved 9 web tests' seed fixtures; set back, the owner's to
-  choose. S11's batch starts the vault at Tier 3, not Deadly.
-- **No glossary term:** Tier's entry says "the mean Level of its four best Heroes".
-- **Every draw weight above 0**, not only the first, so the rule, not the defaults, keeps the lower
-  Tiers offered. `config-check.test.ts`'s cases changed with it.
-- **DL-262 items 1 and 3 superseded in part too:** they built DL-257 item 3's centre.
-- **Pins moved by the Tier draw,** no default: `quests.test.ts`'s `board-a` Board (its 6th Quest
-  Tier 3, difficulty 56 → Tier 2, 38; at Turn 90 quest-000061 Tier 5, 91 → 4, 73, 62 the restless
-  dead at 3 → the tithe at 1, 64 the beast at 3 → the sickness at 1; the stream as it was);
-  `quests-conclude`'s fingerprints bcbd90c0…, d56833fb…, 209f07bd… → 4aa6fab2…, d59db236…,
-  88664527…; `resolve`'s 8d9793bc… → d1d94ff7…;
-  `policy.test.ts`'s `likeliestLowest` based at the Board's hardest difficulty, its first Quest now a
-  Tier 1 of 21 that the player's margin makes certain beside the rest. Tests whose premise is every
-  Tier open unlock them (`levelled`). No test pinned a default this story changed.
+- *The economy release has no number:* `plan.md` puts it first in the short term, before `v1.2.2`; its
+  plan says whether `v1.2.1` ships with it or before it.
+- *DL-290 is left as it is:* its bands were proposals and remain so. S11's story is kept in the epic,
+  marked stopped, since the tuning it names still waits on the economy.
+- *The Gate at `3170082`* met its correctness lines (refusals, stopped and unfinished games 0, round
+  trips 50 of 50, the replay identical) and the copy's share (0.4743, at most 0.4875), not the save's.
 
-**Consequences.** DL-257 item 3 and DL-262 items 1 and 3 are superseded in part. In the quick run no
-Tier above 2 is offered after year 1: the best fours reach 4.13 to 5.00 by year 2, Tier 3's 6 not
-yet, where S8's spread drew Tier 3 at half the centre's weight. Tuning `unlockLevel` is DL-257 item
-11's; S11's wider Tiers open more templates at Tier 1.
+**Consequences.** `v1.2.1-dev` holds S1 to S10, S9's order on Q21 and S12's review, and is not
+released. Fatigue's tuning waits for an economy that a Guild can live in; the economy release starts
+from the baseline's figures. The S11 reports stay untracked, the outcomes file their record.
 
-**Evidence.** The commit `v1.2.0-S14 (DL-271)`. `neutral v1.2.0-s14-quick` (4 × 2,
-`harness/reports/v1.2.0-s14-quick-2026-10-11`): refusals 0, invalid 0, the replay identical,
-`e8fc5184…`. `compare` with S8's quick (`62fab24b…`), 388 counters moved of 623: offered by Tier
-18.1, 39.9, 29.7, 10.5, 1.7% → 29.6, 67.8, 1.4, 1.2, 0; the player took 33.1, 52.0, 13.9, 0.9, 0.1% →
-40.1, 59.6, 0.3, 0, 0; the Rivals 10.0, 49.4, 32.9, 7.2, 0.5% → 19.4, 79.1, 0.8, 0.7, 0. The top Tier
-1, 2, 2 at year-starts 0 to 2 in every game; best four at year 1, the player and ambitious, miserly,
-reckless, steady, 4.00, 4.00, 3.13, 3.75, 3.75, at year 2 5.00, 4.94, 4.13, 4.75, 4.94. Quests a
-Guild-year 219.75 → 267.38 the player's, the Rivals' 112.63, 119.00, 61.38, 111.63 → 147.88, 142.63,
-110.88, 145.13; the mean Party 2.07 → 2.02; Deaths 0 → 0 and the Rivals' 2 → 0; Bankruptcies 0 and 0.
-The epic's S14 boxes.
-Verified 2026-10-11 at bd06abe: the rules and the report re-derived; the calibration drew each template at its lowest Tier only, its world's top Tier 1, so it now draws with every Tier unlocked; tests added where a mutation survived (the Board's refresh reading the top, an `unlockLevel` override in content, the counter's totals and a side's two Guilds, a Tier past the ladder); the web's "game it started from" is the History shared by ADR-0008, the world untouched.
+**Evidence.** The reports `v1.2.1-s11-baseline-2026-10-12` (fingerprint `027d238a8ca957bf…`) and
+`v1.2.1-s11-trial-fall2x-2026-10-12` (`45da60b775cc6ef5…`), untracked; the outcomes file (`e45373a`);
+the epic's S11 and S12 Status lines, its Gate's note and §6's Q22; `plan.md` §3. The commits
+`v1.2.1-S11 (DL-292)` and `v1.2.1-S12 (DL-292)`, whose messages carry the checks' counts and the
+doctors' readings.
 
-## DL-272 — v1.2.0-S11 built: the content written, twelve Quest templates over three Tiers or more, their Beats' lines and pools; content 40
+## DL-293 — v1.2.1: the owner's word to release, as is; the economy pass deferred
 
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257; the batch "b"; the tests "b"); the agent's build
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner
 
-**Context.** S11 writes the content the Tier engine plays: every template at least three consecutive
-Tiers (Q25 c), its Beats' lines and pools in the order a lower Tier plays them. Sonnet drafted the
-twelve through `quest-draft`, Opus reviewed them; 43 pending edits. The owner, on the batch's one
-question (Tier 1 thin): "b", Guard the caravan and Recover the strongbox widened down to Tier 1. The
-first "Finish" failed 21 tests that read the shipped templates and put the files back; asked, the
-owner answered "b": make them independent of the shipped content, then Finish again.
+**Context.** S1–S10 are built and verified; S11's tuning was skipped (Q22 c) and S12 closed, its
+full Gate run and recorded, not blocking (DL-292): seven of eight lines pass, the save after 20 years
+unmeasured, every game of the player's bankrupt before it. DL-292 held the release for an economy
+release next.
 
 **Decision.**
 
-1. **The batch**, through the editor only: each template's `tierMin`/`tierMax`, Beats (lines, pools,
-   order) and the four Finale lines. No new Encounter, no override, no other field. Tiers before →
-   after: A quiet word 1–2 → 1–3; Escort the tithe 1 → 1–3; The sickness at the mill 1 → 1–4; Clear
-   the barrow 2–3 → 2–4; Guard the caravan 2–3 → 1–4; Recover the strongbox 2–3 → 1–5; Survey the old
-   workings 2–3 → 2–5; The beast of the fells 2–4 → 2–5; Break the sealed vault 4–5 → 3–5; Hold the
-   border fort, Lay the restless dead, The counting-house job 3–4 → 3–5. Templates a Tier: 5, 8, 12,
-   10, 7 (were 3, 6, 8, 5, 1). Every Beat played at its template's top Tier; Tiers 1–3 never Deadly.
-2. **The tests made independent** (the owner's "b"), each still catching what it caught:
-   - content: `barrow` (`content.test-support.ts`) plants the barrow's Tiers and Beats (2 to 3, three
-     Beats by kind, no Finale or override); `encounters.test.ts` plants its own Encounters for tags and
-     a Finale, and two templates whose Beat draws only a Finale, in place of the arcane pools;
-   - editor: `plantQuests` (`test-support.ts`) plants the six templates the commands' tests read;
-     the doctor's test plants an Encounter no pool names;
-   - web: `firstSeedWhere` and `withPartyHomeInALaterStep` (`game.test-support.ts`) choose a seed by a
-     stated condition, as the e2e's Board does: a Party home partway through a later step (the
-     reducer's and the page's steps), one home injured (the report), a Party of three and one at home
-     (`quest-return`), Heroes injured and away (`availability`); the Roster's filter fixture injures
-     the first at home and makes them a Warrior. Turns, Days and the History counted from the game;
-   - e2e: `board.spec.ts`'s game carries rules opening every Tier from Level 0, since no first Board
-     offers a Deadly Tier now (the fallback's lowest Tiers are 3 at most).
-3. **"Finish"** wrote the twelve files, content 39 → 40, its `npm test` passing.
+1. **Release v1.2.1 as is** (the owner: "push local commits and release"), by DL-124: `v1.2.1-dev`
+   pushed, `v1.2-release` fast-forwarded to it and pushed, CI's pull request to `main` merged by the
+   owner. This supersedes in part DL-292's hold.
+2. **The economy pass deferred** (the owner: "defer economic pass"): it leaves `plan.md` §3's short
+   term for its Alongside list, its place decided as each release closes; `v1.2.2` is next.
 
-*Judgement calls, for the owner to see.*
-- **Open points the owner saw, left:** the Loot gap (eight templates with no Loot table offer Tier 3
-  or higher); nine Beats drawing one Encounter (The trapped passage alone makes Clear the barrow's
-  Tier 4 and Survey's 4–5 Deadly); no beast Encounter.
-- **The other web tests the first Finish failed** (`quest-return` 3, the Roster's filter, the
-  report's Injury) passed on S14's Board, but rested on the same content; made independent too.
+**Consequences.** The released game's Guilds go bankrupt within about ten years under the automatic
+policy; the page's players meet Fatigue and the Captain on an economy not yet tuned to them. The
+owner's playtest follows the economy pass. #51's form-factor item waits on the owner's word.
 
-**Consequences.** The first Board offers no Deadly Quest: in two years no Tier above 3 is offered (S14's
-fallback offered the vault at Tier 4, now 3). Tier 3 rises a little, Tier 2 falls; Deaths 0, as at S14.
-The bundle is 845,686 bytes of 850,000 (840,728 before).
-
-**Evidence.** The commits `v1.2.0-S11 (DL-272)`: the tests (`ef1313b`), each red under its mutation
-and restored; the content. `neutral v1.2.0-s11-quick` (4 × 2, `harness/reports/v1.2.0-s11-quick-2026-10-11`,
-`eb2a646d…`): refusals 0, the replay identical. `compare` with S14's quick (`e8fc5184…`), 329 counters
-moved: offered by Tier 29.6, 67.8, 1.4, 1.2, 0 → 30.4, 66.7, 2.9, 0, 0%; the player took 40.1, 59.6,
-0.3, 0 → 40.6, 57.9, 1.5, 0; the Rivals 19.4, 79.1, 0.8, 0.7 → 22.0, 76.2, 1.8, 0. Quests a Guild-year
-267.38 → 259.88 the player's; the Rivals' 147.88, 142.63, 110.88, 145.13 → 148.50, 142.63, 113.25,
-151.38. Mean Party 2.02 → 2.03; Deaths 0 and 0; Bankruptcies and folds 0. `compare` with S2's gate too
-(`5dbfdaf4…`, 20 years, not like for like). The epic's S11 boxes.
-Verified 2026-10-11 at 3aa3235: the twelve templates' Tiers, every Beat's line, pool, draws and place and the four Finale lines are the batch the owner approved with DL-273's two lines, no other field changed, content 41's changelog as the editor writes it; every template three Tiers or more (7, 8, 12, 10, 7 a Tier), both doctors clean, the lines by `ui-text.md`; the tests made independent held to their mutations; a likely next batch (four Encounters, a Tier 1 template, two Loot tables, a pool widened) finished in a scratch copy failed eight more tests resting on the shipped content, each now independent and red under its mutation (a combat pool by a tag no combat Encounter carries, every lore Encounter taken out, Endurance's grid on three Encounters, the editor's draws and doctor counts read from its copy, a named pool too small, a Hero's Milestones planted), with the CLI's two sending a Party on Guard the caravan by name (`openToTwo`); on that batch the suite then failed only on timeouts.
-
-## DL-273 — v1.2.0: Survey the old workings and Clear the barrow offered from Tier 1, on the owner's answers (c, a); content 41
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers of 2026-10-11 ("c"; the batch "a"); the agent's build
-
-**Context.** DL-271's fallback draws a Patron with no template open at the Board's top Tier among all
-its templates, each at its lowest Tier. After S11 (DL-272) the Scholars and the Crown had none at Tier
-1, so while the top Tier was 1 they offered the vault and the fort at Tier 3, the survey and the barrow
-at 2. Asked, the owner chose "c": keep the fallback, and give the Scholars and the Crown a Tier 1
-template. Sonnet drafted it through `quest-draft`, 4 pending edits; the owner, on the batch: "a",
-approve as is, Finish.
-
-**Decision.**
-
-1. **The batch**, through the editor only: Survey the old workings (Scholars) Tiers 2–5 → 1–5, its
-   second Beat "An old ward still guards the way into the workings." → "An old ward guards the way into
-   the workings, and is read and passed."; Clear the barrow (Crown) 2–4 → 1–4, its second Beat "The
-   barrow's mouth is entered quietly, past old traps." → "…, past old traps, and the way within is
-   marked out." No pool, override or other field; Tier 1 is the ladder's, 2 Beats, neither Deadly.
-   Templates a Tier: 7, 8, 12, 10, 7 (Tier 1 had 5). Every Patron's sphere now has a Tier 1 template, so the
-   fallback draws nothing while that holds; DL-271's rule stands.
-2. **The tests made independent** (DL-272's "b"): the first "Finish" failed 11 tests that rested on a
-   first Board holding a Tier 2 or 3 Quest, or on a seed. Each now chooses its game by a stated
-   condition or plants it, its name and intent kept:
-   - web: `startedWithEveryTier` (`game.test-support.ts`), a new game under rules opening every Tier,
-     as the e2e's Board (DL-272), for a Party home in a later step (reducer, app), a Party of three
-     with one at home (`quest-return`) and one at home (the report's Death line); the Board's test
-     reads its Quest by the heading's id, two Quests of a template sharing a name; the rebase test
-     takes a world the two rules staff differently by the engine's Best Party; the Hero page a world
-     with a Hero of two Milestones or more, that Hero;
-   - harness: `likeliestLowest` based at the first band top of the ladder the player's margin leaves
-     uncertain, not the Board's hardest; the sweep fixture's Tier 5 given the takings of a Tier the
-     game took; the estimate's Morale test, on the first sample with a Morale consequence before its
-     last Encounter, plants the Party's Morale at the steady floor and midway up the band, in place of
-     the seeds estimate-0011 and 0003.
-3. **"Finish"** wrote the two files, content 40 → 41, its `npm test` passing.
-
-*Judgement calls, for the owner to see.*
-- **One commit** for the tests and the content (S11 made two); each changed test file passes on
-  content 40 and on 41.
-- **Two mutations survive,** as they did before: a Party mate counted at home (the engine gives them
-  no `roster-death`) and a choice kept for a Quest gone (the page shows none).
-
-**Consequences.** Every first Board is Tier 1 (1,200 Quests of 200 new worlds, seven templates), and
-in two years no Tier 3 is offered: S11 offered 253 (2.9%), every one the fallback's, since the top Tier
-never passed 2. Tier 1's share of offers rises, its Days shorter, so more Quests a Guild-year; Deaths 0,
-as at S11. The bundle is 845,738 bytes of 850,000 (845,686 before).
-
-**Evidence.** The commit `v1.2.0 (DL-273)`. `neutral v1.2.0-s14c-quick` (4 × 2,
-`harness/reports/v1.2.0-s14c-quick-2026-10-11`, `bf261a18…`): refusals 0, the replay identical, the top
-Tier 1, 2, 2 at year-starts 0 to 2. `compare` with S11's quick (`eb2a646d…`), 314 counters moved:
-offered by Tier 30.4, 66.7, 2.9% → 46.4, 53.6, 0%; the player took 40.6, 57.9, 1.5 → 56.1, 43.9, 0; the
-Rivals 22.0, 76.2, 1.8 → 39.0, 61.0, 0. Quests a Guild-year 259.88 → 290.25 the player's; the Rivals'
-148.50, 142.63, 113.25, 151.38 → 164.63, 154.25, 125.00, 161.75. Mean Party 2.03 → 2.02; Deaths 0 and 0;
-Bankruptcies and folds 0. Mutations, each red then restored: Morale left out, a Morale consequence
-drawing a roll, no Hero's own Morale kept (estimate); reward before chance, a Quest staffed that cannot
-be (policy); Tier 5 left untaken (sweep); the steps going on after a stop (reducer, app); the away Hero's
-grief, one Hero's fall said "each" (quest-return, report); a Quest never expiring (Board); Milestones
-oldest first; a reading kept by world whatever its rules (rebase).
-Verified 2026-10-11 at 185f823: the two templates' Tiers and second lines are the batch approved, every Patron's sphere has a Tier 1 template, content 41; the quick run alone reproduces `bf261a18…`, `compare` moving no counter; the tests' rules mutated, each red (the policy's chance order, Morale's form, a mate's Regard, Milestones, a reading kept whatever its rules, red in `reading.test.ts`); of the two said to survive, a choice kept for a Quest gone is red in `party-choices.test.ts` (the Board shows no card for it), and a Party mate counted at home is an equivalent mutant, since `awayAt` leaves out every Hero of the returning Party, whose `quest.taken` comes before the return: no gap, no test added.
-
-## DL-274 — v1.2.0-S13: the close: the Gate line by line
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner's answers (DL-257, DL-263); the agent's run, as the delivery guide's close and `documentation.md` say
-
-**Context.** The close runs the epic's Gate at `4220f57`, every story built and verified and the
-review's findings fixed (DL-270). Each check and sweep ran alone, in turn, with
-`HEROESIM_WORKERS=8` (the `gate`'s setting; the other sweeps read none).
-
-**Decision.**
-
-1. **The checks:** lint and typecheck clean; `npm test` 6,299 passed, 4 skipped, none failed, but
-   for a timeout (below); `traits doctor` and `quests doctor` clean.
-2. **The full `gate`,** `v1.2.0-gate`, 1,550.9 s, `59d52e71…`: every `gate.json` line met. Refusals,
-   invalid (not validated after every advance), stopped, unfinished and round trips 0; the replay
-   `seed-0001` identical; the save gzipped a mean of 16.31 MiB (max 22.68) under 30; the copy's share
-   0.3882 (3.066 ms over 7.897 ms), at most 0.4875.
-3. **The estimate,** 200 × 20,000: no one falling 1.18 points, within 2, met; Morale in 4.84,
-   within 3, **not met**: estimate-0150's success, 59.40% estimated, 54.56% resolved, S3's sample
-   and figure (DL-263). Its limit and the probe are left for the owner (DL-263 item 1).
-4. **The boxes,** each passing: the twenty-year boxes 6 tests (4,138 s), the boxes kept apart 3, the
-   speed run 2.
-5. **The baseline moves** (`documentation.md`), v1.2.0 changing play: `gate.json`'s baseline is
-   `v1.2.0-gate`, its saves' 16.31 and 22.68 MiB, each line's source naming it; the copy line's anchor
-   stays 0.390 (DL-252); no limit changes. `v1.1.8-gate` leaves the tree (git at `4220f57`); the
-   harness README names the new one.
-6. **The Targets, reported, not tuned** (DL-257 item 7), measured against S2's `v1.2.0-s2-gate`:
-   9 of 17 inside (S2 10). Outside: the player's Bankruptcy 0.0% (5–15; 0.0); first by Fame 31.9%
-   (40–60; 91.2); Quests failed 1.1% (20–30; 6.8); strong 85.2% (≤ 50; 72.7); Deaths 0.24 a game
-   (3–8; 4.28); Wealth 36.57 months (6–12; 36.13); highest Level by year 20 11.04 (14–17; 11.58);
-   Transfers back 16.4% (< 15; 9.0). Inside: first by Wealth 42.2% (95.2); Rival folds 2.18 (2.74);
-   the mean Level at year 10 8.71 (8.34); the four Dispositions at the floor 4.8, 7.0, 0.8, 15.2%;
-   the two "none" Transfer lines 0.
-7. **The Quests.** A Guild-year, the player 189.4 (S2 403.4), a mean Party 2.04 (1.55), 7.18 Days away
-   (3.91); `ambitious`, `miserly`, `reckless`, `steady` 250.4, 163.2, 267.7, 166.3. Offered by Tier 1–5
-   12.3, 20.0, 40.9, 26.8, 0%; the player took 28.0, 32.4, 33.9, 5.8%, the Rivals 5.8, 16.5, 43.4,
-   34.3%. The Board's top Tier at year-starts 0, 1–2, 4–8, 11–20: 1, 2, 3, 4 (2.20 at 3, 3.90 at 10);
-   no Guild unlocked Tier 5. Best four (the player, then the four): year 10 8.98, 8.32, 7.99, 7.68,
-   7.97; year 20 11.01, 10.40, 8.67, 8.02, 9.18.
-8. **R1, the Rivals' Rosters** (DL-270), a mean by Disposition at year-starts 5, 10, 15, 20:
-   `ambitious` 15.8, 29.3, 33.7, 30.5; `miserly` 6.7, 10.7, 12.8, 13.0; `reckless` 31.3, 37.2, 37.3,
-   24.3; `steady` 9.1, 14.3, 16.3, 16.9 (S2 at year 10: 11.0, 5.4, 14.2, 6.2). Every Rival 23.0 at
-   year 10 (S2 7.7 over all year-starts, now 19.1); Wealth 104,149 a Rival at year 10.
-9. **Deaths and Bankruptcies.** The player 12 Deaths (0.24 a game; S2 214), the Rivals 383 (7.66;
-   S2 1,233), every one at Tier 4. The player's Bankruptcies 0 of 50; Rival folds 109, all
-   Bankruptcy (S2 137).
-
-*Judgement calls, for the owner to see.*
-- **The baseline moved with the estimate's Morale-in line failing:** the `gate` met every line it
-  checks, and neither of DL-263's answers (a wider limit, or a probe that accounts for Morale) moves
-  play. Set back if the owner reads the close otherwise.
-- **A timeout, not changed:** `web/src/content.test.ts`'s "fails the build on content the checks
-  refuse…" failed 2 of 4 full `npm test` runs at its 5 s default (5,017 and 5,037 ms; 214 ms alone),
-  the others passing; as DL-270's `release.test.ts`, a likely fix is a longer timeout, the owner's.
-- **S13's first box stays open:** the Morale-in limit is a line of the Gate.
-
-*Open for the owner:* the Morale-in limit (DL-263); R1's Rosters and the Rivals' Wealth (tuning,
-DL-257 item 7); Deaths 0.24 a game, Tier 4 the only Deadly Tier played and Tier 5 never unlocked
-(`unlockLevel` 12); the Targets outside their bands; the timeout; the playtest and the word.
-
-**Consequences.** Every line but the estimate's Morale-in is met; the release awaits the owner's
-answer on it, the playtest and the word (the delivery guide's step 3).
-
-**Evidence.** The commit `v1.2.0-S13 (DL-274)`; `harness/reports/v1.2.0-gate-2026-10-11.md` and its
-JSON, committed; the estimate's report `estimate-2026-10-11` (not committed). The epic's S13 Status.
-Then, the agent's housekeeping, not an owner's answer (this line corrected at its verification): `web/src/content.test.ts`'s "the content gate" given `{ timeout: 30_000 }`, as DL-270's `release.test.ts` (no assertion changed); the Targets' default baseline `v1.2.0-gate-2026-10-11`, the release's closing gate (`settings.ts`, `environment.md`, the harness README, the settings tests); the `neutral` run `v1.2.0-close-neutral-2026-10-11` (no `HEROESIM_WORKERS`, alone, 10 games of 20 years, 403.4 s, schema 9, config 21, content 41), fingerprint `036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e`, the next `--expect` reference, its report committed.
-Verified 2026-10-11 at 01d8bc1: each line re-derived from the reports, the estimate's local one (1.18, 4.84) too, the baseline's move and the neutral reference (its 10 seeds the gate's own); this Evidence's "owner's asking" and 404.9 s corrected; a test now holds `gate.json`'s baseline fingerprint and saves to its report (3 survivors killed).
-
-## DL-275 — v1.2.0: the owner's answer on the estimate's Morale-in limit: 5 points; Morale-aware estimating to the backlog
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner ("a"); the agent's record
-
-**Context.** The close's estimate run (DL-274 item 3) met the no-one-falls line (1.18 points, within
-2) and not the Morale-in line: estimate-0150's success, 59.40% estimated, 54.56% resolved, 4.84
-points against DL-173's 3, the figure since S3's key order (DL-263). DL-263 item 1 left the limit to
-the owner at the close. Offered: (a) widen the limit to 5 points; (b) make the game's estimate account
-for Morale, an engine change that moves play; (c) make the probe's sample order-independent and keep 3.
-
-**Decision.**
-
-1. **The Morale-in limit is 5 points** (the owner: "a"): `harness/gate.json`'s
-   `estimate.moraleInQuest.within` 0.05, its source and a note saying so. It still holds the Quest's
-   bands and success only, strictly below, each Encounter's gaps reported (DL-173). This supersedes
-   DL-173's 3 points in part: the note under its owner's answer and `superseded/DL-173.md`.
-2. **Morale-aware estimating goes to the backlog** (`plan.md` §3, Alongside): the estimate following
-   each Encounter's Morale into the form of the Encounters after it, so the limit can return to 3.
-3. **The estimate is not run again:** its figures are unchanged, only the line; 4.84 is within 5.
-
-*Judgement calls, for the owner to see.*
-- **The tests that pinned 3 points moved with the line** (the owner's word given): four tests of
-  `harness/src/estimate.test.ts` printed or planted around the limit (the report's "limit of 3
-  points", gaps of exactly and beyond it, 3.5 points' plant); each now reads 5, its fixture moved to
-  keep its meaning (beyond: 7 and 5.5 points; within: 4.9). No assertion was loosened.
-- **A fixed figure found and fixed, test first:** the report's Morale-in note said its rows count
-  gaps "beyond 3 points", written in, not read from the spec; it now prints the limit
-  (`estimateMoraleTolerance`), a new expectation red first.
-
-**Consequences.** Every line of the Gate is met at the close; S13 awaits the owner's playtest and
-word. A Morale-aware estimate would move play and the Rivals' choices, and with it the probe's line.
-
-**Evidence.** The commit `v1.2.0-S13 (DL-275)`; DL-274's estimate report `estimate-2026-10-11`
-(not committed). The epic's S13 first box and Status.
-Verified 2026-10-11 at 01d8bc1: the line, its source and note, the four moved tests (none loosened) and the note's printed limit re-derived, 5 mutations red; DL-173 item 2's 0.03 found superseded too, its note and record added.
-
-## DL-276 — v1.2.0: the owner's playtest: neither sentence said
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
-
-**Context.** The close (delivery.md, A release) asks for the owner's playtest of a few in-game years of
-the release's build, scored by which of the Guild Management Design's sentences the player finds
-themselves saying. v1.2.0 aimed at two (the epic's "Aims at", Q20 c): "He needs another year of
-development." and "I need to give him a chance." The build at 4f140e2 was played on the local page.
-
-**Decision.**
-
-1. **The playtest is done** (the owner: "playtest done"), and asked which of the two sentences were
-   said, from (a) both, (b) the first, (c) the second, (d) neither, the owner answered **"d": neither**.
-
-**Consequences.** The release's aim is not yet felt in play. The causes the close reported are open
-for the owner: no Guild unlocks Tier 5 in twenty years and the player's Deaths are 0.24 a game
-(DL-274), so a Hero sent too early is rarely punished; the Targets are reported, not tuned (DL-257
-item 11). The owner's word to release is a separate answer.
-
-**Evidence.** The epic's S13 box. DL-274's Gate and Targets.
-
-## DL-277 — v1.2.0: the owner's word to release, as is
-
-**Status:** Accepted · **Date:** 2026-10-11 · **Decided by:** the owner
-
-**Context.** Every story S1–S14 is built and verified and every Gate line met (DL-274, DL-275); the
-playtest said neither of the release's sentences (DL-276). Offered (a) release as is, the tuning
-left to `plan.md` §3; (b) hold and tune the Deadly Tiers first; (c) hold for something else.
-
-**Decision.**
-
-1. **Release v1.2.0 as is** (the owner: "a"), by DL-124: `v1.2.0-dev` pushed, `v1.2-release`
-   fast-forwarded to it and pushed, CI's pull request to `main` merged by the owner.
-
-**Consequences.** The structure ships untuned; the targets, the unlock Levels, the Death factor and
-the Rivals' Rosters are tuned in a later release (DL-257 item 11, `plan.md` §3).
-
-**Evidence.** The epic's S13 boxes.
+**Evidence.** `harness/reports/v1.2.1-close-gate-2026-10-12` (fingerprint `027d238a…`); the
+outcomes, `docs/planning/epics/v1.2.1-outcomes.md`; `plan.md` §3.

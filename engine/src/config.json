@@ -1,5 +1,5 @@
 {
-  "version": 21,
+  "version": 30,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -21,7 +21,16 @@
     "18 from v1.2.0-S4, which replaces `boardSize` with `boardSizeStart`, `boardGrowthPerYear` and `boardSizeMax`, at 6, 0 and 6 the Board of six it was, and adds `foundingFame`, at 0 the Fame every Guild was founded with (DL-257 item 4, #40, DL-261).",
     "19 from v1.2.0-S5, which adds the Tier ladder, `tiers`, with `levelsPerTier` and `tierDrawWeights` in a `questTiers` section, each Tier's reward and XP factors neutral a Party-Day against v1.1.9, and removes `lootDifficultyThreshold`, a Tier's `loot` in its place (DL-257 items 1 and 3, #22, DL-262).",
     "20 from v1.2.0-S7, which adds `deathFactor`, at 1, and makes each Tier's `deathScale` read: an Encounter's Death chance is times both, so Tiers 1 to 3 kill no one (DL-257 item 5, DL-265).",
-    "21 from v1.2.0-S14, which unlocks the Board's Tiers by each Guild's best four: it adds each Tier's `unlockLevel`, at 0, 3, 6, 9 and 12 the thresholds `levelsPerTier` 3 gave, and `unlockHeroes`, at 4, and removes `levelsPerTier`; `tierDrawWeights` now weighs a Tier by its distance below the Board's top Tier, the last held (DL-271)."
+    "21 from v1.2.0-S14, which unlocks the Board's Tiers by each Guild's best four: it adds each Tier's `unlockLevel`, at 0, 3, 6, 9 and 12 the thresholds `levelsPerTier` 3 gave, and `unlockHeroes`, at 4, and removes `levelsPerTier`; `tierDrawWeights` now weighs a Tier by its distance below the Board's top Tier, the last held (DL-271).",
+    "22 from v1.2.1-S2, which adds Fatigue in a `fatigue` section: `fatigueMax`, 100, the scale from 0; `fatigueBands`, fresh 0, weary 25, tired 50 and exhausted 75; `fatigueRiseByTier`, 4, 5, 6, 7 and 8 a night away by Tier; and `fatigueFallByQuarters`, 5, 6, 7 and 8 a night at home by quarters grade (DL-280 item 2, DL-282).",
+    "23 from v1.2.1-S3, which makes Morale's form a line, 1 + (m − `moraleBaseline`) ÷ (2 × (`moraleMax` − `moraleMin`)), and removes `moraleCheckFactor`, the band factors it replaces (DL-280 item 3, DL-283).",
+    "24 from v1.2.1-S4, which adds `fatigueScaling`, 0.4, FS in Fatigue's factors on a Hero's Stats and on their Injury and Death chances on a Quest, and makes `hurtCheckFactor` a factor by Stat area, the Physical Stats taking its gap whole and the others half (DL-280 items 2 and 4, DL-284).",
+    "25 from the hurt's gap taken whole by the Physical Stats and half by the rest, at the owner's 0.6 (DL-280 item 4, DL-284): hurtCheckFactor 0.93 to 0.6.",
+    "26 from the owner's Morale values (DL-280 item 3, DL-283 item 4; Q18): moraleBaseline 60 to 50, moraleBands {\"wretched\":0,\"low\":20,\"steady\":40,\"high\":75,\"elated\":90} to {\"wretched\":0,\"low\":11,\"steady\":35,\"high\":66,\"elated\":90}, moraleOnRosterDeath -10 to -20.",
+    "27 from v1.2.1-S5, which adds `healerHurtRelief`, 0.5, the share of a hurt Hero's gap a Healer in the Party relieves, and `healItemHurtRelief`, 0.5, the share a heal Item spent at their Injury relieves for the rest of the Quest, the two multiplying on the gap (DL-280 item 4, DL-285).",
+    "28 from v1.2.1-S6, which adds `playerRestBand`, tired, the Fatigue band at or past which the player's Best Party and the automatic policy leave a free Hero home, as a Disposition's `restBand` does a Rival's (DL-280 item 5, DL-286).",
+    "29 from v1.2.1-S7, which adds the Captain's settings, each effect scaled by the Captain's captaincy Stat: `captainFormFactor` 1.05, `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5, `captainChangeMoraleCost` -10 and `captainChangeLockDays` 30 (DL-280 item 6, Q12 a; DL-287).",
+    "30 from v1.2.1-S8, which adds `rivalHealItemStock`, 2, the heal Items of each definition a Rival keeps, at home and carried together, bought in its gear step after any wearable by its Disposition's `gearThreshold` and carried one of each on each dispatch (DL-280 item 7, Q16 b; DL-288)."
   ],
   "sections": {
     "world": {
@@ -32,6 +41,7 @@
       "rivalRosterMin": 4,
       "rivalRosterMax": 8,
       "rivalHireReserveUpkeeps": 3,
+      "rivalHealItemStock": 2,
       "rivalStartingWealthMin": 300,
       "rivalStartingWealthMax": 700,
       "patronCount": 12,
@@ -50,7 +60,7 @@
       "startingSkillsMin": 1,
       "startingSkillsMax": 2,
       "startingSkillRatingMax": 2,
-      "moraleBaseline": 60
+      "moraleBaseline": 50
     },
     "guildmasters": {
       "guildmasterStartingAgeMin": 21,
@@ -106,14 +116,9 @@
       "bandBySuccessShare": { "successAbove": 0.5, "strongAtLeast": 1 },
       "checkDegrees": { "triumph": 1.35, "success": 1, "setback": 0.75 },
       "strongTriumphShare": 0.6,
-      "moraleCheckFactor": {
-        "wretched": 0.93,
-        "low": 0.97,
-        "steady": 1,
-        "high": 1.03,
-        "elated": 1.06
-      },
-      "hurtCheckFactor": 0.93,
+      "hurtCheckFactor": 0.6,
+      "healerHurtRelief": 0.5,
+      "healItemHurtRelief": 0.5,
       "exposureRange": 2,
       "guardRange": 0.5,
       "chanceBands": { "unlikely": 0.1, "even": 0.35, "likely": 0.65, "near-certain": 0.9 },
@@ -123,14 +128,29 @@
       "moraleMin": 0,
       "moraleMax": 100,
       "moraleDrift": 1,
-      "moraleBands": { "wretched": 0, "low": 20, "steady": 40, "high": 75, "elated": 90 },
-      "moraleOnRosterDeath": -10,
+      "moraleBands": { "wretched": 0, "low": 11, "steady": 35, "high": 66, "elated": 90 },
+      "moraleOnRosterDeath": -20,
       "moraleOnStrongSuccess": 5,
       "heroRetirementAge": 45,
       "heroRetirementChancePerYear": 0.02,
       "heroRetirementInjuredMultiplier": 2,
       "infirmaryHealFactor": [1, 0.5, 0.3333333333333333, 0.25],
       "quartersMoraleBonus": 5
+    },
+    "fatigue": {
+      "fatigueMax": 100,
+      "fatigueBands": { "fresh": 0, "weary": 25, "tired": 50, "exhausted": 75 },
+      "fatigueRiseByTier": [4, 5, 6, 7, 8],
+      "fatigueFallByQuarters": [5, 6, 7, 8],
+      "fatigueScaling": 0.4,
+      "playerRestBand": "tired"
+    },
+    "captain": {
+      "captainFormFactor": 1.05,
+      "captainHomecomingMorale": 5,
+      "captainHomeBaselineBonus": 5,
+      "captainChangeMoraleCost": -10,
+      "captainChangeLockDays": 30
     },
     "ageing": {
       "potentialHintBands": { "modest": 0, "promising": 6, "exceptional": 10 },

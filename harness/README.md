@@ -75,7 +75,8 @@ previous one leaves the tree (`docs/agents/documentation.md`). Those v1.1.8's cl
 v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). Those v1.1.9's record
 removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` reference among them, are
 read from git at `fb55a8c`. The baseline v1.2.0's close replaced, `v1.1.8-gate`, is read from git at
-`4220f57` (DL-274). The 84 committed before 2026-10-08 that nothing live cited are
+`4220f57` (DL-274). Those v1.2.0's record removed, its stories' quick runs and `neutral` runs, S2's
+full `gate` and v1.1.9's `neutral` reference among them, are read from git at `240de81`. The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
 
@@ -103,6 +104,31 @@ counters, which the module report states apart.
 The play loop (`src/play.ts`) tells its observers each moment of a game: the world created, each Turn
 before the policy chooses, each action applied, each `advance`, each year's end, and the game's end.
 The replay plays with none.
+
+### Fatigue's lines
+
+The report's `## Fatigue and the Captain` section (DL-290) states, the player's Guild and the Rivals apart, the lines the
+Gate's "Fatigue felt" reads. Each is read from the History or the World State and draws nothing, so play is as it was without them.
+
+- **Quests sent with a Hero tired or worse** (`dispatchFatigue`): the share of Parties sent in which any Hero's Fatigue, from the
+  Party's `fatigueAtDispatch`, is in the `tired` band or the `exhausted`, read by `fatigueBand`. Parties are met in `advance`'s
+  `after` world the Turn they set out; the mean Fatigue at dispatch is over the Heroes sent.
+- **Free Heroes a rest band kept home** (`restKept`): once a Day, in the world each Guild in play sends its Parties from, its free
+  Heroes (`availableHeroes`) and the ones `partyPool` leaves out; the share of free Heroes, and of Guild-Days with at least one kept.
+  The player's is read on a night's Turn, before the policy sends the Heroes the night brought home and rested (a morning would
+  read its pool after that sending, the rested gone and the kept left); a Rival's on a morning's, which its afternoon reads.
+- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken`, `quest.resolved`, `hero.retired` and
+  `hero.left-guild`. A recovery begins when a Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or
+  past fresh, and ends when a night takes them below it; it is cut short if they are sent again first, and ends as gone if they
+  leave every Roster first, retired or at a fold, where no night rests them (DL-291). The mean is over the recoveries that ended,
+  in whole Days from the return (both ends fall on a night); the report also gives how many were cut short, after how many Days,
+  how many were gone, and how many were still running when the game stopped.
+  The mean to fresh is biased low by the cut-short ones, which a rest band below fresh makes most of them.
+- **Quests a Captain led** (`dispatchFatigue`): the share of Parties sent that included the Guild's Captain as the Turn left it.
+- **Hurt relief used** (`hurtRelief`): each `hero.injured` on a Quest, as relieved by a Healer of the Party (a Class content marks
+  `relievesHurt`, the hurt Hero not their own) who had not died by the Encounter it was taken at, with an Encounter after it, since
+  the engine eases the hurt from the next Encounter on; by a heal Item spent on the Hero at that Encounter, which shortens the Injury
+  even at the last; by both; or by neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
 
 ## The Gate
 

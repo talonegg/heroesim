@@ -8,10 +8,11 @@
 // `difficultyFactor` times the Quest's difficulty, gives the Check's Degree (v1.1.4-S2, degree.ts):
 // a Success or better when it reaches the target.
 //
-// The score is read with each Hero's form (v1.1.4-S3, form.ts, query.ts): the Stat values a Hero adds
-// into it are times their form, and nothing else in the capability is. A raw Check is read without
-// form (DL-152). When the same roll with every form at 1 would have fallen on the other side of the
-// Success line, the Check says so (`formDecided`), for the Encounter's (resolve.ts).
+// The score is read with each Hero's form (form.ts, query.ts, DL-284): the Stat values a Hero adds
+// into it are their formed Stats, and nothing else in the capability is formed. A raw Check is read
+// without form (DL-152). When the same roll of the raw Stats, every Hero as they are, would have
+// fallen on the other side of the Success line, the Check says so (`formDecided`), for the
+// Encounter's (resolve.ts).
 //
 // Only the Party's own qualities are read here. Rules about the Guild's leader and the Guild's
 // dealings live in Guild-side phases and actions, never in this file nor in query.ts (M4's third
@@ -24,7 +25,7 @@ import { streamOf } from '../generators/draw.js';
 import { next } from '../rng.js';
 import { traitEncounterBonus, type BonusTarget } from '../traits.js';
 import { degreeOf, succeeded } from './degree.js';
-import { evaluate, type QueryParty } from './query.js';
+import { evaluate, type QueryMember, type QueryParty } from './query.js';
 import { synergyBonus } from './synergy.js';
 import { teamwork } from './teamwork.js';
 
@@ -34,7 +35,7 @@ export type CheckDeps = Pick<EngineDeps, 'config' | 'content'>;
 /** Whether an Encounter's Check succeeded: at a Success or a Triumph (v1.1.4-S2, `succeeded`). */
 export type EncounterOutcome = 'success' | 'failure';
 
-/** Which way form moved a Check, or an Encounter, across the Success line from where every form at 1 would have left it (v1.1.4-S3). */
+/** Which way form moved a Check, or an Encounter, across the Success line from where the raw Stats would have left it (DL-284). */
 export type FormDecided = 'raised' | 'lowered';
 
 /** A Check, as the Quest Engine records it. */
@@ -52,8 +53,8 @@ export interface CheckResult {
   /** `success` at a Success or a Triumph, else `failure`. */
   outcome: EncounterOutcome;
   /**
-   * Set when, from the same roll, every form at 1 would have fallen on the other side of the Success
-   * line (v1.1.4-S3, the verification): `raised` when form made it a Success or better from below,
+   * Set when, from the same roll, the raw Stats, every Hero as they are, would have fallen on the other
+   * side of the Success line (DL-284): `raised` when form made it a Success or better from below,
    * `lowered` the reverse. Absent otherwise, a Failure made a Setback or a Success a Triumph among them.
    */
   formDecided?: FormDecided;
@@ -61,7 +62,7 @@ export interface CheckResult {
 
 /**
  * `party`'s capability on `encounterCheck`, a Check of `encounter` (M4-S2, v1.1.4-S1): the Check's
- * score (`evaluate`, query.ts), read with each Hero's form unless `withForm` is false (v1.1.4-S3); plus, for each of its Skills, `skillBonusPerRating` times the best
+ * score (`evaluate`, query.ts), read with each Hero's formed Stats unless `withForm` is false (DL-284); plus, for each of its Skills, `skillBonusPerRating` times the best
  * rating any member holds of it, 0 when none does; plus the Synergy bonus of the Encounter's kind;
  * all times the teamwork scalar. A Stat, or a Skill, that content no longer defines counts for
  * nothing (data-model rule 5). No members, no capability. A member's effective values are the one
@@ -107,9 +108,10 @@ export function targetOf(encounterCheck: Pick<EncounterCheck, 'flat' | 'difficul
  * the target (v1.1.4-S2, `degreeOf`), a Success or better when the roll is at least the target.
  * Always one draw, whatever the Party, at a variance of 0 too. `bonus` is added to
  * the capability before the roll: what the Party carries adds to it (a consumable's flat bonus,
- * M5-S3, consumables.ts), 0 when nothing does, and nothing to a raw Check. When any member's form is
- * not 1, the capability with every form at 1 is rolled by the same draw too, and `formDecided` set
- * when the two fall on either side of the Success line (v1.1.4-S3). Changes nothing but the stream; throws on a world without it.
+ * M5-S3, consumables.ts), 0 when nothing does, and nothing to a raw Check. When any member's formed
+ * Stats are not their raw ones, the capability of the raw Stats is rolled by the same draw too, and
+ * `formDecided` set when the two fall on either side of the Success line (DL-284). Changes nothing but
+ * the stream; throws on a world without it.
  */
 export function check(
   party: QueryParty,
@@ -131,11 +133,17 @@ export function check(
   const degree = degreeOf(roll, target, deps.config);
   const margin = roll - deps.config.checkDegrees.success * target;
   const result: CheckResult = { capability: capable, roll, target, margin, degree, outcome: succeeded(degree) ? 'success' : 'failure' };
-  // v1.1.4-S3: the same roll with every form at 1, when form could have moved it.
-  if (!raw && party.members.some((member) => member.form !== 1)) {
+  // The same roll of the raw Stats, when form could have moved it (DL-284).
+  if (!raw && party.members.some(isFormed)) {
     const asTheyAre = capability(party, encounter, encounterCheck, world, deps, false) + bonus;
     const without = degreeOf(Math.max(0, asTheyAre * spread), target, deps.config);
     if (succeeded(without) !== succeeded(degree)) result.formDecided = succeeded(degree) ? 'raised' : 'lowered';
   }
   return result;
+}
+
+/** Whether any of `member`'s formed Stats is not their raw one: whether form could move a Check of theirs. */
+function isFormed(member: QueryMember): boolean {
+  for (const key in member.stats) if (member.formed[key] !== member.stats[key]) return true;
+  return false;
 }

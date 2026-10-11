@@ -62,6 +62,18 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(shut.party.heroIds.map((id) => shut.world.heroes[id])).toEqual(open.party.heroIds.map((id) => open.world.heroes[id]));
   });
 
+  // DL-284's verification: each Hero sets out at a Fatigue drawn from the sample's own Fatigue stream,
+  // so the probe meets Fatigue's factors across the scale; the Party records it at dispatch.
+  test('sets each Hero out at a Fatigue drawn from 0 to fatigueMax, which the Party records at dispatch', () => {
+    const base = { ...deps, content: harmless(deps.content) };
+    const drawn = Array.from({ length: 8 }, (_, n) => drawSample(`estimate-${n + 1}`, base));
+    for (const { party } of drawn) expect(Object.keys(party.fatigueAtDispatch).sort()).toEqual([...party.heroIds].sort());
+    const fatigues = drawn.flatMap(({ party }) => Object.values(party.fatigueAtDispatch));
+    for (const fatigue of fatigues) expect(Number.isInteger(fatigue) && fatigue >= 0 && fatigue <= base.config.fatigueMax, `${fatigue}`).toBe(true);
+    expect(new Set(fatigues).size).toBeGreaterThan(fatigues.length / 2);
+    expect(Math.max(...fatigues)).toBeGreaterThan(base.config.fatigueMax / 2);
+  });
+
   test('takes every Injury and Death out of the content, and keeps Morale and the rest', () => {
     const kept = unhurt(deps.content);
     const all = Object.values(kept.encounters).flatMap(({ consequences }) => Object.values(consequences).flat());
@@ -102,7 +114,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
 
   test('holds the estimate near the resolver over a few samples, met on the night home, and reports both measures', () => {
     const samples = estimateProbe(6, 2_000, deps);
-    expect(samples.some((sample) => sample.bandsMoved > 0)).toBe(true);
+    expect(samples.some((sample) => sample.moraleMoved > 0)).toBe(true);
     const most = widest(samples);
     expect(most?.gap).toBeLessThan(0.04);
     // The second measure: the same chances, compared with the resolver's rate with Morale in.
@@ -123,7 +135,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
     expect(report).toContain('reported, not held');
   });
 
-  test("measures Morale's consequences: a loss that moves a Hero's band moves the resolver's rates, and nothing else does", () => {
+  test("measures Morale's consequences: a loss on the way moves the resolver's rates along Morale's line, and one the scale's floor holds moves nothing", () => {
     const base = { ...deps, content: harmless(deps.content) };
     const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
     /** The most Morale each of `drawn`'s Encounters moves a Hero by, its Morale consequences put back: the largest of its Degrees'. */
@@ -133,8 +145,15 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
         Math.max(0, ...Object.values(content.encounters[key]?.consequences ?? {}).map((list) => sum((list ?? []).flatMap((it) => (it.kind === 'morale' ? [Math.abs(it.delta)] : []))))),
       );
     };
-    // The first sample whose Quest carries a Morale consequence in an Encounter before its last, so that a
-    // band it moves is read by the Checks after it: chosen by that, not by its seed (DL-273).
+    /** Every Morale consequence of `drawn`'s Encounters that raises Morale, its Morale consequences put back. */
+    const gains = (drawn: Drawn) => {
+      const { content } = moraleIn(drawn, deps.content);
+      return drawn.quest.encounterKeys.flatMap((key) =>
+        Object.values(content.encounters[key]?.consequences ?? {}).flatMap((list) => (list ?? []).flatMap((it) => (it.kind === 'morale' && it.delta > 0 ? [it.delta] : []))),
+      );
+    };
+    // The first sample whose Quest carries a Morale consequence in an Encounter before its last, so that
+    // the Morale it moves is read by the Checks after it: chosen by that, not by its seed (DL-273).
     const seed = Array.from({ length: 40 }, (_, at) => `estimate-${String(at + 1).padStart(4, '0')}`).find((each) => moraleMoved(drawSample(each, base)).slice(0, -1).some((moved) => moved > 0));
     if (seed === undefined) throw new Error('No sample of 40 carries a Morale consequence before its last Encounter');
     /** The gaps between the resolver's rates with Morale in and with none, every Hero of the Party at `morale` as they set out. */
@@ -145,21 +164,22 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
       const sample = compareSample(seed, drawn, seeds, moraleIn(drawn, deps.content));
       return sample.moraleIn.map((it, at) => it.rate - (sample.compared[at]?.rate ?? 0));
     };
-    const { steady, high } = deps.config.moraleBands;
-    // At the steady band's floor: a Morale loss on the way takes a Hero below it, and their form with it.
-    expect(rates(steady).some((gap) => gap !== 0)).toBe(true);
-    // Midway up the band, further from either floor than every Morale consequence of the Quest together: no
-    // Hero's band moves, so nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
-    const middle = Math.floor((steady + high) / 2);
-    expect(sum(moraleMoved(drawSample(seed, base)))).toBeLessThan(Math.min(middle - steady, high - middle));
-    expect(rates(middle).every((gap) => gap === 0)).toBe(true);
+    const { moraleBaseline, moraleBands, moraleMin } = deps.config;
+    // From the baseline, the low band's start and 10: a Morale loss on the way takes a Hero down Morale's
+    // line, and their form with it (DL-283). Whether 500 rolls cross a Degree's threshold from one Morale
+    // depends on the baseline, so the claim is that some of these cross it (DL-283 item 4, Q18).
+    expect([moraleBaseline, moraleBands.low, 10].some((morale) => rates(morale).some((gap) => gap !== 0))).toBe(true);
+    // At the scale's floor, the Quest carrying no gain, every loss is held there: no Hero's form moves, so
+    // nothing changes; a Morale consequence draws nothing, and the seeds meet the same rolls.
+    expect(gains(drawSample(seed, base))).toEqual([]);
+    expect(rates(moraleMin).every((gap) => gap === 0)).toBe(true);
   });
 
   // S7's verification (DL-173): the Morale check and its report read the second measure, not the first,
   // and a gap of exactly the limit is beyond it, as the check's strict `<` holds. The owner's answer
   // (2026-10-04): the Morale check holds the Quest's chances only; each Encounter's are reported.
   test("reads each measure's own gaps: the widest, its report and the chances beyond its limit", () => {
-    const sample = (seed: string, compared: Compared[], moraleIn: Compared[]): Sample => ({ seed, heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
+    const sample = (seed: string, compared: Compared[], moraleIn: Compared[]): Sample => ({ seed, heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared, moraleIn });
     const at = (what: string, estimate: number, rate: number): Compared => ({ of: 0, what, estimate, rate });
     const quest = (what: string, estimate: number, rate: number): Compared => ({ of: 'quest', what, estimate, rate });
     const samples = [
@@ -184,7 +204,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   });
 
   test("holds the Morale check to the Quest's chances: an Encounter's gap above 5 points does not fail it, the Quest's does", () => {
-    const sample = (moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared: [], moraleIn });
+    const sample = (moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared: [], moraleIn });
     const encounter: Compared[] = [
       { of: 0, what: 'failure', estimate: 0.1, rate: 0.4 },
       { of: 0, what: 'succeeded', estimate: 0.5, rate: 0.45 },
@@ -201,7 +221,7 @@ describe('the estimate probe', { timeout: 60_000 }, () => {
   // scopes and strict `<` fail here, not only in a probe's run; and the report's held and reported lines
   // read a gap of exactly the limit, 5 points (DL-275), as beyond, as the check does.
   test("makes the probe's two checks: no one falls on every chance below 2 points, Morale in on the Quest's below 5, each strictly", () => {
-    const sample = (compared: Compared[], moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, bandsMoved: 0, moraleEncounters: 1, compared, moraleIn });
+    const sample = (compared: Compared[], moraleIn: Compared[]): Sample => ({ seed: 'estimate-0001', heroes: 1, encounters: 1, checks: 1, several: 0, carried: 0, moraleMoved: 0, moraleEncounters: 1, compared, moraleIn });
     const at = (of: Compared['of'], what: string, gap: number): Compared => ({ of, what, estimate: 0, rate: gap });
     const within = [sample([at(0, 'failure', 0.019), at('quest', 'fail', 0.019)], [at(0, 'failure', 0.3), at('quest', 'succeeded', 0.049)])];
     expect(estimateChecks(within)).toEqual({

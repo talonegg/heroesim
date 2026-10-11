@@ -52,6 +52,13 @@ export interface GameConfig {
    * choice of a Disposition that hires above its threshold.
    */
   rivalHireReserveUpkeeps: number;
+  /**
+   * The heal Items of each definition a Rival keeps, at home and carried by its Parties together,
+   * buying toward it in its gear step, after any wearable, by its Disposition's `gearThreshold`, and
+   * carrying one of each it holds on each dispatch (DL-280 item 7, Q16 b; DL-288): the harness's
+   * policy's stock of each consumable. 0 keeps none.
+   */
+  rivalHealItemStock: number;
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;
@@ -83,7 +90,10 @@ export interface GameConfig {
   startingSkillsMax: number;
   /** Each starting Skill is rated from 1 to this. */
   startingSkillRatingMax: number;
-  /** A Hero's Morale at generation, and what nightly drift returns it to (DL-29). */
+  /**
+   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's quarters and
+   * Guildmaster move it (DL-29), and where Morale's factor on their form is 1 (DL-283).
+   */
   moraleBaseline: number;
 
   // ── `guildmasters`: a generated Guildmaster (INPUTS 3.13, 4.10, DL-19) ───────────────────────
@@ -256,18 +266,24 @@ export interface GameConfig {
    */
   strongTriumphShare: number;
   /**
-   * A Hero's form on a Quest (DL-148 items 9 to 11, DL-154, `CONTEXT.md` Form): the factor on the
-   * Stat values they add into a Check's score, by the band of their Morale on the Quest. Narrow, so
-   * that a Guild failing and losing Morale is not driven down fast (DL-166). Provisional: the values
-   * are to be revisited in the economy pass (#51, DL-168 item 9), not the design's.
-   */
-  moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
-  /**
-   * Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10, DL-154),
-   * set with the form factors (DL-166). Provisional, like `moraleCheckFactor`: to be revisited in the
-   * economy pass (#51, DL-168 item 9).
+   * What a Hero hurt on a Quest keeps of their Stats in a Check (DL-148 item 10, DL-280 item 4,
+   * DL-284; `CONTEXT.md` Form): their Physical Stats are times this, and every other area's times
+   * 1 − (1 − this) ÷ 2, the gap taken whole by the Physical and half by the rest (form.ts).
    */
   hurtCheckFactor: number;
+  /**
+   * The share of a hurt Hero's gap, 1 − `hurtCheckFactor`, that a Healer relieves (DL-280 item 4,
+   * Q15 a; DL-285): a member of a Class content marks `relievesHurt`, other than the hurt Hero, among
+   * the Party on the Encounter; one relief however many there are. It multiplies on the gap with
+   * `healItemHurtRelief` (form.ts, `hurtRelief`). A share from 0 to 1.
+   */
+  healerHurtRelief: number;
+  /**
+   * The share of a hurt Hero's gap that a heal Item spent on their Injury relieves for the rest of the
+   * Quest (DL-280 item 4, Q15 a; DL-285), multiplying on the gap with `healerHurtRelief`. A share from
+   * 0 to 1.
+   */
+  healItemHurtRelief: number;
   /**
    * How much more often harm falls on a Hero weak in the Stats an Injury or a Death is `exposedBy`
    * (DL-148 item 14, DL-155): their weight in the draw of who is hit is 1 + this × (1 − their
@@ -289,14 +305,17 @@ export interface GameConfig {
   chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
   /**
    * The `partyMargin` of a Guild with no Disposition, the player's (DL-148 item 17, DL-157): the
-   * Party the engine would send from its free Heroes (the Best Party), which the Board's card gives as
+   * Party the engine would send from its pool (the Best Party, `partyPool`), which the Board's card gives as
    * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
    * raises the estimated chance of success by more than this (DL-175). A share from 0 to 1.
    */
   playerPartyMargin: number;
 
   // ── `heroState`: the Hero State Engine (INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────
-  /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
+  /**
+   * Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. Morale's factor on form
+   * moves a quarter over half of it (DL-283).
+   */
   moraleMin: number;
   moraleMax: number;
   /** How far Morale moves toward `moraleBaseline` each night, never past it. */
@@ -328,6 +347,65 @@ export interface GameConfig {
    * Roster Hero's Morale to (`moraleBaselineFor`; R33, DL-38).
    */
   quartersMoraleBonus: number;
+
+  // ── `fatigue`: Fatigue (DL-280 item 2, DL-282) ─────────────────────────────────────────────────
+  /**
+   * Fatigue's scale: from 0, a Hero rested, to this. A Hero is generated at 0, and no night takes
+   * Fatigue below 0 or above this.
+   */
+  fatigueMax: number;
+  /**
+   * Where each Fatigue band starts (`fatigueBand`): a Hero's band is the highest whose start their
+   * Fatigue has reached. The nightly step emits `hero.fatigue-changed` only when it crosses from one
+   * to another, as Morale's drift does; a Guild's rest band is one of them.
+   */
+  fatigueBands: Readonly<Record<FatigueBand, number>>;
+  /**
+   * Fatigue's rise each night a Hero is away on a Quest, by the Quest's Tier, Tier 1's first; a Tier
+   * past the list reads the last, so a longer ladder leaves the list sound (DL-193).
+   */
+  fatigueRiseByTier: readonly number[];
+  /**
+   * Fatigue's fall each night a Hero is at home, by their Guild's quarters grade, grade 0's first; a
+   * grade past the list reads the last, as `infirmaryHealFactor` does.
+   */
+  fatigueFallByQuarters: readonly number[];
+  /**
+   * FS, how much Fatigue takes from a Hero on a Quest (DL-280 item 2, Q13; DL-284): with f their
+   * Fatigue on an Encounter's Day, their Physical and Magical Stats are times 1 − FS·f ÷ `fatigueMax`
+   * and their Mental and Social times 1 − (FS ÷ 2)·f ÷ `fatigueMax`; their Injury chance times
+   * 1 + FS·f ÷ `fatigueMax` and their Death chance times 1 + (FS ÷ 2)·f ÷ `fatigueMax` (form.ts). A
+   * share from 0 to 1, so no Stat is taken below nothing; no floor beyond that (Q14 c).
+   */
+  fatigueScaling: number;
+  /**
+   * The rest band of a Guild with no Disposition, the player's (DL-280 item 5, Q4 a; DL-286): the
+   * Fatigue band at or past which the Board's "Your best Party" and the harness's automatic policy
+   * leave a free Hero home (`partyPool`), as a Disposition's `restBand` does a Rival's; `null` keeps
+   * no one home. The player may still send any free Hero: Fatigue is no Unavailability.
+   */
+  playerRestBand: FatigueBand | null;
+
+  // ── `captain`: the Captain (DL-280 item 6, Q3 c, Q12 a; DL-287) ────────────────────────────────
+  // Each of the Captain's effects is scaled by s, their captaincy Stat (the Stat content marks
+  // `captaincy`) from its least, 0, to its most, 1 (`captaincyScale`).
+  /**
+   * What the Captain's Party brings to a Check at s = 1: every formed Stat of every member on an
+   * Encounter with the Captain among them is times 1 + s·(this − 1) (form.ts). 1 adds nothing.
+   */
+  captainFormFactor: number;
+  /** The Morale each Hero of the Captain's Party gains on the return at s = 1, the Captain coming home with them: s·this. */
+  captainHomecomingMorale: number;
+  /** Added to the Morale baseline of every Hero of the Roster at s = 1 while the Captain is at home (`moraleBaselineFor`): s·this. */
+  captainHomeBaselineBonus: number;
+  /** The Morale the outgoing Captain loses when another Hero is named in their place (`nameCaptain`); a vacancy filled costs none. */
+  captainChangeMoraleCost: number;
+  /**
+   * Days the post is locked after a change of Captain: a Captain named in another's place on Day
+   * `d` cannot be replaced before the morning of Day `d + captainChangeLockDays`, as a Transfer
+   * locks a Hero (`transferLockDays`). A vacancy is filled whatever the lock. 0 locks nothing.
+   */
+  captainChangeLockDays: number;
 
   // ── `ageing`: Potential hints and decline (INPUTS 5.4, 5.5, DL-37) ───────────────────────────
   /**
@@ -622,6 +700,11 @@ export type MoraleBand = (typeof moraleBandNames)[number];
 export const chanceBandNames = ['hopeless', 'unlikely', 'even', 'likely', 'near-certain'] as const;
 
 export type ChanceBand = (typeof chanceBandNames)[number];
+
+/** The named ranges Fatigue falls in, lowest first (DL-280 item 2, `CONTEXT.md` Fatigue band). */
+export const fatigueBandNames = ['fresh', 'weary', 'tired', 'exhausted'] as const;
+
+export type FatigueBand = (typeof fatigueBandNames)[number];
 
 /** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
 export const potentialHints = ['modest', 'promising', 'exceptional'] as const;

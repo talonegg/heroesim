@@ -47,6 +47,20 @@ Quest's least Party, two Heroes or more, and no most; nothing caps the Parties a
 fold disbands it early (DL-28).
 _Avoid_: Team, Squad, Band
 
+**Captain**:
+The one Hero of its Roster a Guild names as its leader: one a Guild, named freely by its
+Guildmaster's controller, the player for the player's Guild, and for a Rival its Hero highest in
+Leadership whenever its post is empty. Any Hero of the Roster may be named, at home or away. Naming
+to an empty post is free; naming one in another's place costs the outgoing Captain Morale, after
+which the post is locked for a time. A post left by a Death, a Retirement, a Transfer or a fold is
+empty, and filled without cost or lock. What the Captain brings grows with their Leadership, from
+nothing at its least to the whole at its most: the Party they are in brings more of every Stat to a
+Check, the others of it who come home with them gain Morale, and the Roster's Morale baseline is
+higher while they are at home. Leadership is the Stat content marks as the captaincy's; the engine
+names none (DL-280, DL-287). The Synergy "Under a strong leader" is another thing, a Party's bonus and
+not a post.
+_Avoid_: Leader, Commander, Captaincy (for the Hero), Guildmaster (a different person)
+
 **Patron**:
 A person or body that offers Quests to Guilds. A Patron who is a person has a sex, which comes
 with their name when it is drawn and which their Portrait follows; a Patron that is a body has none
@@ -69,7 +83,7 @@ competes for Quests, Heroes and Rankings.
 _Avoid_: Enemy, Opponent, AI guild, Competitor
 
 **Disposition**:
-The named rule set that makes a Rival Guild's choices.
+The named rule set that makes a Rival Guild's choices, among them its rest band (DL-286).
 _Avoid_: AI, Personality, Strategy
 
 **Controller**:
@@ -189,7 +203,8 @@ _Avoid_: Keyword, Tag, Mark, Trait
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its
 leading Stats, sets how each Level grows Stats, gates Skills and is the first input to
-Synergies.
+Synergies. What a Class does that a rule reads is marked in content, so the engine names none: the
+Healer's member relieves the hurt of the rest of their Party (Form; DL-285).
 _Avoid_: Role, Job, Type, Archetype
 
 **Stat**:
@@ -275,8 +290,8 @@ a lost point back; by DL-83 Decline lowers Potential too, so it cannot (to be bu
 _Avoid_: Ageing (for the loss itself), Deterioration
 
 **State**:
-A transient condition of a Hero: an Injury, Morale, Death, and the Regard the Hero holds for
-others.
+A transient condition of a Hero: an Injury, Morale, Fatigue, Death, and the Regard the Hero holds
+for others.
 _Avoid_: Status, Condition, Flag
 
 **Injury**:
@@ -292,9 +307,36 @@ _Avoid_: Loss, Removal, Casualty
 A Hero's contentment.
 _Avoid_: Happiness, Mood, Loyalty
 
+**Fatigue**:
+A Hero's weariness, a State from 0 to 100. It rises each Day a Hero is away on a Quest, by the
+Quest's Tier, and falls each night they are at home, faster the better their Guild's quarters
+(DL-280, DL-282). On a Quest, a Hero meets each Encounter with their Fatigue on its Day, the
+Encounters spread evenly over its first two thirds, the last on Day ceil(2D/3) of a Quest of D Days,
+and the Days after it the trip home, on which Fatigue still rises. The wearier a Hero, the less of their Stats they
+bring to a Check, the Physical and Magical more than the Mental and Social, and the more often they
+are injured and killed (Form). A Guild keeps its tired Heroes at home by its rest band, but Fatigue
+never makes a Hero unavailable: the player may send anyone (DL-280). Its effect on Form and harm is
+built (DL-284), and the rest band (DL-286).
+_Avoid_: Tiredness, Exhaustion (for the whole), Stamina, Energy
+
+**Fatigue band**:
+One of the named ranges a Fatigue value falls in: fresh, weary, tired and exhausted (DL-282). A
+Guild's rest band is one of them or none, its Disposition's or, for the player's Guild, a setting's,
+and a free Hero (at the Hall, unhurt) whose Fatigue is at or past it is kept home: left out of the
+Heroes the Guild chooses a Party from, its pool (`partyPool`, DL-286). The page and the CLI call the
+pool its rested Heroes: its free Heroes less those the band keeps home, every free Hero where it has
+no rest band. The Best Party and the staffing stops count them alone, and a Hero kept home may still
+be sent by hand (DL-289). "Rested" is a plain word, not a term. The page and the CLI read a Hero's
+Fatigue by the bands (DL-289): a Fatigue chip beside Morale's, a column and filters, the Party
+builder's rows, the CLI's tables.
+_Avoid_: Tier (a Quest's is another thing), Morale band (another State's)
+
 **Morale band**:
-One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
-read them (DL-154); Random Events are to read them too (DL-82).
+One of the named ranges a Hero's Morale falls in: wretched, low, steady, high and elated. Morale's
+nightly drift is recorded only when it crosses one, and the page reads a Hero's Morale by them. Form
+reads Morale's line, not the bands, but the Party builder's line says a Party lowers its odds a
+little down to the line's value at the low band's start (DL-283). Random Events are to read them
+too (DL-82).
 _Avoid_: Mood, Tier (a Quest's is another thing)
 
 **Regard**:
@@ -401,13 +443,24 @@ Triumphs (DL-148 item 8, DL-152).
 _Avoid_: Tier (a Quest's is another thing), Grade, Result (alone)
 
 **Form**:
-How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
-score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
+How much of themselves a Hero brings to a Check on a Quest: factors on the Stats they add to a
+score, which multiply. Morale's is a line through `moraleBaseline`, more above it and less below, a
+quarter more half the scale above it and a quarter less half the scale below (DL-283), the same for
+every Guild whatever its quarters and Guildmaster add to its Heroes' Morale, read from
 their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
-cost or given them so far, their own since a loss may be steadied (DL-155). Form never changes
-their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+cost or given them so far, their own since a loss may be steadied (DL-155). Fatigue's, from their
+Fatigue on the Day of the Encounter, takes more from the Physical and Magical Stats than from the
+Mental and Social. The hurt's, once they are injured on the Quest, takes the whole of its gap from
+the Physical Stats and half of it from the others, less what is relieved: a share of the gap by a
+Healer, a member of a Class content marks as relieving the hurt, in the Party on the Encounter other
+than the hurt Hero, one relief however many there are; a share by a heal Item, spent at the Injury
+itself, the one healing most Days first, for the rest of the Quest; the two multiplying on the gap
+(DL-285). The Captain's Party, on an Encounter with the Captain among it, brings more of every
+Stat, by the Captain's Leadership (DL-287). Fatigue also raises a Hero's chance of an Injury or a Death. The areas are content's,
+each Stat's own (DL-284). Form never changes their Exposure or Guard. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
 Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
 one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12, DL-154).
+Fatigue, the hurt by Stat area (DL-284), its relief (DL-285) and the Captain's (DL-287) are built.
 _Avoid_: Condition, Fitness, Mood
 
 **Exposure**:
@@ -466,10 +519,10 @@ falls", and the numbers stay in the detail (DL-148 item 15, DL-156, DL-157).
 _Avoid_: Odds (for the word), Rating, Difficulty
 
 **Best Party**:
-The Party the engine would send on a Quest from a Guild's free Heroes (`bestParties`, DL-237):
+The Party the engine would send on a Quest from a Guild's rested Heroes, its pool (`bestParties`, DL-237; `partyPool`, DL-286):
 first those its Class and Skill requirements take, then whoever most raises the estimated chance of
 success up to its least Party, then each Hero who raises it by more than the Guild's
-**Party margin** (DL-175), bounded by the free Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
+**Party margin** (DL-175), bounded by the rested Heroes alone (DL-266). A Rival sends it, at its Disposition's margin; the Board shows the
 player's, "Your best Party", at the configuration's `playerPartyMargin`, and the harness's policy
 sends that (DL-148 item 17, DL-157).
 _Avoid_: Strongest Party, Optimal Party, Recommended Party
@@ -499,7 +552,9 @@ _Avoid_: Drop table, Treasure table
 An authored bonus that applies when a Party meets its requirements: conditions on the Party
 written as Queries, every one of which must hold, such as at least one Warrior and one Healer
 (DL-148 item 20, DL-151, the old list of Classes and Skills loading into
-them). Relationship between members scales teamwork separately.
+them). Relationship between members scales teamwork separately. "Under a strong leader" is the
+Synergy for a Party of three or more with a Hero of high Leadership; the Captain is a post a Guild
+names, not a Synergy.
 _Avoid_: Combo, Bonus (alone), Chemistry
 
 **Campaign**:
@@ -541,7 +596,7 @@ _Avoid_: Factory, Spawner
 
 **State Engine**:
 A part of the engine that advances one kind of entity each night: the Hero State Engine
-(healing, Morale drift, Regard decay, Retirement), the Guild State Engine (Upkeep, the
+(healing, Morale drift, Fatigue, Regard decay, Retirement), the Guild State Engine (Upkeep, the
 Bankruptcy floor and the Fame floor) and the Patron State Engine (Patron Regard recovering
 towards neutral).
 _Avoid_: System, Manager, Updater
@@ -623,9 +678,9 @@ _Avoid_: Skip, Auto-play, Simulate
 **Fast-forward stop**:
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
-and a module asking; others only when the caller names them: a Quest its free Heroes can staff
+and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
-DL-101). To be built: an opt-in stop for a Random Event (DL-82).
+DL-101). Both staffing stops read its rested Heroes, the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:

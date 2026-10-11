@@ -349,17 +349,9 @@ function improvements(): Record<string, Improvement> {
   );
 }
 
-/** A Disposition row by its weights, in the order the content type lists them. */
-function disposition(
-  key: string,
-  questRiskAppetite: number,
-  recruitThreshold: number,
-  buildThreshold: number,
-  gearThreshold: number,
-  transferAppetite: number,
-  partyMargin: number,
-): Record<string, Disposition> {
-  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin } };
+/** A Disposition row by its key and its named weights. */
+function disposition(key: string, weights: Omit<Disposition, 'key' | 'name'>): Record<string, Disposition> {
+  return { [key]: { key, name: title(key), ...weights } };
 }
 
 /**
@@ -492,15 +484,14 @@ export const testContent: ContentSet = deepFreeze({
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
   // The four Dispositions (INPUTS 7.5) with the weights the core has (DL-56; reckless's
-  // gearThreshold retuned by DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
-  // gearThreshold, transferAppetite; then partyMargin, the core's (DL-157). The M6 close
-  // retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
+  // gearThreshold retuned by DL-58); partyMargin and restBand the core's (DL-157, DL-286). The M6
+  // close retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
   // measured, as a fixture of the one rule.
   dispositions: {
-    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75, 0.05),
-    ...disposition('miserly', 0.25, 80, 20, 10, 0.1, 0.05),
-    ...disposition('reckless', 1, 30, 4, 3, 0.5, 0.1),
-    ...disposition('steady', 0, 60, 3, 3, 0.25, 0.05),
+    ...disposition('ambitious', { questRiskAppetite: 0.6, recruitThreshold: 40, buildThreshold: 1.5, gearThreshold: 2, transferAppetite: 0.75, partyMargin: 0.05, restBand: 'exhausted' }),
+    ...disposition('miserly', { questRiskAppetite: 0.25, recruitThreshold: 80, buildThreshold: 20, gearThreshold: 10, transferAppetite: 0.1, partyMargin: 0.05, restBand: 'tired' }),
+    ...disposition('reckless', { questRiskAppetite: 1, recruitThreshold: 30, buildThreshold: 4, gearThreshold: 3, transferAppetite: 0.5, partyMargin: 0.1, restBand: null }),
+    ...disposition('steady', { questRiskAppetite: 0, recruitThreshold: 60, buildThreshold: 3, gearThreshold: 3, transferAppetite: 0.25, partyMargin: 0.05, restBand: 'tired' }),
   },
   improvements: improvements(),
   // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure:
@@ -846,10 +837,21 @@ export function withDispositions(
 }
 
 /**
- * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
- * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
- * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
- * did; `gearThreshold` from DL-58).
+ * `content` (the test content by default) with `statKey` marked the captaincy Stat (DL-287), frozen: the
+ * test content marks none, so a Captain scales nothing and no Rival names one, and a scene with a
+ * Captain keeps its numbers; a test of the Captain marks the Stat it reads.
+ */
+export function withCaptaincy(content: ContentSet = testContent, statKey = 'leadership'): ContentSet {
+  const row = content.stats[statKey];
+  if (row === undefined) throw new RangeError(`No Stat ${statKey}`);
+  return deepFreeze({ ...content, stats: { ...content.stats, [statKey]: { ...row, captaincy: true } } });
+}
+
+/**
+ * Rivals who never recruit, build or buy gear or heal Items, whatever their Wealth, but still equip and
+ * take Quests as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth
+ * and must not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of
+ * 1,000,000 once did; `gearThreshold` from DL-58, the heal Items' budget too from DL-288).
  */
 export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 } as const;
 
@@ -997,6 +999,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       level: 1,
       injury: null,
       morale: 50,
+      fatigue: 0,
       diedOnTurn: null,
       retiredOnTurn: null,
       transferredOnTurn: null,
@@ -1021,6 +1024,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       foundedTurn: 0,
       guildmasterId,
       rosterIds: [],
+      captainId: null,
+      captainChangedOnTurn: null,
       wealth: 500 + 100 * g,
       fame: g,
       belowFloorSince: null,
@@ -1122,6 +1127,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     heroIds: [partyHero],
     departedOnTurn: 36,
     returnsOnTurn: 44,
+    fatigueAtDispatch: { [partyHero]: 0 },
   };
   (world.heroes[partyHero] as Hero).partyId = party;
   log(33, 'quest.offered', [takenQuest, patron], false, { tier: 2 });

@@ -681,6 +681,28 @@ describe('questsConclude and the consumables a Party carried', () => {
 
     expect(heldBy(document.world, { kind: 'guild', id: guildId })).toEqual([['physicians-kit', 1]]);
   });
+
+  // DL-288: a Rival's heal Items come home as the player's kit does; only an Item spent on a Hero who
+  // dies is lost with them (DL-280, DL-285), never one unspent.
+  test("sends home what a Party none of whose Heroes came back did not spend: a Rival's heal Items its fallen Hero never used", () => {
+    const deps = soloDeps({ rivalCount: 1 }, certainHarmContent);
+    stillRivalControllers();
+    // One Hero through one failed Check: the Death takes them before any Injury, so no heal is spent.
+    const { eve, party, guildId, heroIds } = sentAway('rival-wiped', deps, {
+      size: 1,
+      rival: true,
+      difficulty: 5000,
+      encounterKeys: oneEncounter,
+      consumables: [['healing-draught', 1], ['physicians-kit', 1]],
+    });
+
+    const { document, events } = playTo(eve, party.returnsOnTurn, deps);
+
+    expect(ofType(events, 'hero.died').map((event) => event.payload.heroId)).toEqual(heroIds);
+    expect(ofType(events, 'item.expended')).toEqual([]);
+    expect(document.world.parties).not.toHaveProperty(party.id);
+    expect(heldBy(document.world, { kind: 'guild', id: guildId })).toEqual([['healing-draught', 1], ['physicians-kit', 1]]);
+  });
 });
 
 describe('questsConclude writes Regard once for each resolved Quest (DL-44)', () => {
@@ -869,8 +891,8 @@ describe('the Quest named on what its return causes', () => {
    * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
    * before DL-152, with no share of Triumphs asked for a strong success, so that the
    * fingerprints below, recorded at `86c7afa` before DL-112, still hold: with that rule, an Encounter's
-   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. Every
-   * form factor is 1, as before DL-154, so that form is shown to change nothing else.
+   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. The
+   * hurt's form factor is 1, as before DL-154; Morale's, a line, moves as the Heroes' Morale does (DL-283).
    */
   const deps = testDeps(
     {
@@ -879,7 +901,6 @@ describe('the Quest named on what its return causes', () => {
       guildmasterRetirementAge: 65,
       startingWealth: 100_000,
       strongTriumphShare: 0,
-      moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
       hurtCheckFactor: 1,
     },
     // Its Deaths at every Tier, as they fell when the History was recorded (DL-265).
@@ -1059,7 +1080,9 @@ describe('the Quest named on what its return causes', () => {
   test("nothing else moves: the same seed's events give the History of 86c7afa, entry for entry, but for the new fields and participants (the questId, DL-112, and the founding Wealth, DL-120) and the Rivals' Parties", () => {
     const fingerprints = seeds.map((seed) => {
       const events = emitted.get(seed) as TurnEvent[];
-      return createHash('sha256').update(JSON.stringify(events.map(unnamed))).digest('hex');
+      // Fatigue's band crossings, a type of their own, are set aside (DL-282).
+      const played = events.filter((event) => event.type !== 'hero.fatigue-changed');
+      return createHash('sha256').update(JSON.stringify(played.map(unnamed))).digest('hex');
     });
     // SHA-256 of each seed's events, which the History holds but for the pool's comings and goings of
     // a Hero never hired (DL-211; the test after this holds the History to them). The stripping above
@@ -1077,11 +1100,19 @@ describe('the Quest named on what its return causes', () => {
     // and Encounters and name its Tier on its offer and its taking; and no Quest with a most Party
     // (DL-266; d9c65ed6… and fa5362b7…, the third's game unchanged), which lets the Rivals' Best
     // Parties grow past it; and the Board's Tiers unlocked by each Guild's best four (DL-271; bcbd90c0…,
-    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew.
+    // d56833fb… and 209f07bd…), which draws each Quest's template and Tier anew; and Morale's form made
+    // a line (DL-283; 4aa6fab2…, d59db236… and 88664527…, with every form factor 1 before it), which
+    // no setting can make 1 for every Hero; and the formed Stats by area, Fatigue on form and harm and
+    // the hurt's gap whole on the Physical Stats and half on the others (DL-284; cfa59f20…, b44dee00…
+    // and 6378c240…); and the owner's Morale values, the baseline 50, the bands' starts 0, 11, 35, 66
+    // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…); and
+    // the rest bands, every Guild choosing its Parties from its pool (DL-286; d675f275…, a1ad6174… and
+    // 3796609d…); and the Rivals' heal Items, bought in the gear step and carried (DL-288; 95fad3af…,
+    // ab51c1f9… and d7713b5c…, which `rivalHealItemStock` 0 gives again).
     expect(fingerprints).toEqual([
-      '4aa6fab27234f409f0ac01e3536c93ec13dcb6debc6d9406529142233a25f634',
-      'd59db23614a6257893e8a6abdef780cf84c09d700756955ce3203821773e0f02',
-      '886645274c526d3c3e17d866e88d7f28e2eb295c170a541ac7001b6aee585b20',
+      'fbab43fa5add419d813f2587dc39fecc358a2beceeb8b41a41915b55c94191c0',
+      'bea70df3352d6200ea5b54a24f62d82f8a982a5af5b685484d0691b07d01c392',
+      '036f603172c38bb26d0210d0ee4b05afc8acfd6721f87c1bde133511b7d44424',
     ]);
   });
 
@@ -1114,15 +1145,16 @@ describe('the Quest named on what its return causes', () => {
     }
   });
 
-  test('what was added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome (DL-152)', () => {
+  test('what was added to each Encounter of the games says what its one Check said: decided by it, its Degree its outcome, and form deciding it where it decided the Check (DL-152, DL-283)', () => {
     const encounters = seeds.flatMap((seed) =>
       (played.get(seed) as WorldDocument).history.entries.filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter'),
     );
     expect(encounters.length).toBeGreaterThan(100);
     for (const { payload } of encounters) {
-      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks } = payload;
+      const { encounterKey, roll, target, margin, outcome, degree, decidedBy, checks, formDecided } = payload;
       expect(decidedBy).toBe(encounterKey);
-      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree }]);
+      const form = formDecided === undefined ? {} : { formDecided };
+      expect(checks).toEqual([{ key: encounterKey, capability: expect.any(Number), roll, target, margin, degree, ...form }]);
       expect(degree === 'success' || degree === 'triumph').toBe(outcome === 'success');
     }
     expect(new Set(encounters.map((entry) => entry.payload.degree))).toEqual(new Set(['triumph', 'success', 'setback', 'failure']));
