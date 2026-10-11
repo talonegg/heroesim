@@ -299,9 +299,9 @@ function expectedOf(env: Env): string | null {
 
 /**
  * The run report the Targets read their baseline from (DL-259): the open release's baseline full
- * gate, v1.1.9's games with every counter the Targets read (DL-270), unless `HEROESIM_BASELINE` names another.
+ * gate, v1.2.0's, with every counter the Targets read (DL-270, DL-274), unless `HEROESIM_BASELINE` names another.
  */
-export const defaultBaseline = 'v1.2.0-s2-gate-2026-10-10';
+export const defaultBaseline = 'v1.2.0-gate-2026-10-11';
 
 /** `HEROESIM_BASELINE`: a report's path or name, `defaultBaseline` when unset or blank; `null` for `none`, whatever its case. */
 function baselineOf(env: Env): string | null {

@@ -1252,3 +1252,4 @@ answer on it, the playtest and the word (the delivery guide's step 3).
 
 **Evidence.** The commit `v1.2.0-S13 (DL-274)`; `harness/reports/v1.2.0-gate-2026-10-11.md` and its
 JSON, committed; the estimate's report `estimate-2026-10-11` (not committed). The epic's S13 Status.
+Then, on the owner's asking: `web/src/content.test.ts`'s "the content gate" given `{ timeout: 30_000 }`, as DL-270's `release.test.ts` (no assertion changed); the Targets' default baseline `v1.2.0-gate-2026-10-11`, the release's closing gate (`settings.ts`, `environment.md`, the harness README, the settings tests); the `neutral` run `v1.2.0-close-neutral-2026-10-11` (no `HEROESIM_WORKERS`, alone, 10 games of 20 years, 404.9 s, schema 9, config 21, content 41), fingerprint `036f5572ae584d30a558e8665bbcfd66cd80937e47b310d6cd2c26d95c7d8e0e`, the next `--expect` reference, its report committed.

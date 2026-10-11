@@ -56,10 +56,10 @@ describe('the milestone run', () => {
       HEROESIM_POLICY: '{"rosterLimit":10,"buildWealthMultiple":2.5}',
       HEROESIM_EXPECT: 'E7AE171001C2C885586893B760678089A7400672568C0F53FA83713E6369F369',
       HEROESIM_HARNESS: '1',
-      HEROESIM_BASELINE: ' v1.2.0-s2-gate-2026-10-10 ',
+      HEROESIM_BASELINE: ' v1.2.0-gate-2026-10-11 ',
     });
     expect(settings).toMatchObject({
-      baseline: 'v1.2.0-s2-gate-2026-10-10',
+      baseline: 'v1.2.0-gate-2026-10-11',
       milestone: 'v1.1.6-s2',
       worlds: 7,
       games: 7,
@@ -75,7 +75,7 @@ describe('the milestone run', () => {
     expect(runSettings({ HEROESIM_SEEDS: ' ', HEROESIM_VALIDATE: '', HEROESIM_REPLAY: ' ', HEROESIM_CONFIG: '  ' })).toEqual(runSettings({}));
     expect(settingsOf('milestone', { HEROESIM_VALIDATE: 'false', HEROESIM_REPLAY: 'true' })).toMatchObject({ validate: false, replay: true });
     // The Targets' baseline (DL-259): the open release's baseline gate, with every counter, unless named (DL-270); none when `none`.
-    expect(defaultBaseline).toBe('v1.2.0-s2-gate-2026-10-10');
+    expect(defaultBaseline).toBe('v1.2.0-gate-2026-10-11');
     expect(settingsOf('milestone', { HEROESIM_BASELINE: 'NONE' })).toMatchObject({ baseline: null });
   });
 });

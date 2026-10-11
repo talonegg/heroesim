@@ -38,7 +38,9 @@ describe('the bundled content set', () => {
 
 // DL-152: the script reads the content with its shapes checked, and the
 // build validates the same files, failing on a rule across rows that the reader does not check.
-describe('the content gate', () => {
+// A test here makes a copy of the content and runs the checks over it, 214 ms alone but past Vitest's 5 s
+// default in a full `npm test` (5,017 and 5,037 ms, DL-274). The timeout bounds a hang, not the speed.
+describe('the content gate', { timeout: 30_000 }, () => {
   const contentDir = path.join(import.meta.dirname, '..', '..', 'content');
 
   test("fails the build on content the checks refuse, which the page's reader alone would take", async () => {
