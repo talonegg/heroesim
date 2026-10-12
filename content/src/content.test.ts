@@ -179,6 +179,25 @@ describe('loadContent()', () => {
     }
   });
 
+  // DL-53: each grade a Guild pays for does something of its own, from the Facility's values at grade 0:
+  // a heal factor lower than the grade below's, every other effect higher.
+  test('does more at each grade of a Facility than at the grade below (DL-53)', () => {
+    for (const facility of Object.values(content.facilities)) {
+      const grades = Object.values(content.improvements)
+        .filter((it) => it.facility === facility.key)
+        .sort((a, b) => a.grade - b.grade);
+      [facility.effects, ...grades.map((it) => it.effects)].reduce((below, effects, grade) => {
+        for (const [kind, value] of Object.entries(effects)) {
+          const was = below[kind as keyof typeof below] as number;
+          const at = `${facility.key} grade ${grade}: ${kind}`;
+          if (kind === 'healFactor') expect(value, at).toBeLessThan(was);
+          else expect(value, at).toBeGreaterThan(was);
+        }
+        return effects;
+      });
+    }
+  });
+
   test('has a Hero Stat in every area', () => {
     const areas: StatArea[] = ['physical', 'mental', 'magical', 'social'];
     for (const area of areas) {

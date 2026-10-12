@@ -747,6 +747,22 @@ describe('document-shape', () => {
     }
   });
 
+  // The reward a Quest's taking agreed (DL-43), an amount too: whole Silver where the entry writes it,
+  // which one made before DL-43 does not.
+  test('a quest.taken entry whose reward is not whole Silver is refused, naming the entry; whole or absent, it is accepted', () => {
+    const taking = (reward?: number): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const payload = { tier: 1, ...(reward === undefined ? {} : { reward }) };
+      const at = append(document.history, { turn: fixtureTurn, type: 'quest.taken', participants: [ids.playerGuild], labels: {}, milestone: false, payload } as Entry);
+      return { document, at };
+    };
+
+    expect(validate(taking().document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(validate(taking(120).document, deps)).toEqual({ ok: true, warnings: [] });
+    const fraction = taking(120.5);
+    expect(validate(fraction.document, deps)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${fraction.at}]` }] });
+  });
+
   test('a field no interface names is kept and ignored (rule 5)', () => {
     const { document } = buildDocument();
     set(hero(document, ids.partyHero), 'nickname', 'the Lantern');

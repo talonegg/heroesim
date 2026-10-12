@@ -342,6 +342,28 @@ describe("M3's counters, from the History", () => {
     });
   });
 
+  // DL-297: the grades are keyed by content's Facilities, so a fourth one content adds is counted with no
+  // change of the harness.
+  test("Improvement grades count every Facility content defines, a fourth among them, by its key", () => {
+    const chapel = { key: 'chapel', name: 'chapel', plural: false, upkeep: 15, effects: { moraleBaseline: 0 } };
+    const shrine = { key: 'chapel-1', name: 'Shrine', facility: 'chapel', grade: 1, cost: 300, effects: { moraleBaseline: 4 } };
+    const withChapel: EngineDeps = {
+      ...shortYears,
+      content: { ...content, facilities: { ...content.facilities, chapel }, improvements: { ...content.improvements, 'chapel-1': shrine } },
+    };
+    const { document, player, rivals } = fixture('counters-chapel', withChapel);
+    improved(document, 10, player, 'chapel', 1);
+    improved(document, 20, rivals[0], 'quarters', 1);
+    document.world.turn = 330;
+
+    const { improvementGrades } = countGame(document, withChapel);
+
+    expect(Object.keys(improvementGrades?.player ?? {})).toEqual(['infirmary', 'training-yard', 'quarters', 'chapel']);
+    expect(improvementGrades?.player.chapel).toEqual([0, 1]);
+    expect(improvementGrades?.rival.chapel).toEqual([2, 0]);
+    expect(improvementGrades?.rival.quarters).toEqual([1, 1, 0, 0]);
+  });
+
   test('no Improvement grades for a game that stopped before 10 years', () => {
     const { document } = fixture('counters-short');
     document.world.turn = 299;

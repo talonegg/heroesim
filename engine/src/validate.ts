@@ -1395,10 +1395,15 @@ const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
   'quest.resolved': ['wealthDelta'],
 };
 
+/** The amounts an entry may leave out, as one made before its field was (the reward agreed, DL-43): whole Silver where written. */
+const moneyFieldsIfWritten: Readonly<Partial<Record<EventType, readonly string[]>>> = {
+  'quest.taken': ['reward'],
+};
+
 /**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
  * (DL-246): a Guild's founding names its founding Wealth in whole Silver (DL-120 item 4, DL-294
- * item 1), every amount of an entry is whole Silver (`moneyFields`), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
+ * item 1), every amount of an entry is whole Silver (`moneyFields`, `moneyFieldsIfWritten`), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
  * 2), an Encounter's names its Degree, the Check that decided it and its Checks rolled (DL-152,
  * DL-247), and a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
  */
@@ -1411,7 +1416,9 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
     if (entry.type === 'guild.founded' && !isInteger(payload.wealth)) {
       failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth in whole Silver` });
     }
-    const fraction = (rowOf(moneyFields, entry.type) ?? []).find((field) => !isInteger(payload[field]));
+    const fraction =
+      (rowOf(moneyFields, entry.type) ?? []).find((field) => !isInteger(payload[field])) ??
+      (rowOf(moneyFieldsIfWritten, entry.type) ?? []).find((field) => payload[field] !== undefined && !isInteger(payload[field]));
     if (fraction !== undefined) {
       failures.push({ check: 'entry-field-missing', id, detail: `${id} is a ${entry.type} whose ${fraction} is not whole Silver` });
     }

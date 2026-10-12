@@ -571,7 +571,7 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
 const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   negotiation: 'The reward agreed and the fees paid',
   inspiration: 'The Morale baseline of the Heroes',
-  coaching: 'The XP of the training yard',
+  coaching: 'The training XP the Hall gives',
   influence: "The Regard a Patron's Quest earns",
   judgement: 'How sharp the Potential hints read',
 });

@@ -240,7 +240,7 @@ describe('grades, through both adapters', () => {
     expect(shown.json.grades.map((grade: Json) => grade.key)).toEqual(['quarters-1', 'quarters-2']);
   });
 
-  test('a grade added and removed in one session leaves nothing pending; discard drops a Facility’s edits and its grades’', async () => {
+  test('a grade added and removed in one session leaves nothing pending; discard drops a Facility’s edits and its grades’, and with no key every edit', async () => {
     const { both } = await pair();
     await both(['facilities', 'grade', 'add', 'quarters', 'name=Hall', 'cost=2000', 'effects={"moraleBaseline":20,"fatigueFall":9}'], 'POST', '/api/facilities/grade/add', {
       key: 'quarters',
@@ -252,6 +252,9 @@ describe('grades, through both adapters', () => {
     await both(['facilities', 'change', 'infirmary', 'upkeep=30'], 'POST', '/api/facilities/change', { key: 'infirmary', values: { upkeep: 30 } });
     const discarded = await both(['facilities', 'discard', 'quarters'], 'POST', '/api/facilities/discard', { key: 'quarters' });
     expect(discarded.json).toEqual({ ok: true, discarded: 2, left: 1 });
+    const all = await both(['facilities', 'discard'], 'POST', '/api/facilities/discard', {});
+    expect(all.json).toEqual({ ok: true, discarded: 1, left: 0 });
+    expect((await both(['facilities', 'pending'], 'GET', '/api/facilities/pending')).json.edits).toEqual([]);
   });
 });
 

@@ -50,7 +50,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
-| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | Yes, the upkeep charged with the Hall's (DL-294, DL-297) | A choosable starting Hall; selling Hall assets (DL-294) |
+| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | Yes (DL-294, DL-297); their upkeep charged with the Hall's is to be built, v1.2.2 | A choosable starting Hall; selling Hall assets (DL-294) |
 | The Hall's upkeep: a sum for each Guild and a share for each Hero, every 30 Days, with its Facilities' | To be built, v1.2.2 (DL-294) | — |
 | Rival Guilds: Roster, Wealth, Disposition | Yes | Rival encounters during Quests; a fuller Guild engine |
 | Direct contests between Guilds | No | A later feature, separate from what [Guild Battle](../CONTEXT.md) names (DL-89) |

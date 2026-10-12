@@ -30,11 +30,13 @@ name its path, or use `rg -u`.
    Dependabot's `target-branch` (DL-147 item 6) or anything else that leaves this machine. A word
    for one is not a word for the next.
 2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`),
-   and **Quest templates and Encounters** only through its `quests` and `encounters` commands or
-   their skills (`docs/agents/quests.md`). Run `npm run edit -- traits doctor` and
-   `npm run edit -- quests doctor` before the first change and after the last of every story that
-   touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content kinds,
-   `content/src/kinds/`), and record both readings of each.
+   **Quest templates and Encounters** only through its `quests` and `encounters` commands or
+   their skills (`docs/agents/quests.md`), and **Facilities and their grades** only through its
+   `facilities` commands (`docs/agents/facilities.md`). Run `npm run edit -- traits doctor`,
+   `npm run edit -- quests doctor` and `npm run edit -- facilities doctor` before the first change
+   and after the last of every story that touches `engine/src/` or the content's checks
+   (`content/src/validate.ts` and the content kinds, `content/src/kinds/`), and record both
+   readings of each.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:
@@ -93,7 +95,7 @@ name its path, or use `rg -u`.
 3. **Check** at the end:
    - `npm run lint`, `npm run typecheck` and `npm test`;
    - `npm run build`, check-bundle and `npm run e2e -w web` where the story names them;
-   - the doctor, by rule 2.
+   - the doctors, by rule 2.
 
    Long commands run in the background, or with a timeout of up to 600,000 ms.
 4. **Record** it in a DL entry, appended at the end of `docs/decision-log.md` with the next
@@ -106,7 +108,7 @@ name its path, or use `rg -u`.
    - **Consequences.**;
    - **Evidence.**: a few lines naming the commits, the reports and the epic's boxes.
 
-   An entry is at most 6 KB (the log's header; `npm test` holds it, DL-219). The doctor's readings,
+   An entry is at most 6 KB (the log's header; `npm test` holds it, DL-219). The doctors' readings,
    the checks with their counts, the bundle's bytes, the `e2e` count and the sweeps' fingerprints go
    in the commit message, and the sweeps' in their reports.
 

@@ -446,3 +446,7 @@ each Facility's `upkeep`.
   before and after (`facilities doctor` did not exist before the story); the epic's S3 boxes ticked.
 - A quick run (`v1.2.2-s3-quick`, 4 seeds, 2 years) against S2's (`v1.2.2-s2-quick`): `compare` 0
   counters moved, 577 the same; the fingerprint moves with the schema, `389f5232…`.
+- Verified 2026-10-12 at 8ee1fe6: of 37 mutations, eight survivors are now killed by new tests (a fourth
+  Facility's heal, training XP and Fatigue read at night; a Hero on no Roster at grade 0; the harness's
+  grades by content; `discard` with no key), one equivalent; a Quest's taking has its reward checked
+  whole; DL-53's test holds the shipped grades again; Coaching names the Hall, not the training yard.

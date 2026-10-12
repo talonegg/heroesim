@@ -2,10 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { applyAction } from './actions/action.js';
 import type { ContentSet, Facility, Improvement } from './content-types.js';
 import { createWorld } from './create.js';
-import type { Guild, Hero, WorldDocument } from './document.js';
+import type { Guild, Hero, HeroId, WorldDocument } from './document.js';
+import { eventEmitter } from './emit.js';
 import { facilityEffectsAt, foundedHall, hallEffect, topGrade } from './facilities.js';
 import { moraleBaselineFor } from './morale.js';
+import { heroNight } from './phases/hero-state.js';
+import { phaseContext } from './phases/phase.js';
+import { training } from './phases/training.js';
 import { healFactor, playerGuild } from './selectors.js';
+import { nightOf } from './time.js';
 import { deepFreeze, testContent, testDeps, withValid } from './world.test-support.js';
 
 // The Hall's Facilities as content (DL-294 item 3, DL-297): each effect read by kind over the Hall's
@@ -133,5 +138,47 @@ describe('a fourth grade and a fourth Facility, from content alone', () => {
     expect(after.world.guilds[guild.id]?.hall['chapel']).toBe(1);
     expect(after.world.guilds[guild.id]?.wealth).toBe(10_000 - 300);
     expect(moraleBaselineFor(hero, after.world, deps.config, extended)).toBe(before + 4);
+  });
+
+  test("a fourth Facility's heal factor, training XP and Fatigue fall join the Hall's, read by the Injury's Days, the night's training and the Hero State's night", () => {
+    const chapelled = withFourthFacility({ healFactor: [1, 0.5], trainingXp: [0, 3], fatigueFall: [0, 2] });
+    const pinned = testDeps({ rivalCount: 0, coachingFactor: 0 }, chapelled);
+    const { document } = createWorld('fourth-night', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, pinned);
+    (playerGuild(document.world) as Guild).wealth = 10_000;
+    const built = applyAction(document, { kind: 'build', guildId: (playerGuild(document.world) as Guild).id, facility: 'chapel' }, pinned);
+    if (!built.ok) throw new Error(`Refused: ${built.rejection.reason}`);
+    const { world } = withValid(built.document, pinned);
+    const guild = playerGuild(world) as Guild;
+    const hero = world.heroes[guild.rosterIds[0] as HeroId] as Hero;
+    world.turn = nightOf(0);
+
+    // The infirmary at grade 0 and the chapel at 1: the factors multiply, the others add to the core's.
+    expect(guild.hall).toMatchObject({ infirmary: 0, 'training-yard': 0, quarters: 0, chapel: 1 });
+    expect(healFactor(guild.hall, chapelled)).toBe(0.5);
+    const xp = hero.xp;
+    training(world, phaseContext(world, pinned));
+    expect(hero.xp - xp).toBe(3);
+    hero.fatigue = 50;
+    heroNight(hero, world, { ...pinned, turn: world.turn, emit: eventEmitter(world) });
+    expect(hero.fatigue).toBe(50 - 5 - 2);
+  });
+});
+
+// DL-297: a Hero on no Roster reads an empty Hall, every Facility at grade 0, so a value content gives
+// grade 0 reaches them too, as the quarters' Fatigue fall of 5 does in the core.
+describe('a Hero on no Roster', () => {
+  const graded = withFourthFacility({ moraleBaseline: [6, 8], fatigueFall: [3, 4] });
+  const deps = testDeps({ moraleBaseline: 50, moraleMin: 0, moraleMax: 100 }, graded);
+
+  test('settles toward the Morale baseline with every grade-0 value added, and rests by every grade-0 Fatigue fall', () => {
+    const { document } = createWorld('poolside', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, deps);
+    const { world } = document;
+    const hero = Object.values(world.heroes).find((each) => each.guildId === null && each.diedOnTurn === null) as Hero;
+    world.turn = nightOf(0);
+
+    expect(moraleBaselineFor(hero, world, deps.config, graded)).toBe(50 + 6);
+    hero.fatigue = 50;
+    heroNight(hero, world, { ...deps, turn: world.turn, emit: eventEmitter(world) });
+    expect(hero.fatigue).toBe(50 - 5 - 3);
   });
 });

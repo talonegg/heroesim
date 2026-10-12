@@ -54,7 +54,9 @@ npm run --silent edit -- facilities <command> --json
    pending edits to all of them. Run it before acting and again after "Finish". It must report
    `"ok": true` both times. Edits already pending are named to the owner before more are added. A note
    (`!`), a grade that does no more than the one below, or content with no Facility that heals (the
-   harness's policy builds the first that does), fails nothing: tell the owner.
+   harness's policy builds the first that does), fails nothing: tell the owner. The doctor notes them
+   on the files, not on pending edits; and `npm test` refuses a grade that does no more on the shipped
+   content (DL-53), so "Finish" fails with one.
 2. **When the doctor fails,** read each problem: its file and path (`improvements.json: quarters-2`),
    or the content check's (`improvements.quarters-2.effects`). Fix the content through the commands, or
    drop the edits at fault with `facilities discard`.

@@ -366,9 +366,10 @@ pending edits to both, and exits 1 on a problem:
 
 A grade that does no more than the one below (a heal factor that does not fall, another effect that
 does not rise, DL-53) is noted (`!`), as is content with no Facility that has `healFactor` (the
-harness's policy builds the first that has it); neither fails. Its lines read as the traits doctor's,
-`✓` or `✗` with each problem under it; `--json` gives the report whole. A "Finish" cut off is put back
-first and named, as every command does.
+harness's policy builds the first that has it); neither fails the doctor, which notes them on the
+files, not on pending edits, though `npm test` refuses the first on the shipped content (DL-53). Its
+lines read as the traits doctor's, `✓` or `✗` with each problem under it; `--json` gives the report
+whole. A "Finish" cut off is put back first and named, as every command does.
 
 ### Its API
 

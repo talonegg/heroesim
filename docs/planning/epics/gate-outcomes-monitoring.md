@@ -244,7 +244,7 @@ No tuning value is proposed here; these are the measures and the settings to rea
 | `fatigueMax` | 100 | S2 (DL-282) |
 | `fatigueBands` | fresh 0, weary 25, tired 50, exhausted 75 | S2 (DL-282) |
 | `fatigueRiseByTier` | 4, 5, 6, 7, 8 a night away, by Tier | S2 (DL-282) |
-| `fatigueFallByQuarters` | 5, 6, 7, 8 a night at home, by quarters grade (the trial: 10, 12, 14, 16) | S2 (DL-282) |
+| `fatigueFallByQuarters` | 5, 6, 7, 8 a night at home, by quarters grade (the trial: 10, 12, 14, 16); now the quarters' `fatigueFall` in content (DL-297) | S2 (DL-282) |
 | `fatigueScaling` | 0.4 | S4 (DL-284) |
 | `playerRestBand` | tired | S6 (DL-286) |
 | `hurtCheckFactor` | 0.6, taken whole by the Physical Stats and half by the rest (0.93 before) | S4 (DL-284), the owner's value |
