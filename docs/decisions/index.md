@@ -288,21 +288,21 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-276 | 2026-10-11 | v1.2.0: the owner's playtest: neither sentence said |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
 | DL-277 | 2026-10-11 | v1.2.0: the owner's word to release, as is |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
 | DL-278 | 2026-10-11 | v1.2.0 released; the live check failed on Pages, Cloudflare's Web Analytics beacon; with the owner |  | [DL-257-278-v1.2.0](archive/DL-257-278-v1.2.0.md) |
-| DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone | item 1 in part by DL-280; item 4 in part by DL-280 | [decision-log](../decision-log.md) |
-| DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … | item 9 in part by DL-292; item 1 in part by DL-294 | [decision-log](../decision-log.md) |
-| DL-281 | 2026-10-11 | v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a … |  | [decision-log](../decision-log.md) |
-| DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [decision-log](../decision-log.md) |
-| DL-283 | 2026-10-11 | v1.2.1-S3 built: Morale's form made continuous, a line through the baseline | item 1 in part by DL-284 | [decision-log](../decision-log.md) |
-| DL-284 | 2026-10-11 | v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm |  | [decision-log](../decision-log.md) |
-| DL-285 | 2026-10-11 | v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the … |  | [decision-log](../decision-log.md) |
-| DL-286 | 2026-10-11 | v1.2.1-S6 built: rest bands and the Party's pool |  | [decision-log](../decision-log.md) |
-| DL-287 | 2026-10-11 | v1.2.1-S7 built: the Captain |  | [decision-log](../decision-log.md) |
-| DL-288 | 2026-10-12 | v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine |  | [decision-log](../decision-log.md) |
-| DL-289 | 2026-10-12 | v1.2.1-S9 built: the page, the CLI and the words |  | [decision-log](../decision-log.md) |
-| DL-290 | 2026-10-12 | v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed |  | [decision-log](../decision-log.md) |
-| DL-291 | 2026-10-12 | v1.2.1-S12 (part): the release's commits reviewed to S10 |  | [decision-log](../decision-log.md) |
-| DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [decision-log](../decision-log.md) |
-| DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred | item 2 in part by DL-294 | [decision-log](../decision-log.md) |
+| DL-279 | 2026-10-11 | v1.2.1: the live check allows Cloudflare's Web Analytics beacon on Pages alone | item 1 in part by DL-280; item 4 in part by DL-280 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-280 | 2026-10-11 | v1.2.1 planned: Fatigue and the Captain, Morale's form a line, the hurt relieved, rest bands, the … | item 9 in part by DL-292; item 1 in part by DL-294 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-281 | 2026-10-11 | v1.2.1-S1 built: the words, Fatigue, Fatigue band and Captain, and the Synergy renamed "Under a … |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-282 | 2026-10-11 | v1.2.1-S2 built: Fatigue, its bands and the Quest clock |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-283 | 2026-10-11 | v1.2.1-S3 built: Morale's form made continuous, a line through the baseline | item 1 in part by DL-284 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-284 | 2026-10-11 | v1.2.1-S4 built: the form module, formed Stats by area, and Fatigue on Checks and harm |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-285 | 2026-10-11 | v1.2.1-S5 built: relief from the hurt, a Healer marked in content and a heal Item spent at the … |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-286 | 2026-10-11 | v1.2.1-S6 built: rest bands and the Party's pool |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-287 | 2026-10-11 | v1.2.1-S7 built: the Captain |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-288 | 2026-10-12 | v1.2.1-S8 built: the Rivals' heal Items, and the consumable choices in the engine |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-289 | 2026-10-12 | v1.2.1-S9 built: the page, the CLI and the words |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-290 | 2026-10-12 | v1.2.1-S10 built: the harness's Fatigue lines, and their bands proposed |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-291 | 2026-10-12 | v1.2.1-S12 (part): the release's commits reviewed to S10 |  | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
+| DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred | item 2 in part by DL-294 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-294 | 2026-10-12 | The economy redesigned before its pass: Silver, the Hall's upkeep, Contracts; three releases |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions

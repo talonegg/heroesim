@@ -3,7 +3,7 @@
 A record kept for tracking: the harness's full Gate outcomes of v1.2.1 as built to S10 (config 30, content 45, commit
 `3170082`) beside the closing full Gates of v1.2.0, v1.1.9 and v1.1.8, and of v1.2.1 as released.
 The owner asked for it on 2026-10-12: "document all outcomes from 1.2.1 against 1.2.0 and 1.1.8/9 in a table
-in an md file for tracking later". It lives beside [the epic](v1.2.1-release.md) and is archived with it.
+in an md file for tracking later". It stays live in this folder, beside the open release's epic; v1.2.1's epic is archived as [v1.2.1-release.md](../archive/v1.2.1-release.md).
 
 Why now. S11 was to tune Fatigue against the bands DL-290 proposed. Its full run, at today's settings, showed the
 economy broken since S4: all 50 of the player's games ended in Bankruptcy, at a mean 9.45 years, and none ran

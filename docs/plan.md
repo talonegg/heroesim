@@ -66,6 +66,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.1.8` | 2026-10-09 | #59 | `10f17aa` | DL-215 to DL-230 | [v1.1.8](./planning/archive/v1.1.8-release.md) |
 | `v1.1.9` | 2026-10-10 | #60 | `4fa8d0e` | DL-231 to DL-254 | [v1.1.9](./planning/archive/v1.1.9-release.md) |
 | `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, on Cloudflare's beacon (DL-278), allowed from `v1.2.1` (DL-279) |
+| `v1.2.1` | 2026-10-12 | #66 | `72d14e9` | DL-279 to DL-293 | [v1.2.1](./planning/archive/v1.2.1-release.md); released as is, its economy broken since S4 and its closing Gate failing the save line (DL-292, DL-293) |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -86,10 +87,8 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
   Hall's Facilities as content, each with an upkeep rising with its grade; the Hall's upkeep, a base
   and a share for each Hero, every 30 Days, apart from the wages every 10; one Upkeep a month of
   costs; loot-only Items valued, and every Guild's surplus sold (#25's last part but gear upgraded);
-  the Treasury's income and expenses. Each new figure starts near today's cost. `v1.2.1`, Fatigue and
-  the Captain (DL-280), was released as is on 2026-10-12 (#66, `72d14e9`; DL-293), its closing Gate
-  finding every one of the player's games bankrupt before 20 years (DL-292); its record, §2's row and
-  its archive, waits on the owner's word.
+  the Treasury's income and expenses. Each new figure starts near today's cost. `v1.2.1` was released
+  as is (§2), every one of the player's games bankrupt before 20 years at its close (DL-292).
 - **Short term: the economy, then choices that cost something.**
   1. `v1.2.3`, Contracts (DL-294 item 6): a Contract on every Hero, its wage set at signing and its
      length chosen; renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer
