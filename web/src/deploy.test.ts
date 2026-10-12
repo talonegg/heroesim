@@ -910,7 +910,7 @@ describe('the repository holds no deploy credential', () => {
 // pull request to it (release-pr.yml); merging it tags the line's next patch and calls the deploy
 // (release.yml); the deploy refuses a tag not on `main` or older than the newest release, checks,
 // runs the browser specs, reads Pages's production branch, deploys and reads both addresses live,
-// then publishes the record (deploy.yml); and every day the watch reads production (watch.yml).
+// then publishes the record (deploy.yml); and every Monday the watch reads production (watch.yml, DL-299).
 // The Cloudflare credentials are the `production` environment's secrets, read only by the steps
 // that talk to Cloudflare.
 function workflowText(name: string): string {
@@ -1054,7 +1054,7 @@ describe('the release workflows (DL-124)', () => {
     expect(secretsIn(workflow)).toEqual([]);
   });
 
-  test('watch.yml: every day, the live check and the Cloudflare checks, and an issue on a failure', () => {
+  test('watch.yml: every week, the live check and the Cloudflare checks, and an issue on a failure', () => {
     const workflow = workflowText('watch.yml');
     const cloudflare = jobOf(workflow, 'cloudflare');
     const report = jobOf(workflow, 'report');
@@ -1079,6 +1079,15 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(check, 'e2e')).toContain('npm run e2e -w web');
     expect(check).not.toContain('npm run deploy');
     expect(check).not.toContain('secrets.');
+  });
+
+  // DL-299: a superseded run is cancelled, but never on a release branch, and a hung run is capped.
+  test('check.yml: a newer run cancels an older one except on a release branch, and a run is capped', () => {
+    const check = workflowText('check.yml');
+
+    expect(check).toContain("cancel-in-progress: ${{ !endsWith(github.ref_name, '-release') }}");
+    expect(jobOf(check, 'check')).toMatch(/timeout-minutes: \d+/);
+    expect(jobOf(check, 'e2e')).toMatch(/timeout-minutes: \d+/);
   });
 
   // DL-235: the floor is the Node of `.node-version`, so one `check` on it tests the floor.

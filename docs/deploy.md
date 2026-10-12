@@ -59,7 +59,7 @@ releases both.
 
 A new line needs only its two branches. Each new dev branch, a line's or a patch's, moves
 Dependabot's `target-branch` (`.github/dependabot.yml`) to itself (DL-147), which takes effect once
-released to `main`. Every day `watch.yml` does three things, and opens an issue when any of
+released to `main`. Every Monday `watch.yml` does three things, and opens an issue when any of
 them fails, or when the token expires within 30 days:
 - it plays both addresses;
 - it verifies the Cloudflare token and its expiry;

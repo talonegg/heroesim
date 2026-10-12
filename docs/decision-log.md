@@ -512,3 +512,26 @@ message). S5 makes one Upkeep a month.
 
 **Evidence.** The commit `v1.2.2-S4 (DL-298)`: the checks with their counts, the doctors' readings, the
 quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's S4 boxes ticked.
+
+## DL-299 — The CI minutes: check times out and cancels superseded runs, the watch runs weekly
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner, who asked for the saving: the spending limit set to $0 (their own step), then these changes.
+
+**Context.** The repository is private, so its GitHub Actions minutes are billed, and the owner was near the month's limit. The runs of `check` on dev branches and release branches were the bulk of the spend, several failing; the daily `watch` read production every day; and no run had a time cap or a cancel of the run it superseded.
+
+**Decision.**
+1. `check.yml`'s `check` job has `timeout-minutes: 20`, as `e2e` has 30, so a hung run cannot run for hours.
+2. `check.yml` has a `concurrency` group per ref, and a newer run cancels the older one, except on a release branch (`v*-release`): the deploy reads every run on a release branch's tip (DL-235). Dev branches and pull requests lose superseded runs.
+3. `check.yml`'s `pull_request` trigger stays. It is the only trigger for Dependabot's pull requests, whose branches the `push` filter does not name (DL-124 item 11).
+4. `watch.yml` runs every Monday at 05:23 UTC, and by hand, not every day. The issue it opens on a failure is unchanged.
+5. `dependabot.yml` is not changed: its updates were already monthly and grouped.
+
+*Judgement calls, for the owner to see.*
+- Item 2 of the plan assumed a push and a pull request both ran `check` for one commit. The recent run list shows push runs only, and no duplicate pair, so the trigger was kept and only the cancel added.
+- The weekly watch means an outage can go unseen for up to a week. The owner can return it to daily, or rely on the manual run before a release.
+- Playwright's `install --with-deps` is left as it is: its cache holds only the browsers, so caching the system packages would be a change to CI's image that was not worth its risk here.
+- Writing fewer, larger pushes and running lint, typecheck and tests locally before pushing are habits, not changes made to the repository.
+
+**Consequences.** Superseded runs on dev branches stop early and cost less; a hung `check` ends at 20 minutes; the watch runs about 4 times a month instead of about 30. Nothing else changes: the secrets, the deploy, the release and the tests of the workflows' contents keep their meaning.
+
+**Evidence.** Changed: `.github/workflows/check.yml` and `watch.yml`, `docs/deploy.md`, `web/src/deploy.test.ts` (one test retitled, one added), and this entry with the regenerated `docs/decisions/index.md`. Checks: see the commit message.
