@@ -254,3 +254,47 @@ warning first; one that cannot sign another meets "Roster wiped". The Transfer G
 Guild's expired Heroes, the player's included, which keeps ADR-0002's decision; its third exception is
 narrowed to Heroes under Contract at `v1.2.3`-S6. On Q-A, a Hero away on a Quest is renewed
 once home; the epic's own defaults are approved as starting points, reviewed in `v1.2.4`'s tuning.
+
+## DL-295 — v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury rewritten
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-294
+
+**Context.** DL-294 makes Wealth whole Silver shown in two coins, the Hall's Facilities content with an
+upkeep, the Hall a charge of its own every 30 Days, one Upkeep a month and the Treasury income and
+expenses. The glossary had no Gold, Silver or Facility; it listed Gold under Wealth's _Avoid_ and
+Facilities under the Hall's, and the requirements had no row for any of them (the epic's S1;
+principle 13, the words first).
+
+**Decision.**
+
+1. `CONTEXT.md` gains **Gold** (the larger coin, 100 Silver, a way of showing Wealth and never a unit
+   held), **Silver** (the smaller coin and the unit Wealth is held in) and **Facility** (a part of
+   the Hall defined in content: its upkeep at its first grade, its effects from a closed set, its
+   grades as Improvements). **Wealth** says it is held in whole Silver and shown in both coins, and
+   drops Gold from its _Avoid_ list; **Hall** names its Facilities and its upkeep and drops
+   Facilities from its own; **Improvement** and **Worker** say Facility; **Upkeep** is wages every
+   10 Days and the Hall's upkeep every 30, one Upkeep a month of them; **Treasury** reads income and
+   expenses, a line and a total for each. Each part not yet built says "to be built", citing DL-294,
+   until the story that builds it removes the mark: the coins and the whole Silver at S2, Facilities
+   as content at S3, the Hall's upkeep at S4, one Upkeep a month at S5, the ledger at S7.
+2. `requirements.md`: three §2 rows (the coins, Facilities, the Hall's upkeep), "To be built, v1.2.2
+   (DL-294)"; §3.3 R41 (the coins), R42 (Facilities) and R43 (the Hall's upkeep), new numbers and no
+   renumbering; R11 and R33 point to them, and R33 and the Hall Improvements row say Facility.
+3. The epic: S1's boxes ticked and its Status line set.
+
+*Judgement calls, for the owner to see.*
+- **Contract** does not enter, as the epic and DL-294 item 6 say; `v1.2.3` adds it.
+- The Hall's and a Facility's "upkeep" are lower case, costs and not the term, as the epic writes
+  them; **Upkeep** is the total. The Hall's entry says "a sum each Guild has from its founding", not
+  "base", which the Hall's _Avoid_ list refuses.
+- **Facility** avoids Room, Amenity and Building. R41 to R43 sit in §3.3 after R40, in the
+  Heroes' section though they concern Wealth and the Hall, as R39 and R40 sit there (DL-281).
+- The Treasury's new lines (income and expenses) and the two charges are described in the glossary
+  as the epic plans them; their names may move when S4 and S7 build them.
+
+**Consequences.** S2 to S7 each remove the "to be built" marks for what they build, and the rows' in
+`requirements.md`. The glossary and the requirements say Facility from now on, so a page, a
+command or a test that says "facility" in prose is found by search at S3 and S8.
+
+**Evidence.** The commit `v1.2.2-S1 (DL-295)`. `quests doctor` and `traits doctor` read alike before
+and after (the commit message), the story touching docs alone; the epic's S1 boxes ticked.

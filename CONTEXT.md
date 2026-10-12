@@ -744,31 +744,62 @@ _Avoid_: Difficulty, Preset, Mode, Start
 ### Trade and standing
 
 **Wealth**:
-A Guild's coin: the currency that buys Items, recruits Heroes, pays Upkeep and builds the
-Hall. Its accounts are read in the Treasury (DL-111).
-_Avoid_: Gold, Money, Funds
+A Guild's coin: the currency that buys Items, recruits Heroes, pays Upkeep and builds the Hall. It
+is held in whole Silver, one number a Guild has, and shown in both coins, Gold and Silver, largest
+Gold first (DL-294; the whole Silver and the display are to be built). Its accounts are read in the
+Treasury (DL-111).
+_Avoid_: Money, Funds
+
+**Gold**:
+The larger of Wealth's two coins, worth 100 Silver. It is a way of showing Wealth, never a unit a
+Guild holds: an amount is shown with its largest Gold first and a zero part left out, as a coin
+glyph on the page, "5 Gold 20 Silver" in sentences and `5g 20s` in the CLI (DL-294; to be built).
+_Avoid_: Crown, Gp, Wealth (for the coin)
+
+**Silver**:
+The smaller of Wealth's two coins, and the unit Wealth is held in: a Guild's Wealth and every
+price, fee, reward and cost is a whole number of Silver, and 100 Silver is a Gold (DL-294; to be
+built).
+_Avoid_: Copper, Penny, Cent
 
 **Treasury**:
 The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
-History by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other); a part of the Guild's
-view (DL-111, DL-116).
+History; a part of the Guild's view (DL-111, DL-116). It reads income (Quest rewards, Item sales and
+Transfers out) and expenses (wages, the Hall's upkeep, the Improvements' upkeep, Item purchases,
+Improvements, signing fees and Transfers in), a line for each and a total for each; today it reads
+by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other), and the income and the
+expenses are to be built (DL-294).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
-The recurring cost of the Roster's wages and the Hall's maintenance.
+The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
+upkeep, charged every 30 (DL-294). One Upkeep, as a measure, is a month of them: three charges of
+wages and one of the Hall's, and every reading of the Guild's reserves in Upkeeps counts so. Today
+the Hall's maintenance is charged with the wages every 10 Days, and the two charges, the Hall's
+upkeep and one Upkeep a month are to be built.
 _Avoid_: Wages (alone), Salary, Running costs
 
 **Hall**:
-The Guild's premises: an infirmary, a training yard and quarters, each raised by Improvements
-and, later, staffed by Workers.
-_Avoid_: Base, Headquarters, Guildhall, Facilities
+The Guild's premises: its Facilities, today an infirmary, a training yard and quarters, each raised
+by Improvements and, later, staffed by Workers. It costs upkeep every 30 Days: a sum each Guild has
+from its founding, a share for each Hero on its Roster, and each Facility's upkeep with it (DL-294;
+to be built).
+_Avoid_: Base, Headquarters, Guildhall
+
+**Facility**:
+A part of the Hall, defined in content: its name, its upkeep at its first grade, which rises with
+each grade, and its effects, taken from a closed set (healing speed, training XP, the Morale
+baseline and Fatigue's fall). Its grades are Improvements, each with a price, a name and the
+effects' values at that grade. Today the three Facilities are fixed in the engine's code, and
+Facilities as content, with an upkeep, are to be built (DL-294).
+_Avoid_: Room, Amenity, Building
 
 **Improvement**:
-A one-off purchase for Wealth that raises a Hall facility's grade.
+A one-off purchase for Wealth that raises a Facility's grade by one.
 _Avoid_: Upgrade, Building, Feature
 
 **Worker**:
-A non-Hero person hired for a wage within Upkeep, whose Stat scales what a Hall facility does.
+A non-Hero person hired for a wage within Upkeep, whose Stat scales what a Facility does.
 _Avoid_: Staff, Employee, NPC, Hireling
 
 **Market**:
