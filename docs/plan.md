@@ -90,17 +90,18 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
   the Treasury's income and expenses. Each new figure starts near today's cost. `v1.2.1` was released
   as is (§2), every one of the player's games bankrupt before 20 years at its close (DL-292).
 - **Short term: the economy, then choices that cost something.**
-  1. `v1.2.3`, Contracts (DL-294 item 6): a Contract on every Hero, its wage set at signing and its
-     length chosen; renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer
-     fee from the wages left; the Rivals and the harness's policy deciding renewals (#20). It takes in
-     #51's wage.
-  2. `v1.2.4`, the economy pass (#51), deferred by the owner (DL-293) and placed here by DL-294:
-     Guilds that can live with `v1.2.1`'s Fatigue and form and the redesign's rules, measured in a full
-     Gate against [the outcomes](./planning/epics/gate-outcomes-monitoring.md). It restores the
-     player's solvency (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the Rivals' failed
-     Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their folds
-     (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save is
-     measured there; Fatigue's tuning to DL-290's bands follows it (DL-292).
+  1. [`v1.2.3`, Contracts](./planning/epics/v1.2.3-release.md) (DL-294 item 6), planned: a
+     Contract on every Hero, its wage set at signing and its length chosen; renewal, release with a
+     payout, fee-0 Offers for expired Heroes, and the Transfer fee from the wages left; the Rivals and
+     the harness's policy deciding renewals (#20). It takes in #51's wage.
+  2. [`v1.2.4`, the economy pass](./planning/epics/v1.2.4-release.md) (#51), planned, deferred by
+     the owner (DL-293) and placed here by DL-294: Guilds that can live with `v1.2.1`'s Fatigue and
+     form and the redesign's rules, each setting changed measured alone in a full Gate against the
+     bands the owner approves first and [the outcomes](./planning/epics/gate-outcomes-monitoring.md).
+     It restores the player's solvency (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the
+     Rivals' failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6)
+     and their folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so
+     that the save is measured there; then Fatigue's tuning to DL-290's bands (DL-292).
   3. `v1.2.5`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
      upgraded) and #51's Rival income.
 - **Medium term: the management core,** in this order:
