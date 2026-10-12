@@ -248,3 +248,8 @@ on an economy still broken, as `v1.2.1`'s; the pass tunes the finished rules.
 *Note, 2026-10-12 (the owner's word: "create the 1.2.3 and 1.2.4 epics as well").* Planned from items
 6 and 7 and the answers: `planning/epics/v1.2.3-release.md` and `v1.2.4-release.md`. The agent's
 defaults and calls are in each epic's §2 and §6, for the owner before the stories they block.
+
+*Note, 2026-10-12 (the owner, on `v1.2.3`'s Q-B and Q-C).* A Guild may release its last Hero, the game
+warning first; one that cannot sign another meets "Roster wiped". The Transfer Generator can take any
+Guild's expired Heroes, the player's included, which keeps ADR-0002's decision; its third exception is
+narrowed to Heroes under Contract at `v1.2.3`-S6.
