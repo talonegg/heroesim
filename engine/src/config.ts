@@ -140,16 +140,37 @@ export interface GameConfig {
   guildmasterTraitBudget: number;
 
   // ── `guilds`: the Guild State Engine (INPUTS 4.6, 4.9, pre-M0 review D10.3, DL-26) ─────────
-  /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
+  /** The wages fall due every this many Days (DL-26 says which Days precisely; DL-298). */
   upkeepEveryDays: number;
   /**
-   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep: a wage that weighs
-   * against the Quest rewards, so that a Guild must keep succeeding, and that a Roster gaining Levels
-   * can still bear (DL-35, DL-36).
+   * Wealth deducted per Level of each living Hero on the Roster, each time the wages fall due: a wage
+   * that weighs against the Quest rewards, so that a Guild must keep succeeding, and that a Roster
+   * gaining Levels can still bear (DL-35, DL-36).
    */
   wagePerLevel: number;
-  /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
-  hallMaintenancePerGrade: number;
+  /**
+   * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
+   * are (DL-26), a month by default (DL-294 item 4, DL-298).
+   */
+  hallUpkeepEveryDays: number;
+  /**
+   * The Hall's own sum, in whole Silver, each time its upkeep falls due: each Guild takes it from
+   * config at its founding and keeps it (`Guild.hallBaseUpkeep`), so that a later change of the
+   * default reaches only the Guilds founded after it (DL-294 item 2, DL-298).
+   */
+  hallBaseUpkeep: number;
+  /**
+   * The Hall's share for its Heroes each time its upkeep falls due: this × the living Roster ^
+   * `hallUpkeepHeroExponent`, rounded to whole Silver, those away on Quests counted (DL-294 item 2).
+   */
+  hallUpkeepPerHero: number;
+  /** The curve of the Heroes' share: 1 a straight line, above it each Hero costing more than the last. */
+  hallUpkeepHeroExponent: number;
+  /**
+   * Each grade above a Facility's first multiplies its upkeep by this: its content `upkeep` ×
+   * this ^ (grade − 1), rounded to whole Silver; a Facility at grade 0 costs nothing (DL-294 item 3).
+   */
+  improvementUpkeepGradeFactor: number;
   /** Wealth below this sets `belowFloorSince`; at or above it, `belowFloorSince` is cleared. */
   bankruptcyFloor: number;
   /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */

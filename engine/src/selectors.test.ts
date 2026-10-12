@@ -1,12 +1,12 @@
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import { advance } from './advance.js';
-import type { EngineDeps } from './config.js';
+import type { EngineDeps, GameConfig } from './config.js';
 import { createWorld } from './create.js';
-import { makeId, type Guild, type Guildmaster, type Hero, type WorldDocument } from './document.js';
+import { makeId, type Guild, type Guildmaster, type Hero, type HeroId, type WorldDocument } from './document.js';
 import type { TurnEvent } from './events.js';
 import * as engine from './index.js';
 import { nightOf } from './time.js';
-import { testDeps } from './world.test-support.js';
+import { testDeps, withFacilityUpkeep } from './world.test-support.js';
 import {
   bankruptcyCountdown,
   baseStat,
@@ -19,9 +19,11 @@ import {
   signingRefusal,
   unattachedHeroes,
   unsignableHeroes,
-  nextUpkeepDay,
+  hallUpkeepParts,
+  nextHallUpkeepDay,
+  nextWagesDay,
   upkeep,
-  upkeepParts,
+  wages,
 } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
@@ -121,120 +123,141 @@ describe('baseStat', () => {
   });
 });
 
-// DL-112 item 3: Upkeep's parts and its Day, for the Treasury, read from the engine.
-describe("upkeepParts and nextUpkeepDay", () => {
-  test("are exported from the engine's index, for the page", () => {
-    expect(engine.upkeepParts).toBe(upkeepParts);
-    expect(engine.nextUpkeepDay).toBe(nextUpkeepDay);
-  });
-
-  test("gives the wages, the Hall's maintenance, the Guildmaster Trait's factor, and the total upkeep() gives", () => {
-    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 10 });
-    const { world } = createWorld('upkeep-parts', setup, deps).document;
+// DL-298: the two charges, the wages and the Hall's upkeep, their parts and their Days, which the Guild
+// State Engine charges and the Treasury shows, from one rule each (ADR-0007).
+describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
+  /** The test content with each Facility's upkeep a month at grade 1 as given. */
+  const priced = withFacilityUpkeep({ infirmary: 15, 'training-yard': 20, quarters: 10 });
+  /** A Guild of four Heroes at Level 1 and a Guildmaster with no Trait, its Hall unbuilt, its own base 40. */
+  function hallOf(seed: string, overrides: Partial<GameConfig> = {}) {
+    const deps = testDeps(
+      { startingRosterSize: 4, wagePerLevel: 5, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, improvementUpkeepGradeFactor: 1.73, ...overrides },
+      priced,
+    );
+    const { world } = createWorld(seed, setup, deps).document;
     const guild = playerGuild(world) as Guild;
-    for (const [index, id] of guild.rosterIds.entries()) (world.heroes[id] as Hero).level = index === 0 ? 3 : 1;
-    guild.hall = { infirmary: 1, 'training-yard': 2, quarters: 0 };
-    (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = ['spendthrift'];
-    const rest = guild.rosterIds.length - 1;
+    (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
+    guild.hallBaseUpkeep = 40;
+    return { deps, world, guild };
+  }
 
-    // Wages 15 + 5 a Hero at Level 1; maintenance 30; the spendthrift's factor 1.1, rounded once.
-    const wages = 15 + 5 * rest;
-    expect(upkeepParts(guild, world, deps.config, deps.content)).toEqual({
-      wages,
-      hallMaintenance: 30,
-      traitFactor: 1.1,
-      total: Math.round((wages + 30) * 1.1),
-    });
-    expect(upkeep(guild, world, deps.config, deps.content)).toBe(Math.round((wages + 30) * 1.1));
-    // Without the content, no Trait applies, as upkeep() has it (DL-43).
-    expect(upkeepParts(guild, world, deps.config)).toEqual({ wages, hallMaintenance: 30, traitFactor: 1, total: wages + 30 });
+  test("are exported from the engine's index, for the page", () => {
+    expect(engine.wages).toBe(wages);
+    expect(engine.hallUpkeepParts).toBe(hallUpkeepParts);
+    expect(engine.nextWagesDay).toBe(nextWagesDay);
+    expect(engine.nextHallUpkeepDay).toBe(nextHallUpkeepDay);
   });
 
-  test('sums to upkeep() for every Guild over seeded worlds, given Levels and Hall grades', () => {
+  test('the wages are wagePerLevel × Level over the living Roster: a Hero away counts, the dead and the retired do not', () => {
+    const { deps, world, guild } = hallOf('wages');
+    const [first, second, third, fourth] = guild.rosterIds as [HeroId, HeroId, HeroId, HeroId];
+    (world.heroes[first] as Hero).level = 3;
+    (world.heroes[second] as Hero).partyId = makeId('parties', 1);
+    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1 + 1 + 1));
+    (world.heroes[third] as Hero).diedOnTurn = 5;
+    (world.heroes[fourth] as Hero).retiredOnTurn = 5;
+    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1));
+  });
+
+  test("the Hall's upkeep: the Guild's own base, the Heroes' share on its curve, and each built Facility's upkeep × the grade factor ^ (grade − 1), each part rounded", () => {
+    const { deps, world, guild } = hallOf('hall-parts', { hallUpkeepHeroExponent: 1.2 });
+    guild.hall = { infirmary: 1, 'training-yard': 3, quarters: 0 };
+    // 5 × 4 ^ 1.2 is 26.39; 20 × 1.73² is 59.86. The quarters, at grade 0, cost nothing and are not listed.
+    expect(hallUpkeepParts(guild, world, deps.config, deps.content)).toEqual({
+      base: 40,
+      heroCount: 4,
+      heroes: 26,
+      facilities: { infirmary: 15, 'training-yard': 60 },
+      traitFactor: 1,
+      total: 40 + 26 + 15 + 60,
+    });
+  });
+
+  test('a new Guild pays its base and its Heroes alone, and a Hero away is counted, the dead and the retired not', () => {
+    const { deps, world, guild } = hallOf('hall-new');
+    expect(hallUpkeepParts(guild, world, deps.config, deps.content)).toMatchObject({ heroCount: 4, heroes: 20, facilities: {}, total: 60 });
+    const [away, dead, retired] = guild.rosterIds as [HeroId, HeroId, HeroId];
+    (world.heroes[away] as Hero).partyId = makeId('parties', 1);
+    (world.heroes[dead] as Hero).diedOnTurn = 5;
+    (world.heroes[retired] as Hero).retiredOnTurn = 5;
+    expect(hallUpkeepParts(guild, world, deps.config, deps.content)).toMatchObject({ heroCount: 2, heroes: 10, total: 50 });
+  });
+
+  test("Thrifty and Spendthrift scale the Hall's upkeep alone, its parts summed and the factor rounded once; the wages not", () => {
+    const { deps, world, guild } = hallOf('hall-traits');
+    guild.hall = { infirmary: 2, 'training-yard': 0, quarters: 1 };
+    const listed = 40 + 20 + Math.round(15 * 1.73) + 10;
+    const plainWages = wages(guild, world, deps.config);
+    for (const [trait, factor] of [
+      ['thrifty', 0.9],
+      ['spendthrift', 1.1],
+    ] as const) {
+      (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [trait];
+      const parts = hallUpkeepParts(guild, world, deps.config, deps.content);
+      expect(parts, trait).toMatchObject({ base: 40, heroes: 20, facilities: { infirmary: 26, quarters: 10 }, traitFactor: factor });
+      expect(parts.total, trait).toBe(Math.round(listed * factor));
+      expect(wages(guild, world, deps.config), trait).toBe(plainWages);
+    }
+  });
+
+  test("over seeded worlds, every Guild's total is its parts summed, times its factor, rounded once", () => {
     const deps = testDeps({ startingWealth: 100_000 });
     const factors = new Set<number>();
     for (const seed of ['parts-a', 'parts-b', 'parts-c', 'parts-d']) {
       const { world } = createWorld(seed, setup, deps).document;
       Object.values(world.guilds).forEach((guild, guildIndex) => {
-        guild.rosterIds.forEach((id, index) => ((world.heroes[id] as Hero).level = 1 + ((index + guildIndex) % 4)));
         guild.hall = { infirmary: guildIndex % 4, 'training-yard': (guildIndex + 1) % 4, quarters: (guildIndex + 2) % 4 };
       });
       for (const guild of Object.values(world.guilds)) {
-        const parts = upkeepParts(guild, world, deps.config, deps.content);
+        const parts = hallUpkeepParts(guild, world, deps.config, deps.content);
         factors.add(parts.traitFactor);
-        expect(parts.total, guild.id).toBe(upkeep(guild, world, deps.config, deps.content));
-        expect(parts.total, guild.id).toBe(Math.round((parts.wages + parts.hallMaintenance) * parts.traitFactor));
+        const listed = parts.base + parts.heroes + Object.values(parts.facilities).reduce((sum, each) => sum + each, 0);
+        expect(parts.total, guild.id).toBe(Math.round(listed * parts.traitFactor));
+        expect(Number.isSafeInteger(parts.total), guild.id).toBe(true);
       }
     }
     // The seeded Guildmasters' Traits give more than one factor.
     expect(factors.size).toBeGreaterThan(1);
   });
 
-  test('nextUpkeepDay is the next Day whose night charges Upkeep, after the Turn given has been played (DL-26)', () => {
-    const { config } = testDeps({ upkeepEveryDays: 10 });
-    expect(nextUpkeepDay(0, config)).toBe(9);
-    expect(nextUpkeepDay(nightOf(9) - 1, config)).toBe(9);
-    expect(nextUpkeepDay(nightOf(9), config)).toBe(19);
-    expect(nextUpkeepDay(nightOf(9) + 1, config)).toBe(19);
-    expect(nextUpkeepDay(nightOf(19), config)).toBe(29);
-    const weekly = testDeps({ upkeepEveryDays: 7 }).config;
-    expect(nextUpkeepDay(0, weekly)).toBe(6);
-    expect(nextUpkeepDay(nightOf(6), weekly)).toBe(13);
+  test('a Hall key content does not define is charged nothing (data-model rule 5)', () => {
+    const { deps, world, guild } = hallOf('hall-unknown');
+    guild.hall = { infirmary: 0, 'training-yard': 0, quarters: 0, chapel: 2 };
+    expect(hallUpkeepParts(guild, world, deps.config, deps.content)).toMatchObject({ facilities: {}, total: 60 });
+  });
+
+  test('nextWagesDay gives Days 9, 19, 29 and nextHallUpkeepDay Days 29, 59, 89, each the next after the Turn given has been played (DL-26)', () => {
+    const { config } = testDeps({ upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
+    expect(nextWagesDay(0, config)).toBe(9);
+    expect(nextWagesDay(nightOf(9) - 1, config)).toBe(9);
+    expect(nextWagesDay(nightOf(9), config)).toBe(19);
+    expect(nextWagesDay(nightOf(9) + 1, config)).toBe(19);
+    expect(nextWagesDay(nightOf(19), config)).toBe(29);
+    expect(nextHallUpkeepDay(0, config)).toBe(29);
+    expect(nextHallUpkeepDay(nightOf(29) - 1, config)).toBe(29);
+    expect(nextHallUpkeepDay(nightOf(29), config)).toBe(59);
+    expect(nextHallUpkeepDay(nightOf(59), config)).toBe(89);
+    const weekly = testDeps({ upkeepEveryDays: 7, hallUpkeepEveryDays: 14 }).config;
+    expect(nextWagesDay(0, weekly)).toBe(6);
+    expect(nextWagesDay(nightOf(6), weekly)).toBe(13);
+    expect(nextHallUpkeepDay(0, weekly)).toBe(13);
+    expect(nextHallUpkeepDay(nightOf(13), weekly)).toBe(27);
   });
 });
 
-describe('upkeep', () => {
-  test('sums wagePerLevel × Level over the Roster, plus hallMaintenancePerGrade × the summed Hall grades', () => {
-    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 10 });
-    const { document } = createWorld('upkeep-wages', setup, deps);
-    const { world } = document;
+describe('upkeep, the measure the readers of Upkeeps count in (DL-298)', () => {
+  test("is the wages and the Hall's upkeep for the wages' span: its total × upkeepEveryDays ÷ hallUpkeepEveryDays, the sum rounded", () => {
+    const deps = testDeps({ startingRosterSize: 4, wagePerLevel: 5, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
+    const { world } = createWorld('upkeep-measure', setup, deps).document;
     const guild = playerGuild(world) as Guild;
-    const [first, second] = guild.rosterIds;
-    if (first === undefined || second === undefined) throw new Error('need two Heroes on the Roster');
-    (world.heroes[first] as Hero).level = 3;
-    (world.heroes[second] as Hero).level = 2;
-    guild.hall = { infirmary: 1, 'training-yard': 2, quarters: 0 };
-
-    const wages = guild.rosterIds.reduce((total, id) => total + 5 * (world.heroes[id] as Hero).level, 0);
-
-    expect(upkeep(guild, world, deps.config)).toBe(wages + 10 * (1 + 2 + 0));
-  });
-
-  test('a fresh Guild has no Hall grade, so Upkeep is wages alone: every Hero starts at Level 1', () => {
-    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 10 });
-    const { document } = createWorld('upkeep-fresh', setup, deps);
-    const { world } = document;
-    const guild = playerGuild(world) as Guild;
-
-    expect(upkeep(guild, world, deps.config)).toBe(5 * guild.rosterIds.length);
-  });
-
-  test('counts a Hero away on a Quest the same as any other on the Roster: leaving is what removes one', () => {
-    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 10 });
-    const { document } = createWorld('upkeep-away', setup, deps);
-    const { world } = document;
-    const guild = playerGuild(world) as Guild;
-    const [awayId] = guild.rosterIds;
-    if (awayId === undefined) throw new Error('no Hero on the Roster');
-    const home = upkeep(guild, world, deps.config);
-    (world.heroes[awayId] as Hero).partyId = makeId('parties', 1);
-
-    expect(upkeep(guild, world, deps.config)).toBe(home);
-  });
-
-  test('excludes a dead or retired Hero even if their id is still on the Roster', () => {
-    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 0 });
-    const { document } = createWorld('upkeep-dead', setup, deps);
-    const { world } = document;
-    const guild = playerGuild(world) as Guild;
-    const [deadId, retiredId] = guild.rosterIds;
-    if (deadId === undefined || retiredId === undefined) throw new Error('need two Heroes on the Roster');
-    (world.heroes[deadId] as Hero).diedOnTurn = 5;
-    (world.heroes[retiredId] as Hero).retiredOnTurn = 5;
-
-    const living = guild.rosterIds.filter((id) => id !== deadId && id !== retiredId);
-    const expected = living.reduce((total, id) => total + 5 * (world.heroes[id] as Hero).level, 0);
-    expect(upkeep(guild, world, deps.config)).toBe(expected);
+    (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
+    guild.hallBaseUpkeep = 41;
+    // Wages 20; the Hall's 41 + 20 = 61 for 30 Days, 20.33 for 10.
+    expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 + 20);
+    guild.hallBaseUpkeep = 42;
+    expect(upkeep(guild, world, deps.config, deps.content)).toBe(Math.round(20 + 62 / 3));
+    const weekly = { ...deps.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 28 };
+    expect(upkeep(guild, world, weekly, deps.content)).toBe(Math.round(20 + 62 / 4));
   });
 
   test('is a selector: no `upkeep` field on the Guild row, at the type level or in a created world', () => {
@@ -434,16 +457,16 @@ describe('bankruptcyCountdown (DL-95)', () => {
     expect(bankruptcyCountdown(player(cleared), deps.config)).toBeNull();
   });
 
-  test('an Upkeep night that keeps the Guild below the floor leaves the countdown as it was', () => {
+  test('a wages night that keeps the Guild below the floor leaves the countdown as it was', () => {
     const deps = testDeps({ bankruptcyGraceDays: 10, upkeepEveryDays: 10 });
     const below = belowSinceDay4('countdown-upkeep', deps);
 
-    // Day 9 is the first Upkeep Day (DL-26, DL-91 item 1).
+    // Day 9 is the first wages Day (DL-26, DL-91 item 1, DL-298).
     const { document, events } = playTo(below, nightOf(9), deps);
 
     const guildId = player(document).id;
     expect(events).toContainEqual(
-      expect.objectContaining({ turn: nightOf(9), type: 'guild.upkeep-paid', payload: expect.objectContaining({ guildId }) }),
+      expect.objectContaining({ turn: nightOf(9), type: 'guild.wages-paid', payload: expect.objectContaining({ guildId }) }),
     );
     expect(player(document).wealth).toBeLessThan(deps.config.bankruptcyFloor);
     expect(player(document).belowFloorSince).toBe(nightOf(4));

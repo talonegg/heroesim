@@ -156,7 +156,13 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   guildmasterTraitBudget: anyFinite,
   upkeepEveryDays: wholeFrom(1),
   wagePerLevel: wholeFrom(0),
-  hallMaintenancePerGrade: wholeFrom(0),
+  // DL-298: the Hall's upkeep, its Days, its base, its Heroes' curve and its grades' factor.
+  hallUpkeepEveryDays: wholeFrom(1),
+  hallBaseUpkeep: wholeFrom(0),
+  hallUpkeepPerHero: wholeFrom(0),
+  hallUpkeepHeroExponent: finiteFrom(0),
+  // A grade never costs less to keep than the one below it (DL-294 item 3).
+  improvementUpkeepGradeFactor: finiteFrom(1),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
   // No higher than `foundingFame`, whose rule reads it (DL-261): its edges above 0 are 'the Board's size and the founding Fame'.

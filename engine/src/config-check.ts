@@ -360,7 +360,12 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   upkeepEveryDays: whole({ min: 1 }),
   wagePerLevel: whole({ min: 0 }),
-  hallMaintenancePerGrade: whole({ min: 0 }),
+  hallUpkeepEveryDays: whole({ min: 1 }),
+  hallBaseUpkeep: whole({ min: 0 }),
+  hallUpkeepPerHero: whole({ min: 0 }),
+  hallUpkeepHeroExponent: finite({ min: 0 }),
+  // A grade never costs less to keep than the one below it (DL-294 item 3, DL-298).
+  improvementUpkeepGradeFactor: finite({ min: 1 }),
   bankruptcyFloor: whole(),
   bankruptcyGraceDays: whole({ min: 0 }),
   fameFloor: whole({ min: 0 }),

@@ -4,12 +4,12 @@ import type { ContentSet, Facility, Improvement } from './content-types.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, WorldDocument } from './document.js';
 import { eventEmitter } from './emit.js';
-import { facilityEffectsAt, foundedHall, hallEffect, topGrade } from './facilities.js';
+import { facilityEffectsAt, facilityUpkeep, foundedHall, hallEffect, topGrade } from './facilities.js';
 import { moraleBaselineFor } from './morale.js';
 import { heroNight } from './phases/hero-state.js';
 import { phaseContext } from './phases/phase.js';
 import { training } from './phases/training.js';
-import { healFactor, playerGuild } from './selectors.js';
+import { hallUpkeepParts, healFactor, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
 import { deepFreeze, testContent, testDeps, withValid } from './world.test-support.js';
 
@@ -55,6 +55,17 @@ describe('hallEffect', () => {
     expect(hallEffect(hall, 'moraleBaseline', both)).toBe(9);
     expect(hallEffect(hall, 'fatigueFall', both)).toBe(7);
     expect(hallEffect(hall, 'trainingXp', both)).toBe(5);
+  });
+});
+
+describe('facilityUpkeep (DL-298)', () => {
+  test("is nothing at grade 0, the row's upkeep at grade 1, and × improvementUpkeepGradeFactor for each grade above, rounded to whole Silver", () => {
+    const config = { improvementUpkeepGradeFactor: 1.73 };
+    // 10 × 1.73 is 17.3, × 1.73² 29.93, × 1.73³ 51.78.
+    expect([-1, 0, 1, 2, 3, 4].map((grade) => facilityUpkeep({ upkeep: 10 }, grade, config))).toEqual([0, 0, 10, 17, 30, 52]);
+    expect([1, 2, 3].map((grade) => facilityUpkeep({ upkeep: 15 }, grade, config))).toEqual([15, 26, 45]);
+    expect(facilityUpkeep({ upkeep: 15 }, 3, { improvementUpkeepGradeFactor: 1 })).toBe(15);
+    expect(facilityUpkeep({ upkeep: 0 }, 3, config)).toBe(0);
   });
 });
 
@@ -138,6 +149,19 @@ describe('a fourth grade and a fourth Facility, from content alone', () => {
     expect(after.world.guilds[guild.id]?.hall['chapel']).toBe(1);
     expect(after.world.guilds[guild.id]?.wealth).toBe(10_000 - 300);
     expect(moraleBaselineFor(hero, after.world, deps.config, extended)).toBe(before + 4);
+  });
+
+  test("the fourth grade's and the fourth Facility's upkeep are charged with the Hall's, from their rows (DL-298)", () => {
+    let { document, guild } = scene();
+    for (let grade = 1; grade <= 4; grade += 1) document = build(document, guild, 'infirmary');
+    document = build(document, guild, 'chapel');
+    guild = document.world.guilds[guild.id] as Guild;
+    const { config } = deps;
+
+    expect(hallUpkeepParts(guild, document.world, config, extended).facilities).toEqual({
+      infirmary: Math.round(15 * config.improvementUpkeepGradeFactor ** 3),
+      chapel: 15,
+    });
   });
 
   test("a fourth Facility's heal factor, training XP and Fatigue fall join the Hall's, read by the Injury's Days, the night's training and the Hero State's night", () => {

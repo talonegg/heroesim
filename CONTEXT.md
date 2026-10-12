@@ -771,17 +771,17 @@ _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
 The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
-upkeep, charged every 30 (DL-294). One Upkeep, as a measure, is a month of them: three charges of
-wages and one of the Hall's, and every reading of the Guild's reserves in Upkeeps counts so. Today
-the Hall's maintenance is charged with the wages every 10 Days, and the two charges, the Hall's
-upkeep and one Upkeep a month are to be built.
+upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). One Upkeep, as a
+measure, is a month of them: three charges of wages and one of the Hall's, and every reading of the
+Guild's reserves in Upkeeps counts so. Today those readings count ten Days of them, the wages and a
+third of the Hall's, and one Upkeep a month is to be built.
 _Avoid_: Wages (alone), Salary, Running costs
 
 **Hall**:
 The Guild's premises: its Facilities, today an infirmary, a training yard and quarters, each raised
 by Improvements and, later, staffed by Workers. It costs upkeep every 30 Days: a sum each Guild has
-from its founding, a share for each Hero on its Roster, and each Facility's upkeep with it (DL-294;
-to be built).
+from its founding, a share for each Hero on its Roster, and each Facility's upkeep with it (DL-294,
+DL-298).
 _Avoid_: Base, Headquarters, Guildhall
 
 **Facility**:
@@ -789,7 +789,7 @@ A part of the Hall, defined in content: its name, its upkeep at its first grade,
 each grade, and its effects, taken from a closed set (healing speed, training XP, the Morale
 baseline and Fatigue's fall). Its grades are Improvements, each with a price, a name and the
 effects' values at that grade. The core has three, the infirmary, the training yard and the
-quarters (DL-294, DL-297); their upkeep is held, and charged with the Hall's (to be built).
+quarters (DL-294, DL-297); their upkeep is charged with the Hall's (DL-298).
 _Avoid_: Room, Amenity, Building
 
 **Improvement**:

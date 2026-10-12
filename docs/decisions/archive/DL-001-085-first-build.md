@@ -1059,6 +1059,7 @@ saying whether they act only on an Upkeep Day or every night.
    Day index 9, the same ordinal reading DL-24 already gives Turn and Day; Upkeep then falls once
    every ten Days have completed, not after eleven. `upkeepEveryDays` 1 charges Upkeep every
    night, which the formula gives without a special case.
+   *Superseded in part by DL-298 item 2, 2026-10-12: One Upkeep Day; now the wages on these Days and the Hall's upkeep every `hallUpkeepEveryDays`, 29, 59, 89…, counted alike. The record: [superseded/DL-26.md](superseded/DL-26.md).*
 2. **The Bankruptcy floor and the Fame floor act every night, not only on an Upkeep Day.**
    Wealth can cross `bankruptcyFloor` on a night that is not an Upkeep Day (a Quest reward, a
    future purchase), and Fame moves on Quest outcomes any night, so `guildState` checks
@@ -1070,6 +1071,7 @@ saying whether they act only on an Upkeep Day or every night.
    itself is the record a front end or a later story (M2-S10's Bankruptcy ending) reads; nothing
    is lost by not also logging its change as an entry.
    *Superseded in part by DL-85 item 6, 2026-09-28: The silent Bankruptcy floor ("No event for the floor"); now guild.below-floor / guild.floor-recovered events and an always-on stop. Fame clamp untouched. The record: [superseded/DL-26.md](superseded/DL-26.md).*
+   *Superseded in part by DL-298 item 2, 2026-10-12: The one event `guild.upkeep-paid`; now `guild.wages-paid` and `guild.hall-upkeep-paid`. The record: [superseded/DL-26.md](superseded/DL-26.md).*
 4. **A folded Guild is skipped whole**, before Upkeep, the floor check or the Fame clamp, per
    the M2 shared context's rule that every per-Guild loop skips a folded Guild now, ahead of
    M2-S10 setting `foldedOnTurn`.
@@ -2781,6 +2783,7 @@ years" makes the rate's unit; how each Stat reads "across the Stat range" and "u
    optional so that tests written before this story still compile, and every rule, controller and
    front end passes it (the harness's policy included).
    *Superseded in part by DL-87 item 6, 2026-09-28: One effect per Guildmaster Trait; now a Trait may carry a list of effects. The record: [superseded/DL-43.md](superseded/DL-43.md).*
+   *Superseded in part by DL-298 item 3, 2026-10-12: `upkeepFactor` on the whole Upkeep in `upkeep`, content optional; now on the Hall's upkeep alone in `hallUpkeepParts`, "Hall upkeep ×0.9", the wages unscaled. The record: [superseded/DL-43.md](superseded/DL-43.md).*
 9. **The CLI.** `show guildmaster [guildId]` prints the Guildmaster's Stats with what each bears on,
    their Traits with each effect in words, and their Regard for every Patron, each Hero on the
    Roster and each other Guild in play (through its Guildmaster), as bands only; `show patrons` adds

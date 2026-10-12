@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { coinWords } from '@heroesim/words';
-import { documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
+import { changed, documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { treasuryAccounts } from '../state/treasury';
 import { amountPattern, coinsPattern, section, silverOf, spokenText } from './page.test-support';
@@ -62,18 +62,25 @@ function totals(): string {
 }
 
 describe('the Treasury', () => {
-  test("gives the Guild's Wealth, Upkeep's next payment with its Day and parts, and the Bankruptcy floor, with no countdown above it", () => {
-    const state = started();
+  test("gives the Guild's Wealth, each charge of its Upkeep with its next Day, the Hall's with its parts, and the Bankruptcy floor, with no countdown above it (DL-298)", () => {
+    const state = changed(started(), (_, player) => {
+      player.hall = { ...player.hall, quarters: 1 };
+    });
     renderTreasury(state);
     const part = treasury();
+    const upkeep = treasuryAccounts(documentOf(state))?.upkeep;
+    const rosterSize = documentOf(state).meta.config.startingRosterSize;
 
     expect(spokenText(within(part).getByTestId('treasury-wealth'))).toMatch(new RegExp(`^Wealth\\s*${coinsPattern}$`));
-    expect(within(part).getByText(new RegExp(`^Upkeep of The Lantern: ${amountPattern} every 10 Days$`))).toBeDefined();
-    expect(spokenText(within(part).getByTestId('upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year 1 Day 10: ${amountPattern}\\.$`));
-    expect(within(part).getAllByRole('term').map((term) => term.textContent)).toEqual(expect.arrayContaining(['Wages', 'Hall maintenance']));
+    expect(within(part).getByText(new RegExp(`^Wages of The Lantern: ${amountPattern} every 10 Days$`))).toBeDefined();
+    expect(within(part).getByText(new RegExp(`^Hall upkeep of The Lantern: ${amountPattern} every 30 Days$`))).toBeDefined();
+    expect(spokenText(within(part).getByTestId('wages-next'))).toBe(`Next paid on the night of Year 1 Day 10: ${coinWords(upkeep?.wages.total ?? Number.NaN)}.`);
+    expect(spokenText(within(part).getByTestId('hall-upkeep-next'))).toBe(`Next paid on the night of Year 1 Day 30: ${coinWords(upkeep?.hall.total ?? Number.NaN)}.`);
+    const labels = ['The Hall', `${rosterSize} Heroes`, 'Quarters, grade 1'];
+    expect(within(part).getAllByRole('term').map((term) => term.textContent)).toEqual(expect.arrayContaining(labels));
     // Each part that is an amount is shown in coins (DL-294 item 1).
-    const parts = treasuryAccounts(documentOf(state))?.upkeep.parts ?? [];
-    for (const label of ['Wages', 'Hall maintenance']) {
+    const parts = upkeep?.hall.parts ?? [];
+    for (const label of labels) {
       const value = within(part).getByText(label, { selector: 'dt' }).nextElementSibling;
       if (!(value instanceof HTMLElement)) throw new Error(`no value for ${label}`);
       expect(silverOf(value)).toBe(parts.find((each) => each.label === label)?.silver);
@@ -99,7 +106,7 @@ describe('the Treasury', () => {
     expect(shown[3]).toEqual(['Year 1 Day 1, morning', `Founded with ${coinWords(founded)}`, 'Opening balance', coinWords(founded)]);
     expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
     expect(shown[0]?.[0]).toBe('Year 1 Day 10, night');
-    expect(shown[0]?.[1]).toMatch(new RegExp(`^The Lantern paid ${amountPattern} in Upkeep, leaving ${amountPattern}\\.$`));
+    expect(shown[0]?.[1]).toMatch(new RegExp(`^The Lantern paid ${amountPattern} in wages, leaving ${amountPattern}\\.$`));
     expect(shown[0]?.[3]).toMatch(new RegExp(`^-${amountPattern}$`));
     expect(shown[2]?.[1]).toMatch(new RegExp(`^The Lantern sold Whetstone at the Market for ${amountPattern}\\.$`));
     expect(shown[2]?.[3]).toMatch(new RegExp(`^\\+${amountPattern}$`));

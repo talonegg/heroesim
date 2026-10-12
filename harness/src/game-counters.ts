@@ -1249,14 +1249,16 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
       label,
       ...controllerKinds.flatMap((kind) => perYear(kind, read(totals.wealth[kind]))),
     ];
-    const spent = (flows: WealthFlows): number => flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.upkeep;
+    const spent = (flows: WealthFlows): number =>
+      flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.wages + flows.hallUpkeep;
     const taken = (flows: WealthFlows): number => flows.questRewards + flows.transferFeesTaken + sum(saleCauses.map((cause) => flows.sales[cause]));
     const shareRow = controllerKinds.flatMap((kind) => {
       const flows = totals.wealth[kind];
       const all = spent(flows);
       return [
         `${kindLabel(kind)}: signing ${percent(flows.signing, all)}, Transfers ${percent(flows.transferFeesPaid, all)}, ` +
-          `Items ${percent(flows.items, all)}, Improvements ${percent(flows.improvements, all)}, Upkeep ${percent(flows.upkeep, all)}`,
+          `Items ${percent(flows.items, all)}, Improvements ${percent(flows.improvements, all)}, ` +
+          `Upkeep ${percent(flows.wages + flows.hallUpkeep, all)} (wages ${percent(flows.wages, all)}, Hall upkeep ${percent(flows.hallUpkeep, all)})`,
       ];
     });
     const kindHeaders = controllerKinds.flatMap((kind) => [kind === 'player' ? "Player's" : "Rivals'", 'a Guild-year']);
@@ -1271,7 +1273,10 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
           flowRow('Spent: Transfers (`hero.transferred` `fee`, the buying Guild)', (flows) => flows.transferFeesPaid),
           flowRow('Spent: Items (`item.bought` `cost`)', (flows) => flows.items),
           flowRow('Spent: Improvements (`guild.improved` `cost`)', (flows) => flows.improvements),
-          flowRow('Spent: Upkeep (`guild.upkeep-paid` `amount`)', (flows) => flows.upkeep),
+          flowRow('Spent: Upkeep, the wages (`guild.wages-paid` `amount`)', (flows) => flows.wages),
+          flowRow("Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`)", (flows) => flows.hallUpkeep),
+          flowRow("Of the Hall's, the Improvements' (its `facilities`, before the Guildmaster's factor)", (flows) => flows.improvementUpkeep),
+          flowRow('Spent: Upkeep in all, the two charges', (flows) => flows.wages + flows.hallUpkeep),
           flowRow('Spent in all', spent),
           flowRow('Taken: Quest rewards (`quest.resolved` `wealthDelta`)', (flows) => flows.questRewards),
           flowRow('Taken: Transfers (`hero.transferred` `fee`, the selling Guild)', (flows) => flows.transferFeesTaken),

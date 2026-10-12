@@ -1,5 +1,6 @@
 // The Guild's Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): its accounts. The Wealth; the
-// Upkeep, its next payment with its night and its parts (the sentence the Hall gave until now); the
+// Upkeep's two charges, the wages and the Hall's, each with its next payment and its night, the Hall's
+// with its parts (DL-298); the
 // Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the
 // Wealth read from the History, newest first, a page at a time, with the totals of what is shown, opening
 // with the Wealth the Guild was founded with (M9-F7, DL-120 item 4). Its filters, income or expense and
@@ -8,7 +9,7 @@
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { ledgerPage, treasuryAccounts, type TreasuryAccounts } from '../state/treasury';
+import { ledgerPage, treasuryAccounts, type TreasuryAccounts, type UpkeepCharge } from '../state/treasury';
 import { Names } from './history-entries';
 import { Coins } from './coins';
 import { Icon } from './icons';
@@ -22,6 +23,26 @@ type Chips = FilterChipsProps<'flow'>['flow'];
 export function Treasury({ document }: { document: WorldDocument }) {
   const view = useMemo(() => treasuryAccounts(document), [document]);
   return view === null ? <p>The save has no player’s Guild.</p> : <Accounts view={view} />;
+}
+
+/** One charge of the Upkeep: its sentence, its next payment with its night, and its parts where it has any (DL-298). */
+function Charge({ charge, testId }: { charge: UpkeepCharge; testId: string }) {
+  return (
+    <>
+      <p className="upkeep">
+        <Icon name="wealth" />
+        <span>{charge.sentence}</span>
+      </p>
+      {charge.next === null ? null : (
+        <p data-testid={testId}>
+          Next paid on {charge.next}: <Coins silver={charge.total} />.
+        </p>
+      )}
+      {charge.parts.length === 0 ? null : (
+        <Terms pairs={charge.parts.map(({ label, value, silver }) => [label, silver === undefined ? value : <Coins silver={silver} />] as const)} />
+      )}
+    </>
+  );
 }
 
 /**
@@ -60,16 +81,8 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
       )}
 
       <h3>Upkeep</h3>
-      <p className="upkeep">
-        <Icon name="wealth" />
-        <span>{upkeep.sentence}</span>
-      </p>
-      {upkeep.next === null ? null : (
-        <p data-testid="upkeep-next">
-          Next paid on {upkeep.next}: <Coins silver={upkeep.total} />.
-        </p>
-      )}
-      <Terms pairs={upkeep.parts.map(({ label, value, silver }) => [label, silver === undefined ? value : <Coins silver={silver} />] as const)} />
+      <Charge charge={upkeep.wages} testId="wages-next" />
+      <Charge charge={upkeep.hall} testId="hall-upkeep-next" />
       <p className="subtle" data-testid="floor">
         The Bankruptcy floor is <Coins silver={view.floor} />.
       </p>

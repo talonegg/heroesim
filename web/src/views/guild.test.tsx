@@ -46,7 +46,7 @@ describe("the Guild's parts", () => {
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
     expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Treasury' }));
-    expect(within(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).getByText(/^Upkeep of The Lantern:/)).toBeDefined();
+    expect(within(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).getByText(/^Wages of The Lantern:/)).toBeDefined();
   });
 
   test('the arrow keys, Home and End move between the tabs and open each; only the open one is in the Tab order', () => {

@@ -1461,7 +1461,7 @@ export function guildBackgrounds(set: ContentSet = content): { key: string; name
 export interface TraitChoice {
   key: TraitKey;
   name: string;
-  /** What it does, in the Guildmaster's page's words: `Upkeep ×0.9`. */
+  /** What it does, in the Guildmaster's page's words: `Hall upkeep ×0.9`. */
   effect: string;
   /** Its cost against the budget: a buff's positive, a penalty's negative, a refund. */
   cost: number;

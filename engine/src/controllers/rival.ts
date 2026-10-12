@@ -194,7 +194,7 @@ export function transferAnswer(
  * Reads, never writes, and draws nothing.
  */
 function hiringBudget(
-  world: Pick<World, 'heroes'>,
+  world: Pick<World, 'heroes' | 'guildmasters'>,
   guild: Guild,
   disposition: Disposition,
   deps: Pick<EngineDeps, 'config' | 'content'>,
@@ -207,7 +207,7 @@ function hiringBudget(
 }
 
 /** `hiringBudget` for a Guild whatever its controller: `null` for one with no Disposition content defines. */
-function budgetOf(world: Pick<World, 'heroes'>, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number | null {
+function budgetOf(world: Pick<World, 'heroes' | 'guildmasters'>, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number | null {
   const disposition = chooser(guild, deps.content);
   return disposition === 'own' || disposition === null ? null : hiringBudget(world, guild, disposition, deps);
 }

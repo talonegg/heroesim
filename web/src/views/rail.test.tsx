@@ -27,7 +27,7 @@ describe('the rail keeps to what the Guild’s History shows', () => {
     const sentences = railSentences();
 
     expect(sentences.some((sentence) => /^The Lantern's Party came home from /.test(sentence))).toBe(true);
-    for (const pattern of [/ gained \d+ XP\.$/, /Morale/, /Regard/, / paid \d+ Upkeep/, / bought /, / sold /]) {
+    for (const pattern of [/ gained \d+ XP\.$/, /Morale/, /Regard/, / paid .* in (wages|Hall upkeep), /, / bought /, / sold /]) {
       expect(sentences.filter((sentence) => pattern.test(sentence)), String(pattern)).toEqual([]);
     }
     const count = /(\d+) new$/.exec(navButton('History').textContent ?? '')?.[1];

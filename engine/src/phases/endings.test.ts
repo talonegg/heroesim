@@ -446,6 +446,8 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     expect(founded[0]?.payload.wealth).toBe(newcomer.wealth);
     expect(newcomer.wealth).toBeGreaterThanOrEqual(deps.config.rivalStartingWealthMin);
     expect(newcomer.wealth).toBeLessThanOrEqual(deps.config.rivalStartingWealthMax);
+    // Its Hall's own base upkeep is the config's at its founding, as every Guild's is (DL-298).
+    expect(newcomer.hallBaseUpkeep).toBe(deps.config.hallBaseUpkeep);
     // It takes the controller of the Rival it replaces, so the world keeps every Disposition it was
     // dealt (DL-56): here the first Rival's, `ambitious`, dealt first in key order.
     expect(newcomer).toMatchObject({
@@ -466,13 +468,13 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const rivalsInPlay = rankings(replaced.document.world, 'fame').filter((ranking) => ranking.guildId !== player.id);
     expect(rivalsInPlay).toHaveLength(deps.config.rivalCount);
 
-    // Past an Upkeep Day (Day 9) and the night the released Heroes leave the pool (Day 12).
+    // Past a wages Day (Day 9) and the night the released Heroes leave the pool (Day 12).
     const beyond = playTo(replaced.document, nightOf(12), deps);
     const afterwards = [...waiting.events, ...replaced.events, ...beyond.events];
     expect(afterwards.filter((event) => event.participants.includes(rival.id))).toEqual([]);
     expect(ofType(afterwards, 'quest.taken').length).toBeGreaterThan(0); // the other Rivals did act
     expect(guildOf(beyond.document.world, rival.id)).toEqual(folded);
-    const paid = ofType(beyond.events, 'guild.upkeep-paid').map((event) => event.payload.guildId);
+    const paid = ofType(beyond.events, 'guild.wages-paid').map((event) => event.payload.guildId);
     expect(new Set(paid)).toEqual(new Set(rankings(beyond.document.world, 'fame').map((ranking) => ranking.guildId)));
     expect(ofType(beyond.events, 'guild.founded')).toEqual([]);
     // A released Hero leaves the pool like any other, and hero.left-guild keeps their row (DL-27).

@@ -1,11 +1,13 @@
-// The Hall's Facilities (DL-294 item 3): content defines each Facility, its grades (the Improvements)
-// and its effects' values at each grade, from the closed set `facilityEffectKinds`. The engine names no
-// Facility: every rule a Facility bears on reads its effect here, by kind, over the Hall's Facilities,
-// so a Facility, or a grade, content adds needs no change of code (DL-297).
+// The Hall's Facilities (DL-294 item 3): content defines each Facility, its grades (the Improvements),
+// its upkeep and its effects' values at each grade, from the closed set `facilityEffectKinds`. The
+// engine names no Facility: every rule a Facility bears on reads its effect or its upkeep here, by kind,
+// over the Hall's Facilities, so a Facility, or a grade, content adds needs no change of code (DL-297,
+// DL-298).
 //
 // Pure, and draws nothing.
 
 import type { ContentSet, Facility, FacilityEffectKind, FacilityEffects, FacilityKey, Improvement } from './content-types.js';
+import type { GameConfig } from './config.js';
 import type { Hall } from './document.js';
 
 /** How one effect's values join across a Hall's Facilities, and what a Hall with none of it reads. */
@@ -74,6 +76,20 @@ export function facilityEffectsAt(
     effects = row.effects;
   }
   return effects;
+}
+
+/**
+ * What `facility` costs to keep at `grade` each time the Hall's upkeep falls due (DL-294 item 3,
+ * DL-298): nothing at grade 0, its content `upkeep` at grade 1, and × `improvementUpkeepGradeFactor`
+ * for each grade above, rounded to whole Silver. A grade past content's top is charged by the same
+ * rule, as its grade gives it.
+ */
+export function facilityUpkeep(
+  facility: Pick<Facility, 'upkeep'>,
+  grade: number,
+  config: Pick<GameConfig, 'improvementUpkeepGradeFactor'>,
+): number {
+  return grade < 1 ? 0 : Math.round(facility.upkeep * config.improvementUpkeepGradeFactor ** (grade - 1));
 }
 
 /**

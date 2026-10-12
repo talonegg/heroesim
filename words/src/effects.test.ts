@@ -36,7 +36,7 @@ describe("a Trait's effects", () => {
         { kind: 'upkeepFactor', factor: 0.9 },
       ],
       '-2 Dexterity, -1 Endurance, +2 to every Check of combat or travel Encounters, -1 to every Check of Encounters tagged undead, ' +
-        '+3 to every Check of social Encounters or Encounters tagged court, +1 Weaponry to Warriors, Upkeep ×0.9',
+        '+3 to every Check of social Encounters or Encounters tagged court, +1 Weaponry to Warriors, Hall upkeep ×0.9',
     ],
     ['a Morale baseline', [{ kind: 'guildMoraleShift', delta: -5 }], 'Morale baseline -5'],
     [

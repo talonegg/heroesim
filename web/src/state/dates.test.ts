@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { bankruptcyCountdown, nextUpkeepDay, retiresOn, type EngineEventOf, type Entry, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
+import { bankruptcyCountdown, nextHallUpkeepDay, nextWagesDay, retiresOn, type EngineEventOf, type Entry, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { partiesOutView } from './digest';
@@ -30,7 +30,13 @@ const whenIn = (turn: number): string => `${dateIn(turn)}, ${times[turn % 3]}`;
 /** The Treasury's Upkeep and its ledger's first page, no filter chosen, as its page reads them (DL-214). */
 function treasuryOf(document: WorldDocument) {
   const accounts = treasuryAccounts(document);
-  return accounts === null ? null : { next: accounts.upkeep.next, rows: ledgerPage(accounts.ledger, { rows: accounts.ledger.changes, filtered: false }, 0).rows };
+  return accounts === null
+    ? null
+    : {
+        next: accounts.upkeep.wages.next,
+        hallNext: accounts.upkeep.hall.next,
+        rows: ledgerPage(accounts.ledger, { rows: accounts.ledger.changes, filtered: false }, 0).rows,
+      };
 }
 
 /** A new game whose Year is two Days. */
@@ -127,7 +133,8 @@ describe("every date the page shows is by the game's own calendar (DL-210)", () 
     expect(JSON.stringify(report)).toContain(nightIn(23));
 
     const treasury = treasuryOf(document);
-    expect(treasury?.next).toBe(nightIn(nextUpkeepDay(night, playDeps(document).config) * 3));
+    expect(treasury?.next).toBe(nightIn(nextWagesDay(night, playDeps(document).config) * 3));
+    expect(treasury?.hallNext).toBe(nightIn(nextHallUpkeepDay(night, playDeps(document).config) * 3));
     expect(treasury?.rows.some((row) => row.when === whenIn(night))).toBe(true);
 
     // The opening row of a Guild founded later, as a replacement Rival is: its `guild.founded` moved to Turn 13.

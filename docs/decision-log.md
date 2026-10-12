@@ -450,3 +450,65 @@ each Facility's `upkeep`.
   Facility's heal, training XP and Fatigue read at night; a Hero on no Roster at grade 0; the harness's
   grades by content; `discard` with no key), one equivalent; a Quest's taking has its reward checked
   whole; DL-53's test holds the shipped grades again; Coaching names the Hall, not the training yard.
+
+## DL-298 — v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-294 and
+§2's defaults as the owner set them (each Facility's `upkeep` 10, commit 5a1452b)
+
+**Context.** DL-294 items 2 to 4 (Q4, Q5, Q14, Q17) give the Hall an upkeep of its own every 30 Days, a
+base on each Guild, a share for each Hero and each built Facility's upkeep rising with its grade, charged
+apart from the wages. Upkeep was one charge every 10 Days, `hallMaintenancePerGrade` × the Hall's grades
+with the wages, × the Guildmaster's `upkeepFactor`.
+
+**Decision.**
+
+1. *The Hall's upkeep* (`hallUpkeepParts`, `engine/src/selectors.ts`): the Guild's own `hallBaseUpkeep`,
+   set at its founding from config (`generateGuild`, so the player's, each Rival's and a replacement's);
+   its Heroes' share, `hallUpkeepPerHero` × the living Roster ^ `hallUpkeepHeroExponent`, those away
+   counted; and each built Facility's `facilityUpkeep` (`facilities.ts`), its content `upkeep` ×
+   `improvementUpkeepGradeFactor` ^ (grade − 1), nothing at grade 0. `hallMaintenancePerGrade` is gone.
+2. *Two charges* (`phases/guild-state.ts`): `wages` (`wagePerLevel` × Level over the living Roster) on
+   `nextWagesDay`'s Days, 9, 19, 29…; the Hall's on `nextHallUpkeepDay`'s, 29, 59, 89…, every
+   `hallUpkeepEveryDays`, counted as DL-26 counts; each for what is there that night, in full; the wages
+   first, then the Hall, then the floor's test, once. `guild.upkeep-paid` gives way to `guild.wages-paid`
+   `{ amount, wealthAfter }` and `guild.hall-upkeep-paid` `{ amount, wealthAfter, base, heroCount, heroes,
+   facilities, traitFactor }`.
+3. *Thrifty and Spendthrift* scale the Hall's upkeep alone; the effect reads "Hall upkeep ×0.9" in the
+   words and the editor. No Trait's text needed changing.
+4. *Config* 32: `hallUpkeepEveryDays` 30, `hallBaseUpkeep` 30, `hallUpkeepPerHero` 5,
+   `hallUpkeepHeroExponent` 1, `improvementUpkeepGradeFactor` 1.73 (at least 1). *Content* 47: each
+   Facility's `upkeep` 10, by the editor's `facilities change` and "Finish".
+5. *The save*: `schemaVersion` 13; the validator holds `hallBaseUpkeep` whole from 0 and both events'
+   amounts whole, each Facility's charge among them (`moneyMaps`).
+6. *The readers.* `upkeep` stays the measure every reader of "Upkeeps" counts in, now the wages and the
+   Hall's upkeep × `upkeepEveryDays` ÷ `hallUpkeepEveryDays`. The Treasury shows each charge with its
+   sentence and next night, the Hall's with its parts; the History, the ledger (both under Upkeep), the
+   CLI's `build` line and the harness's wealth table read the two events.
+7. *Supersedes in part* DL-26 items 1 and 3 (one Upkeep Day, one event), DL-43 item 8 (the factor on the
+   whole Upkeep) and DL-112 item 3 (`upkeepParts`, `nextUpkeepDay`).
+
+*Judgement calls, for the owner to see.*
+- *Rounding:* each Facility's charge and the Heroes' share are rounded to whole Silver, the parts summed,
+  times the factor, rounded once; the event and the Treasury carry the parts and the factor, so the
+  total is re-derived from them. Grades 1 to 3 of an upkeep of 10 cost 10, 17 and 30.
+- The Hall's 30 Days is a setting of its own, `hallUpkeepEveryDays`; `upkeepEveryDays` keeps its name as
+  the wages'.
+- Until S5, one Upkeep reads ten Days: the wages and a third of the Hall's month, so S5's move is what
+  changes the Rivals' and the policy's thresholds.
+- `hallUpkeepEveryDays` need not be a multiple of `upkeepEveryDays`; at the defaults Day 29 charges both.
+- A grade past content's top is charged by the formula at its grade; a Hall key content lacks costs nothing.
+- The Treasury labels the Hall's own sum "The Hall", not "base" (the glossary's _Avoid_).
+- The harness's wealth table splits Upkeep into the wages, the Hall's and, of it, the Improvements'
+  before the factor; `compare` reads `wages` and `hallUpkeep` where `upkeep` was.
+- §2's derived figures were recomputed at 10 and corrected in the epic; the editor's "Finish" takes no
+  reason, so the content version's line is its own.
+- The History's fingerprints in `quests-conclude.test.ts` move, recorded with their old values.
+
+**Consequences.** Every game's fingerprint moves; older saves are refused. In the quick run, against
+S3's, the Upkeep a Guild-year moves +3.3% for the player and −1.2% for the Rivals, within Q21's 10%;
+the Hall's line alone +15% and −18%, reported for `v1.2.4`, not tuned (the lines in the commit
+message). S5 makes one Upkeep a month.
+
+**Evidence.** The commit `v1.2.2-S4 (DL-298)`: the checks with their counts, the doctors' readings, the
+quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's S4 boxes ticked.

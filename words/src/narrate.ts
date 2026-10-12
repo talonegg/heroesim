@@ -318,8 +318,11 @@ const sentences: Sentences = {
   'patron.generated': (event, content) =>
     say`${called(event, event.payload.patronId)} of the ${nameIn(content.spheres, event.payload.sphereKey)} became a Patron.`,
   'world.rules-adopted': (event) => say`The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`,
-  'guild.upkeep-paid': (event) =>
-    say`${called(event, event.payload.guildId)} paid ${coinWords(event.payload.amount)} in Upkeep, leaving ${coinWords(event.payload.wealthAfter)}.`,
+  // The two charges of the Upkeep (DL-298); the Hall's parts are the Treasury's to show, not the sentence's.
+  'guild.wages-paid': (event) =>
+    say`${called(event, event.payload.guildId)} paid ${coinWords(event.payload.amount)} in wages, leaving ${coinWords(event.payload.wealthAfter)}.`,
+  'guild.hall-upkeep-paid': (event) =>
+    say`${called(event, event.payload.guildId)} paid ${coinWords(event.payload.amount)} in Hall upkeep, leaving ${coinWords(event.payload.wealthAfter)}.`,
   // M9-S1: the night Bankruptcy falls on, as the countdown gives it (DL-95), from the event alone.
   'guild.below-floor': (event, _content, calendar) => {
     const { guildId, wealth, floor, dueDay } = event.payload;

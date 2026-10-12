@@ -102,7 +102,8 @@ export interface GeneratedGuild {
 /**
  * Generates a Guild into `world` (DL-19 items 6 and 7): the Guild, its Guildmaster, and its Roster
  * through the Heroes Generator, all drawn from `options.stream` (`generation` by default); ids
- * from the counters; the Hall founded with every Facility content defines at grade 0 (`foundedHall`) and Fame `foundingFame` (DL-261).
+ * from the counters; the Hall founded with every Facility content defines at grade 0 (`foundedHall`), its
+ * own `hallBaseUpkeep` from config (DL-298), and Fame `foundingFame` (DL-261).
  * Returns both rows and the events for the caller to append.
  *
  * Throws, changing nothing, on a programming error: a blank name, a key that is not a Guild
@@ -154,6 +155,8 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     belowFloorSince: null,
     foldedOnTurn: null,
     hall: foundedHall(deps.content),
+    // Every Guild alike, its own from its founding (DL-298).
+    hallBaseUpkeep: deps.config.hallBaseUpkeep,
     // A copy: Rivals given one controller object must not share it.
     controller: { ...controller },
     regard: {},

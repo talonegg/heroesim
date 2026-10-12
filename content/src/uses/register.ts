@@ -652,11 +652,11 @@ const engineEntries: readonly EngineEntry[] = [
     title: "The Guildmaster's Trait readers",
     lists: ['guildmaster'],
     effectKinds: ['classStatBonus', 'guildMoraleShift', 'upkeepFactor'],
-    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).",
+    reads: "Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in the Hall's upkeep alone, not the wages (DL-43, DL-150 item 8, DL-298).",
     sources: [
       { file: 'engine/src/guildmaster.ts', names: ['traitEffects', 'traitMoraleShift', 'traitUpkeepFactor', 'traitStatBonuses'] },
       { file: 'engine/src/morale.ts', names: ['moraleBaselineFor'] },
-      { file: 'engine/src/selectors.ts', names: ['upkeepParts', 'statBreakdown'] },
+      { file: 'engine/src/selectors.ts', names: ['hallUpkeepParts', 'statBreakdown'] },
     ],
   }),
   engine({

@@ -7,9 +7,10 @@
 
 import {
   applyAction,
+  hallUpkeepParts,
   nextImprovement,
   playerGuild,
-  upkeep,
+  wages,
   type EngineDeps,
   type GuildImproved,
   type WorldDocument,
@@ -21,7 +22,8 @@ import type { CommandOutcome } from './outcome.js';
 
 /**
  * Builds the next grade of the named Facility for the player's Guild under the save's own deps,
- * and says what was built, for how much, the Wealth and Upkeep after it, and what the next grade
+ * and says what was built, for how much, the Wealth and the Upkeep's two charges after it, the wages and
+ * the Hall's each with its Days (DL-298), and what the next grade
  * would cost. A key the save's content defines no Facility by is refused, naming the keys it does.
  */
 export function buildImprovement(
@@ -52,7 +54,8 @@ export function buildImprovement(
     document: result.document,
     lines: [
       `Built ${nameIn(deps.content.improvements, improvementKey)} for ${coinLetters(cost)}: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
-      `Wealth ${coinLetters(built.wealth)}; Upkeep ${coinLetters(upkeep(built, world, deps.config, deps.content))} every ${deps.config.upkeepEveryDays} Days.`,
+      `Wealth ${coinLetters(built.wealth)}; wages ${coinLetters(wages(built, world, deps.config))} every ${deps.config.upkeepEveryDays} Days, ` +
+        `Hall upkeep ${coinLetters(hallUpkeepParts(built, world, deps.config, deps.content).total)} every ${deps.config.hallUpkeepEveryDays} Days.`,
       next === null
         ? `The ${name} ${is} now at the highest grade.`
         : `The next grade, ${next.name}, costs ${coinLetters(next.cost)}.`,

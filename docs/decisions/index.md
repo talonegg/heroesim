@@ -35,7 +35,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-23 | 2026-09-26 | M1 verification corrections |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-24 | 2026-09-26 | `advance`, the Turn pipeline, `emit`, actions and `rebase` (M2-S1, M2-S2) | item 1 in part by DL-206 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-25 | 2026-09-26 | Quest templates, the Board and its first draw, streams for old saves, and dispatch (M2-S3, M2-S4) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-26 | 2026-09-26 | Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7) | item 3 in part by DL-85 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-26 | 2026-09-26 | Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7) | item 3 in part by DL-85; item 1 in part by DL-298; item 3 in part by DL-298 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-27 | 2026-09-26 | Recruitment, the signing fee, and the Unattached pool's lifecycle (M2-S8) | item 3 in part by DL-211 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-28 | 2026-09-26 | Endings: the checks, what a fold does, the replacement Rival, and Rankings pulled forward (M2-S10) | item 1 in part by DL-83; item 3 in part by DL-54; item 10 in part by DL-113 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-29 | 2026-09-26 | The stub Quest Engine, Injury types, Morale bands and the Hero State Engine (M2-S5, M2-S6) | item 4 in part by DL-85 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -52,7 +52,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-40 | 2026-09-26 | M3 close: the M3 counters, what they read, and the M3 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-41 | 2026-09-26 | M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70; item 7 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87; item 8 in part by DL-298 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-44 | 2026-09-26 | Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-45 | 2026-09-26 | Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-46 | 2026-09-26 | Regard between Heroes: its writer, its decay and the dead; Relationship; the teamwork scalar (M4-S4) | item 9 in part by DL-82 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -121,7 +121,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-109 | 2026-09-29 | The owner's answers to M9's open questions: Guildmaster Traits drawn as a whole legal set, eight … | item 2 in part by DL-111; item 3 in part by DL-111 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-110 | 2026-09-29 | DL-109 items 1 and 2 built: a drawn Guildmaster's Traits as one whole legal set by the same draws … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-111 | 2026-09-29 | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the … | item 10 by DL-113 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113; item 3 in part by DL-298 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-113 | 2026-09-29 | The follow-on's plan approved as amended: DL-112's readings confirmed, every Guildmaster 21 to 50 … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-114 | 2026-09-29 | M9-F1 built: the Quest named on what its return causes, Upkeep's parts and Day exported, every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-115 | 2026-09-29 | M9-F2 built: seven views in one order at every width, the Guildmaster and the Market as views, the … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
@@ -307,6 +307,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-295 | 2026-10-12 | v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury … |  | [decision-log](../decision-log.md) |
 | DL-296 | 2026-10-12 | v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins |  | [decision-log](../decision-log.md) |
 | DL-297 | 2026-10-12 | v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's … |  | [decision-log](../decision-log.md) |
+| DL-298 | 2026-10-12 | v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

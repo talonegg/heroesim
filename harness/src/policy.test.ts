@@ -53,13 +53,14 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
 });
 
 // The harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
-// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
+// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults: the Hall's
+// base and its Heroes' share at 0, so that a new Guild's Upkeep is its wages (DL-298). The
 // Market is empty (`marketSize: 0`) unless a test stocks it, so that the armour and consumables it
 // would buy (DL-62) stay out of the tests of building and recruiting.
 
 const content = loadContent();
 const deps: EngineDeps = {
-  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50, marketSize: 0 },
+  config: { ...defaultConfig, wagePerLevel: 5, hallBaseUpkeep: 0, hallUpkeepPerHero: 0, signingFeeBase: 50, marketSize: 0 },
   content,
 };
 
@@ -417,7 +418,7 @@ describe('automaticPolicy', () => {
       const { document, guild } = scene();
       document.world.board = [];
       guild.wealth = wealth;
-      return { document, guild, threshold: defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config) };
+      return { document, guild, threshold: defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content) };
     }
 
     test('the cheapest Unattached Hero, lowest id among equal fees, when Wealth exceeds three Upkeeps', () => {

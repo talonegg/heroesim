@@ -470,8 +470,10 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 /**
  * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
  * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
- * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and Upkeep
- * (`guild.upkeep-paid`'s `amount`); taken from Quests (`quest.resolved`'s `wealthDelta`), from
+ * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
+ * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), of
+ * which the Improvements' (its `facilities`, before the Guildmaster's factor) is counted apart too
+ * (DL-298); taken from Quests (`quest.resolved`'s `wealthDelta`), from
  * Transfer fees (the same `fee`, for the selling Guild, M6) and from the Market (`item.sold`'s
  * `proceeds`, by its `cause`).
  */
@@ -482,7 +484,12 @@ export interface WealthFlows {
   /** The Items `item.bought` moved, summed over its `quantity`. */
   itemsBought: number;
   improvements: number;
-  upkeep: number;
+  /** The wages (`guild.wages-paid`). */
+  wages: number;
+  /** The Hall's upkeep with its Improvements' (`guild.hall-upkeep-paid`), the Guildmaster's factor applied. */
+  hallUpkeep: number;
+  /** Of `hallUpkeep`, each Facility's charge summed (its `facilities`), before the Guildmaster's factor: no part of Spent in all. */
+  improvementUpkeep: number;
   questRewards: number;
   transferFeesTaken: number;
   sales: Record<ItemSaleCause, number>;
@@ -540,7 +547,9 @@ export const noWealth = (): WealthFlows => ({
   items: 0,
   itemsBought: 0,
   improvements: 0,
-  upkeep: 0,
+  wages: 0,
+  hallUpkeep: 0,
+  improvementUpkeep: 0,
   questRewards: 0,
   transferFeesTaken: 0,
   sales: { sale: 0, fold: 0 },
@@ -1059,8 +1068,17 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
   each('guild.improved', (into, entry, what) => {
     into.improvements += numberField(entry, 'cost', what);
   });
-  each('guild.upkeep-paid', (into, entry, what) => {
-    into.upkeep += numberField(entry, 'amount', what);
+  each('guild.wages-paid', (into, entry, what) => {
+    into.wages += numberField(entry, 'amount', what);
+  });
+  each('guild.hall-upkeep-paid', (into, entry, what) => {
+    into.hallUpkeep += numberField(entry, 'amount', what);
+    const facilities = payloadField(entry, 'facilities');
+    if (typeof facilities !== 'object' || facilities === null) throw new Error(`${what} has no facilities`);
+    for (const charge of Object.values(facilities)) {
+      if (typeof charge !== 'number') throw new Error(`${what} has a Facility's charge that is no number`);
+      into.improvementUpkeep += charge;
+    }
   });
   each('quest.resolved', (into, entry, what) => {
     into.questRewards += numberField(entry, 'wealthDelta', what);

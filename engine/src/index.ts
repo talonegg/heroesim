@@ -380,8 +380,10 @@ export {
   cheapestUnattached,
   dispositionOf,
   effectiveStats,
+  hallUpkeepParts,
+  nextHallUpkeepDay,
   nextImprovement,
-  nextUpkeepDay,
+  nextWagesDay,
   offeredQuests,
   playerGuild,
   rankingPlaces,
@@ -393,8 +395,9 @@ export {
   unattachedHeroes,
   unsignableHeroes,
   upkeep,
-  upkeepParts,
+  wages,
   type BankruptcyCountdown,
+  type HallUpkeepParts,
   type Hire,
   type Ranking,
   type RankingMeasure,
@@ -403,7 +406,6 @@ export {
   type StatBreakdown,
   type StatParts,
   type StatSource,
-  type UpkeepParts,
 } from './selectors.js';
 export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
 export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';

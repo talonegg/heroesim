@@ -2,21 +2,21 @@
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
 import { writeFileSync } from 'node:fs';
-import { playerGuild, serialise, type Guild } from '@heroesim/engine';
+import { hallUpkeepParts, playerGuild, serialise, wages, type Guild } from '@heroesim/engine';
 import { count } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
+import { coinLetters } from '@heroesim/words';
 import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
 const content = loadContent();
 
 const { play, current, saved, document } = playground('heroesim-build-', content);
 
-/** A new world whose player's Guild holds `wealth`, and whose Upkeep figures are pinned. */
+/** A new world whose player's Guild holds `wealth`. */
 function newWorld(wealth: number): Guild {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const edited = document();
-  edited.meta.config.hallMaintenancePerGrade = 10;
   const guild = playerGuild(edited.world);
   if (guild === undefined) throw new Error("No player's Guild");
   guild.wealth = wealth;
@@ -32,7 +32,15 @@ describe('build', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain("Built Sickroom for 2g: The Test's infirmary is now grade 1.");
-    expect(run.out).toMatch(/Wealth 8g; Upkeep (\d+g( \d+s)?|\d+s) every 10 Days\./);
+    // The Upkeep's two charges after it, each with its Days, the Hall's with the infirmary's (DL-298).
+    const { world, meta } = document();
+    const built = thePlayer(world);
+    const hall = hallUpkeepParts(built, world, meta.config, content);
+    expect(hall.facilities).toEqual({ infirmary: content.facilities['infirmary']?.upkeep });
+    expect(run.out).toContain(
+      `Wealth 8g; wages ${coinLetters(wages(built, world, meta.config))} every ${meta.config.upkeepEveryDays} Days, ` +
+        `Hall upkeep ${coinLetters(hall.total)} every ${meta.config.hallUpkeepEveryDays} Days.`,
+    );
     expect(run.out).toContain('The next grade, Infirmary ward, costs 5g.');
     const after = document();
     const guild = thePlayer(document().world);

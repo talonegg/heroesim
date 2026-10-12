@@ -1116,11 +1116,14 @@ describe('the Quest named on what its return causes', () => {
     // 3796609d…); and the Rivals' heal Items, bought in the gear step and carried (DL-288; 95fad3af…,
     // ab51c1f9… and d7713b5c…, which `rivalHealItemStock` 0 gives again); and the training yard's key
     // spelt as content's, `training-yard`, in each `guild.improved` (DL-297; fbab43fa…, bea70df3… and
-    // 036f6031…, which its old spelling gives again: no play moved).
+    // 036f6031…, which its old spelling gives again: no play moved); and the Hall's upkeep with its
+    // Improvements' charged apart from the wages every 30 Days, a base, a share for each Hero and each
+    // Facility's, in `guild.wages-paid` and `guild.hall-upkeep-paid` (DL-298; 1d3cdc9c…, 31fb72fd… and
+    // 015a5606…), which moves every Guild's Wealth and so its purchases.
     expect(fingerprints).toEqual([
-      '1d3cdc9c78aa1f7fd75019486d5faddd04843345a3a398b0918bab840e83b813',
-      '31fb72fd85a78f34c590dabc9374c7c7c9e13322d93ff3b9de735728ca0ae10b',
-      '015a560653d56edcbd9f981400a3414099ceebc20a097eb9df088df0b314fdd0',
+      'd0d1d4ebb7d20731b26ac8afd9e536f323e53d35c3a3d0676420df2c9361154a',
+      '52d50c39f0d6447796a90b708d7da3aa9f6f4a61a2d93a9c7fba052d6c767b70',
+      '9bc95dbcc20fafe5dda638847a0bb10cf7ca7a0bfc0183366f18c8dcf85c6588',
     ]);
   });
 

@@ -36,6 +36,7 @@ function bareGuild(world: World): Guild {
     belowFloorSince: null,
     foldedOnTurn: null,
     hall: foundedHall(testContent),
+    hallBaseUpkeep: 30,
     controller: { kind: 'player' },
     regard: {},
   };

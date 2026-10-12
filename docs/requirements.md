@@ -50,8 +50,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
-| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | Yes (DL-294, DL-297); their upkeep charged with the Hall's is to be built, v1.2.2 | A choosable starting Hall; selling Hall assets (DL-294) |
-| The Hall's upkeep: a sum for each Guild and a share for each Hero, every 30 Days, with its Facilities' | To be built, v1.2.2 (DL-294) | — |
+| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | Yes (DL-294, DL-297); their upkeep charged with the Hall's (DL-298) | A choosable starting Hall; selling Hall assets (DL-294) |
+| The Hall's upkeep: a sum for each Guild and a share for each Hero, every 30 Days, with its Facilities' | Yes (DL-294, DL-298) | — |
 | Rival Guilds: Roster, Wealth, Disposition | Yes | Rival encounters during Quests; a fuller Guild engine |
 | Direct contests between Guilds | No | A later feature, separate from what [Guild Battle](../CONTEXT.md) names (DL-89) |
 | Rankings by Fame and Wealth | Yes | Rankings by any Guild statistic |
@@ -122,7 +122,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never
   spent: it gates which Unattached Heroes will sign for a Guild, a Hero refusing a Guild whose Fame
   is below a threshold that rises with their Level, and, later, Campaigns (pre-M0 review B4).
-- R11. Wealth is the currency. It pays Upkeep (wages and Hall maintenance), signing fees,
+- R11. Wealth is the currency. It pays Upkeep (wages and the Hall's upkeep), signing fees,
   Transfer fees, Items and Hall Improvements. It is held in Silver and shown in Gold and Silver
   (R41).
 - R41. Wealth is held in whole Silver, and 100 Silver is a Gold. Every amount, a Guild's Wealth, a
@@ -239,8 +239,8 @@ Loot and Campaigns are kept as features serving Reputation and History.
 
 - R33. The Hall has an infirmary (faster healing), a training yard (XP off-Quest) and quarters
   (Morale), each raised through three grades by Improvements bought for Wealth; each grade adds
-  to Upkeep. Workers, hired staff with a wage and a Stat that scale a Facility, are deferred. The
-  Facilities are content (R42), and the Hall's upkeep is to be its own charge (R43).
+  to the Hall's upkeep. Workers, hired staff with a wage and a Stat that scale a Facility, are
+  deferred. The Facilities are content (R42), and the Hall's upkeep is its own charge (R43).
 - R42. A Facility is a part of the Hall defined in content, with its name, its upkeep at its first
   grade, and effects taken from a closed set: healing speed, training XP, the Morale baseline and
   Fatigue's fall. Its grades run 1, 2, 3 and on with no gap, a grade being an Improvement with a
@@ -248,8 +248,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
   engine. The content editor adds and checks them (DL-294, DL-297).
 - R43. The Hall costs upkeep every 30 Days: a sum each Guild has from its founding, a share for each
   Hero on its Roster that grows with their number, and each built Facility's upkeep, which rises
-  with its grade. It is charged apart from the Roster's wages, which stay every 10 Days, and one
-  Upkeep as a measure is a month of both (DL-294; to be built, v1.2.2).
+  with its grade, the Guildmaster's Thrifty or Spendthrift scaling it alone. It is charged apart
+  from the Roster's wages, which stay every 10 Days, each for what is there that night (DL-294,
+  DL-298). One Upkeep as a measure is a month of both (DL-294; to be built, v1.2.2).
 
 ### 3.8 Endings
 

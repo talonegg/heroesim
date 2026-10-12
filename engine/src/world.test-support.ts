@@ -901,6 +901,20 @@ export function withFacilityEffect(
 }
 
 /**
+ * `content` (the test content by default) with each Facility named given the upkeep a month at grade 1
+ * given, frozen: for a test that must say what a Facility costs to keep (DL-298).
+ */
+export function withFacilityUpkeep(upkeeps: Readonly<Record<string, number>>, content: ContentSet = testContent): ContentSet {
+  const facilities = { ...content.facilities };
+  for (const [key, upkeep] of Object.entries(upkeeps)) {
+    const row = facilities[key];
+    if (row === undefined) throw new RangeError(`No Facility ${key}`);
+    facilities[key] = { ...row, upkeep };
+  }
+  return deepFreeze({ ...content, facilities });
+}
+
+/**
  * Rivals who never recruit, build or buy gear or heal Items, whatever their Wealth, but still equip and
  * take Quests as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth
  * and must not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of
@@ -1084,6 +1098,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       belowFloorSince: null,
       foldedOnTurn: null,
       hall: { infirmary: 0, 'training-yard': 0, quarters: 0 },
+      hallBaseUpkeep: 30,
       controller: g === 0 ? { kind: 'player' } : { kind: 'rival', disposition: 'steady' },
       regard: {},
     };

@@ -130,11 +130,15 @@ foldedOnTurn:   turn | null                 a Rival that reached an ending; out 
 hall:           Record<FacilityKey, grade>  each Facility's grade by its content key, a whole number
                                             from 0; founded with every Facility content defines at
                                             0, one it lacks reading 0 (DL-294 item 3, DL-297)
+hallBaseUpkeep: integer                     the Hall's own sum each time its upkeep falls due,
+                                            whole Silver from 0: config's hallBaseUpkeep at the
+                                            Guild's founding, kept as its own (DL-294, DL-298)
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
 regard:         Record<EntityId, RegardEntry>  reserved: nothing writes or reads it, a Guild's
                                             opinion being its Guildmaster's (DL-43 item 3, DL-84)
 ```
-Upkeep is computed from the Roster and the Hall, not stored.
+Upkeep is computed from the Roster, the Hall and its `hallBaseUpkeep`, not stored: the wages and the
+Hall's upkeep, each charged on its own Day (DL-298).
 
 **guildmasters**
 ```

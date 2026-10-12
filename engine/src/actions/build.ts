@@ -4,7 +4,7 @@
 // Turn's copy (ADR-0002, DL-30).
 //
 // What a grade does is read where it matters, never here: each of the Hall's effects by the rule it
-// bears on (`hallEffect`, DL-294 item 3), and every grade by Upkeep's Hall maintenance.
+// bears on (`hallEffect`, DL-294 item 3), and every grade by the Hall's upkeep (`facilityUpkeep`, DL-298).
 
 import type { EngineDeps } from '../config.js';
 import type { FacilityKey } from '../content-types.js';

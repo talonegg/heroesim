@@ -8,7 +8,7 @@ import { generateHero } from '../generators/heroes.js';
 import { append } from '../history.js';
 import { xpForLevel } from '../progression.js';
 import { next, streamNames } from '../rng.js';
-import { playerGuild, upkeep } from '../selectors.js';
+import { playerGuild, wages } from '../selectors.js';
 import { nightOf, timeOfDay } from '../time.js';
 import { ofType, playWith, setup, testDeps, withValid } from '../world.test-support.js';
 import { levelUps } from './level-ups.js';
@@ -158,17 +158,17 @@ describe('levelUps', () => {
     expect(ofType(home.events, 'hero.levelled')).toEqual([]);
   });
 
-  test("Upkeep rises by wagePerLevel for each Level gained (M2's wage now has an effect)", () => {
+  test("the wages rise by wagePerLevel for each Level gained (M2's wage now has an effect)", () => {
     const deps = soloDeps();
     const document = eve('upkeep', deps);
     const [heroId] = player(document.world).rosterIds as [HeroId];
     hero(document.world, heroId).xp = xpForLevel(4, deps.config);
-    const upkeepBefore = upkeep(player(document.world), document.world, deps.config);
+    const wagesBefore = wages(player(document.world), document.world, deps.config);
 
     const { document: after } = playTo(document, nightOf(0), deps);
 
     expect(hero(after.world, heroId).level).toBe(4);
-    expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
+    expect(wages(player(after.world), after.world, deps.config) - wagesBefore).toBe(3 * 70);
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {

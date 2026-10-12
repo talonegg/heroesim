@@ -929,14 +929,26 @@ describe('sweepPlay', () => {
             miserly: { infirmary: [2 * k], 'training-yard': [0, k], quarters: [k] },
           },
           wealth: {
-            player: { ...noWealth(), signing: 100 * k, transferFeesPaid: 100 * k, items: 200 * k, upkeep: 600 * k, questRewards: 1000 * k, transferFeesTaken: 310 * k },
+            player: {
+              ...noWealth(),
+              signing: 100 * k,
+              transferFeesPaid: 100 * k,
+              items: 200 * k,
+              wages: 500 * k,
+              hallUpkeep: 100 * k,
+              improvementUpkeep: 40 * k,
+              questRewards: 1000 * k,
+              transferFeesTaken: 310 * k,
+            },
             rival: {
               ...noWealth(),
               signing: 50 * k,
               transferFeesPaid: 1280 * k,
               items: 150 * k,
               improvements: 500 * k,
-              upkeep: 2000 * k,
+              wages: 1500 * k,
+              hallUpkeep: 500 * k,
+              improvementUpkeep: 200 * k,
               questRewards: 4000 * k,
               transferFeesTaken: 1070 * k,
             },
@@ -986,7 +998,12 @@ describe('sweepPlay', () => {
       expect(text).toContain('| Spent in all | 3,000 | 3,000.0 | 11,940 | 2,985.0 |');
       expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
-      expect(text).toContain("The player's Guild: signing 10.0%, Transfers 10.0%, Items 20.0%, Improvements 0.0%, Upkeep 60.0%;");
+      expect(text).toContain("The player's Guild: signing 10.0%, Transfers 10.0%, Items 20.0%, Improvements 0.0%, Upkeep 60.0% (wages 50.0%, Hall upkeep 10.0%);");
+      // The Upkeep's two charges by line, the Improvements' of the Hall's apart and no part of the whole (DL-298).
+      expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');
+      expect(text).toContain("| Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`) | 300 | 300.0 | 1,500 | 375.0 |");
+      expect(text).toContain("| Of the Hall's, the Improvements' (its `facilities`, before the Guildmaster's factor) | 120 | 120.0 | 600 | 150.0 |");
+      expect(text).toContain('| Spent: Upkeep in all, the two charges | 1,800 | 1,800.0 | 6,000 | 1,500.0 |');
       // The Transfers by direction and by way, over two games.
       expect(text).toContain("| Into the player's Guild | 3 | 1.50 | 300 | 100 |");
       expect(text).toContain("| Out of the player's Guild | 6 | 3.00 | 930 | 155 |");

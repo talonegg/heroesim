@@ -699,6 +699,10 @@ describe('document-shape', () => {
     // DL-297: a Hall is each Facility's grade, a whole number from 0.
     ['a Hall whose grade is not whole', (d) => set(guild(d, ids.playerGuild), 'hall', { infirmary: 1.5 }), `$.world.guilds["${ids.playerGuild}"].hall`],
     ['a Hall whose grade is below 0', (d) => set(guild(d, ids.playerGuild), 'hall', { quarters: -1 }), `$.world.guilds["${ids.playerGuild}"].hall`],
+    // DL-298: a Guild's own base for its Hall's upkeep, whole Silver from 0.
+    ['a Guild whose Hall upkeep base is not whole Silver', (d) => set(guild(d, ids.playerGuild), 'hallBaseUpkeep', 30.5), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
+    ['a Guild whose Hall upkeep base is below 0', (d) => set(guild(d, ids.playerGuild), 'hallBaseUpkeep', -1), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
+    ['a Guild with no Hall upkeep base', (d) => drop(guild(d, ids.playerGuild), 'hallBaseUpkeep'), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });
@@ -718,7 +722,7 @@ describe('document-shape', () => {
   // DL-297: every amount an entry carries is whole Silver, so that a hand-edited save is refused at
   // load rather than met by the formatter, which throws on a fraction (DL-296).
   test.each([
-    ['guild.upkeep-paid', ['amount', 'wealthAfter']],
+    ['guild.wages-paid', ['amount', 'wealthAfter']],
     ['guild.below-floor', ['wealth', 'floor']],
     ['guild.floor-recovered', ['wealth', 'floor']],
     ['hero.recruited', ['fee']],
@@ -761,6 +765,30 @@ describe('document-shape', () => {
     expect(validate(taking(120).document, deps)).toEqual({ ok: true, warnings: [] });
     const fraction = taking(120.5);
     expect(validate(fraction.document, deps)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${fraction.at}]` }] });
+  });
+
+  // DL-298: the Hall's upkeep names its parts, each an amount, every Facility's charge among them.
+  test('a guild.hall-upkeep-paid entry whose amount, Wealth after, base, Heroes’ share or a Facility’s charge is not whole Silver is refused, naming the entry', () => {
+    const whole = { amount: 65, wealthAfter: -10, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 20, quarters: 10 }, traitFactor: 1 };
+    const paying = (payload: object): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const entry = { turn: fixtureTurn, type: 'guild.hall-upkeep-paid', participants: [ids.playerGuild], labels: {}, milestone: false, payload };
+      const at = append(document.history, entry as Entry);
+      return { document, at };
+    };
+
+    expect(validate(paying(whole).document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const broken of [
+      { ...whole, amount: 65.5 },
+      { ...whole, wealthAfter: -10.5 },
+      { ...whole, base: 30.5 },
+      { ...whole, heroes: 5.5 },
+      { ...whole, facilities: { infirmary: 20, quarters: 10.5 } },
+      { ...whole, facilities: [20, 10] },
+    ]) {
+      const { document, at } = paying(broken);
+      expect(validate(document, deps), JSON.stringify(broken)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
   });
 
   test('a field no interface names is kept and ignored (rule 5)', () => {

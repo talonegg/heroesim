@@ -10,10 +10,10 @@ import { count } from '../history.js';
 import { moraleBaselineFor } from '../morale.js';
 import { phaseContext } from '../phases/phase.js';
 import { training } from '../phases/training.js';
-import { affordableImprovement, healFactor, nextImprovement, playerGuild, upkeep } from '../selectors.js';
+import { affordableImprovement, hallUpkeepParts, healFactor, nextImprovement, playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
-import { testContent, testDeps, withEncounters, withFacilityEffect, withValid } from '../world.test-support.js';
+import { testContent, testDeps, withEncounters, withFacilityEffect, withFacilityUpkeep, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
 import type { BuildRejection } from './build.js';
 import type { ActionResult } from './result.js';
@@ -25,7 +25,7 @@ import type { ActionResult } from './result.js';
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** No Rivals: none of these tests is about them, and a Rival acts every afternoon (DL-30). */
-const deps = testDeps({ rivalCount: 0, hallMaintenancePerGrade: 10 });
+const deps = testDeps({ rivalCount: 0 });
 
 /** A new world and its player's Guild, with `wealth`. */
 function scene(seed = 'build', wealth = 10_000, with_: EngineDeps = deps): { document: WorldDocument; guild: Guild } {
@@ -120,18 +120,23 @@ describe('build', () => {
     expect(valid.world.guilds[rival.id]).toMatchObject({ wealth: 800, hall: { infirmary: 1, 'training-yard': 0, quarters: 0 } });
   });
 
-  test('raises Upkeep by hallMaintenancePerGrade for each grade built (DL-26)', () => {
-    let { document, guild } = scene();
-    const before = upkeep(guild, document.world, deps.config);
+  test("raises the Hall's upkeep by each grade built: the Facility's upkeep × the grade factor ^ (grade − 1) (DL-298)", () => {
+    const priced = testDeps({ rivalCount: 0, improvementUpkeepGradeFactor: 2 }, withFacilityUpkeep({ infirmary: 10, quarters: 15 }));
+    let { document, guild } = scene('build-upkeep', 10_000, priced);
+    (document.world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
+    const before = hallUpkeepParts(guild, document.world, priced.config, priced.content);
+    expect(before.facilities).toEqual({});
 
     for (const facility of ['infirmary', 'infirmary', 'quarters'] as const) {
-      const result = applyAction(document, { kind: 'build', guildId: guild.id, facility }, deps);
+      const result = applyAction(document, { kind: 'build', guildId: guild.id, facility }, priced);
       if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
       document = result.document;
     }
     guild = document.world.guilds[guild.id] as Guild;
 
-    expect(upkeep(guild, document.world, deps.config)).toBe(before + 3 * 10);
+    const after = hallUpkeepParts(guild, document.world, priced.config, priced.content);
+    expect(after.facilities).toEqual({ infirmary: 10 * 2, quarters: 15 });
+    expect(after.total).toBe(before.total + 20 + 15);
   });
 });
 

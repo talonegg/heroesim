@@ -88,6 +88,7 @@ const guild: Guild = {
   belowFloorSince: null,
   foldedOnTurn: null,
   hall: { infirmary: 1, 'training-yard': 0, quarters: 0 },
+  hallBaseUpkeep: 30,
   controller: { kind: 'player' },
   regard: { [patronId]: regardEntry },
 };

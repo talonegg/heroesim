@@ -11,7 +11,8 @@ import {
   offeredQuests,
   playerGuild,
   unattachedHeroes,
-  upkeepParts,
+  hallUpkeepParts,
+  wages,
   type EngineDeps,
   type EntityId,
   type Entry,
@@ -45,11 +46,13 @@ function entry(type: EventType, payload: object, participants: EntityId[] = [lan
 }
 
 describe('wealthChangeOf: each category takes exactly its events', () => {
-  test('Upkeep is what the Guild paid, against it', () => {
-    expect(wealthChangeOf(entry('guild.upkeep-paid', { guildId: lantern, amount: 120, wealthAfter: 80 }), lantern)).toEqual({
+  test('Upkeep is what the Guild paid, against it: its wages and its Hall upkeep (DL-298)', () => {
+    expect(wealthChangeOf(entry('guild.wages-paid', { guildId: lantern, amount: 120, wealthAfter: 80 }), lantern)).toEqual({
       category: 'upkeep',
       amount: -120,
     });
+    const hall = { guildId: lantern, amount: 65, wealthAfter: 15, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 30 }, traitFactor: 1 };
+    expect(wealthChangeOf(entry('guild.hall-upkeep-paid', hall), lantern)).toEqual({ category: 'upkeep', amount: -65 });
   });
 
   test("a Quest's reward is what it paid the Guild, and a failed Quest's nil reward gives no row", () => {
@@ -99,7 +102,7 @@ describe('wealthChangeOf: each category takes exactly its events', () => {
   });
 
   test('an entry of another Guild, one that moves no Wealth, and a module’s own event give none', () => {
-    expect(wealthChangeOf(entry('guild.upkeep-paid', { guildId: ashford, amount: 120, wealthAfter: 80 }, [ashford]), lantern)).toBeNull();
+    expect(wealthChangeOf(entry('guild.wages-paid', { guildId: ashford, amount: 120, wealthAfter: 80 }, [ashford]), lantern)).toBeNull();
     expect(wealthChangeOf(entry('item.bought', { guildId: ashford, definitionKey: 'whetstone', quantity: 1, unitPrice: 15, cost: 15, itemIds: [] }, [ashford]), lantern)).toBeNull();
     expect(wealthChangeOf(entry('guild.below-floor', { guildId: lantern, wealth: -5, floor: 0, dueDay: 30 }), lantern)).toBeNull();
     expect(wealthChangeOf(entry('guild.transfer-offered', { offerId: makeId('offers', 1), fromGuildId: ashford, toGuildId: lantern, heroId: hero, fee: 180, expiresOnTurn: 20 }), lantern)).toBeNull();
@@ -254,26 +257,43 @@ function treasuryPage(document: WorldDocument, filter: FacetChoices<'flow' | 'ca
 }
 
 describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
-  test("gives the Guild's Wealth, and Upkeep's next payment with its Day and its parts, as the engine reckons them", () => {
-    const state = played(started('treasury-upkeep'), { kind: 'advance', turns: 7 });
+  test("gives the Guild's Wealth, and each charge of its Upkeep, the wages and the Hall's, with its next Day and its parts, as the engine reckons them (DL-298)", () => {
+    const state = changed(played(started('treasury-upkeep'), { kind: 'advance', turns: 7 }), (document, player) => {
+      player.hall = { ...player.hall, infirmary: 2 };
+      const guildmaster = document.world.guildmasters[player.guildmasterId];
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      guildmaster.traits = [];
+    });
     const document = documentOf(state);
     const guild = document.world.guilds[mine(state)];
     if (guild === undefined) throw new Error('no Guild');
     const { config } = playDeps(document);
-    const parts = upkeepParts(guild, document.world, config, content);
+    const owed = wages(guild, document.world, config);
+    const parts = hallUpkeepParts(guild, document.world, config, content);
+    const infirmary = parts.facilities['infirmary'] ?? Number.NaN;
     const view = treasuryPage(document, both, 0);
 
     expect(view?.wealth).toBe(guild.wealth);
-    expect(view?.upkeep.total).toBe(parts.total);
-    expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${coinWords(parts.total)} every ${config.upkeepEveryDays} Days`);
-    expect(view?.upkeep.next).toBe('the night of Year 1 Day 10');
-    expect(view?.upkeep.parts).toEqual([
-      { label: 'Wages', value: coinWords(parts.wages), silver: parts.wages },
-      { label: 'Hall maintenance', value: coinWords(parts.hallMaintenance), silver: parts.hallMaintenance },
-    ]);
+    expect(view?.upkeep.wages).toEqual({
+      sentence: `Wages of The Lantern: ${coinWords(owed)} every ${config.upkeepEveryDays} Days`,
+      total: owed,
+      next: 'the night of Year 1 Day 10',
+      parts: [],
+    });
+    expect(view?.upkeep.hall).toEqual({
+      sentence: `Hall upkeep of The Lantern: ${coinWords(parts.total)} every ${config.hallUpkeepEveryDays} Days`,
+      total: parts.total,
+      next: 'the night of Year 1 Day 30',
+      parts: [
+        { label: 'The Hall', value: coinWords(parts.base), silver: parts.base },
+        { label: `${parts.heroCount} Heroes`, value: coinWords(parts.heroes), silver: parts.heroes },
+        { label: 'Infirmary, grade 2', value: coinWords(infirmary), silver: infirmary },
+      ],
+    });
+    expect(parts.total).toBe(parts.base + parts.heroes + infirmary);
   });
 
-  test("names the Guildmaster's Traits' factor among the parts when one bears on Upkeep", () => {
+  test("names the Guildmaster's Traits' factor among the Hall upkeep's parts when one bears on it, and not among the wages' (DL-298)", () => {
     const state = played(initialGameState, {
       kind: 'newGame',
       seed: 'treasury-thrifty',
@@ -283,7 +303,10 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
       guildmasterTraitKeys: ['thrifty', 'miser'],
       createdAt: '2026-09-30T09:00:00.000Z',
     });
-    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
+    const upkeep = treasuryPage(documentOf(state), both, 0)?.upkeep;
+    expect(upkeep?.hall.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
+    // The wages are not scaled (DL-298).
+    expect(upkeep?.wages.parts).toEqual([]);
   });
 
   test("gives a factor of two Traits as a figure a player reads, not the float's digits (code review)", () => {
@@ -294,7 +317,7 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       guildmaster.traits = ['spendthrift', 'thrifty'];
     });
-    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.99' });
+    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.hall.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.99' });
   });
 
   test('gives the Bankruptcy floor, and the countdown only while the Guild is below it', () => {
@@ -313,7 +336,8 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
     const state = changed(started('treasury-ended'), (document) => {
       document.world.ended = { turn: document.world.turn, reason: 'bankruptcy' };
     });
-    expect(treasuryPage(documentOf(state), both, 0)?.upkeep.next).toBeNull();
+    const upkeep = treasuryPage(documentOf(state), both, 0)?.upkeep;
+    expect([upkeep?.wages.next, upkeep?.hall.next]).toEqual([null, null]);
   });
 
   test("is null in a save with no player's Guild", () => {
@@ -353,7 +377,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
     const { cost } = payloadOf<{ cost: number }>(state, 'item.bought');
     const { proceeds } = payloadOf<{ proceeds: number }>(state, 'item.sold');
     const { fee } = payloadOf<{ fee: number }>(state, 'hero.recruited');
-    const { amount: upkeep } = payloadOf<{ amount: number }>(state, 'guild.upkeep-paid');
+    const { amount: upkeep } = payloadOf<{ amount: number }>(state, 'guild.wages-paid');
 
     const { wealth: founding } = payloadOf<{ wealth: number }>(state, 'guild.founded');
     expect(view?.ledger.rows.map((row) => [row.category, row.amount])).toEqual([

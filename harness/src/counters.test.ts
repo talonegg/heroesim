@@ -740,12 +740,28 @@ describe("M5's counters, from the History", () => {
     bought(6, player, 1, 120);
     improved(document, 7, player, 'infirmary', 1);
     improved(document, 8, rivals[1], 'quarters', 1);
-    const upkeep = (turn: number, guild: Guild, amount: number): void => {
-      add(document, turn, 'guild.upkeep-paid', [guild.id], { guildId: guild.id, amount, wealthAfter: 1000 });
+    const wages = (turn: number, guild: Guild, amount: number): void => {
+      add(document, turn, 'guild.wages-paid', [guild.id], { guildId: guild.id, amount, wealthAfter: 1000 });
     };
-    upkeep(9, player, 70);
-    upkeep(9, rivals[0], 90);
-    upkeep(9, rivals[1], 60);
+    wages(9, player, 70);
+    wages(9, rivals[0], 90);
+    wages(9, rivals[1], 60);
+    // The Hall's upkeep, its Improvements' counted apart, before the Guildmaster's factor (DL-298).
+    const hall = (turn: number, guild: Guild, amount: number, facilities: Record<string, number>): void => {
+      add(document, turn, 'guild.hall-upkeep-paid', [guild.id], {
+        guildId: guild.id,
+        amount,
+        wealthAfter: 900,
+        base: 30,
+        heroCount: 4,
+        heroes: 20,
+        facilities,
+        traitFactor: 1.1,
+      });
+    };
+    hall(9, player, 77, { infirmary: 20 });
+    hall(9, rivals[0], 55, {});
+    hall(9, rivals[1], 83, { quarters: 10, infirmary: 15 });
     const resolved = (turn: number, guild: Guild, wealthDelta: number): void => {
       add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
         band: wealthDelta > 0 ? 'success' : 'fail',
@@ -784,7 +800,9 @@ describe("M5's counters, from the History", () => {
         items: 200,
         itemsBought: 3,
         improvements: 200,
-        upkeep: 70,
+        wages: 70,
+        hallUpkeep: 77,
+        improvementUpkeep: 20,
         questRewards: 150,
         transferFeesTaken: 0,
         sales: { sale: 120, fold: 0 },
@@ -796,7 +814,9 @@ describe("M5's counters, from the History", () => {
         items: 0,
         itemsBought: 0,
         improvements: 200,
-        upkeep: 150,
+        wages: 150,
+        hallUpkeep: 55 + 83,
+        improvementUpkeep: 25,
         questRewards: 90,
         transferFeesTaken: 0,
         sales: { sale: 0, fold: 300 },
@@ -1766,7 +1786,7 @@ describe("the Targets' counters (DL-259)", () => {
       ],
       before,
     );
-    advanced(short, document, [event(7, 'guild.upkeep-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
+    advanced(short, document, [event(7, 'guild.wages-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
 
     expect(short.value()).toBe(2);
   });

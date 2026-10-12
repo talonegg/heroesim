@@ -286,6 +286,11 @@ export interface Guild {
   /** Set when the Guild reached an ending; it is then out of the Rankings. */
   foldedOnTurn: Turn | null;
   hall: Hall;
+  /**
+   * The Hall's own sum each time its upkeep falls due, in whole Silver from 0: config's
+   * `hallBaseUpkeep` when the Guild was founded, kept as its own (DL-294 item 2, DL-298).
+   */
+  hallBaseUpkeep: number;
   controller: Controller;
   regard: RegardMap;
 }
@@ -524,9 +529,9 @@ export interface Stack {
  * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282); 11,
  * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287);
  * 12, a Guild's Hall keyed by content's Facilities, refusing every older save likewise (DL-294 item 3,
- * DL-297).
+ * DL-297); 13, Guilds' `hallBaseUpkeep`, refusing every older save likewise (DL-294 item 2, DL-298).
  */
-export const schemaVersion = 12;
+export const schemaVersion = 13;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

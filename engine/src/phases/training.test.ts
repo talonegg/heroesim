@@ -150,9 +150,9 @@ describe('training', () => {
   });
 
   test('history.entries grows by zero per night from training', () => {
-    // A curve no Hero climbs, so no Level-up entry follows from the XP either, and no maintenance,
-    // so the yard's grade does not change what Upkeep takes.
-    const deps = soloDeps({ xpCurveBase: 1_000_000, hallMaintenancePerGrade: 0 });
+    // A curve no Hero climbs, so no Level-up entry follows from the XP either, and no Hall upkeep
+    // falls in the span, so the yard's grade does not change what the Guild is charged (DL-298).
+    const deps = soloDeps({ xpCurveBase: 1_000_000, hallUpkeepEveryDays: 360 });
     const idle = withYard('no-entries', 0, deps);
     const trained = withYard('no-entries', 3, deps);
     const roster = [...player(idle.world).rosterIds];

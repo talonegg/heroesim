@@ -1,20 +1,24 @@
 // The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): a Guild's accounts, a part of the Guild
-// view. Its Wealth; Upkeep's next payment, with its Day and its parts; the Bankruptcy floor, and the
+// view. Its Wealth; the Upkeep's two charges, the wages and the Hall's, each with its next Day and the
+// Hall's with its parts (DL-298); the Bankruptcy floor, and the
 // countdown while the Guild is below it; and the ledger, every change to its Wealth read from the
 // History, by six categories, newest first and a page at a time, with the totals of what is shown.
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every amount is an event's payload, as the
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
 // event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
-// its `guild.founded` carries (DL-120 item 4, DL-121); and Upkeep's figures are the engine's `upkeepParts` and
-// `nextUpkeepDay` (DL-114 item 3). The ledger reads a Guild's Wealth through the page's History
+// its `guild.founded` carries (DL-120 item 4, DL-121); and the Upkeep's two charges are the engine's `wages`
+// and `hallUpkeepParts`, each with its Day, `nextWagesDay` and `nextHallUpkeepDay` (DL-114 item 3, DL-298). The ledger reads a Guild's Wealth through the page's History
 // reader (`wealthChanges`, DL-242), never the History view's scopes or filters, since every
 // Wealth event names its Guild.
 
 import {
+  facilityGrade,
+  hallUpkeepParts,
   isEngineEvent,
-  nextUpkeepDay,
-  upkeepParts,
+  nextHallUpkeepDay,
+  nextWagesDay,
+  wages,
   type EngineEventOf,
   type EngineEventType,
   type Entry,
@@ -22,7 +26,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { coinWords, nightOfDay, whenOfTurn } from '@heroesim/words';
+import { capitalised, coinWords, facilityName, nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
 import { foundingOf, historyPageSize, wealthChanges } from './history-reader';
@@ -74,7 +78,8 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'hero.generated': null,
   'patron.generated': null,
   'world.rules-adopted': null,
-  'guild.upkeep-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
+  'guild.wages-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
+  'guild.hall-upkeep-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
   'guild.below-floor': null,
   'guild.floor-recovered': null,
   'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'heroes', -payload.fee),
@@ -254,23 +259,32 @@ export interface LedgerSource {
   narration: Narration;
 }
 
+/** One charge of the Upkeep as the Treasury shows it: the wages, or the Hall's upkeep with its Improvements' (DL-298). */
+export interface UpkeepCharge {
+  /** `Wages of The Lantern: 1 Gold 20 Silver every 10 Days`: the charge in a sentence (DL-116). */
+  sentence: string;
+  /** What its next payment takes, in Silver, at the Roster and Hall of now. */
+  total: number;
+  /** `the night of Year 1 Day 20`; `null` once the game has ended or the Guild folded. */
+  next: string | null;
+  /**
+   * What it is reckoned from, in Silver, and the Guildmaster's Traits' factor when one bears on it.
+   * `value` is the part in words; `silver` is set for an amount, which the page shows as coins, and
+   * not for a factor. The wages have none.
+   */
+  parts: { label: string; value: string; silver?: number }[];
+}
+
 /** The Treasury as it stands for a document, its ledger read and not yet filtered or paged. */
 export interface TreasuryAccounts {
   guildName: string;
   wealth: number;
+  /** The Upkeep's two charges, each on its own Days (DL-294 item 4, DL-298). */
   upkeep: {
-    /** `Upkeep of The Lantern: 1 Gold 20 Silver every 10 Days`: the Upkeep in a sentence (DL-116). */
-    sentence: string;
-    /** What the next payment takes (`upkeepParts`' total), in Silver, at the Roster and Hall of now. */
-    total: number;
-    /** `the night of Year 1 Day 20` (`nextUpkeepDay`); `null` once the game has ended or the Guild folded. */
-    next: string | null;
-    /**
-     * Wages and the Hall's maintenance, in Silver, and the Guildmaster's Traits' factor when one
-     * bears on it. `value` is the part in words; `silver` is set for an amount, which the page shows
-     * as coins, and not for a factor.
-     */
-    parts: { label: string; value: string; silver?: number }[];
+    /** The wages (`wages`, `nextWagesDay`). */
+    wages: UpkeepCharge;
+    /** The Hall's upkeep with its Improvements' (`hallUpkeepParts`, `nextHallUpkeepDay`): the Hall's own sum, its Heroes' share and each Facility built. */
+    hall: UpkeepCharge;
   };
   /** The Bankruptcy floor, in Silver. */
   floor: number;
@@ -305,23 +319,36 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
   if (guild === undefined) return null;
   const { config } = deps;
 
-  const parts = upkeepParts(guild, world, config, content);
+  const owed = wages(guild, world, config);
+  const hall = hallUpkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
   const changes = changesOf(document, guild.id);
+  const amount = (label: string, silver: number) => ({ label, value: coinWords(silver), silver });
 
   return {
     guildName: guild.name,
     wealth: guild.wealth,
     upkeep: {
-      sentence: `Upkeep of ${guild.name}: ${coinWords(parts.total)} every ${config.upkeepEveryDays} Days`,
-      total: parts.total,
-      next: playing ? nightOfDay(nextUpkeepDay(world.turn, config), config) : null,
-      parts: [
-        { label: 'Wages', value: coinWords(parts.wages), silver: parts.wages },
-        { label: 'Hall maintenance', value: coinWords(parts.hallMaintenance), silver: parts.hallMaintenance },
-        // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
-        ...(parts.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(parts.traitFactor.toFixed(2))}` }]),
-      ],
+      wages: {
+        sentence: `Wages of ${guild.name}: ${coinWords(owed)} every ${config.upkeepEveryDays} Days`,
+        total: owed,
+        next: playing ? nightOfDay(nextWagesDay(world.turn, config), config) : null,
+        parts: [],
+      },
+      hall: {
+        sentence: `Hall upkeep of ${guild.name}: ${coinWords(hall.total)} every ${config.hallUpkeepEveryDays} Days`,
+        total: hall.total,
+        next: playing ? nightOfDay(nextHallUpkeepDay(world.turn, config), config) : null,
+        parts: [
+          amount('The Hall', hall.base),
+          amount(`${hall.heroCount} ${hall.heroCount === 1 ? 'Hero' : 'Heroes'}`, hall.heroes),
+          ...Object.entries(hall.facilities).map(([key, charge]) =>
+            amount(`${capitalised(facilityName(content, key))}, grade ${facilityGrade(guild.hall, key)}`, charge),
+          ),
+          // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
+          ...(hall.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(hall.traitFactor.toFixed(2))}` }]),
+        ],
+      },
     },
     floor: config.bankruptcyFloor,
     countdown: countdownView(document),
