@@ -1,11 +1,12 @@
 import type { GuildId, ModuleEvent, OfferId, StopReason } from '@heroesim/engine';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, getNodeText, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
+import { content } from '../content';
 import { saveText } from '../state/game-file';
-import { changed, played, started, withOffer, withOlderRules, withWealth } from '../state/game.test-support';
+import { changed, documentOf, played, started, withOffer, withOlderRules, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { idle, inHistory, openView, renderGame, section, seedShown, startNewGame } from './page.test-support';
+import { idle, inHistory, openView, renderGame, section, seedShown, silverOf, startNewGame } from './page.test-support';
 
 // The views of the wider world and the game as a file (DL-73): the CLI's `show
 // rankings`, `show guilds`, `show roster|hall|guildmaster <guildId>`, `show guildmaster`, `show
@@ -78,6 +79,22 @@ describe('the Guilds', () => {
     expect(within(page).getAllByRole('img', { name: 'Grade 0 of 3' })).toHaveLength(3);
     expect(within(page).queryByRole('button', { name: /^Build / })).toBeNull();
     expect(within(page).getByRole('heading', { level: 5, name: /, Guildmaster of The Ashford Guild$/ })).toBeDefined();
+  });
+
+  test("a Rival's page gives its Wealth and each Facility's next grade's cost in coins (DL-294 item 1)", () => {
+    const state = started();
+    renderGame(state);
+    fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Ashford Guild' }));
+    const page = within(section('Guilds')).getByRole('article');
+    const ashford = Object.values(documentOf(state).world.guilds).find((guild) => guild.name === 'The Ashford Guild');
+
+    expect(silverOf(within(page).getByRole('list', { name: "The Ashford Guild's standing" }).querySelectorAll('li')[0] as HTMLElement)).toBe(ashford?.wealth);
+    const next = within(page).getAllByText(/^Next: .+,$/);
+    expect(next).toHaveLength(3);
+    for (const each of next) {
+      const name = /^Next: (.+),$/.exec(getNodeText(each).trim())?.[1];
+      expect(silverOf(each)).toBe(Object.values(content.improvements).find((improvement) => improvement.name === name)?.cost);
+    }
   });
 });
 

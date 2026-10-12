@@ -377,7 +377,7 @@ export interface ReturnEntry {
   lead: Segment[];
   /** The band as the sentence says it: `succeeded strongly`. */
   bandSaid: string;
-  /** The words after it, the reward: `: Wealth +180, Fame +4.` */
+  /** The words after it, the reward: `: Wealth +1 Gold 80 Silver, Fame +4.` */
   rest: Segment[];
   /** What the disclosure says: `3 Heroes`. */
   heroesWords: string;

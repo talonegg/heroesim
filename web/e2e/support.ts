@@ -285,7 +285,7 @@ export async function expectWealth(page: Page, silver: number): Promise<void> {
 
 /**
  * `locator`'s text as it is spoken: each coins element read as its sentence ("5 Gold 20 Silver"),
- * not as its numbers and discs and the hidden sentence together. Polls, as an assertion does.
+ * not as its numbers and discs and the hidden sentence together. Read once: a caller polls it with `expect.poll`.
  */
 export async function spokenText(locator: Locator): Promise<string> {
   return locator.evaluate((element) => {

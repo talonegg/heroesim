@@ -4,7 +4,8 @@ import { App } from '../app';
 import { coinWords } from '@heroesim/words';
 import { documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { amountPattern, coinsPattern, section, spokenText } from './page.test-support';
+import { treasuryAccounts } from '../state/treasury';
+import { amountPattern, coinsPattern, section, silverOf, spokenText } from './page.test-support';
 import { Treasury } from './treasury';
 
 // The Guild's Treasury (DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
@@ -70,6 +71,13 @@ describe('the Treasury', () => {
     expect(within(part).getByText(new RegExp(`^Upkeep of The Lantern: ${amountPattern} every 10 Days$`))).toBeDefined();
     expect(spokenText(within(part).getByTestId('upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year 1 Day 10: ${amountPattern}\\.$`));
     expect(within(part).getAllByRole('term').map((term) => term.textContent)).toEqual(expect.arrayContaining(['Wages', 'Hall maintenance']));
+    // Each part that is an amount is shown in coins (DL-294 item 1).
+    const parts = treasuryAccounts(documentOf(state))?.upkeep.parts ?? [];
+    for (const label of ['Wages', 'Hall maintenance']) {
+      const value = within(part).getByText(label, { selector: 'dt' }).nextElementSibling;
+      if (!(value instanceof HTMLElement)) throw new Error(`no value for ${label}`);
+      expect(silverOf(value)).toBe(parts.find((each) => each.label === label)?.silver);
+    }
     expect(spokenText(within(part).getByTestId('floor'))).toBe(`The Bankruptcy floor is ${coinWords(documentOf(state).meta.config.bankruptcyFloor)}.`);
     expect(within(part).queryByText(/below the Bankruptcy floor since/)).toBeNull();
   });

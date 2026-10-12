@@ -374,3 +374,7 @@ the search in the commit message is the check. A sentence with an amount is long
   counts, the bundle's bytes, the doctors' readings; the epic's S2 boxes ticked.
 - A quick run (`v1.2.2-s2-quick`, 4 seeds, 2 years) gives `290b6d18…`, the fingerprint before the story
   (`v1.2.2-s1-baseline-quick`): play unchanged.
+- Verified 2026-10-12 at a800f9a: the unit, the formatter, the element and every amount re-derived and 76
+  mutations tried; the six page amounts no test read (the Treasury's Upkeep parts, a Rival's Wealth and
+  its Hall's next costs, Home's last-Day reward, a stop's Quest buttons, a Hero's Transfer fee chip) are
+  now read by tests, and two stale comments are put right.

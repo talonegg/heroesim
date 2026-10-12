@@ -309,6 +309,8 @@ describe("another Guild's Roster", () => {
     // The fee is a coins element between the words (`getByText` reads a node's own text).
     const sentence = within(page).getByText(new RegExp(`^Your Guild would pay The Old Weir Guild a Transfer fee of to take ${name} in`));
     expect(silverOf(sentence)).toBeGreaterThan(0);
+    // The page's chip shows the same fee in coins.
+    expect(silverOf(within(page).getByText(/^Transfer fee\s*$/))).toBe(silverOf(sentence));
 
     fireEvent.click(within(page).getByRole('button', { name: `Take ${name} in` }));
     await idle();
