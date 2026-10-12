@@ -94,7 +94,7 @@ export interface ModuleSelectors {
   offeredQuests(): ReadonlyDeep<Quest>[];
   /** The Rankings by Fame or Wealth (`rankings`). */
   rankings(by: RankingMeasure): Ranking[];
-  /** A Guild's Upkeep (`upkeep`, its Guildmaster's Traits applied). */
+  /** A Guild's Upkeep, the measure every reader of Upkeeps counts in (`upkeep`, DL-298). */
   upkeep(guildId: GuildId): number;
   /** A Hero's effective Stats (`effectiveStats`). */
   effectiveStats(heroId: HeroId): StatValues;

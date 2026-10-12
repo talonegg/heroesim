@@ -85,7 +85,7 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
   | --- | --- | --- | --- |
   | Guildmaster | `classStatBonus` | `classKey`, a Class; `statKey`, a Hero Stat; `delta`, a whole number other than 0 | `{ "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }` |
   | Guildmaster | `guildMoraleShift` | `delta`, a number other than 0, added to the Morale baseline | `{ "kind": "guildMoraleShift", "delta": 5 }` |
-  | Guildmaster | `upkeepFactor` | `factor`, above 0, times Upkeep | `{ "kind": "upkeepFactor", "factor": 0.9 }` |
+  | Guildmaster | `upkeepFactor` | `factor`, above 0, times the Hall's upkeep, not the wages (DL-298) | `{ "kind": "upkeepFactor", "factor": 0.9 }` |
   | Hero | `statModifiers` | `modifiers`, Hero Stats each with a whole number other than 0 | `{ "kind": "statModifiers", "modifiers": { "dexterity": -2, "endurance": -1 } }` |
   | Hero | `encounterBonus` | `flat`, a number other than 0 added to every Check; `kinds`, Encounter kinds, and `tags`, kebab-case Encounter tags, one of them at least | `{ "kind": "encounterBonus", "flat": 2, "kinds": ["combat"] }` |
 

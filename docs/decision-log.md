@@ -512,6 +512,9 @@ message). S5 makes one Upkeep a month.
 
 **Evidence.** The commit `v1.2.2-S4 (DL-298)`: the checks with their counts, the doctors' readings, the
 quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's S4 boxes ticked.
+- Verified 2026-10-12 at c9ebd92: of 43 mutations, one survivor (the policy's recruit threshold
+  reading no Hall upkeep) is now killed by a new test; the Trait factor's comments, the editor README's
+  effect row and the Treasury's help, which still read the whole Upkeep or one payment, rewritten.
 
 ## DL-299 — The CI minutes: check times out and cancels superseded runs, the watch runs weekly
 

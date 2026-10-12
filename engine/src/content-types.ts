@@ -162,7 +162,8 @@ export interface Skill {
  *   the Guildmaster's Guild, in `effectiveStats`, held inside the Stat's range;
  * - `guildMoraleShift`: `delta` added to the Morale baseline of the Guild's Heroes, in
  *   `moraleBaselineFor`;
- * - `upkeepFactor`: the Guild's Upkeep multiplied by `factor`, in `upkeep`.
+ * - `upkeepFactor`: the Guild's Hall upkeep with its Improvements' multiplied by `factor`, in
+ *   `hallUpkeepParts`; the wages not (DL-298).
  */
 export type GuildmasterTraitEffect =
   | { kind: 'classStatBonus'; classKey: ClassKey; statKey: StatKey; delta: number }

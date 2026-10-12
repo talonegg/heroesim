@@ -16,6 +16,7 @@ import {
   signingRefusal,
   unattachedHeroes,
   upkeep,
+  wages,
   type EngineDeps,
   type Guild,
   type GuildAction,
@@ -472,6 +473,18 @@ describe('automaticPolicy', () => {
       expect(guild.rosterIds).toHaveLength(4);
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 5 })).toHaveLength(1);
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 4 })).toEqual([]);
+    });
+
+    test("counts the Hall's upkeep among its Upkeeps, with the wages, as every reader of Upkeeps does (DL-298)", () => {
+      const { document, guild } = recruiting(0);
+      guild.hallBaseUpkeep = 3_000;
+      const threshold = defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content);
+      expect(threshold).toBeGreaterThan(defaultPolicyConfig.recruitWealthMultiple * (wages(guild, document.world, deps.config) + 800));
+
+      guild.wealth = threshold;
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([]);
+      guild.wealth = threshold + 1;
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([expect.objectContaining({ kind: 'recruit', guildId: guild.id })]);
     });
   });
 

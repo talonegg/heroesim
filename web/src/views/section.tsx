@@ -133,7 +133,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'or several, each counting what it would show; a Hero’s name opens their page. What it holds sells at the Market for the price given; sell it there, and put ' +
     'Gear on a Hero or take it off from their page.',
   treasury:
-    'Your Guild’s accounts: its Wealth; its Upkeep, with the night of its next payment and what it is made of; the ' +
+    'Your Guild’s accounts: its Wealth; its Upkeep, the wages and the Hall’s upkeep, each with the night of its next ' +
+    'payment, and what the Hall’s is made of; the ' +
     'Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the Wealth ' +
     'read from the History, newest first, a page at a time. Show income or expense, and some categories, with the ' +
     'chips, one choice or several, each counting what it would show; the totals are of what is shown. A name opens whom it names.',
