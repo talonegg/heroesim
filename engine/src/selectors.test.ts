@@ -245,19 +245,23 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
   });
 });
 
-describe('upkeep, the measure the readers of Upkeeps count in (DL-298)', () => {
-  test("is the wages and the Hall's upkeep for the wages' span: its total × upkeepEveryDays ÷ hallUpkeepEveryDays, the sum rounded", () => {
+describe('upkeep, the measure the readers of Upkeeps count in (DL-298, DL-300)', () => {
+  test("is a month's costs: three wage charges and one of the Hall's (hallUpkeepEveryDays ÷ upkeepEveryDays wage charges and one Hall charge), the sum rounded to whole Silver (DL-300)", () => {
     const deps = testDeps({ startingRosterSize: 4, wagePerLevel: 5, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
     const { world } = createWorld('upkeep-measure', setup, deps).document;
     const guild = playerGuild(world) as Guild;
     (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
     guild.hallBaseUpkeep = 41;
-    // Wages 20; the Hall's 41 + 20 = 61 for 30 Days, 20.33 for 10.
-    expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 + 20);
+    // Wages 20; for 30 Days (3 charges): 60. The Hall's 41 + 20 = 61. Total: 60 + 61 = 121.
+    expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 61);
     guild.hallBaseUpkeep = 42;
-    expect(upkeep(guild, world, deps.config, deps.content)).toBe(Math.round(20 + 62 / 3));
+    expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 62);
+    // Weekly cadence (28 days / 7 days = 4 wage charges).
     const weekly = { ...deps.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 28 };
-    expect(upkeep(guild, world, weekly, deps.content)).toBe(Math.round(20 + 62 / 4));
+    expect(upkeep(guild, world, weekly, deps.content)).toBe(20 * 4 + 62);
+    // Non-multiple cadence rounds to whole Silver.
+    const nonMultiple = { ...deps.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 30 };
+    expect(upkeep(guild, world, nonMultiple, deps.content)).toBe(Math.round((20 * 30) / 7 + 62));
   });
 
   test('is a selector: no `upkeep` field on the Guild row, at the type level or in a created world', () => {

@@ -727,9 +727,9 @@ const wealthMonths: Declared<GameObservations['playerWealthMonths'], SweepTotals
   zero: () => [],
   total: ({ observations }) => observations.playerWealthMonths.map((months) => (months === null ? null : { games: 1, months })),
   section: 'progression',
-  // What DL-83 item 7's band reads after year 2: a month a twelfth of a year's Upkeeps (DL-259).
+  // What DL-83 item 7's band reads after year 2: one Upkeep a month of costs (DL-259, DL-300).
   lines: (totals: SweepTotals) => [
-    "The player's Wealth in months of its Upkeep as each year began, a month a twelfth of a year's Upkeeps, by the years played before it " +
+    "The player's Wealth in months of its Upkeep as each year began, by the years played before it " +
       `(0 is the new world), the mean over the games in play then: ${Array.from(totals.playerWealthMonths, (taken, year) => `${year}: ${ratio(taken?.months ?? 0, taken?.games ?? 0, 1)}`).join(', ')}.`,
     '',
   ],

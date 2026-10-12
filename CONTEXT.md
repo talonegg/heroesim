@@ -773,8 +773,7 @@ _Avoid_: Bank, Coffers, Vault
 The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
 upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). One Upkeep, as a
 measure, is a month of them: three charges of wages and one of the Hall's, and every reading of the
-Guild's reserves in Upkeeps counts so. Today those readings count ten Days of them, the wages and a
-third of the Hall's, and one Upkeep a month is to be built.
+Guild's reserves in Upkeeps counts so (DL-300).
 _Avoid_: Wages (alone), Salary, Running costs
 
 **Hall**:

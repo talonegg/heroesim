@@ -21,8 +21,9 @@ import { media, mediaCatalogue, mediaFiles, mediaPathOf, neutralSilhouette } fro
 
 const mediaDir = fileURLToPath(new URL('../../media/', import.meta.url));
 
-/** The portrait tool's own files under `media/`: its register and its inbox. */
-const toolsOwn = (entry: string): boolean => entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/');
+/** The portrait tool's own files under `media/`: its register and its inbox, and converted heroes portraits pending intake. */
+const toolsOwn = (entry: string): boolean =>
+  entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/') || /^portraits\/heroes\/(?:female|male)\/[^/.]+(?:\/|$)/.test(entry);
 
 /** Every file under `media/`, by its path under it with `/` separators. */
 const files = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })

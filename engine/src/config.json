@@ -1,5 +1,5 @@
 {
-  "version": 32,
+  "version": 33,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -32,7 +32,8 @@
     "29 from v1.2.1-S7, which adds the Captain's settings, each effect scaled by the Captain's captaincy Stat: `captainFormFactor` 1.05, `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5, `captainChangeMoraleCost` -10 and `captainChangeLockDays` 30 (DL-280 item 6, Q12 a; DL-287).",
     "30 from v1.2.1-S8, which adds `rivalHealItemStock`, 2, the heal Items of each definition a Rival keeps, at home and carried together, bought in its gear step after any wearable by its Disposition's `gearThreshold` and carried one of each on each dispatch (DL-280 item 7, Q16 b; DL-288).",
     "31 from v1.2.2-S3, which moves the Hall's four effects to content, each Facility's and Improvement's rows (`facilities.json`, `improvements.json`) holding today's values: `infirmaryHealFactor`, `quartersMoraleBonus`, `fatigueFallByQuarters` and `xpPerTrainingDay` leave config (DL-294 item 3, DL-297).",
-    "32 from v1.2.2-S4, which charges the Hall's upkeep with its Improvements' every 30 Days, apart from the wages: it adds `hallUpkeepEveryDays`, 30, `hallBaseUpkeep`, 30, `hallUpkeepPerHero`, 5, `hallUpkeepHeroExponent`, 1, and `improvementUpkeepGradeFactor`, 1.73, and removes `hallMaintenancePerGrade` (DL-294 items 2 to 4, DL-298)."
+    "32 from v1.2.2-S4, which charges the Hall's upkeep with its Improvements' every 30 Days, apart from the wages: it adds `hallUpkeepEveryDays`, 30, `hallBaseUpkeep`, 30, `hallUpkeepPerHero`, 5, `hallUpkeepHeroExponent`, 1, and `improvementUpkeepGradeFactor`, 1.73, and removes `hallMaintenancePerGrade` (DL-294 items 2 to 4, DL-298).",
+    "33 from one Upkeep a month of costs (DL-300): rivalHireReserveUpkeeps 3 to 1."
   ],
   "sections": {
     "world": {
@@ -42,7 +43,7 @@
       "rivalCount": 4,
       "rivalRosterMin": 4,
       "rivalRosterMax": 8,
-      "rivalHireReserveUpkeeps": 3,
+      "rivalHireReserveUpkeeps": 1,
       "rivalHealItemStock": 2,
       "rivalStartingWealthMin": 300,
       "rivalStartingWealthMax": 700,

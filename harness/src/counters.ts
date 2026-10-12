@@ -2152,8 +2152,8 @@ export function carryHighestLevels(highest: HighestLevels, turn: number, turnsPe
   for (const series of Object.values(highest)) carriedTo(series, year);
 }
 
-/** Upkeeps in hand above which a Rival at the Roster floor hoards (DL-69 item 4). */
-export const hoardingUpkeeps = 20;
+/** Upkeeps in hand above which a Rival at the Roster floor hoards (DL-69 item 4, DL-300). */
+export const hoardingUpkeeps = 20 / 3;
 
 /** One Disposition's Rivals as a year begins: how many, and how many at the Roster floor with more than `hoardingUpkeeps` Upkeeps in hand. */
 export interface FloorTally {
@@ -2210,16 +2210,14 @@ export function tierUnlocks(world: World, deps: EngineDeps): TierUnlocks {
 }
 
 /**
- * The player's Wealth in months of its Upkeep (`upkeep`), a month a twelfth of a year's Upkeeps, one
- * falling due every `upkeepEveryDays` (DL-83 item 7); `null` with no player's Guild in play or no
- * Upkeep owed.
+ * The player's Wealth in months of its Upkeep (`upkeep`), one Upkeep a month of costs (DL-83 item 7,
+ * DL-294 item 4, DL-300); `null` with no player's Guild in play or no Upkeep owed.
  */
 export function playerWealthMonths(world: World, deps: EngineDeps): number | null {
   const guild = playerGuild(world);
   if (guild === undefined || guild.foldedOnTurn !== null) return null;
   const owed = upkeep(guild, world, deps.config, deps.content);
-  const upkeepsAYear = deps.config.turnsPerYear / turnsPerDay / deps.config.upkeepEveryDays;
-  return owed <= 0 ? null : guild.wealth / ((owed * upkeepsAYear) / 12);
+  return owed <= 0 ? null : guild.wealth / owed;
 }
 
 /**

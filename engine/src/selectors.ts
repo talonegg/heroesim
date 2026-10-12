@@ -359,10 +359,10 @@ export function hallUpkeepParts(
 
 /**
  * One Upkeep as every reader of "Upkeeps" counts it (a Rival's hiring budget and reserve, the policy's
- * reserves, the consumables' reserve, the harness's hoarding and months, the Guilds table): the wages
- * and the Hall's upkeep for the span of one wage charge, its total × `upkeepEveryDays` ÷
- * `hallUpkeepEveryDays`, the sum rounded to whole Silver (DL-298). A measure, not a charge: the Guild
- * State Engine charges `wages` and `hallUpkeepParts`' total, each on its own Day.
+ * reserves, the consumables' reserve, the harness's hoarding and months, the Guilds table): a month's
+ * costs, three wage charges and one of the Hall's (`hallUpkeepEveryDays` ÷ `upkeepEveryDays` wage charges
+ * and one Hall charge), rounded to whole Silver (Q16, DL-294 item 4, DL-300). A measure, not a charge:
+ * the Guild State Engine charges `wages` and `hallUpkeepParts`' total, each on its own Day.
  */
 export function upkeep(
   guild: Pick<Guild, 'rosterIds' | 'hall' | 'hallBaseUpkeep' | 'guildmasterId'>,
@@ -374,7 +374,7 @@ export function upkeep(
   content: Pick<ContentSet, 'facilities' | 'guildmasterTraits'>,
 ): number {
   const hall = hallUpkeepParts(guild, world, config, content).total;
-  return Math.round(wages(guild, world, config) + (hall * config.upkeepEveryDays) / config.hallUpkeepEveryDays);
+  return Math.round((wages(guild, world, config) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
 }
 
 /**

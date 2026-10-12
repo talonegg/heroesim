@@ -44,7 +44,7 @@ import {
 
 /** The policy's own numbers (INPUTS 4.14). Not game rules: nothing in the engine reads them. */
 export interface PolicyConfig {
-  /** Recruit only while Wealth is above this many times the Guild's Upkeep ("exceeds three Upkeeps"). */
+  /** Recruit only while Wealth is above this many times the Guild's Upkeep ("exceeds one Upkeep", DL-300). */
   recruitWealthMultiple: number;
   /** Recruit only while the Roster holds fewer Heroes than this ("the Roster is below 8"). */
   rosterLimit: number;
@@ -66,18 +66,18 @@ export interface PolicyConfig {
   consumableStock: number;
   /**
    * Buy consumables only from Wealth the Guild can spare: the purchase leaves more than this many
-   * Upkeeps (DL-62), so that a Guild earning little over its Upkeep keeps its margin for its wages.
+   * Upkeeps (DL-62, DL-300), so that a Guild earning little over its Upkeep keeps its margin for its wages.
    */
   consumableReserveUpkeeps: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
-  recruitWealthMultiple: 3,
+  recruitWealthMultiple: 1,
   rosterLimit: 8,
   buildWealthMultiple: 3,
   buyWealthMultiple: 3,
   consumableStock: 2,
-  consumableReserveUpkeeps: 20,
+  consumableReserveUpkeeps: 20 / 3,
 });
 
 /**

@@ -22,7 +22,7 @@ const content = loadContent();
  * The config the test relies on, pinned against a balance pass: the need's floor and reserve, and an
  * empty Market, so that no Rival outfits its Heroes before it hires (DL-58's order).
  */
-const deps: EngineDeps = { config: { ...defaultConfig, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3, marketSize: 0 }, content };
+const deps: EngineDeps = { config: { ...defaultConfig, rivalRosterMin: 4, rivalHireReserveUpkeeps: 1, marketSize: 0 }, content };
 
 const rivalsOf = (world: World): Guild[] => Object.values(world.guilds).filter((guild) => dispositionOf(guild) !== null);
 

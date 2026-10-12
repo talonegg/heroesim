@@ -1,5 +1,5 @@
 {
-  "version": 47,
+  "version": 48,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -48,6 +48,7 @@
     "44 from v1.2.1-S6, which gives each Disposition its `restBand`, the Fatigue band at or past which it keeps a free Hero home: steady and miserly tired, ambitious exhausted, reckless null, none (DL-280 item 5, DL-286).",
     "45 from v1.2.1-S7, which marks Leadership `captaincy`, the Stat a Captain's effects are scaled by from its least to its most (DL-280 item 6, DL-287); the engine reads the mark and names no Stat.",
     "46 from v1.2.2-S3, which adds the Facilities (`facilities.json`: the infirmary, the training yard and the quarters, each with its upkeep of 15 and its effects at grade 0) and each Improvement's effects at its grade, the values config held, and keys the training yard `training-yard` (DL-294 item 3, DL-297).",
-    "47 from the content editor's Finish of 2026-10-12 (changed infirmary, training-yard, quarters)."
+    "47 from the content editor's Finish of 2026-10-12 (changed infirmary, training-yard, quarters).",
+    "48 from v1.2.2-S5, which divides each Disposition's recruitThreshold by 3, one Upkeep becoming a month of costs: steady and miserly 20, ambitious 15, reckless 10 (DL-294 item 4, DL-300)."
   ]
 }

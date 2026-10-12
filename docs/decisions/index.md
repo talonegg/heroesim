@@ -309,6 +309,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-297 | 2026-10-12 | v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's … |  | [decision-log](../decision-log.md) |
 | DL-298 | 2026-10-12 | v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages |  | [decision-log](../decision-log.md) |
 | DL-299 | 2026-10-12 | The CI minutes: check times out and cancels superseded runs, the watch runs weekly |  | [decision-log](../decision-log.md) |
+| DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

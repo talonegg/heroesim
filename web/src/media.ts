@@ -42,11 +42,14 @@ export interface Pictured {
  * picture's `./assets/<name>-<hash>.webp`. The portrait tool's inbox, `media/inbox/`, is never
  * shipped: an upload, or a trial conversion beside it, waits there to be taken in (v1.1.3-S2).
  */
-const shipped = import.meta.glob<string>(['../../media/**/*.{svg,webp}', '!../../media/inbox/**'], {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
+const shipped = import.meta.glob<string>(
+  ['../../media/**/*.{svg,webp}', '!../../media/inbox/**', '!../../media/portraits/heroes/*/*/**'],
+  {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  },
+);
 
 /** A bundler key's path under `media/`, as the folder names it: `items/silhouette.svg`. */
 export function mediaPathOf(key: string): string {

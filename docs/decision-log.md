@@ -538,3 +538,26 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Superseded runs on dev branches stop early and cost less; a hung `check` ends at 20 minutes; the watch runs about 4 times a month instead of about 30. Nothing else changes: the secrets, the deploy, the release and the tests of the workflows' contents keep their meaning.
 
 **Evidence.** Changed: `.github/workflows/check.yml` and `watch.yml`, `docs/deploy.md`, `web/src/deploy.test.ts` (one test retitled, one added), and this entry with the regenerated `docs/decisions/index.md`. Checks: see the commit message.
+
+## DL-300 — v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-294 (Q16) and §2's defaults
+
+**Context.** DL-294 item 4 (Q16) makes one Upkeep a month of costs: three wage charges and one of the Hall's. Upkeep was previously the wages and the Hall's upkeep for a 10-day span (a third of the Hall's month, DL-298), with Dispositions' `recruitThreshold` (Steady 60, Ambitious 45, Miserly 60, Reckless 30), `rivalHireReserveUpkeeps` (3), policy `recruitWealthMultiple` (3) and `consumableReserveUpkeeps` (20), and the hoarding Target (20) all calibrated to 10 Days.
+
+**Decision.**
+
+1. *The measure* (`upkeep`, `engine/src/selectors.ts`): a month's costs, `wages` × `hallUpkeepEveryDays` ÷ `upkeepEveryDays` plus `hallUpkeepParts`' total, rounded to whole Silver. With the defaults (30 and 10), three wage charges and one of the Hall's. Every reader of "Upkeeps" uses it.
+2. *The Dispositions* (`content/dispositions.json`): `recruitThreshold` divided by 3: Steady 20, Ambitious 15, Miserly 20, Reckless 10. *Content* 48.
+3. *Config* 33: `rivalHireReserveUpkeeps` 1, from 3, set through `npm run edit -- config`.
+4. *The policy* (`harness/src/policy.ts`): `recruitWealthMultiple` 1, from 3; `consumableReserveUpkeeps` 20 ÷ 3, from 20.
+5. *The targets and harness* (`harness/src/counters.ts`, `targets.ts`): `hoardingUpkeeps` 20 ÷ 3; `playerWealthMonths` reads `guild.wealth / owed` directly, one Upkeep being a month of costs.
+6. *The words* (`CONTEXT.md`): Upkeep entry rewritten to reflect that each reading of reserves in Upkeeps counts a month of costs.
+
+*Judgement calls, for the owner to see.*
+- `hoardingUpkeeps` and `consumableReserveUpkeeps` take exact `20 / 3` in code and are reported as 6.67 in descriptions.
+- `playerWealthMonths` divides `guild.wealth` by `owed` directly without multiplying by `upkeepsAYear / 12`, as `owed` is now a month of costs.
+
+**Consequences.** Every game's fingerprint moves with the new config and content versions. Thresholds and reserves in Upkeeps align with the month-based definition while preserving the economic behaviour of S4.
+
+**Evidence.** The commit `v1.2.2-S5 (DL-300)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s5-quick` and its `compare` with `v1.2.2-s4-quick`; the epic's S5 boxes ticked.

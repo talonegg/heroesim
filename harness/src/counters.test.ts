@@ -8,7 +8,6 @@ import {
   milestoneTypes,
   playerGuild,
   serialise,
-  turnsPerDay,
   unattachedHeroes,
   upkeep,
   type EngineDeps,
@@ -34,6 +33,7 @@ import {
   copiesTimed,
   heroFieldsLength,
   historyLengthCounter,
+  hoardingUpkeeps,
   noConsumables,
   noDisposition,
   noFameGate,
@@ -1667,18 +1667,18 @@ describe("the Targets' counters (DL-259)", () => {
     expect(highest.value()).toEqual({ player: [4, 4, 4], ambitious: [5, 7, 7], miserly: [2, 9, 9], reckless: [null, 2, 2] });
   });
 
-  test('the Rivals at the Roster floor with more than 20 Upkeeps in hand, by Disposition, as each year begins (DL-69 item 4)', () => {
+  test('the Rivals at the Roster floor with more than 6.67 Upkeeps in hand, by Disposition, as each year begins (DL-69 item 4, DL-300)', () => {
     const { document, rivals } = fixture('counters-hoarding');
     const { world } = document;
     const [a, b] = rivals;
     a.rosterIds = a.rosterIds.slice(0, shortYears.config.rivalRosterMin);
-    a.wealth = 20 * upkeep(a, world, shortYears.config, content) + 1;
+    a.wealth = Math.floor(hoardingUpkeeps * upkeep(a, world, shortYears.config, content)) + 1;
     b.wealth = 1_000_000;
     expect(b.rosterIds.length).toBeGreaterThan(shortYears.config.rivalRosterMin);
     const atFloor = observerOf('rivalsAtFloor');
     census(document, shortYears, atFloor);
     world.turn = 30;
-    a.wealth = 20 * upkeep(a, world, shortYears.config, content);
+    a.wealth = Math.floor(hoardingUpkeeps * upkeep(a, world, shortYears.config, content));
     b.rosterIds = b.rosterIds.slice(0, 3);
     census(document, shortYears, atFloor);
     world.turn = 45; // no year-start
@@ -1740,20 +1740,18 @@ describe("the Targets' counters (DL-259)", () => {
     expect(unlocks.value()[0]?.sides[side]).toEqual({ guilds: 2, levels: 7, unlocked: [0, 2, 0, 0, 0] });
   });
 
-  test("the player's Wealth in months of its Upkeep as each year begins, a month a twelfth of a year's Upkeeps", () => {
+  test("the player's Wealth in months of its Upkeep as each year begins, one Upkeep a month of costs (DL-83 item 7, DL-300)", () => {
     const { document, player } = fixture('counters-months');
     const { world } = document;
     const months = observerOf('playerWealthMonths');
     const owed = upkeep(player, world, shortYears.config, content);
-    // A year of 30 Turns is 10 Days: one Upkeep a year.
-    expect(shortYears.config.turnsPerYear / turnsPerDay / shortYears.config.upkeepEveryDays).toBe(1);
     player.wealth = owed * 3;
     census(document, shortYears, months);
     world.turn = 30;
     player.wealth = -owed;
     census(document, shortYears, months);
 
-    expect(months.value()).toEqual([36, -12]);
+    expect(months.value()).toEqual([3, -1]);
   });
 
   test('the Transfers that left their seller below rivalRosterMin, its Roster followed through the Turn from the world it began with', () => {

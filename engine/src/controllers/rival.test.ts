@@ -726,7 +726,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     // The rows as content has them (the test content's are the core's, DL-56), with a Wealth under every
     // one's threshold: only the need hires. Every Hall built to its top, so that none spends the Wealth
     // on a build first (DL-58's order); harmless Encounters, so that no Hero is lost meanwhile.
-    const rows = testDeps({ negotiationRange: 0, marketSize: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 }, harmlessContent);
+    const rows = testDeps({ negotiationRange: 0, marketSize: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 1 }, harmlessContent);
     const top = Object.fromEntries(Object.keys(rows.content.facilities).map((key) => [key, Math.max(...Object.values(rows.content.improvements).filter((row) => row.facility === key).map((row) => row.grade))]));
     let document = createWorld('need-play', setup, rows).document;
     for (const rival of rivalsOf(document.world)) {
