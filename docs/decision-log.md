@@ -278,8 +278,9 @@ principle 13, the words first).
    until the story that builds it removes the mark: the coins and the whole Silver at S2, Facilities
    as content at S3, the Hall's upkeep at S4, one Upkeep a month at S5, the ledger at S7.
 2. `requirements.md`: three §2 rows (the coins, Facilities, the Hall's upkeep), "To be built, v1.2.2
-   (DL-294)"; §3.3 R41 (the coins), R42 (Facilities) and R43 (the Hall's upkeep), new numbers and no
-   renumbering; R11 and R33 point to them, and R33 and the Hall Improvements row say Facility.
+   (DL-294)"; R41 (the coins) in §3.2 after R11, R42 (Facilities) and R43 (the Hall's upkeep) in
+   §3.7 after R33, new numbers and no renumbering; R11 and R33 point to them, and R33 and the Hall
+   Improvements row say Facility.
 3. The epic: S1's boxes ticked and its Status line set.
 
 *Judgement calls, for the owner to see.*
@@ -287,8 +288,9 @@ principle 13, the words first).
 - The Hall's and a Facility's "upkeep" are lower case, costs and not the term, as the epic writes
   them; **Upkeep** is the total. The Hall's entry says "a sum each Guild has from its founding", not
   "base", which the Hall's _Avoid_ list refuses.
-- **Facility** avoids Room, Amenity and Building. R41 to R43 sit in §3.3 after R40, in the
-  Heroes' section though they concern Wealth and the Hall, as R39 and R40 sit there (DL-281).
+- **Facility** avoids Room, Amenity and Building. R41 to R43 sit by their subject, as R39 and R40
+  sit in §3.3 with the Heroes (DL-281): the coins with Wealth, the Facilities and the upkeep with the
+  Hall.
 - The Treasury's new lines (income and expenses) and the two charges are described in the glossary
   as the epic plans them; their names may move when S4 and S7 build them.
 
@@ -298,3 +300,6 @@ command or a test that says "facility" in prose is found by search at S3 and S8.
 
 **Evidence.** The commit `v1.2.2-S1 (DL-295)`. `quests doctor` and `traits doctor` read alike before
 and after (the commit message), the story touching docs alone; the epic's S1 boxes ticked.
+Verified 2026-10-12 at a082d8c: the words re-derived against DL-294, the epic and the code (one
+charge every 10 Days, three Facilities in code, six ledger categories), the _Avoid_ lists and capitals
+clean and the endings CRLF; R41 to R43 moved from §3.3 (Heroes) to §3.2 and §3.7 by subject.

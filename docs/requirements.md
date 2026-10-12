@@ -125,6 +125,11 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R11. Wealth is the currency. It pays Upkeep (wages and Hall maintenance), signing fees,
   Transfer fees, Items and Hall Improvements. It is held in Silver and shown in Gold and Silver
   (R41).
+- R41. Wealth is held in whole Silver, and 100 Silver is a Gold. Every amount, a Guild's Wealth, a
+  price, a fee, a reward and a cost, is a whole number of Silver. The page, the words and the CLI
+  show an amount in Gold and Silver, largest Gold first and a zero part left out: a gold and a silver
+  disc after their numbers on the page, "5 Gold 20 Silver" in sentences, `5g 20s` in the CLI. Every
+  figure the game holds keeps its value, read as Silver (DL-294; to be built, v1.2.2).
 
 ### 3.3 Heroes
 
@@ -173,20 +178,6 @@ Loot and Campaigns are kept as features serving Reputation and History.
   filled without either. The Captain's Party brings more of its Stats to a Check, its Heroes come
   home with more Morale, and the Roster's Morale baseline is higher while they are at home, each
   scaled by the Captain's Leadership (DL-280, DL-287).
-- R41. Wealth is held in whole Silver, and 100 Silver is a Gold. Every amount, a Guild's Wealth, a
-  price, a fee, a reward and a cost, is a whole number of Silver. The page, the words and the CLI
-  show an amount in Gold and Silver, largest Gold first and a zero part left out: a gold and a silver
-  disc after their numbers on the page, "5 Gold 20 Silver" in sentences, `5g 20s` in the CLI. Every
-  figure the game holds keeps its value, read as Silver (DL-294; to be built, v1.2.2).
-- R42. A Facility is a part of the Hall defined in content, with its name, its upkeep at its first
-  grade, and effects taken from a closed set: healing speed, training XP, the Morale baseline and
-  Fatigue's fall. Its grades run 1, 2, 3 and on with no gap, a grade being an Improvement with a
-  price, a name and the effects' values; a Facility or a grade may be added with no change to the
-  engine. The content editor adds and checks them (DL-294; to be built, v1.2.2).
-- R43. The Hall costs upkeep every 30 Days: a sum each Guild has from its founding, a share for each
-  Hero on its Roster that grows with their number, and each built Facility's upkeep, which rises
-  with its grade. It is charged apart from the Roster's wages, which stay every 10 Days, and one
-  Upkeep as a measure is a month of both (DL-294; to be built, v1.2.2).
 
 ### 3.4 Quests
 
@@ -250,6 +241,15 @@ Loot and Campaigns are kept as features serving Reputation and History.
   (Morale), each raised through three grades by Improvements bought for Wealth; each grade adds
   to Upkeep. Workers, hired staff with a wage and a Stat that scale a Facility, are deferred. The
   Facilities are to be content (R42) and the Hall's upkeep its own charge (R43).
+- R42. A Facility is a part of the Hall defined in content, with its name, its upkeep at its first
+  grade, and effects taken from a closed set: healing speed, training XP, the Morale baseline and
+  Fatigue's fall. Its grades run 1, 2, 3 and on with no gap, a grade being an Improvement with a
+  price, a name and the effects' values; a Facility or a grade may be added with no change to the
+  engine. The content editor adds and checks them (DL-294; to be built, v1.2.2).
+- R43. The Hall costs upkeep every 30 Days: a sum each Guild has from its founding, a share for each
+  Hero on its Roster that grows with their number, and each built Facility's upkeep, which rises
+  with its grade. It is charged apart from the Roster's wages, which stay every 10 Days, and one
+  Upkeep as a measure is a month of both (DL-294; to be built, v1.2.2).
 
 ### 3.8 Endings
 
