@@ -8,6 +8,7 @@
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { storesView, type StoresView } from '../state/stores';
+import { Coins } from './coins';
 import { Names } from './history-entries';
 import { Icon } from './icons';
 import { ItemPicture } from './pictures';
@@ -67,7 +68,7 @@ function Owned({ view, onGo }: { view: StoresView; onGo: (target: SectionId) => 
                     <Names segments={row.whereSegments} />
                   </td>
                   <td className="number">{row.quantity}</td>
-                  <td className="number">{row.sellsFor === null ? <span className="subtle">—</span> : row.sellsFor}</td>
+                  <td className="number">{row.sellsFor === null ? <span className="subtle">—</span> : <Coins silver={row.sellsFor} />}</td>
                 </tr>
               ))}
             </tbody>

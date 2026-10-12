@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { changed, documentOf, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { Hall } from './hall';
+import { silverOf } from './page.test-support';
 
 // The Hall redesigned (DL-106; the review's B9): each facility one row with its grade as pips
 // and the cost on its button. The Upkeep sentence above them left for the Treasury (DL-116). A part of the Guild (DL-115):
@@ -40,7 +41,9 @@ describe("the Hall's facilities (the review's B9)", () => {
     expect(pips.textContent).toBe('●○○');
     expect(within(infirmary).getByText('Sickroom')).toBeDefined();
     expect(within(infirmary).getByText('The infirmary shortens the Days an Injury takes to heal.')).toBeDefined();
-    expect(within(infirmary).getByRole('button', { name: 'Build Infirmary ward for 500 Wealth' }).textContent).toBe('Build Infirmary ward · 500');
+    const build = within(infirmary).getByRole('button', { name: 'Build Infirmary ward for 5 Gold' });
+    expect(build.textContent).toMatch(/^Build Infirmary ward · /);
+    expect(silverOf(build)).toBe(500);
     expect(within(facility('Training yard')).getByRole('img', { name: 'Grade 0 of 3' }).textContent).toBe('○○○');
     // At the top grade, no button.
     const quarters = facility('Quarters');

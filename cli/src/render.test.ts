@@ -18,6 +18,7 @@ import {
   boardReading,
   capitalised,
   chanceWords,
+  coinLetters,
   listed,
   playerReading,
   poolReading,
@@ -133,7 +134,7 @@ describe('the Bankruptcy countdown in show (DL-95)', () => {
 
   const line = (dueDay: number) =>
     `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
-    'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+    'unless Wealth is back to 0 Silver or more on a night by then, after any Upkeep due.';
 
   test("show's summary prints it under the Turn while the player's Guild is below the floor, from the save's grace", () => {
     const below = belowTheFloor();
@@ -151,7 +152,7 @@ describe('the Bankruptcy countdown in show (DL-95)', () => {
 
   test("names the save's own floor, from its rules (DL-97)", () => {
     const fifty = belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 });
-    const expected = line(10).replace('back to 0 or more', 'back to 50 or more');
+    const expected = line(10).replace('back to 0 Silver or more', 'back to 50 Silver or more');
 
     expect(renderCountdown(fifty, playDeps(fifty))).toEqual([expected]);
     expect(renderSummary(fifty, playDeps(fifty))[1]).toBe(expected);
@@ -240,7 +241,7 @@ describe("show's layouts of the readings (DL-241)", () => {
       'Injury         Deep cut, healing on the night of Year 1 Day 7 (Turn 20)',
       'Traits         Lame (-2 Dexterity, -1 Endurance)',
       'Biography      Once a drover.',
-      'Transfer fee   180',
+      'Transfer fee   1g 80s',
       'Party          party-000004',
       'Died           Year 3 Day 13 (Turn 2198)',
       'Left the pool  Year 1 Day 1 (Turn 0)',
@@ -312,7 +313,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(lines.slice(0, 3)).toEqual(['Unattached pool', '', expect.stringMatching(/^Id\s+Name\s+Class\s+Level\s+Age\s+Morale\s+Fatigue\s+Background\s+Fee\s+Signs$/)]);
     for (const row of poolReading(reading)) {
       const cells = rowFor(lines, row.id).split(/\s{2,}/);
-      expect(cells).toEqual([row.id, row.name, row.className, String(row.level), String(row.age), String(row.morale), String(row.fatigue), row.background, String(row.fee), capitalised(signsWords(row.signs as Signs))]);
+      expect(cells).toEqual([row.id, row.name, row.className, String(row.level), String(row.age), String(row.morale), String(row.fatigue), row.background, coinLetters(row.fee), capitalised(signsWords(row.signs as Signs))]);
     }
     expect(rowFor(lines, (pool[0] as Hero).id)).toMatch(/\sNeeds Fame \d+$/);
     expect(lines.slice(-2)).toEqual(['', `The Test has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`]);
@@ -321,7 +322,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     const roster = renderRoster(reading, rival);
     expect(roster[2]).toMatch(/\sBackground\s+Captain\s+Transfer fee$/);
     for (const row of rosterReading(reading, rival)) {
-      expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.captain ? 'Yes\\s+' : ''}${row.transferFee}$`));
+      expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.captain ? 'Yes\\s+' : ''}${coinLetters(row.transferFee ?? 0)}$`));
     }
     expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground\s+Captain$/);
     // DL-289: the Captain of a Roster is marked in its Captain column, the others left blank.
@@ -354,7 +355,7 @@ describe("show's layouts of the readings (DL-241)", () => {
       String(one.tier),
       one.deadly ? 'Yes' : 'No',
       String(one.days),
-      String(one.reward),
+      coinLetters(one.reward),
       String(one.difficulty),
       String(one.fame),
       '1 or more',

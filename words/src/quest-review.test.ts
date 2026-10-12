@@ -110,6 +110,15 @@ describe('the review page', () => {
     expect(escaped).not.toContain('<b>&');
   });
 
+  test("prices a new Item in the coins' sentence form, and a loot-only one with a dash (DL-294 item 1)", () => {
+    const sword = core.items['short-sword'];
+    if (sword === undefined) throw new Error('The content has no short-sword');
+    const items = { ...content.items, 'gilded-sword': { ...sword, key: 'gilded-sword', name: 'Gilded sword', buyPrice: 520 }, 'lost-sword': { ...sword, key: 'lost-sword', name: 'Lost sword', buyPrice: null } };
+    const priced = reviewPage({ content: { ...content, items }, core, calibration, notes: {}, made: '2026-10-12' });
+    expect(priced).toMatch(/id="item-gilded-sword">Gilded sword<\/span><\/th>(<td>[^<]*<\/td>){2}<td>5 Gold 20 Silver<\/td>/);
+    expect(priced).toMatch(/id="item-lost-sword">Lost sword<\/span><\/th>(<td>[^<]*<\/td>){2}<td>—<\/td>/);
+  });
+
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {
     const fragment = reviewPage({ content, core, calibration, notes: {}, made: '2026-10-03' }, { fragment: true });
     expect(fragment).toMatch(/^<title>Quest content review<\/title>\n<style>\n[^]*<\/style>\n<main>\n[^]*<\/main>\n$/);

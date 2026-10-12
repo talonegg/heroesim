@@ -746,20 +746,18 @@ _Avoid_: Difficulty, Preset, Mode, Start
 **Wealth**:
 A Guild's coin: the currency that buys Items, recruits Heroes, pays Upkeep and builds the Hall. It
 is held in whole Silver, one number a Guild has, and shown in both coins, Gold and Silver, largest
-Gold first (DL-294; the whole Silver and the display are to be built). Its accounts are read in the
-Treasury (DL-111).
+Gold first (DL-294, DL-296). Its accounts are read in the Treasury (DL-111).
 _Avoid_: Money, Funds
 
 **Gold**:
 The larger of Wealth's two coins, worth 100 Silver. It is a way of showing Wealth, never a unit a
 Guild holds: an amount is shown with its largest Gold first and a zero part left out, as a coin
-glyph on the page, "5 Gold 20 Silver" in sentences and `5g 20s` in the CLI (DL-294; to be built).
+glyph on the page, "5 Gold 20 Silver" in sentences and `5g 20s` in the CLI (DL-294, DL-296).
 _Avoid_: Crown, Gp, Wealth (for the coin)
 
 **Silver**:
 The smaller of Wealth's two coins, and the unit Wealth is held in: a Guild's Wealth and every
-price, fee, reward and cost is a whole number of Silver, and 100 Silver is a Gold (DL-294; to be
-built).
+price, fee, reward and cost is a whole number of Silver, and 100 Silver is a Gold (DL-294, DL-296).
 _Avoid_: Copper, Penny, Cent
 
 **Treasury**:

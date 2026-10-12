@@ -278,6 +278,7 @@ export interface Guild {
    * another change (`captainLock`); a vacancy filled sets nothing.
    */
   captainChangedOnTurn: Turn | null;
+  /** In whole Silver, shown as Gold and Silver (DL-294 item 1). */
   wealth: number;
   fame: number;
   /** Set while Wealth is below the Bankruptcy floor. */
@@ -441,6 +442,7 @@ export interface Quest {
   /** Drawn inside its Tier's difficulty band. */
   difficulty: number;
   tags: QuestTagKey[];
+  /** In whole Silver (DL-294 item 1). */
   reward: number;
   fameEffect: number;
   /** Its Days away × 3, at the place in its Tier's days its difficulty has in its band (DL-262). */
@@ -484,6 +486,7 @@ export interface TransferOffer {
   toGuildId: GuildId;
   /** On `fromGuildId`'s Roster. */
   heroId: HeroId;
+  /** In whole Silver (DL-294 item 1). */
   fee: number;
   offeredOnTurn: Turn;
   expiresOnTurn: Turn;

@@ -3,12 +3,15 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { coinWords } from '@heroesim/words';
 import { expect, test, type Page } from '@playwright/test';
 import {
+  amountPattern,
   dispatchAParty,
   escaped,
   expectNoHorizontalOverflow,
   expectTargets,
+  expectWealth,
   groupOf,
   chooseGuildmaster,
   guildmasterSetup,
@@ -20,9 +23,12 @@ import {
   part,
   playTurns,
   rosterList,
+  silverOf,
+  spokenText,
   startGame,
   thisGame,
   traitBox,
+  wealthOf,
 } from './support';
 
 // The journey (DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
@@ -48,12 +54,12 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
  * for the Guild at a fee it can pay; their name. The fee is the one the pool's row shows, and the Hero joins the Roster.
  */
 async function recruitAHero(page: Page): Promise<string> {
-  const wealth = Number(await page.getByTestId('wealth').textContent());
+  const wealth = await wealthOf(page);
   const pool = await part(page, 'Unattached pool');
   const rows = pool.getByTestId('pool-row');
   let chosen: { name: string; fee: number } | null = null;
   for (let index = 0; index < (await rows.count()); index += 1) {
-    const fee = Number(await rows.nth(index).getByTestId('fee').textContent());
+    const fee = await silverOf(rows.nth(index).getByTestId('fee'));
     const signs = (await rows.nth(index).getByTestId('signs').textContent()) ?? '';
     if (!(fee <= wealth) || signs !== 'Yes') continue;
     const name = (await rows.nth(index).locator('button.link').textContent()) ?? '';
@@ -64,10 +70,10 @@ async function recruitAHero(page: Page): Promise<string> {
   await pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true }).click();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   // Signed: the Roster has them, and the pool does not.
-  await expect(page.getByTestId('wealth')).toHaveText(String(wealth - chosen.fee));
+  await expectWealth(page, wealth - chosen.fee);
   await expect(pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true })).toHaveCount(0);
   await expect((await rosterList(page)).getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
-  const signed = historyText(await history(page), new RegExp(`^The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`));
+  const signed = historyText(await history(page), new RegExp(`^The Lantern signed ${escaped(chosen.name)} for ${escaped(coinWords(chosen.fee))}\\.$`));
   await expect(signed).toHaveCount(1);
   await expect(lineOf(signed)).toHaveClass(/\bis-new\b/);
   return chosen.name;
@@ -117,7 +123,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // The Guild's Hall part, its facilities with Build, and the Market's Buy and Sell.
   const hall = await guildPart(page, 'Hall');
   await expect(hall.getByTestId('facility')).toHaveCount(3);
-  await expect(hall.getByRole('button', { name: /^Build .+ for \d+ Wealth$/ }).first()).toBeVisible();
+  await expect(hall.getByRole('button', { name: new RegExp(`^Build .+ for ${amountPattern}$`) }).first()).toBeVisible();
   const market = await openView(page, 'Market');
   await expect(market.getByRole('heading', { level: 3 })).toHaveText(['Buy', 'Sell']);
   await expectNoHorizontalOverflow(page, 'the Market');
@@ -147,14 +153,14 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(stores.getByText(/^The Lantern owns /)).toBeVisible();
   await expectNoHorizontalOverflow(page, "the Guild's Stores");
   const treasury = await guildPart(page, 'Treasury');
-  await expect(treasury.getByText(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/)).toBeVisible();
-  await expect(treasury.getByTestId('upkeep-next')).toHaveText(/^Next paid on the night of Year \d+ Day \d+: \d+ Wealth\.$/);
+  await expect(treasury.getByText(new RegExp(`^Upkeep of The Lantern: ${amountPattern} every 10 Days$`))).toBeVisible();
+  await expect.poll(() => spokenText(treasury.getByTestId('upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year \\d+ Day \\d+: ${amountPattern}\\.$`));
   const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
-  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
+  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for ${amountPattern}\\.Heroes-`) })).toHaveCount(1);
   // It opens with the Wealth the Guild was founded with, last on its only page (DL-120 item 4).
-  await expect(ledger.getByRole('row').last()).toHaveText(/^Year 1 Day 1, morningFounded with \d+ WealthOpening balance\d+$/);
+  await expect(ledger.getByRole('row').last()).toHaveText(new RegExp(`^Year 1 Day 1, morningFounded with ${amountPattern}Opening balance`));
   await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: /^Expense \d+$/ }).click();
-  await expect(treasury.getByTestId('totals')).toHaveText(/^Income 0 · Expense -\d+ · Net -\d+$/);
+  await expect.poll(() => spokenText(treasury.getByTestId('totals'))).toMatch(new RegExp(`^Income 0 Silver · Expense -${amountPattern} · Net -${amountPattern}$`));
   await expectNoHorizontalOverflow(page, "the Guild's Treasury");
 
   // Fast forward until the Party returns; another stop (a Transfer Offer, say) is played past.
@@ -170,7 +176,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(report.getByRole('heading', { level: 3 })).toBeFocused();
   await expect(report.getByRole('heading', { level: 4 })).toHaveText(['Encounters', 'Rewards', 'Heroes', 'The Patron']);
   await expect(report).toContainText(/(Success|Strong success|Failure)/);
-  await expect(report).toContainText(/Wealth [+-]?\d+/);
+  await expect(report.locator('.chip', { hasText: /^Wealth/ }).locator('[data-silver]')).toHaveCount(1);
   await expect(report).toContainText(/'s Regard for The Lantern /);
   // The Party's stop offers nothing more: the report is here, under it.
   await expect(stop.getByRole('button', { name: 'Read what happened' })).toHaveCount(0);
@@ -181,7 +187,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // disclosure, and no Encounter of its own (DL-111 item 2).
   const read = await history(page);
   await expect(read.getByRole('heading', { level: 3 })).toHaveText('The History of The Lantern');
-  const cameHome = historyText(read, new RegExp(`^The Lantern's Party came home from ${escaped(quest)} and (failed|succeeded|succeeded strongly): Wealth [+-]?\\d+, Fame [+-]?\\d+\\.`));
+  const cameHome = historyText(read, new RegExp(`^The Lantern's Party came home from ${escaped(quest)} and (failed|succeeded|succeeded strongly): Wealth [+-]?${amountPattern}, Fame [+-]?\\d+\\.`));
   await expect(cameHome).toHaveCount(1);
   const returned = lineOf(cameHome);
   await expect(returned).toHaveClass(/\bis-new\b/);
@@ -220,7 +226,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
 
   // Save in the browser, under a name.
   const turn = (await page.getByTestId('time').textContent()) ?? '';
-  const wealth = (await page.getByTestId('wealth').textContent()) ?? '';
+  const wealth = await wealthOf(page);
   const roster = await rosterNames(page);
   expect(roster).toContain(recruited);
   const game = await thisGame(page);
@@ -242,7 +248,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await newGame.getByRole('button', { name: 'Load journey' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('The Lantern');
   await expect(page.getByTestId('time')).toHaveText(turn);
-  await expect(page.getByTestId('wealth')).toHaveText(wealth);
+  await expectWealth(page, wealth);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   // A load opens the home view.
   await expect(page.getByRole('region', { name: 'Guild', exact: true })).toBeVisible();

@@ -28,6 +28,7 @@ import {
   type SetQuery,
   type StatKey,
 } from '@heroesim/engine/content';
+import { coinWords } from './coins.js';
 import { modifierWords, traitEffectWords } from './effects.js';
 import { capitalised, listed, nameIn } from './names.js';
 import { queryWords } from './query.js';
@@ -414,7 +415,7 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
           `<span id="item-${esc(it.key)}">${esc(it.name)}</span>`,
           it.kind === 'gear' ? capitalised(it.slot) : 'Consumable',
           it.kind === 'gear' ? esc(modifierWords(it, content)) : '',
-          `${it.buyPrice ?? '—'}`,
+          it.buyPrice === null ? '—' : coinWords(it.buyPrice),
           esc(notes.items?.[it.key] ?? ''),
         ]),
       )}`,

@@ -14,7 +14,7 @@ import {
 } from '@heroesim/engine';
 import { createItem } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { nightOfTurn } from '@heroesim/words';
+import { coinWords, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { faceted } from './facets';
 import { newDocument, playerOf } from './game.test-support';
@@ -245,13 +245,13 @@ describe('offersView', () => {
     expect(offersView(offered.document)?.offers).toEqual([
       {
         offerId: offer.id,
-        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
+        sentence: `${rival.name} offers ${coinWords(offer.fee)} for ${heroName}, until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
         guildName: rival.name,
         heroName,
         fee: offer.fee,
         // What Accept asks before it lets the Hero go (the review's E4).
         confirm:
-          `Accepting sends ${heroName} to ${rival.name} for ${offer.fee} Wealth. Their Gear stays with your Guild, and the Heroes ` +
+          `Accepting sends ${heroName} to ${rival.name} for ${coinWords(offer.fee)}. Their Gear stays with your Guild, and the Heroes ` +
           'left behind who held them in high Regard lose Morale.',
       },
     ]);

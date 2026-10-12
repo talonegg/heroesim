@@ -10,11 +10,12 @@
 // Treasury's (DL-112 item 6, DL-116).
 
 import type { WorldDocument } from '@heroesim/engine';
+import { coinWords } from '@heroesim/words';
 import { useMemo } from 'react';
 import type { GameAction } from '../state/reducer';
 import { hallView, type HallView } from '../state/world-views';
+import { Coins } from './coins';
 import { Icon } from './icons';
-import { VisuallyHidden } from './ui';
 
 /** The Guild's Hall part: the player's Hall, with Build. */
 export function Hall({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
@@ -45,20 +46,18 @@ export function HallDetails({ view, busy = false, play }: { view: HallView; busy
               ) : builds && play !== undefined ? (
                 <button
                   type="button"
-                  aria-label={`Build ${row.next.name} for ${row.next.cost} Wealth`}
+                  aria-label={`Build ${row.next.name} for ${coinWords(row.next.cost)}`}
                   disabled={busy}
                   onClick={() => play({ kind: 'build', facility: row.facility })}
                 >
                   <Icon name="build" />
                   <span>
-                    Build {row.next.name} · {row.next.cost}
+                    Build {row.next.name} · <Coins silver={row.next.cost} />
                   </span>
-                  <Icon name="wealth" />
                 </button>
               ) : (
                 <span className="subtle">
-                  Next: {row.next.name}, {row.next.cost}
-                  <VisuallyHidden> Wealth</VisuallyHidden>
+                  Next: {row.next.name}, <Coins silver={row.next.cost} />
                 </span>
               )}
             </span>

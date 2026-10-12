@@ -1,5 +1,5 @@
 import type { Quest } from '@heroesim/engine';
-import { whenOfTurn } from '@heroesim/words';
+import { signedCoins, whenOfTurn } from '@heroesim/words';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
@@ -8,6 +8,7 @@ import { fastForwardStepTurns, initialGameState, type GameState } from './state/
 import { download } from './views/download';
 import {
   closeMenu,
+  coinsPattern,
   described,
   historyLines,
   idle,
@@ -21,9 +22,11 @@ import {
   refuseStorage,
   rosterList,
   section,
+  silverOf,
   startNewGame,
   time,
   views,
+  wealth,
   type ViewName,
 } from './views/page.test-support';
 
@@ -75,7 +78,9 @@ describe('before a game', () => {
     // Every Guild starts at Fame 0, so all five share the first place (DL-95).
     expect(within(bar).getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
     expect(screen.queryByTestId('countdown')).toBeNull();
-    expect(within(bar).getByTestId('wealth').textContent).toMatch(/^\d+$/);
+    // The Wealth in coins (DL-294 item 1): whole Silver on `data-silver`, and the sentence read.
+    expect(Number.isSafeInteger(wealth())).toBe(true);
+    expect(within(bar).getByTestId('wealth').querySelector('.visually-hidden')?.textContent).toMatch(/^(\d+ Gold( \d+ Silver)?|\d+ Silver)$/);
     // A new game opens the home view, and puts the keyboard on its heading. The keyboard moves in
     // an effect after the play's render, which a busy machine may paint first.
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Guild' })));
@@ -181,11 +186,11 @@ describe('the shell (DL-103)', () => {
   test('docks a refusal under the status bar, whichever view the play came from', async () => {
     render(<App initial={withWealth(started(), 50)} />);
 
-    fireEvent.click(within(section('Hall')).getByRole('button', { name: /^Build Dormitory for \d+ Wealth$/ }));
+    fireEvent.click(within(section('Hall')).getByRole('button', { name: new RegExp(`^Build Dormitory for ${coinsPattern}$`) }));
     await idle();
 
     const alert = within(screen.getByRole('banner')).getByRole('alert');
-    expect(alert.textContent).toContain("The next grade of The Lantern's quarters costs 200 Wealth; The Lantern has 50.");
+    expect(alert.textContent).toContain("The next grade of The Lantern's quarters costs 2 Gold; The Lantern has 50 Silver.");
     expect(within(screen.getByRole('main')).queryByRole('alert')).toBeNull();
     fireEvent.click(within(alert).getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByRole('alert')).toBeNull();
@@ -238,7 +243,7 @@ describe('the home view (DL-103)', () => {
     const stop = screen.getByTestId('stop');
     // A new game's idle Roster and a fresh Board: the next morning's Quests need a decision.
     const sentence = within(stop).getByText(/^Stopped: a decision is needed: The Lantern has no Party out, and could send one on .+.$/).textContent ?? '';
-    const buttons = within(stop).getAllByRole('button', { name: /^Choose a Party for .+, offered by .+, for \d+ Wealth$/ });
+    const buttons = within(stop).getAllByRole('button', { name: new RegExp(`^Choose a Party for .+, offered by .+, for ${coinsPattern}$`) });
     expect(buttons.length).toBeGreaterThan(1);
     const [first] = buttons;
     const questName = first?.querySelector('.quest-button__name')?.textContent ?? '';
@@ -304,13 +309,14 @@ describe('the home view (DL-103)', () => {
       .filter((words) => / \(Encounter \d+\)/.test(words));
     expect(steps.length).toBeGreaterThan(0);
     for (const step of steps) expect(step).toMatch(/ \(Encounter \d+\), a (Triumph|Success|Setback|Failure)\b/);
-    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
+    // The Wealth the report shows, in Silver, and the History's sentence for it (DL-294 item 1).
+    const wealth = signedCoins(silverOf(within(report).getByText(/^Wealth/)));
     const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
     // The Party comes home with an Injury: named, with the night it heals.
     expect(within(report).getByText(/^Injured: .+, healing on the night of Year \d+ Day \d+$/)).toBeDefined();
     // The same outcome, as the History narrates it, new, on the player's Guild.
-    const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
+    const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
     expect(line.classList.contains('is-new')).toBe(true);
   });
 
@@ -321,7 +327,7 @@ describe('the home view (DL-103)', () => {
 
     render(<App initial={withOffer(started())} />);
     const home = screen.getByRole('region', { name: 'Guild' });
-    expect(within(home).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/)).toBeDefined();
+    expect(within(home).getByText(new RegExp(` offers ${coinsPattern} for .+, until the night of Year \\d+ Day \\d+\\.$`))).toBeDefined();
     fireEvent.click(within(home).getByRole('button', { name: 'Answer on the Roster' }));
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Transfer Offers' }));
   });
@@ -492,7 +498,7 @@ describe('fast forward in steps, with progress and a Stop (DL-96)', () => {
       expect(
         within(progress).getByText(
           'The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 31 unless Wealth is back ' +
-            'to 0 or more on a night by then, after any Upkeep due.',
+            'to 0 Silver or more on a night by then, after any Upkeep due.',
         ),
       ).toBeDefined();
       expect(within(time()).getByRole('status').textContent).toBe('Playing the Turns…');
@@ -661,7 +667,7 @@ describe('the Board with dispatch', () => {
       if (within(form).getByRole('status').textContent === 'Dispatch would send this Party.') break;
     }
     const verdict = within(form).getByRole('status').textContent;
-    expect(within(form).getByText(/^Reward agreed on a success: \d+ Wealth, \d+ offered\.$/)).toBeDefined();
+    expect(within(form).getByText(new RegExp(`^Reward agreed on a success: ${coinsPattern}, ${coinsPattern} offered\\.$`))).toBeDefined();
     expect(within(form).getByRole('heading', { name: 'Synergies' })).toBeDefined();
     const send = within(form).getByRole('button', { name: 'Send the Party' }) as HTMLButtonElement;
     expect(send.disabled).toBe(verdict !== 'Dispatch would send this Party.');
@@ -748,7 +754,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe',
     expect(fired.classList.contains('is-new')).toBe(true);
     expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Year 1 Day 4, night');
     // Its effects' events follow it, in the page's words for the core's own.
-    expect(inHistory(/'s Wealth went from \d+ to \d+\.$/).classList.contains('is-new')).toBe(true);
+    expect(inHistory(/'s Wealth went from (\d+ Gold( \d+ Silver)?|\d+ Silver) to (\d+ Gold( \d+ Silver)?|\d+ Silver)\.$/).classList.contains('is-new')).toBe(true);
   }, 30_000);
 
   // With none installed, no module plays (reducer.test.ts's "with none, ... every engine call is made without

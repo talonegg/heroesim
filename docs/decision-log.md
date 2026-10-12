@@ -303,3 +303,74 @@ and after (the commit message), the story touching docs alone; the epic's S1 box
 Verified 2026-10-12 at a082d8c: the words re-derived against DL-294, the epic and the code (one
 charge every 10 Days, three Facilities in code, six ledger categories), the _Avoid_ lists and capitals
 clean and the endings CRLF; R41 to R43 moved from §3.3 (Heroes) to §3.2 and §3.7 by subject.
+
+## DL-296 — v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-294
+
+**Context.** DL-294 items 1 and 2 (Q1, Q2) make Wealth whole Silver, shown in Gold and Silver, before
+any new amount exists. S2 is that: it changes no play, and every figure the game holds keeps its value,
+read as Silver.
+
+**Decision.**
+
+1. *The unit.* `Guild.wealth`, a Quest's `reward` and a Transfer Offer's `fee` are checked as whole
+   numbers by the validator's shapes (`engine/src/validate.ts`), and a Guild's founding names its
+   Wealth in whole Silver (`entry-field-missing`). Every money setting was already `whole()` in
+   `checkConfig` and every price and cost whole in its content kind; none changes.
+2. *The formatter* (`words/src/coins.ts`): `coinParts` (largest Gold first, a zero part left out, `0`
+   Silver alone for nothing, a minus leading), `coinWords` ("5 Gold 20 Silver"), `coinLetters`
+   (`5g 20s`) and `signedCoins` beside `signed()` (`names.ts`). 100 Silver a Gold is `silverPerGold`.
+3. *The words.* The History's sentences, the stops, the refusals and the Quest review's Price column
+   say amounts in the sentence form, the amount in place of "N Wealth" ("for 2 Gold", "paid 40 Silver
+   in Upkeep, leaving 4 Gold 60 Silver"); a Party's return says "Wealth +1 Gold 50 Silver".
+4. *The coins element* (`web/src/views/coins.tsx`): each part's number, then its disc, drawn by the
+   stylesheet in two tokens of their own (`--coin-gold`, `--coin-silver`), 3:1 on every surface; the
+   sentence in a visually hidden span, the numbers and discs hidden from assistive technology; the
+   amount in Silver on `data-silver`.
+5. *The page.* The element replaces every bare amount and "N Wealth": the status bar (flashing on the
+   Silver, `StatPill`'s `flashKey`), the Treasury (Wealth, the Upkeep's total and parts, the floor, the
+   ledger's amounts and totals), the Guilds table and a Guild's page, the Hall, the Board, the Guild's
+   home and the stops, the Market, Stores and Pool, the Hero page, the Quest report. The page's own
+   sentences (the Treasury's Upkeep and opening row, the countdown, the reward preview, the Transfer
+   sentences, the Offers) use `coinWords`. The Treasury's state keeps amounts as numbers; its `…Words`
+   fields are gone. `Terms` takes any node as a value. Tables sort on the number.
+6. *The CLI.* Its tables and own command lines use `coinLetters` (`Wealth 5g 20s`; Rankings only when
+   by Wealth); the words' sentences it prints stay in the sentence form.
+7. *The tests.* `page.test-support.ts` reads `data-silver` (`silverOf`, `wealth()`), the sentences
+   (`silverOfWords`, `spokenText`) and matches amounts (`coinsPattern`, `amountPattern`); the e2e reads
+   `data-silver` the same way (`web/e2e/support.ts`). Every test that asserted amount text asserts the
+   new text; no value changed.
+8. *The marks.* "To be built" is removed for the coins and the whole Silver in `CONTEXT.md` (Wealth,
+   Gold, Silver), `requirements.md` (R41 and its §2 row) and `data-model.md`.
+
+*Judgement calls, for the owner to see.*
+- 100 Silver a Gold is a constant of the words, not a config setting: it is how Wealth is shown, not a
+  rule of play, and the config version is raised first at S3 to S6.
+- The sentence form wherever words reach (the History, stops, refusals, and the CLI's countdown line,
+  a sentence like them); the letters form for the CLI's own tables and command lines.
+- No thousands separators; a negative amount takes a leading hyphen-minus, as `signed()` does;
+  `signedCoins(0)` is "0 Silver", unsigned.
+- A non-whole amount throws a `RangeError` in the formatter rather than being rounded: none can be
+  stored, so a fraction is a bug to find.
+- The accessible structure is the Chip's `spoken` pattern, a hidden sentence, not an `aria-label`,
+  which a span with no role does not reliably carry. A button's explicit `aria-label` names the amount
+  in the sentence form.
+- The Hall's Build button lost its second coin icon, the discs saying it; a chip says "Wealth" or
+  "Reward" to a screen reader before its coins.
+- The discs are small (0.6em, tight gaps) so that a Rival's Roster at 360px keeps its Transfer fee
+  heading clear of the fixed name cell (`layout.spec.ts`).
+- *The floor's sentence is shorter.* `guild.below-floor` ends "unless it recovers by then", as its
+  stop does, not "back to 0 Silver or more on a night": the coins lengthened it past the CLI's
+  one-line limit (`cli/src/namer.test.ts`, DL-210), and the floor is named once already.
+- Trait points, Morale costs and factors ("Upkeep ×0.9") are not money and are not formatted. The
+  harness reports still print Wealth as bare Silver.
+
+**Consequences.** Later stories show an amount only through `<Coins>`, `coinWords` or `coinLetters`;
+the search in the commit message is the check. A sentence with an amount is longer than before.
+
+**Evidence.**
+- The commit `v1.2.2-S2 (DL-296)`: the search commands and their readings, the checks with their
+  counts, the bundle's bytes, the doctors' readings; the epic's S2 boxes ticked.
+- A quick run (`v1.2.2-s2-quick`, 4 seeds, 2 years) gives `290b6d18…`, the fingerprint before the story
+  (`v1.2.2-s1-baseline-quick`): play unchanged.

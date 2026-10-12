@@ -278,7 +278,7 @@ export function Heading({ level, id, className, children }: { level: 3 | 4 | 5 |
 }
 
 /** Label and value pairs: the label in small capitals over its value. */
-export function Terms({ pairs }: { pairs: readonly (readonly [string, string | number])[] }) {
+export function Terms({ pairs }: { pairs: readonly (readonly [string, ReactNode])[] }) {
   return (
     <dl className="terms">
       {pairs.map(([label, value]) => (

@@ -1,9 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
+import { coinWords } from '@heroesim/words';
 import { documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { section } from './page.test-support';
+import { amountPattern, coinsPattern, section, spokenText } from './page.test-support';
 import { Treasury } from './treasury';
 
 // The Guild's Treasury (DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
@@ -52,11 +53,11 @@ function rows(): string[][] {
   return within(ledger())
     .getAllByRole('row')
     .slice(1)
-    .map((row) => Array.from(row.querySelectorAll('th, td'), (cell) => cell.textContent ?? ''));
+    .map((row) => Array.from(row.querySelectorAll<HTMLElement>('th, td'), spokenText));
 }
 
 function totals(): string {
-  return within(treasury()).getByTestId('totals').textContent ?? '';
+  return spokenText(within(treasury()).getByTestId('totals'));
 }
 
 describe('the Treasury', () => {
@@ -65,11 +66,11 @@ describe('the Treasury', () => {
     renderTreasury(state);
     const part = treasury();
 
-    expect(within(part).getByTestId('treasury-wealth').textContent).toMatch(/^Wealth\s*\d+$/);
-    expect(within(part).getByText(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/)).toBeDefined();
-    expect(within(part).getByTestId('upkeep-next').textContent).toMatch(/^Next paid on the night of Year 1 Day 10: \d+ Wealth\.$/);
+    expect(spokenText(within(part).getByTestId('treasury-wealth'))).toMatch(new RegExp(`^Wealth\\s*${coinsPattern}$`));
+    expect(within(part).getByText(new RegExp(`^Upkeep of The Lantern: ${amountPattern} every 10 Days$`))).toBeDefined();
+    expect(spokenText(within(part).getByTestId('upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year 1 Day 10: ${amountPattern}\\.$`));
     expect(within(part).getAllByRole('term').map((term) => term.textContent)).toEqual(expect.arrayContaining(['Wages', 'Hall maintenance']));
-    expect(within(part).getByTestId('floor').textContent).toBe(`The Bankruptcy floor is ${documentOf(state).meta.config.bankruptcyFloor} Wealth.`);
+    expect(spokenText(within(part).getByTestId('floor'))).toBe(`The Bankruptcy floor is ${coinWords(documentOf(state).meta.config.bankruptcyFloor)}.`);
     expect(within(part).queryByText(/below the Bankruptcy floor since/)).toBeNull();
   });
 
@@ -87,14 +88,14 @@ describe('the Treasury', () => {
     const shown = rows();
     expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
     // It opens with the Wealth the Guild was founded with (DL-120 item 4).
-    expect(shown[3]).toEqual(['Year 1 Day 1, morning', `Founded with ${founded} Wealth`, 'Opening balance', String(founded)]);
+    expect(shown[3]).toEqual(['Year 1 Day 1, morning', `Founded with ${coinWords(founded)}`, 'Opening balance', coinWords(founded)]);
     expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
     expect(shown[0]?.[0]).toBe('Year 1 Day 10, night');
-    expect(shown[0]?.[1]).toMatch(/^The Lantern paid \d+ Upkeep, leaving \d+ Wealth\.$/);
-    expect(shown[0]?.[3]).toMatch(/^-\d+$/);
-    expect(shown[2]?.[1]).toMatch(/^The Lantern sold Whetstone at the Market for \d+ Wealth\.$/);
-    expect(shown[2]?.[3]).toMatch(/^\+\d+$/);
-    expect(totals()).toMatch(/^Income \+\d+ · Expense -\d+ · Net -?\d+$/);
+    expect(shown[0]?.[1]).toMatch(new RegExp(`^The Lantern paid ${amountPattern} in Upkeep, leaving ${amountPattern}\\.$`));
+    expect(shown[0]?.[3]).toMatch(new RegExp(`^-${amountPattern}$`));
+    expect(shown[2]?.[1]).toMatch(new RegExp(`^The Lantern sold Whetstone at the Market for ${amountPattern}\\.$`));
+    expect(shown[2]?.[3]).toMatch(new RegExp(`^\\+${amountPattern}$`));
+    expect(totals()).toMatch(new RegExp(`^Income \\+${amountPattern} · Expense -${amountPattern} · Net [+-]?${amountPattern}$`));
   });
 
   test('filters by income or expense and by categories, several of each, each option counting against the other filter, and totals only what is shown (DL-206 items 26 to 29)', () => {
@@ -109,7 +110,7 @@ describe('the Treasury', () => {
     expect(within(flow).getByRole('button', { name: /^Income/ }).getAttribute('aria-pressed')).toBe('true');
     expect(within(flow).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('false');
     expect(rows().map((row) => row[2])).toEqual(['Market']);
-    expect(totals()).toMatch(/^Income \+(\d+) · Expense 0 · Net \+\1$/);
+    expect(totals()).toMatch(new RegExp(`^Income \\+(${amountPattern}) · Expense 0 Silver · Net \\+\\1$`));
     // The categories count their income; those with none greyed.
     expect(words(categories)).toEqual(['All', 'Upkeep 0', 'Market 1', 'Heroes 0']);
     expect(within(categories).getByRole('button', { name: /^Upkeep/ }).classList.contains('is-empty')).toBe(true);
@@ -175,7 +176,7 @@ describe('the Treasury', () => {
     renderTreasury(state);
 
     expect(within(treasury()).getByText('No change to the Wealth of The Lantern yet.')).toBeDefined();
-    expect(rows()).toEqual([['Year 1 Day 1, morning', `Founded with ${founded} Wealth`, 'Opening balance', String(founded)]]);
+    expect(rows()).toEqual([['Year 1 Day 1, morning', `Founded with ${coinWords(founded)}`, 'Opening balance', coinWords(founded)]]);
     // Nothing to filter or total yet.
     expect(within(treasury()).queryByRole('group', { name: 'Show income or expense' })).toBeNull();
     expect(within(treasury()).queryByTestId('totals')).toBeNull();

@@ -21,7 +21,7 @@ import {
 } from '@heroesim/engine';
 import { createProbe, makeId } from '@heroesim/engine/testing';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { whenOfTurn } from '@heroesim/words';
+import { coinWords, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { changed, documentOf, played, playerOf, started, withTrades, withWealth } from './game.test-support';
 import { initialGameState, playDeps, type GameState } from './reducer';
@@ -207,7 +207,7 @@ describe('the ledger misses nothing', () => {
         const founding = Object.hasOwn(start.world.guilds, guild.id) ? start.world.guilds[guild.id]?.wealth : undefined;
         // Its oldest row is the Wealth it was founded with, as the Guild's row had it at the start.
         expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOfTurn(guild.foundedTurn, now.meta.config) });
-        expect(opening?.sentence).toBe(`Founded with ${opening?.amount} Wealth`);
+        expect(opening?.sentence).toBe(`Founded with ${coinWords(opening?.amount ?? 0)}`);
         if (founding !== undefined) expect(opening?.amount, guild.name).toBe(founding);
         const sum = rows.reduce((total, row) => total + row.amount, 0);
         expect({ guild: guild.name, wealth: sum }).toEqual({ guild: guild.name, wealth: guild.wealth });
@@ -265,11 +265,11 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
 
     expect(view?.wealth).toBe(guild.wealth);
     expect(view?.upkeep.total).toBe(parts.total);
-    expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`);
+    expect(view?.upkeep.sentence).toBe(`Upkeep of The Lantern: ${coinWords(parts.total)} every ${config.upkeepEveryDays} Days`);
     expect(view?.upkeep.next).toBe('the night of Year 1 Day 10');
     expect(view?.upkeep.parts).toEqual([
-      { label: 'Wages', value: String(parts.wages) },
-      { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
+      { label: 'Wages', value: coinWords(parts.wages), silver: parts.wages },
+      { label: 'Hall maintenance', value: coinWords(parts.hallMaintenance), silver: parts.hallMaintenance },
     ]);
   });
 
@@ -365,13 +365,13 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
       [null, founding],
     ]);
     const [paid, , , bought, opening] = view?.ledger.rows ?? [];
-    expect(opening).toMatchObject({ when: 'Year 1 Day 1, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
+    expect(opening).toMatchObject({ when: 'Year 1 Day 1, morning', sentence: `Founded with ${coinWords(founding)}`, categoryWords: 'Opening balance' });
     expect(founding).toBe(defaultConfig.startingWealth);
     expect(view?.ledger).toMatchObject({ shown: 4, opens: true });
     expect(paid?.categoryWords).toBe('Upkeep');
     expect(paid?.when).toBe('Year 1 Day 10, night');
-    expect(paid?.amountWords).toBe(`-${upkeep}`);
-    expect(bought?.sentence).toMatch(/^The Lantern bought 2 × .* at the Market for \d+ Wealth\.$/);
+    expect(paid?.amount).toBe(-upkeep);
+    expect(bought?.sentence).toMatch(/^The Lantern bought 2 × .* at the Market for (\d+ Gold( \d+ Silver)?|\d+ Silver)\.$/);
     expect(bought?.segments[0]).toMatchObject({ kind: 'name', text: 'The Lantern', table: 'guilds' });
     expect(bought?.when).toBe('Year 1 Day 1, morning');
 
@@ -380,9 +380,6 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
       income: proceeds,
       expense,
       net: proceeds + expense,
-      incomeWords: `+${proceeds}`,
-      expenseWords: String(expense),
-      netWords: String(proceeds + expense),
     });
   });
 
@@ -468,7 +465,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
 
   test("a new game's ledger holds its opening row alone, on one page, and totals of nothing", () => {
     const view = treasuryPage(documentOf(started('treasury-empty')), both, 0)?.ledger;
-    expect(view?.rows.map((row) => row.sentence)).toEqual([`Founded with ${defaultConfig.startingWealth} Wealth`]);
+    expect(view?.rows.map((row) => row.sentence)).toEqual([`Founded with ${coinWords(defaultConfig.startingWealth)}`]);
     expect(view?.page).toBe(0);
     expect(view?.pages).toBe(1);
     expect(view?.shown).toBe(0);

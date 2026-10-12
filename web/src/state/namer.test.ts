@@ -380,7 +380,7 @@ describe('a line as segments: its words, and the names in it the page can open',
     // A Hero who shares the Guild's name: the sentence reads the same twice, the ids do not.
     const twin = { ...samples['hero.recruited'], labels: { [guildId]: 'Wren', [heroId]: 'Wren' } };
 
-    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 110 Wealth.');
+    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 1 Gold 10 Silver.');
     expect(namesIn(narrateSegments(twin, narration))).toEqual([
       [guildId, 'Wren'],
       [heroId, 'Wren'],
@@ -390,7 +390,7 @@ describe('a line as segments: its words, and the names in it the page can open',
   test('leaves as words someone the event has no label for, capitalised where the line opens with them', () => {
     const unlabelled = { ...samples['hero.recruited'], labels: {} };
 
-    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 110 Wealth.' }]);
+    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 1 Gold 10 Silver.' }]);
   });
 
   test("marks the names in a module's own event too, from its participants", () => {

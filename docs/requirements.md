@@ -49,7 +49,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Transfers with Rivals | Yes | Poaching |
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
-| Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | To be built, v1.2.2 (DL-294) | Borrowing and debt (DL-294) |
+| Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
 | Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | To be built, v1.2.2 (DL-294) | A choosable starting Hall; selling Hall assets (DL-294) |
 | The Hall's upkeep: a sum for each Guild and a share for each Hero, every 30 Days, with its Facilities' | To be built, v1.2.2 (DL-294) | — |
 | Rival Guilds: Roster, Wealth, Disposition | Yes | Rival encounters during Quests; a fuller Guild engine |
@@ -129,7 +129,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   price, a fee, a reward and a cost, is a whole number of Silver. The page, the words and the CLI
   show an amount in Gold and Silver, largest Gold first and a zero part left out: a gold and a silver
   disc after their numbers on the page, "5 Gold 20 Silver" in sentences, `5g 20s` in the CLI. Every
-  figure the game holds keeps its value, read as Silver (DL-294; to be built, v1.2.2).
+  figure the game holds keeps its value, read as Silver (DL-294, DL-296).
 
 ### 3.3 Heroes
 

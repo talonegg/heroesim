@@ -35,7 +35,7 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { capitalised, chanceWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, shownPercent, whenOfTurn } from '@heroesim/words';
+import { capitalised, chanceWords, coinWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
 import { firstSeedWhere, newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
@@ -180,7 +180,7 @@ describe('the Bankruptcy countdown: countdownView, in the header (DL-95)', () =>
   /** The countdown from the engine's Days, counted from 0; the words count from 1 (DL-210). */
   const sentence = (sinceDay: number, dueDay: number, floor = 0) =>
     `The Lantern has been below the Bankruptcy floor since Year 1 Day ${sinceDay + 1}: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
-    `unless Wealth is back to ${floor} or more on a night by then, after any Upkeep due.`;
+    `unless Wealth is back to ${coinWords(floor)} or more on a night by then, after any Upkeep due.`;
 
   test("is none while the player's Guild's belowFloorSince is null", () => {
     const document = playedDocument('selectors-played', 6).document;
@@ -736,7 +736,7 @@ describe('choosing a Party', () => {
       met: party.length >= quest.requirements.partySizeMin,
     });
     expect(preview?.synergies.length).toBeGreaterThan(0);
-    expect(preview?.reward).toMatch(new RegExp(`^Reward agreed on a success: \\d+ Wealth, ${quest.reward} offered\\.$`));
+    expect(preview?.reward).toMatch(new RegExp(`^Reward agreed on a success: (?:\\d+ Gold(?: \\d+ Silver)?|\\d+ Silver), ${coinWords(quest.reward)} offered\\.$`));
     expect(nobody?.verdict).toEqual({ sends: false, words: expect.stringMatching(/^Dispatch would refuse it: .+ needs a Party of/) });
     expect(nobody?.requirements[0]?.met).toBe(false);
     expect(previewView(document, 'quest-999999' as QuestId, party, [])).toBeNull();
@@ -1499,7 +1499,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
         const fee = transferFee(hero, guildmasterOf(other, document.world), deps);
-        return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${fee} Wealth for ${hero.name}`) };
+        return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`) };
       }),
     );
   });
@@ -1538,7 +1538,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const target = page.actions.transferTo.find((each) => each.guildId === other.id);
 
     expect(target?.sentence).toBe(
-      `The Ashford Guild would pay ${target?.fee} Wealth for Finn Grimshaw, if it is willing to take them. Their Gear stays with your ` +
+      `The Ashford Guild would pay ${coinWords(target?.fee ?? 0)} for Finn Grimshaw, if it is willing to take them. Their Gear stays with your ` +
         'Guild, and the Heroes left behind who held them in high Regard lose Morale.',
     );
   });
@@ -1691,7 +1691,7 @@ describe('the progress of a fast forward between its steps (DL-96)', () => {
       sentence: 'Played 9 Turns so far. Now Year 1 Day 4, morning.',
       countdown:
         'The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 61 unless Wealth is back ' +
-        'to 0 or more on a night by then, after any Upkeep due.',
+        'to 0 Silver or more on a night by then, after any Upkeep due.',
     });
     // The game in hand, before the first night's check, has none.
     expect(countdownView(document)).toBeNull();

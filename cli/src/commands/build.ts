@@ -15,7 +15,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { facilityIs, facilityNames, nameIn } from '@heroesim/words';
+import { coinLetters, facilityIs, facilityNames, nameIn } from '@heroesim/words';
 import { refusalLine } from '../namer.js';
 import type { CommandOutcome } from './outcome.js';
 
@@ -48,11 +48,11 @@ export function buildImprovement(
     ok: true,
     document: result.document,
     lines: [
-      `Built ${nameIn(deps.content.improvements, improvementKey)} for ${cost} Wealth: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
-      `Wealth ${built.wealth}; Upkeep ${upkeep(built, world, deps.config, deps.content)} every ${deps.config.upkeepEveryDays} Days.`,
+      `Built ${nameIn(deps.content.improvements, improvementKey)} for ${coinLetters(cost)}: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
+      `Wealth ${coinLetters(built.wealth)}; Upkeep ${coinLetters(upkeep(built, world, deps.config, deps.content))} every ${deps.config.upkeepEveryDays} Days.`,
       next === null
         ? `The ${name} ${is} now at the highest grade.`
-        : `The next grade, ${next.name}, costs ${next.cost} Wealth.`,
+        : `The next grade, ${next.name}, costs ${coinLetters(next.cost)}.`,
     ],
   };
 }

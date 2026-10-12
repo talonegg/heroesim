@@ -197,7 +197,7 @@ describe('railView', () => {
     const [first, second] = written.party.heroIds.map((heroId) => documentOf(written.state).world.heroes[heroId]?.name ?? '');
 
     expect(returned?.questReturn?.key).toEqual({ partyId: written.party.partyId, questId: written.party.questId });
-    expect(returned?.sentence).toMatch(/^The Lantern's Party came home from .+ and succeeded: Wealth \+150, Fame \+2\.$/);
+    expect(returned?.sentence).toMatch(/^The Lantern's Party came home from .+ and succeeded: Wealth \+1 Gold 50 Silver, Fame \+2\.$/);
     // The Loot is the next entry, read down the rail as it is in the History's order, though newer.
     expect(next?.sentence).toMatch(/^The Lantern found Loot on .+: 2 × Whetstone\.$/);
     expect(next?.questReturn).toBeNull();

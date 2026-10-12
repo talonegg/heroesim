@@ -691,12 +691,24 @@ describe('document-shape', () => {
       (d) => set(party(d, ids.party), 'fatigueAtDispatch', { [ids.partyHero]: null }),
       `$.world.parties["${ids.party}"].fatigueAtDispatch`,
     ],
+    // DL-294 item 1: Wealth and every stored amount are whole Silver.
+    ['a Guild whose Wealth is not whole Silver', (d) => set(guild(d, ids.playerGuild), 'wealth', 120.5), `$.world.guilds["${ids.playerGuild}"].wealth`],
+    ['a Quest whose reward is not whole Silver', (d) => set(quest(d, ids.offeredQuest), 'reward', 40.25), `$.world.quests["${ids.offeredQuest}"].reward`],
+    ['a Transfer Offer whose fee is not whole Silver', (d) => set(offer(d, ids.offer), 'fee', 99.9), `$.world.offers["${ids.offer}"].fee`],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });
 
   test("a unique Item held by the Market is accepted: a folded Guild's are listed there (D6, DL-48)", () => {
     expect(refusals((d) => set(item(d, ids.item), 'holder', { kind: 'market' }))).toEqual([]);
+  });
+
+  test("a Guild's founding that names a Wealth not whole Silver is refused, naming the entry (DL-294 item 1)", () => {
+    const { document } = buildDocument();
+    const founded = document.history.entries.findIndex((entry) => entry.type === 'guild.founded');
+    expect(founded).toBeGreaterThanOrEqual(0);
+    set((document.history.entries[founded] as { payload: object }).payload, 'wealth', 500.5);
+    expect(validate(document, deps)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${founded}]` }] });
   });
 
   test('a field no interface names is kept and ignored (rule 5)', () => {

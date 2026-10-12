@@ -33,7 +33,7 @@ describe('shared places and the Bankruptcy countdown (DL-95)', () => {
   /** The countdown from the engine's Day, counted from 0; the words count from 1 (DL-210). */
   const countdown = (dueDay: number) =>
     `The Lantern has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
-    'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+    'unless Wealth is back to 0 Silver or more on a night by then, after any Upkeep due.';
 
   /** The countdown as the status bar's pill says it, and in full in the home view (DL-103). */
   function shown(dueDay: number): void {

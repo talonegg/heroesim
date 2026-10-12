@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { carrying, changed, holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { section } from './page.test-support';
+import { amountPattern, section, spokenText } from './page.test-support';
 
 // The Guild's Stores (DL-111 item 5, DL-112 item 6, DL-113 item 2, DL-116): one table of every
 // Item the Guild owns, wherever it is, filtered by kind and by where; read only, with a way to the
@@ -31,7 +31,7 @@ function rows(): string[][] {
   return within(table())
     .getAllByRole('row')
     .slice(1)
-    .map((row) => Array.from(row.querySelectorAll('th, td'), (cell) => cell.textContent ?? ''));
+    .map((row) => Array.from(row.querySelectorAll<HTMLElement>('th, td'), spokenText));
 }
 
 describe('the Stores', () => {
@@ -43,7 +43,8 @@ describe('the Stores', () => {
     const shown = rows();
     expect(shown).toHaveLength(3);
     expect(shown[0]?.slice(0, 4)).toEqual(['Whetstone', 'Consumable', 'Held', '2']);
-    expect(shown[0]?.[4]).toMatch(/^\d+$/);
+    // What it sells for is coins (DL-294 item 1), read as the sentence.
+    expect(shown[0]?.[4]).toMatch(new RegExp(`^${amountPattern}$`));
     expect(shown[1]?.slice(0, 4)).toEqual(['The Lantern of Stannary', 'Trinket Gear, Unique Item', 'Held', '1']);
     expect(shown[2]?.slice(0, 2)).toEqual(['Padded jack', 'Armour Gear']);
     expect(shown[2]?.[2]).toMatch(/^Carried by /);

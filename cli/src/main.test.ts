@@ -30,7 +30,7 @@ import {
 } from '@heroesim/engine';
 import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { chanceWords, shownPercent, traitEffectWords } from '@heroesim/words';
+import { chanceWords, coinLetters, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, openToTwo, playground, rowOf, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
@@ -317,7 +317,7 @@ describe('show', () => {
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
       const due = upkeep(guild, world, defaultConfig, content);
-      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
+      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${coinLetters(guild.wealth)}\\s+${guild.fame}\\s+${coinLetters(due)}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
   });
@@ -563,7 +563,7 @@ describe('advance', () => {
   test("prints the Bankruptcy countdown after the Turns while the player's Guild is below the floor, under the save's grace (DL-95)", () => {
     const countdown = (dueDay: number) =>
       `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
-      'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+      'unless Wealth is back to 0 Silver or more on a night by then, after any Upkeep due.';
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
       (edited.world.guilds[playerId] as Guild).wealth = -1;
@@ -593,7 +593,7 @@ describe('advance', () => {
     expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
     // That night's check is heard: the event says so, and the countdown is gone.
     expect(cleared.out).toContain(
-      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
+      "The Test's Wealth, 10 Gold, is back to the Bankruptcy floor of 0 Silver or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
     );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
@@ -712,11 +712,11 @@ describe('advance --until: fast forward', () => {
     expect(run.out.split('\n').slice(0, 3)).toEqual([
       'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
       'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 11 unless its Wealth recovers by then.',
-      'The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 11 unless Wealth is back to 0 or ' +
+      'The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 11 unless Wealth is back to 0 Silver or ' +
         'more on a night by then, after any Upkeep due.',
     ]);
     expect(run.out).toContain(
-      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 11 unless it is back to 0 or more on a night by then.",
+      "The Test's Wealth, -1 Silver, fell below the Bankruptcy floor of 0 Silver: Bankruptcy on the night of Year 1 Day 11 unless it recovers by then.",
     );
   });
 
@@ -991,10 +991,10 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     expect(stopped.out.split('\n').slice(0, 3)).toEqual([
       'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
       `Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on ${due} unless its Wealth recovers by then.`,
-      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 or ` +
+      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 Silver or ` +
         'more on a night by then, after any Upkeep due.',
     ]);
-    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0: Bankruptcy on ${due} unless it is back to 0 or more on a night by then.`);
+    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0 Silver: Bankruptcy on ${due} unless it recovers by then.`);
 
     const played = play(['advance', '--turns', '5']);
 
@@ -1202,7 +1202,7 @@ describe('--modules: the test-only probe on new, advance and load', () => {
     expect(lines[at]).toMatch(/^\s*11 {2}/);
     // Its effects' events follow it, in the CLI's own words for the core's events.
     expect(lines[at + 1]).toMatch(/'s Morale went from \d+ to \d+, \w+\.$/);
-    expect(lines[at + 2]).toMatch(/'s Wealth went from \d+ to \d+\.$/);
+    expect(lines[at + 2]).toMatch(/'s Wealth went from (\d+ Gold( \d+ Silver)?|\d+ Silver) to (\d+ Gold( \d+ Silver)?|\d+ Silver)\.$/);
     expect(document().history.byType['probe.fired']).toHaveLength(1);
   });
 
@@ -1448,7 +1448,7 @@ describe('show guildmaster, show patrons and preview', () => {
 
     expect(withHealer.code).toBe(exitCodes.ok);
     expect(withHealer.out).toMatch(/^ {2}A Healer: met$/m);
-    expect(withHealer.out).toMatch(/^Reward agreed on a success: \d+ Wealth, \d+ offered\.$/m);
+    expect(withHealer.out).toMatch(/^Reward agreed on a success: (\d+g( \d+s)?|\d+s), (\d+g( \d+s)?|\d+s) offered\.$/m);
     expect(withHealer.out).toContain('Dispatch would send this Party.');
     expect(saved()).toBe(original);
   });
@@ -1543,7 +1543,7 @@ describe('show guildmaster, show patrons and preview', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     const agreed = document().world.quests[questId]?.reward;
-    expect(run.out).toContain(`Reward agreed: ${agreed} Wealth on a success, ${quest.reward} offered.`);
+    expect(run.out).toContain(`Reward agreed: ${coinLetters(agreed ?? 0)} on a success, ${coinLetters(quest.reward)} offered.`);
   });
 });
 

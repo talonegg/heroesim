@@ -26,9 +26,43 @@ export function renderGame(state: GameState): void {
   render(createElement(App, { initial: state }));
 }
 
-/** The player's Wealth, as the status bar shows it. */
+/**
+ * The amount in Silver an element shows in coins (DL-294 item 1): its own `data-silver`, or that of
+ * the one coins element inside it. Throws where there is none, or more than one.
+ */
+export function silverOf(element: HTMLElement): number {
+  const coins = element.hasAttribute('data-silver') ? [element] : [...element.querySelectorAll('[data-silver]')];
+  if (coins.length !== 1) throw new Error(`Expected one amount in coins, found ${coins.length}: ${element.outerHTML}`);
+  return Number(coins[0]?.getAttribute('data-silver'));
+}
+
+/** An amount in the sentence form (`coinWords`), as a regular expression's source: `5 Gold 20 Silver`, `5 Gold`, `20 Silver`, with a leading hyphen for a debt (DL-294 item 1). */
+export const coinsPattern = String.raw`-?(?:\d+ Gold(?: \d+ Silver)?|\d+ Silver)`;
+
+/** `coinsPattern` without a sign: a gain or a loss shows its own (`+`, `-`). */
+export const amountPattern = String.raw`(?:\d+ Gold(?: \d+ Silver)?|\d+ Silver)`;
+
+/**
+ * An element's text as it is spoken: each coins element read as its sentence ("5 Gold 20 Silver"),
+ * not as the numbers and discs and the hidden sentence together (DL-294 item 1).
+ */
+export function spokenText(element: HTMLElement): string {
+  const copy = element.cloneNode(true) as HTMLElement;
+  for (const coins of copy.querySelectorAll('.coins')) coins.replaceWith(coins.querySelector('.visually-hidden')?.textContent ?? '');
+  return copy.textContent ?? '';
+}
+
+/** The Silver in an amount said in the sentence form (`coinWords`): `5 Gold 20 Silver` is 520. For a sentence's amount; a coins element is read by `silverOf`. */
+export function silverOfWords(words: string): number {
+  const match = /^(-)?(?:(\d+) Gold)?(?: ?(\d+) Silver)?$/.exec(words.trim());
+  if (match === null || words.trim() === '') throw new Error(`Not an amount in words: ${words}`);
+  const silver = Number(match[2] ?? 0) * 100 + Number(match[3] ?? 0);
+  return match[1] === undefined ? silver : -silver;
+}
+
+/** The player's Wealth in Silver, as the status bar shows it. */
 export function wealth(): number {
-  return Number(screen.getByTestId('wealth').textContent);
+  return silverOf(screen.getByTestId('wealth'));
 }
 
 /** The sentence that says what a region or group is for: its accessible description. */

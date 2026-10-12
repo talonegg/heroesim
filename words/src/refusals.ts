@@ -28,6 +28,7 @@ import {
 import { sexes, type ContentSet } from '@heroesim/engine/content';
 import { gearUnavailableWords, unavailableWords } from './availability.js';
 import { dateOfTurn, type Calendar } from './calendar.js';
+import { coinWords } from './coins.js';
 import { listed, nameIn, rowOf } from './names.js';
 import { endingWords, facilityIs, facilityNames, ids, say, type CommandSlot, type NameSlot, type Piece, type QuestSlot, type Sentence } from './narrate.js';
 
@@ -248,14 +249,14 @@ const sentences: Sentences = {
   'recruit hero-not-unattached': ({ heroId }, setting) => say`${hero(setting, heroId)} is not in the Unattached pool${command('pool-holds')}.`,
   'recruit signing-refused': ({ heroId, fameRequired, fame, shortfall }, setting) =>
     say`${hero(setting, heroId)} will not sign for a Guild with less than ${fameRequired} Fame; ${player(setting)} has ${fame}, ${shortfall} short.`,
-  'recruit insufficient-wealth': ({ fee, wealth }, setting) => say`The signing fee is ${fee} Wealth; ${player(setting)} has ${wealth}.`,
+  'recruit insufficient-wealth': ({ fee, wealth }, setting) => say`The signing fee is ${coinWords(fee)}; ${player(setting)} has ${coinWords(wealth)}.`,
 
   // build.
   'build guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and builds nothing.`,
   'build max-grade': ({ facility, grade }, setting) =>
     say`${player(setting)}'s ${facilityNames[facility]} ${facilityIs[facility]} at grade ${grade}, the highest there is.`,
   'build insufficient-wealth': ({ facility, cost, wealth }, setting) =>
-    say`The next grade of ${player(setting)}'s ${facilityNames[facility]} costs ${cost} Wealth; ${player(setting)} has ${wealth}.`,
+    say`The next grade of ${player(setting)}'s ${facilityNames[facility]} costs ${coinWords(cost)}; ${player(setting)} has ${coinWords(wealth)}.`,
 
   // equip and unequip.
   'equip guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and equips no one.`,
@@ -282,7 +283,7 @@ const sentences: Sentences = {
   'buy not-in-market': ({ definitionKey }, { content }) => say`The Market has no ${nameIn(content.items, definitionKey)} for sale${command('show-market')}.`,
   'buy insufficient-quantity': ({ definitionKey, quantity, available }, { content }) =>
     say`The Market has ${available} ${nameIn(content.items, definitionKey)}; ${quantity} cannot be bought.`,
-  'buy insufficient-wealth': ({ cost, wealth }, setting) => say`That costs ${cost} Wealth; ${player(setting)} has ${wealth}.`,
+  'buy insufficient-wealth': ({ cost, wealth }, setting) => say`That costs ${coinWords(cost)}; ${player(setting)} has ${coinWords(wealth)}.`,
   'sell guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and sells nothing.`,
   'sell not-held-by-guild': ({ id }, setting) => say`${player(setting)} holds no ${held(setting, id)} to sell${command('market-holds')}.`,
   'sell equipped': ({ id, heroId, slot }, setting) => say`${hero(setting, heroId)} carries ${held(setting, id)} as their ${slot}; unequip it first.`,
@@ -297,7 +298,7 @@ const sentences: Sentences = {
   'transferIn hero-in-party': inParty,
   'transferIn recently-transferred': locked,
   'transferIn transfer-refused': refused,
-  'transferIn insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${fee} Wealth; ${guild(setting, guildId)} has ${wealth}.`,
+  'transferIn insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
   'transferOut guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'transferOut same-guild': (_, setting) => say`${player(setting)} cannot transfer a Hero to itself.`,
@@ -306,7 +307,7 @@ const sentences: Sentences = {
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
   'transferOut transfer-refused': refused,
-  'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${fee} Wealth; ${guild(setting, guildId)} has ${wealth}.`,
+  'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
   'offerTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'offerTransfer hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
@@ -319,12 +320,12 @@ const sentences: Sentences = {
     const offer = rowOf(setting.world?.offers, offerId);
     return say`${player(setting)}'s Offer${ids(offerId)} for ${offer === undefined ? 'that Hero' : hero(setting, offer.heroId)} already waits for an answer.`;
   },
-  'offerTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${fee} Wealth; ${guild(setting, guildId)} has ${wealth}.`,
+  'offerTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
   'acceptTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'acceptTransfer offer-not-found': notFound,
   'acceptTransfer hero-in-party': inParty,
-  'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${fee} Wealth; ${guild(setting, guildId)} has ${wealth}.`,
+  'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
   'declineTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'declineTransfer offer-not-found': notFound,
 

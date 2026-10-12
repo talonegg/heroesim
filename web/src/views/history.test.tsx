@@ -6,7 +6,7 @@ import { historyView } from '../state/history';
 import { gameReducer, type GameState } from '../state/reducer';
 import { History } from './history';
 import { HistoryLinksContext } from './history-entries';
-import { historyLines, idle, inHistory, navButton, openDebugHistory, openView, renderGame, section, sentenceOf } from './page.test-support';
+import { coinsPattern, historyLines, idle, inHistory, navButton, openDebugHistory, openView, renderGame, section, sentenceOf } from './page.test-support';
 
 // The History as the one place to read what happened (DL-105), driven through the page: it
 // opens on the player's Guild, the last play's entries its newest and marked new; the World History
@@ -141,7 +141,7 @@ describe('folds, and the marks on each line', () => {
     const [outcome] = outcomes();
     if (outcome === undefined) throw new Error("no Rival's Party came home");
 
-    expect(sentenceOf(outcome)).toMatch(/^.+'s Party came home from .+ and (failed|succeeded|succeeded strongly): Wealth [+-]?\d+, Fame [+-]?\d+\./);
+    expect(sentenceOf(outcome)).toMatch(new RegExp(`^.+'s Party came home from .+ and (failed|succeeded|succeeded strongly): Wealth [+-]?${coinsPattern}, Fame [+-]?\\d+\\.`));
     expect(outcome.classList.contains('entry--rival')).toBe(true);
     const mark = within(outcome).getByText(/^(Success|Strong success|Failure)$/).closest('.chip') as HTMLElement;
     expect(mark.querySelector('svg')).not.toBeNull();
@@ -301,7 +301,7 @@ describe('a Party’s return in the player’s Guild’s History (DL-111 item 2)
   test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it, and no Encounter', () => {
     renderGame(written.state);
     openView('History');
-    const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0, Fame -2\.$/);
+    const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0 Silver, Fame -2\.$/);
 
     expect(entry.querySelector('.entry__text strong')?.textContent).toBe('failed');
     const heroes = within(entry).getByRole('button', { name: /^\d+ Heroes?: how each fared on / });

@@ -47,6 +47,7 @@ import {
   type SentView,
 } from '../state/selectors';
 import { HeroPage } from './hero-page';
+import { Coins } from './coins';
 import { HeroName, Icon, type IconName } from './icons';
 import { View } from './section';
 import { Banner, Chip, fatigueTones, Stepper, VisuallyHidden } from './ui';
@@ -285,8 +286,8 @@ function Quest({
           </li>
           <li>
             <Chip tone="brass" icon="wealth">
-              {card.reward}
-              <VisuallyHidden> Wealth</VisuallyHidden>
+              <VisuallyHidden>Reward </VisuallyHidden>
+              <Coins silver={card.reward} />
             </Chip>
           </li>
           <li>

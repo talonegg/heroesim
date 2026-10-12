@@ -23,7 +23,7 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
+import { capitalised, coinWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
 import { content } from '../content';
 import { kindFacet, type Facets } from './facets';
 import { classMarkOf, type ClassMarked, transferCostWords } from './names';
@@ -215,7 +215,7 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
 export interface OfferRow {
   /** What `acceptTransfer` and `declineTransfer` take. */
   offerId: OfferId;
-  /** `The Ashford Guild offers 180 Wealth for Bran Tull, until the night of Year 1 Day 13.` */
+  /** `The Ashford Guild offers 1 Gold 80 Silver for Bran Tull, until the night of Year 1 Day 13.` */
   sentence: string;
   /** The Guild that makes the offer. */
   guildName: string;
@@ -223,7 +223,7 @@ export interface OfferRow {
   fee: number;
   /**
    * What Accept asks before it lets the Hero go (M9-S6, the review's E4): `Accepting sends Bran Tull
-   * to The Ashford Guild for 180 Wealth.`, then what a Transfer out costs, in the page's words.
+   * to The Ashford Guild for 1 Gold 80 Silver.`, then what a Transfer out costs, in the page's words.
    */
   confirm: string;
 }
@@ -244,11 +244,11 @@ export function offersView(document: WorldDocument): { guildName: string; offers
       const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
       return {
         offerId: offer.id,
-        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendar)}.`,
+        sentence: `${bidder} offers ${coinWords(offer.fee)} for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendar)}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,
-        confirm: `Accepting sends ${hero} to ${bidder} for ${offer.fee} Wealth. ${transferCostWords}`,
+        confirm: `Accepting sends ${hero} to ${bidder} for ${coinWords(offer.fee)}. ${transferCostWords}`,
       };
     }),
   };

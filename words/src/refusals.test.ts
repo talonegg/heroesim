@@ -239,11 +239,11 @@ const exactly: Record<RefusalKind, string> = {
   'recruit guild-folded': `${lantern} has folded and signs no one.`,
   'recruit hero-not-unattached': `${brenna} is not in the Unattached pool<command:pool-holds>.`,
   'recruit signing-refused': `${brenna} will not sign for a Guild with less than 40 Fame; ${lantern} has 10, 30 short.`,
-  'recruit insufficient-wealth': `The signing fee is 900 Wealth; ${lantern} has 500.`,
+  'recruit insufficient-wealth': `The signing fee is 9 Gold; ${lantern} has 5 Gold.`,
 
   'build guild-folded': `${lantern} has folded and builds nothing.`,
   'build max-grade': `${lantern}'s quarters are at grade 3, the highest there is.`,
-  'build insufficient-wealth': `The next grade of ${lantern}'s training yard costs 800 Wealth; ${lantern} has 500.`,
+  'build insufficient-wealth': `The next grade of ${lantern}'s training yard costs 8 Gold; ${lantern} has 5 Gold.`,
 
   'equip guild-folded': `${lantern} has folded and equips no one.`,
   'equip hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
@@ -260,7 +260,7 @@ const exactly: Record<RefusalKind, string> = {
   'buy guild-folded': `${lantern} has folded and buys nothing.`,
   'buy not-in-market': `The Market has no ${named(content.items, 'runed-circlet')} for sale<command:show-market>.`,
   'buy insufficient-quantity': `The Market has 1 ${whetstone}; 5 cannot be bought.`,
-  'buy insufficient-wealth': `That costs 600 Wealth; ${lantern} has 500.`,
+  'buy insufficient-wealth': `That costs 6 Gold; ${lantern} has 5 Gold.`,
   'sell guild-folded': `${lantern} has folded and sells nothing.`,
   'sell not-held-by-guild': `${lantern} holds no ${held} to sell<command:market-holds>.`,
   'sell equipped': `${brenna} carries ${held} as their weapon; unequip it first.`,
@@ -273,14 +273,14 @@ const exactly: Record<RefusalKind, string> = {
   'transferIn hero-in-party': inParty,
   'transferIn recently-transferred': locked,
   'transferIn transfer-refused': `${other} will not part with ${stranger}: its Roster of ${rival.rosterIds.length} is too small for its appetite for Transfers.`,
-  'transferIn insufficient-wealth': `The fee is 180 Wealth; ${lantern} has 40.`,
+  'transferIn insufficient-wealth': `The fee is 1 Gold 80 Silver; ${lantern} has 40 Silver.`,
   'transferOut guild-folded': `${other} has folded and deals no more.`,
   'transferOut same-guild': `${lantern} cannot transfer a Hero to itself.`,
   'transferOut hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
   'transferOut transfer-refused': `${other} will not take ${brenna}: it is not rich enough to hire now.`,
-  'transferOut insufficient-wealth': `The fee is 180 Wealth; ${other} has 40.`,
+  'transferOut insufficient-wealth': `The fee is 1 Gold 80 Silver; ${other} has 40 Silver.`,
   'offerTransfer guild-folded': `${other} has folded and deals no more.`,
   'offerTransfer hero-not-on-roster': `${brenna} is on no other Guild's Roster<command:show-rosters>.`,
   'offerTransfer same-guild': `That Hero is already on ${lantern}'s Roster.`,
@@ -288,11 +288,11 @@ const exactly: Record<RefusalKind, string> = {
   'offerTransfer recently-transferred': locked,
   'offerTransfer no-offer-needed': `${other} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
   'offerTransfer offer-pending': `${lantern}'s Offer<ids:${offerId}> for that Hero already waits for an answer.`,
-  'offerTransfer insufficient-wealth': `The fee is 180 Wealth; ${lantern} has 40.`,
+  'offerTransfer insufficient-wealth': `The fee is 1 Gold 80 Silver; ${lantern} has 40 Silver.`,
   'acceptTransfer guild-folded': `${other} has folded and deals no more.`,
   'acceptTransfer offer-not-found': `No such Transfer Offer<ids:${offerId}> stands for ${lantern}'s Heroes<command:show-offers>.`,
   'acceptTransfer hero-in-party': inParty,
-  'acceptTransfer insufficient-wealth': `The fee is 180 Wealth; ${other} has 40.`,
+  'acceptTransfer insufficient-wealth': `The fee is 1 Gold 80 Silver; ${other} has 40 Silver.`,
   'declineTransfer guild-folded': `${other} has folded and deals no more.`,
   'declineTransfer offer-not-found': `No such Transfer Offer<ids:${offerId}> stands for ${lantern}'s Heroes<command:show-offers>.`,
 
@@ -326,7 +326,7 @@ describe('what the slots carry', () => {
   });
 
   test("the player's Guild is \"your Guild\" in words, with no world to name it from", () => {
-    expect(said(samples['recruit insufficient-wealth'], { ...setting, world: null })).toBe('The signing fee is 900 Wealth; your Guild has 500.');
+    expect(said(samples['recruit insufficient-wealth'], { ...setting, world: null })).toBe('The signing fee is 9 Gold; your Guild has 5 Gold.');
   });
 
   test("an Offer pending names its Hero while the world holds it", () => {

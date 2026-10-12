@@ -1,7 +1,9 @@
 // How the front ends name things in words (v1.1.6-S11, DL-186 item 1): a content row by its name, a
-// list as a sentence gives one, a signed number, and a capital for text that stands alone
-// (docs/agents/ui-text.md). Words only; no rule; one copy for the CLI and the page alike
-// (DL-197).
+// list as a sentence gives one, a signed number or amount of Wealth (DL-294 item 1), and a capital for
+// text that stands alone (docs/agents/ui-text.md). Words only; no rule; one copy for the CLI and the
+// page alike (DL-197).
+
+import { coinWords } from './coins.js';
 
 /**
  * The row `rows` holds under `id`, read as an own property, so that a key of `Object.prototype`
@@ -30,4 +32,13 @@ export function listed(items: readonly string[], word = 'and'): string {
 /** `+2`, `-1`, `0`. */
 export function signed(n: number): string {
   return n > 0 ? `+${n}` : String(n);
+}
+
+/**
+ * A gain or a loss of Wealth in the sentence form (DL-294 item 1): `+5 Gold 20 Silver`, `-20 Silver`,
+ * and `0 Silver` unsigned, as `signed(0)` is `0`.
+ */
+export function signedCoins(silver: number): string {
+  const words = coinWords(silver);
+  return silver > 0 ? `+${words}` : words;
 }

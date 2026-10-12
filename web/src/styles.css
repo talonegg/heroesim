@@ -47,6 +47,9 @@
      enough for 3:1 on the paper, distinct from brass, a warning and focus; and its soft glow. */
   --gold: #a57800;
   --gold-glow: rgb(165 120 0 / 40%);
+  /* The coins' discs beside an amount (DL-294 item 1): 3:1 on every surface an amount sits on. */
+  --coin-gold: #a87a0c;
+  --coin-silver: #7a7f87;
   --shadow: 0 1px 2px rgb(42 34 27 / 8%), 0 8px 24px rgb(42 34 27 / 10%);
   --backdrop: rgb(42 34 27 / 40%);
 
@@ -91,6 +94,8 @@
     --focus: #e6a896;
     --gold: #f0b90b;
     --gold-glow: rgb(240 185 11 / 35%);
+    --coin-gold: #e0ad2e;
+    --coin-silver: #a9b0b9;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
     --backdrop: rgb(0 0 0 / 60%);
   }
@@ -683,6 +688,35 @@ details > summary::-webkit-details-marker {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0.4rem 0;
+}
+
+/* An amount of Wealth (DL-294 item 1, `views/coins.tsx`): each number, then its coin's disc, drawn
+   here, so that nothing is fetched; the amount kept on one line. */
+.coins {
+  white-space: nowrap;
+}
+
+.coin + .coin {
+  margin-left: 0.2em;
+}
+
+.coin::after {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: 0.1em;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 20%);
+  vertical-align: -0.05em;
+}
+
+.coin--gold::after {
+  background: var(--coin-gold);
+}
+
+.coin--silver::after {
+  background: var(--coin-silver);
 }
 
 /* A number that matters, with its icon: Wealth and Fame in brass. */

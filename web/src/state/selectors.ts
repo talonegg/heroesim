@@ -80,6 +80,7 @@ import {
   captainPost,
   capitalised,
   chanceWords,
+  coinWords,
   dateOfDay,
   dateOfTurn,
   consumableEffectWords,
@@ -211,7 +212,7 @@ export function countdownView(document: WorldDocument): string | null {
   if (countdown === null) return null;
   return (
     `${guild.name} has been below the Bankruptcy floor since ${dateOfDay(countdown.sinceDay, config)}: Bankruptcy on ` +
-    `${nightOfDay(countdown.dueDay, config)} unless Wealth is back to ${config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`
+    `${nightOfDay(countdown.dueDay, config)} unless Wealth is back to ${coinWords(config.bankruptcyFloor)} or more on a night by then, after any Upkeep due.`
   );
 }
 
@@ -594,7 +595,7 @@ export function previewView(
             const where = consumable.effect.kind === 'heal' ? '' : `; ${reach(encounters)}`;
             return `${consumable.name} ×${quantity}, of ${held} the Guild holds: ${consumableEffectWords(consumable.effect)}${where}.`;
           }),
-    reward: `Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`,
+    reward: `Reward agreed on a success: ${coinWords(preview.agreedReward)}, ${coinWords(preview.offeredReward)} offered.`,
     verdict:
       preview.refusal === null
         ? { sends: true, words: 'Dispatch would send this Party.' }
@@ -1173,7 +1174,7 @@ export interface TransferTarget {
   fee: number;
   /**
    * What the page asks before the Transfer (M9-S6, the review's E4): the fee, and what it costs in
-   * the words the page gives the rule. `The Ashford Guild would pay 120 Wealth for Finn Grimshaw, …`
+   * the words the page gives the rule. `The Ashford Guild would pay 1 Gold 20 Silver for Finn Grimshaw, …`
    */
   sentence: string;
 }
@@ -1330,7 +1331,7 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading, docume
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
       .map((other) => {
         const fee = transferFee(hero, guildmasterOf(other, world), deps);
-        const sentence = `${other.name} would pay ${fee} Wealth for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
+        const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
         return { guildId: other.id, name: other.name, fee, sentence };
       }),
   };

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { changed, firstSeedWhere, moraleBandIn, startedWithEveryTier, withPartyOut, withReturn, type ReturnTold, type Written } from '../state/game.test-support';
 import { questReturn, type QuestReturn } from '../state/quest-return';
+import { silverOf } from './page.test-support';
 import { QuestReport } from './quest-report';
 
 // The Quest report (DL-111 item 3, DL-112 item 8): a list of typed sections, in order, each
@@ -104,7 +105,9 @@ describe('the Quest report', () => {
     expect(region.textContent).toContain(`Offered by ${report.patron?.name}`);
     // The Encounter's Degree (DL-152), in its sentence, and the Check of its several that decided it.
     expect(within(region).getByText("The Lantern's Party came through Ambush on the road (Encounter 1), a Triumph, decided by Steel.")).toBeDefined();
-    expect(within(region).getByText('Wealth +180')).toBeDefined();
+    // The Wealth in coins: its Silver on the element, its words for a screen reader (DL-294 item 1).
+    expect(silverOf(within(region).getByText('Wealth'))).toBe(180);
+    expect(within(region).getByText('+1 Gold 80 Silver')).toBeDefined();
     expect(within(region).getByText('Fame +4')).toBeDefined();
     expect(within(region).getByText('XP +60 each')).toBeDefined();
     expect(within(region).getByText('Loot: 3 × Whetstone')).toBeDefined();

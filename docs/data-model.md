@@ -123,7 +123,7 @@ captainId:      HeroId | null               the Captain, a Hero of the Roster; n
                                             Roster (DL-287)
 captainChangedOnTurn: turn | null           the Turn of the last change of Captain, from which
                                             the post is locked for captainChangeLockDays (DL-287)
-wealth, fame
+wealth, fame                                Wealth in whole Silver, 100 Silver a Gold (DL-294, DL-296)
 belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
 foldedOnTurn:   turn | null                 a Rival that reached an ending; out of play and out of
                                             Rankings, its Roster released to the pool (DL-28)

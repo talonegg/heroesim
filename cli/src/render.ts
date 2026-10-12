@@ -45,6 +45,8 @@ import {
   boardReading,
   capitalised,
   chanceWords,
+  coinLetters,
+  coinWords,
   dateOfDay,
   dateOfTurn,
   deadlyWords,
@@ -181,9 +183,9 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       portraitWords(rowOf(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
-      String(guild.wealth),
+      coinLetters(guild.wealth),
       String(guild.fame),
-      String(upkeep(guild, world, config, content)),
+      coinLetters(upkeep(guild, world, config, content)),
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on ${dateOfTurn(guild.foldedOnTurn, config)}`] : []),
     ]),
   );
@@ -212,7 +214,7 @@ export function renderCountdown(document: WorldDocument, deps: EngineDeps): stri
   if (countdown === null) return [];
   return [
     `${guild.name} has been below the Bankruptcy floor since ${dateOfDay(countdown.sinceDay, deps.config)}: Bankruptcy on ` +
-      `${nightOfDay(countdown.dueDay, deps.config)} unless Wealth is back to ${deps.config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`,
+      `${nightOfDay(countdown.dueDay, deps.config)} unless Wealth is back to ${coinWords(deps.config.bankruptcyFloor)} or more on a night by then, after any Upkeep due.`,
   ];
 }
 
@@ -277,7 +279,7 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
       String(grade),
       grade === 0 ? 'None' : builtAt(facility, grade),
       next === null ? 'None: the top grade' : next.name,
-      next === null ? '' : String(next.cost),
+      next === null ? '' : coinLetters(next.cost),
     ];
   });
   return [
@@ -349,7 +351,7 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
     { heading: 'Captain', cell: (row) => (row.captain ? 'Yes' : '') },
     ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => String(row.transferFee ?? '') }]),
+      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => (row.transferFee === null ? '' : coinLetters(row.transferFee)) }]),
   ];
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
@@ -383,7 +385,7 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
  * Level will not sign for a Guild whose Fame is below what their Level asks (`poolReading`).
  */
 export function renderPool(reading: PlayerReading): string[] {
-  const columns: HeroColumn<PoolRowReading>[] = [{ heading: 'Fee', align: 'right', cell: (row) => String(row.fee) }];
+  const columns: HeroColumn<PoolRowReading>[] = [{ heading: 'Fee', align: 'right', cell: (row) => coinLetters(row.fee) }];
   if (reading.guild !== undefined) {
     columns.push({ heading: 'Signs', cell: (row) => (row.signs === null ? '' : capitalised(signsWords(row.signs))) });
   }
@@ -424,7 +426,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['Traits', none(hero.traits.map((trait) => `${trait.name} (${trait.effect})`))],
     ...hero.texts.map(({ label, words }): [string, string] => [label, words]),
   ];
-  if (hero.transferFee !== null) attributes.push(['Transfer fee', String(hero.transferFee)]);
+  if (hero.transferFee !== null) attributes.push(['Transfer fee', coinLetters(hero.transferFee)]);
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.died !== null) attributes.push(['Died', renderDate(hero.died, calendar)]);
   if (hero.retired !== null) attributes.push(['Retired', renderDate(hero.retired, calendar)]);
@@ -494,7 +496,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
       ranking.guildId,
       guild?.name ?? ranking.guildId,
       guild === undefined ? '' : controllerOf(guild, deps.content),
-      String(ranking.value),
+      by === 'wealth' ? coinLetters(ranking.value) : String(ranking.value),
     ];
   });
   return [
@@ -675,7 +677,7 @@ export function renderBoard(reading: PlayerReading): string[] {
         String(quest.tier),
         quest.deadly ? 'Yes' : 'No',
         String(quest.days),
-        String(quest.reward),
+        coinLetters(quest.reward),
         String(quest.difficulty),
         String(quest.fame),
         `${quest.partySizeMin} or more`,

@@ -448,7 +448,8 @@ const guildFields: Shape<Guild> = {
   rosterIds: 'list',
   captainId: 'string-or-null',
   captainChangedOnTurn: 'integer-or-null',
-  wealth: 'number',
+  // Whole Silver, as every stored amount is (DL-294 item 1).
+  wealth: 'integer',
   fame: 'number',
   belowFloorSince: 'integer-or-null',
   foldedOnTurn: 'integer-or-null',
@@ -513,7 +514,7 @@ const questFields: Shape<Quest> = {
   tier: 'integer-from-one',
   difficulty: 'number',
   tags: 'list',
-  reward: 'number',
+  reward: 'integer',
   fameEffect: 'number',
   durationTurns: 'integer',
   skillKeys: 'list',
@@ -543,7 +544,7 @@ const offerFields: Shape<TransferOffer> = {
   fromGuildId: 'string',
   toGuildId: 'string',
   heroId: 'string',
-  fee: 'number',
+  fee: 'integer',
   offeredOnTurn: 'integer',
   expiresOnTurn: 'integer',
 };
@@ -1370,10 +1371,10 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 
 /**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
- * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), an entry of a cause a
- * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), an Encounter's names its
- * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247), and a Quest's offer and its
- * taking name its Tier, a whole number from 1 (DL-262).
+ * (DL-246): a Guild's founding names its founding Wealth in whole Silver (DL-120 item 4, DL-294
+ * item 1), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
+ * 2), an Encounter's names its Degree, the Check that decided it and its Checks rolled (DL-152,
+ * DL-247), and a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
  */
 function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1381,8 +1382,8 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
     const payload: unknown = entry.payload;
     if (!isMap(payload)) continue;
     const id = formatPath(['history', 'entries', index]);
-    if (entry.type === 'guild.founded' && typeof payload.wealth !== 'number') {
-      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth` });
+    if (entry.type === 'guild.founded' && !isInteger(payload.wealth)) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth in whole Silver` });
     }
     const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
     if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {

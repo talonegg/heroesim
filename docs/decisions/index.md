@@ -305,6 +305,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred | item 2 in part by DL-294 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-294 | 2026-10-12 | The economy redesigned before its pass: Silver, the Hall's upkeep, Contracts; three releases |  | [decision-log](../decision-log.md) |
 | DL-295 | 2026-10-12 | v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury … |  | [decision-log](../decision-log.md) |
+| DL-296 | 2026-10-12 | v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

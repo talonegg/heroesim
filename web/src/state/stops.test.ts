@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { applyAction, createWorld, defaultConfig, playerGuild, type OfferId, type PartyId, type QuestId, type StopReason } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { nightOfTurn } from '@heroesim/words';
+import { coinWords, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { expectASentence } from './game.test-support';
 import { readingOf } from './reading';
@@ -70,7 +70,7 @@ describe('stopText', () => {
 
     expect(offer.toGuildId).toBe(rival.id);
     expect(line).toBe(
-      `Stopped: a Transfer Offer: ${rival.name} offers ${offer.fee} Wealth for ${offered.document.world.heroes[heroId]?.name} ` +
+      `Stopped: a Transfer Offer: ${rival.name} offers ${coinWords(offer.fee)} for ${offered.document.world.heroes[heroId]?.name} ` +
         `until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
     );
   });

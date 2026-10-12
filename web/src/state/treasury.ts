@@ -22,7 +22,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
+import { coinWords, nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
 import { foundingOf, historyPageSize, wealthChanges } from './history-reader';
@@ -144,17 +144,15 @@ export interface LedgerRow {
   key: string;
   /** `Year 1 Day 20, night`. */
   when: string;
-  /** What happened, in the History's words, each name opening whom it names; `Founded with 500 Wealth` for the opening row. */
+  /** What happened, in the History's words, each name opening whom it names; `Founded with 5 Gold` for the opening row. */
   segments: Segment[];
   sentence: string;
   /** `null` for the opening row. */
   category: LedgerCategory | null;
   /** `Quest rewards`; `Opening balance` for the opening row. */
   categoryWords: string;
-  /** Positive for income, negative for an expense; the founding Wealth for the opening row. */
+  /** In Silver (DL-294 item 1): positive for income, negative for an expense; the founding Wealth for the opening row, a balance and not a change. */
   amount: number;
-  /** `+300`, `-120`; `500` for the opening row, a balance and not a change. */
-  amountWords: string;
 }
 
 /** A change to a Guild's Wealth where the History holds it, before it is put in words. */
@@ -179,7 +177,6 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
     category,
     categoryWords: categoryWords[category],
     amount,
-    amountWords: signed(amount),
   };
 }
 
@@ -193,7 +190,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
   const position = found?.position;
   const wealth = founded?.payload.guildId === guildId ? founded.payload.wealth : undefined;
   if (founded === undefined || wealth === undefined) return null;
-  const sentence = `Founded with ${wealth} Wealth`;
+  const sentence = `Founded with ${coinWords(wealth)}`;
   return {
     key: `ledger-${position}`,
     when: whenOfTurn(founded.turn, readingOf(document).calendar),
@@ -202,7 +199,6 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
     category: null,
     categoryWords: 'Opening balance',
     amount: wealth,
-    amountWords: String(wealth),
   };
 }
 
@@ -223,15 +219,11 @@ const flowLabels: readonly { key: LedgerFlow; label: string }[] = [
   { key: 'expense', label: 'Expense' },
 ];
 
-/** The sums of what the ledger shows: income positive, expense negative, and the two together. */
+/** The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together. */
 export interface LedgerTotals {
   income: number;
   expense: number;
   net: number;
-  /** `+300`, `-420`, `-120`. */
-  incomeWords: string;
-  expenseWords: string;
-  netWords: string;
 }
 
 /** The ledger shown: a page of it and what the filters let through. */
@@ -267,16 +259,20 @@ export interface TreasuryAccounts {
   guildName: string;
   wealth: number;
   upkeep: {
-    /** `Upkeep of The Lantern: 120 Wealth every 10 Days`: the Upkeep in a sentence (DL-116). */
+    /** `Upkeep of The Lantern: 1 Gold 20 Silver every 10 Days`: the Upkeep in a sentence (DL-116). */
     sentence: string;
-    /** What the next payment takes (`upkeepParts`' total), at the Roster and Hall of now. */
+    /** What the next payment takes (`upkeepParts`' total), in Silver, at the Roster and Hall of now. */
     total: number;
     /** `the night of Year 1 Day 20` (`nextUpkeepDay`); `null` once the game has ended or the Guild folded. */
     next: string | null;
-    /** Wages and the Hall's maintenance, and the Guildmaster's Traits' factor when one bears on it. */
-    parts: { label: string; value: string }[];
+    /**
+     * Wages and the Hall's maintenance, in Silver, and the Guildmaster's Traits' factor when one
+     * bears on it. `value` is the part in words; `silver` is set for an amount, which the page shows
+     * as coins, and not for a factor.
+     */
+    parts: { label: string; value: string; silver?: number }[];
   };
-  /** The Bankruptcy floor. */
+  /** The Bankruptcy floor, in Silver. */
   floor: number;
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
@@ -295,7 +291,7 @@ function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
   const income = rows.reduce((sum, row) => (row.amount > 0 ? sum + row.amount : sum), 0);
   const expense = rows.reduce((sum, row) => (row.amount < 0 ? sum + row.amount : sum), 0);
   const net = income + expense;
-  return { income, expense, net, incomeWords: signed(income), expenseWords: signed(expense), netWords: signed(net) };
+  return { income, expense, net };
 }
 
 /**
@@ -317,12 +313,12 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
     guildName: guild.name,
     wealth: guild.wealth,
     upkeep: {
-      sentence: `Upkeep of ${guild.name}: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`,
+      sentence: `Upkeep of ${guild.name}: ${coinWords(parts.total)} every ${config.upkeepEveryDays} Days`,
       total: parts.total,
       next: playing ? nightOfDay(nextUpkeepDay(world.turn, config), config) : null,
       parts: [
-        { label: 'Wages', value: String(parts.wages) },
-        { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
+        { label: 'Wages', value: coinWords(parts.wages), silver: parts.wages },
+        { label: 'Hall maintenance', value: coinWords(parts.hallMaintenance), silver: parts.hallMaintenance },
         // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
         ...(parts.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(parts.traitFactor.toFixed(2))}` }]),
       ],

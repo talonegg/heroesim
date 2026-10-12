@@ -26,6 +26,7 @@ import {
 } from '@heroesim/engine';
 import {
   chanceWords,
+  coinLetters,
   consumableEffectWords,
   formEffectWords,
   listed,
@@ -204,7 +205,7 @@ export function previewParty(
     reliefLines(preview, deps),
     chanceLines(preview, deps),
     consumableLines(preview, deps),
-    [`Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`],
+    [`Reward agreed on a success: ${coinLetters(preview.agreedReward)}, ${coinLetters(preview.offeredReward)} offered.`],
     [
       refusal === null
         ? 'Dispatch would send this Party.'

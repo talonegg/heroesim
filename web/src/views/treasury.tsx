@@ -10,6 +10,7 @@ import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import { ledgerPage, treasuryAccounts, type TreasuryAccounts } from '../state/treasury';
 import { Names } from './history-entries';
+import { Coins } from './coins';
 import { Icon } from './icons';
 import { Terms } from './section';
 import { Banner, FilterChips, useFacets, type FilterChipsProps } from './ui';
@@ -48,7 +49,9 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
     <div className="treasury">
       <p className="treasury__wealth" data-testid="treasury-wealth">
         <Icon name="wealth" />
-        <span>Wealth</span> <strong>{view.wealth}</strong>
+        <span>Wealth</span> <strong>
+          <Coins silver={view.wealth} />
+        </strong>
       </p>
       {view.countdown === null ? null : (
         <Banner tone="warn" icon="alert">
@@ -63,12 +66,12 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
       </p>
       {upkeep.next === null ? null : (
         <p data-testid="upkeep-next">
-          Next paid on {upkeep.next}: {upkeep.total} Wealth.
+          Next paid on {upkeep.next}: <Coins silver={upkeep.total} />.
         </p>
       )}
-      <Terms pairs={upkeep.parts.map(({ label, value }) => [label, value] as const)} />
+      <Terms pairs={upkeep.parts.map(({ label, value, silver }) => [label, silver === undefined ? value : <Coins silver={silver} />] as const)} />
       <p className="subtle" data-testid="floor">
-        The Bankruptcy floor is {view.floor} Wealth.
+        The Bankruptcy floor is <Coins silver={view.floor} />.
       </p>
 
       <h3>Ledger</h3>
@@ -80,7 +83,8 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
               <FilterChips {...fromFirstPage(filters.flow)} />
               <FilterChips {...fromFirstPage(filters.category)} />
               <p className="treasury__totals" data-testid="totals">
-                Income {ledger.totals.incomeWords} · Expense {ledger.totals.expenseWords} · Net {ledger.totals.netWords}
+                Income <Coins silver={ledger.totals.income} signed /> · Expense <Coins silver={ledger.totals.expense} signed /> · Net{' '}
+                <Coins silver={ledger.totals.net} signed />
               </p>
             </>
           )}
@@ -115,7 +119,7 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
                         </td>
                         <td>{row.categoryWords}</td>
                         <td className={`number ledger__amount ${row.category === null ? 'is-opening' : row.amount > 0 ? 'is-income' : 'is-expense'}`}>
-                          {row.amountWords}
+                          <Coins silver={row.amount} signed={row.category !== null} />
                         </td>
                       </tr>
                     ))}
