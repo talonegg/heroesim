@@ -241,3 +241,6 @@ no Contract, and Facilities were fixed in code (`engine/src/document.ts`).
 on an economy still broken, as `v1.2.1`'s; the pass tunes the finished rules.
 
 **Evidence.** The epic `docs/planning/epics/v1.2.2-release.md`, its §6 the answers; `plan.md` §3.
+
+*Note, 2026-10-12 (the owner's word: "move to 1.2.2").* Dependabot's two `target-branch`es move to
+`v1.2.2-dev` (DL-147 item 6), taking effect when the record is merged into `main`.
