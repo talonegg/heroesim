@@ -59,8 +59,9 @@ name its path, or use `rg -u`.
 8. **No git worktrees.** Work on the release's dev branch, and never switch branches mid-story.
 9. **Tests first** where the epic says so: red, then green.
 10. **The model split:**
-    - Opus builds the medium and large stories and does all verification.
-    - Sonnet or Haiku take the mechanical steps.
+    - Opus builds the high complexity stories and does all verification.
+    - Sonnet builds the medium complexity stories.
+    - Haiku take the mechanical steps.
 11. **A question to the owner** is one item a message:
     - what it is, with checked facts and file references;
     - what doing it involves;
@@ -97,7 +98,7 @@ name its path, or use `rg -u`.
    Long commands run in the background, or with a timeout of up to 600,000 ms.
 4. **Record** it in a DL entry, appended at the end of `docs/decision-log.md` with the next
    number:
-   - the heading `## DL-nn — v1.1.N-Sk built: <what>`;
+   - the heading `## DL-nn — v1.M.N-Sk built: <what>`;
    - the line `**Status:** Accepted · **Date:** <from date> · **Decided by:** <who>`;
    - **Context.**;
    - **Decision.**, in numbered items;
@@ -120,8 +121,8 @@ name its path, or use `rg -u`.
      `Verified <date> at <sha>: <what it found and fixed, in a sentence>.`
 6. **The epic:** tick the story's boxes as they are met, and set its Status line.
 7. **Commit** to the release's dev branch only:
-   - the message is `v1.1.N-Sk (DL-nn): <what was built>`, then
-     `v1.1.N-Sk (DL-nn): verified: <what was checked; what was fixed>`, ending with the
+   - the message is `v1.M.N-Sk (DL-nn): <what was built>`, then
+     `v1.M.N-Sk (DL-nn): verified: <what was checked; what was fixed>`, ending with the
      attribution lines the session gives;
    - stage only the files changed, never `git add -A`;
    - use `git commit -F -` with a heredoc.
@@ -130,7 +131,7 @@ name its path, or use `rg -u`.
 
 1. **Plan.**
    - Take the owner's answers, by rule 11.
-   - Write the epic, `docs/planning/epics/v1.1.N-release.md`: the objective, the Gate, §0's story
+   - Write the epic, `docs/planning/epics/v1.M.N-release.md`: the objective, the Gate, §0's story
      table, the stories with their acceptance, and §2 to §4.
    - Add its row to the epics README's register, and make it §3's "Now" in `plan.md`.
    - Its DL entry records the answers and the plan.
@@ -150,7 +151,7 @@ name its path, or use `rg -u`.
      saying, the epic naming the sentence it aimed at (DL-256).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
-   - `v1.1-release` is fast-forwarded to the dev branch and pushed;
+   - `v1.M-release` is fast-forwarded to the dev branch and pushed;
    - CI raises the pull request to `main`, naming its tag;
    - the owner merges it with a merge commit;
    - CI tags the release, deploys it to both addresses, runs `e2e:live` and publishes the GitHub
