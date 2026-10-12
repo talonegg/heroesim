@@ -78,24 +78,33 @@ The `v1.2` line builds the [Guild Management Design](./management-design.md) (DL
 that cost something, then the management core, then reputation and legacy. Each release is its own
 epic. It opens with a table of the owner's inputs (its numbers, each a question with an agent's
 default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design's sentence it aims at,
-and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy pass
-(#51) is spread across the releases that change what it tunes.
+and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy is
+redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294).
 
-- **Now: [`v1.2.1`, Fatigue and the Captain](./planning/epics/v1.2.1-release.md)** (DL-280), on
-  `v1.2.1-dev`, released as is on the owner's word (DL-293), though its closing Gate found every one
-  of the player's games bankrupt before 20 years (DL-292). It brings Fatigue rising
-  away and falling at home, weighing on Stats by area and on harm; Morale's form a line around its
-  baseline; the hurt relieved by a Healer or a heal Item; rest bands for every Guild; one Captain a
-  Guild; the Rivals' heal Items (#25's consumables); the Roster's Tiles, Table and phone views as the
-  design's part 11 sets them; and #51's form factors. It carries
-  `v1.2.0`'s record and DL-279's patch to the live check. `v1.2.0` was released on 2026-10-11 (§2),
-  untuned (DL-277): the targets, the unlock Levels, the Death factor and the Rivals' Rosters are tuned
-  in a later release (Alongside, below).
-- **Short term: choices that cost something.**
-  1. `v1.2.2`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
-     upgraded, the surplus sold) and #51's Rival income.
+- **Now: [`v1.2.2`, Coin and the Hall](./planning/epics/v1.2.2-release.md)** (DL-294), on
+  `v1.2.2-dev`, planned, not started. Wealth held in whole Silver and shown as Gold and Silver; the
+  Hall's Facilities as content, each with an upkeep rising with its grade; the Hall's upkeep, a base
+  and a share for each Hero, every 30 Days, apart from the wages every 10; one Upkeep a month of
+  costs; loot-only Items valued, and every Guild's surplus sold (#25's last part but gear upgraded);
+  the Treasury's income and expenses. Each new figure starts near today's cost. `v1.2.1`, Fatigue and
+  the Captain (DL-280), was released as is on 2026-10-12 (#66, `72d14e9`; DL-293), its closing Gate
+  finding every one of the player's games bankrupt before 20 years (DL-292); its record, §2's row and
+  its archive, waits on the owner's word.
+- **Short term: the economy, then choices that cost something.**
+  1. `v1.2.3`, Contracts (DL-294 item 6): a Contract on every Hero, its wage set at signing and its
+     length chosen; renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer
+     fee from the wages left; the Rivals and the harness's policy deciding renewals (#20). It takes in
+     #51's wage.
+  2. `v1.2.4`, the economy pass (#51), deferred by the owner (DL-293) and placed here by DL-294:
+     Guilds that can live with `v1.2.1`'s Fatigue and form and the redesign's rules, measured in a full
+     Gate against [the outcomes](./planning/epics/gate-outcomes-monitoring.md). It restores the
+     player's solvency (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the Rivals' failed
+     Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their folds
+     (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save is
+     measured there; Fatigue's tuning to DL-290's bands follows it (DL-292).
+  3. `v1.2.5`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
+     upgraded) and #51's Rival income.
 - **Medium term: the management core,** in this order:
-  - Contracts: #51's wage, and the harness's policy deciding renewals (#20).
   - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
   - Scouting and a deeper Unattached pool: Heroes of every age and Level, and hidden information.
     The Outing limit comes with scouting and applies to every Guild (R4, pre-M0 review
@@ -120,7 +129,14 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
     and the owner approves them before the run. When their installation lands, the probe module
     leaves the public page.
   - Workers, a retiring Hero kept on in a post, and the Hall's grades 4 to 6 as late-game Wealth
-    sinks (#23, DL-83).
+    sinks (#23, DL-83), content rows once Facilities are content (`v1.2.2`).
+  - The economy's later lines (DL-294 item 8): negotiation of wages, Contract lengths and sale prices,
+    by what each Hero wants and more factors behind a Guildmaster's preferred length; the wage read
+    from a Hero's and the Guild's reputation, personality, Regard and comparable teammates' wages;
+    competing bids for an Unattached Hero, weighed by signing fee, wage and Regard; a Guildmaster's
+    premium on a Hero; Rivals renewing early; a choosable starting Hall, with its bonuses and base
+    upkeep; selling Hall assets; patronage by Sphere; investments, gambling, and Random and Inciting
+    Events as income or cost; borrowing and debt; Campaigns and Scenarios with economic stakes.
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Loot's content (#36).
   - Rival encounters during Quests; direct contests between Guilds, a separate later feature
@@ -132,12 +148,6 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
   - Patron pictures, drawn on a `patron-portraits` stream, through the portrait tool (DL-135
     item 10).
 - **Alongside, their place decided as each release closes:**
-  - The economy pass, deferred by the owner (DL-293): Guilds that can live with v1.2.1's Fatigue and
-    form, measured in a full Gate against [v1.2.1's outcomes](./planning/epics/gate-outcomes-monitoring.md).
-    It restores the player's solvency (bankrupt in every game at v1.2.1, none at v1.2.0), the Rivals'
-    failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6) and their
-    folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save
-    is measured there; Fatigue's tuning to DL-290's bands follows it (DL-292).
   - The targets reset and tuned against, once more of the line is built (DL-257): DL-83's bands as
     restated; #51's Quests' volume, Wealth and the Market's size or draws by slot (DL-168 items 9 and
     12); #22's strong-success premium; the Death band (DL-256 item 10); the Tiers' factors, the

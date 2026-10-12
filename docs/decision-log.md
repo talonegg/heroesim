@@ -250,6 +250,7 @@ untuned (DL-277). DL-256 items 13, 19 and 20 put Fatigue, the Captain and the Ro
 
 1. **`v1.2.1` is the epic** [Fatigue and the Captain](planning/epics/v1.2.1-release.md), on
    `v1.2.1-dev`, shipping DL-279's patch with it (Q1 a). Rivals who compete become `v1.2.2`.
+   *Superseded in part by DL-294 item 7, 2026-10-12: Rivals who compete become `v1.2.2`; now `v1.2.2` is Coin and the Hall, and Rivals who compete `v1.2.5`. The record: [superseded/DL-280.md](decisions/archive/superseded/DL-280.md).*
 2. **Fatigue** is a State from 0 to 100, rising each Day away by Tier and falling each night at home
    by quarters grade (Q2 a), read Day by Day on a Quest and projected by the estimate (Q11 a). With f
    the Fatigue and FS `fatigueScaling` (0.4, from 0 to 1, no floor; Q13, Q14 c): Physical and Magical
@@ -1077,6 +1078,7 @@ release next.
    owner. This supersedes in part DL-292's hold.
 2. **The economy pass deferred** (the owner: "defer economic pass"): it leaves `plan.md` §3's short
    term for its Alongside list, its place decided as each release closes; `v1.2.2` is next.
+   *Superseded in part by DL-294 item 7, 2026-10-12: the economy pass's place decided as each release closes; now it is `v1.2.4`, after the redesign's two releases. The record: [superseded/DL-293.md](decisions/archive/superseded/DL-293.md).*
 
 **Consequences.** The released game's Guilds go bankrupt within about ten years under the automatic
 policy; the page's players meet Fatigue and the Captain on an economy not yet tuned to them. The
@@ -1084,3 +1086,64 @@ owner's playtest follows the economy pass. #51's form-factor item waits on the o
 
 **Evidence.** `harness/reports/v1.2.1-close-gate-2026-10-12` (fingerprint `027d238a…`); the
 outcomes, `docs/planning/epics/gate-outcomes-monitoring.md`; `plan.md` §3.
+
+## DL-294 — The economy redesigned before its pass: Silver, the Hall's upkeep, Contracts; three releases
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the owner, answering Q1–Q22 on
+2026-10-12 from their outline of income and expenses; the defaults and the stories by the agent,
+marked below
+
+**Context.** The economy has been broken since v1.2.1-S4 (DL-292), and its pass was deferred (DL-293).
+Before tuning it, the owner redesigned what it tunes. Upkeep was one charge every 10 Days, a Hero had
+no Contract, and Facilities were fixed in code (`engine/src/document.ts`).
+
+**Decision.**
+
+1. **Coin** (Q1–Q3). Wealth is held in whole Silver, today's figures read as Silver; 100 Silver is a
+   Gold. Shown largest Gold first, a zero part left out: coin glyphs on the page (the sentence form as
+   their label), "5 Gold 20 Silver" in sentences, `5g 20s` in the CLI. Wealth, the Hall and Transfer
+   keep their words; **Gold**, **Silver**, **Contract** and **Facility** enter the glossary.
+2. **The Hall's upkeep** (Q4), every 30 Days: the Guild's own `hallBaseUpkeep`, set at founding from
+   config, plus `hallUpkeepPerHero` × Heroes ^ `hallUpkeepHeroExponent` (1), Heroes the living Roster.
+3. **Facilities are content** (Q5, Q5b): a kind with its base upkeep and its effects from a closed set
+   (heal, training XP, Morale, Fatigue fall); each grade row its price, name and effects' values;
+   editor commands and a doctor. A Facility's upkeep is its base × `improvementUpkeepGradeFactor` ^ (grade − 1);
+   `hallMaintenancePerGrade` goes. Thrifty and Spendthrift scale the Hall's and Improvements' upkeep
+   alone (Q17).
+4. **Charges** (Q14, Q16, Q19). Wages on Days 9, 19, 29…; the Hall with its Improvements on Days 29,
+   59…; whoever and whatever is there that night pays in full; two events, before the floor. One
+   Upkeep is a month's costs: every threshold counted in Upkeeps divided by 3. The Treasury and the
+   harness read income and expenses, a line for each flow.
+5. **Items** (Q13, Q18). `sellRatio` stays; a loot-only Item carries its own `value`, replacing
+   `lootOnlyPrice`. Rivals and the policy sell their surplus outside the afternoon's purchase; in
+   debt, Holding first, then expired Heroes, then the debt sale.
+6. **Contracts** (Q6–Q12, Q15). A wage of `wageBase` + `wagePerLevel` × Level + Stat sum ÷
+   `wageStatDivisor`, × Negotiation, with a Guild-Fame term at 0, set at signing and fixed; one rule
+   reading the whole game. The signer chooses 1, 2 or 3 years at × 1, 0.95 and 0.9; a Disposition its
+   length, the policy 2 years, founding Contracts drawn from the list. Renewal at any time, replacing
+   the term, with one stop at expiry. An expired Hero keeps charging and playing, and is taken by a
+   fee-0 Offer unless renewed within 3 Days; Rivals and the policy hold expired Heroes and decide at an
+   Offer (Level at or above the Roster's median, or the Roster at its floor). Release pays 0.8 of the
+   wages left, nothing once expired. The Transfer fee is the wage × Days left ÷ 10 ×
+   `transferFeeFactor` × (1 + a premium, a rule giving 0) × (1 − Negotiation). The signing fee stays.
+7. **Releases** (Q20, Q21). `v1.2.2` Coin and the Hall (items 1–5); `v1.2.3` Contracts (item 6);
+   `v1.2.4` the economy pass; `v1.2.5` Rivals who compete. Each new rule's default starts near today's
+   cost; each close runs its Gate and records it, not blocking.
+   *Supersedes in part* DL-280 item 1 and DL-293 item 2.
+8. **The backlog** (the owner's, and from Q6–Q15): negotiation of wages, lengths and sale prices, by
+   what a Hero wants; the wage read from a Hero's and the Guild's reputation, personality, Regard and
+   teammates' wages; competing bids for an Unattached Hero; a Guildmaster's premium; Rivals renewing
+   early; a choosable starting Hall; selling Hall assets; patronage by Sphere; investments, gambling
+   and Events; borrowing and debt; Campaigns and Scenarios with economic stakes.
+
+*Judgement calls, for the owner to see.*
+- **Contract** enters the glossary with `v1.2.3`, the epic that builds it (principle 13).
+- The premium multiplies the fee, a rule per Hero giving 0, nothing stored (Q11 as read).
+- A grade's effect at grade 0 is the Facility row's; `v1.2.2` keeps today's wage until `v1.2.3`.
+- The items earlier entries hold on Upkeep (DL-26, DL-43), the ledger (DL-116), the Market (DL-51),
+  the fee (DL-57) and the wage (DL-36) are superseded by the stories that change them.
+
+**Consequences.** `schemaVersion` rises in both releases; older saves are refused. Two releases ship
+on an economy still broken, as `v1.2.1`'s; the pass tunes the finished rules.
+
+**Evidence.** The epic `docs/planning/epics/v1.2.2-release.md`, its §6 the answers; `plan.md` §3.
