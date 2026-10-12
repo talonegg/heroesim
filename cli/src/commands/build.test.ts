@@ -36,7 +36,7 @@ describe('build', () => {
     expect(run.out).toContain('The next grade, Infirmary ward, costs 5g.');
     const after = document();
     const guild = thePlayer(document().world);
-    expect(guild.hall).toEqual({ infirmary: 1, trainingYard: 0, quarters: 0 });
+    expect(guild.hall).toEqual({ infirmary: 1, 'training-yard': 0, quarters: 0 });
     expect(guild.wealth).toBe(800);
     expect(count(after.history, 'guild.improved')).toBe(1);
   });
@@ -46,7 +46,7 @@ describe('build', () => {
 
     for (const [word, key] of [
       ['infirmary', 'infirmary'],
-      ['training-yard', 'trainingYard'],
+      ['training-yard', 'training-yard'],
       ['quarters', 'quarters'],
     ] as const) {
       for (const grade of [1, 2, 3]) {
@@ -120,6 +120,18 @@ describe('build', () => {
 
     expect(poor.code).toBe(exitCodes.refused);
     expect(poor.err).toContain("The next grade of The Test's quarters costs 2 Gold; The Test has 1 Gold 99 Silver.");
+    expect(saved()).toBe(before);
+  });
+
+  // DL-297: the CLI's word is the Facility's key, which the save's content holds to.
+  test("refuses a key the save's content defines no Facility by, naming the keys it does, and writes nothing", () => {
+    newWorld(10_000);
+    const before = saved();
+
+    const stables = play(['build', '--facility', 'stables']);
+
+    expect(stables.code).toBe(exitCodes.refused);
+    expect(stables.err).toContain(`--facility takes ${Object.keys(content.facilities).join(', ')}; got "stables"`);
     expect(saved()).toBe(before);
   });
 });

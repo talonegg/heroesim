@@ -4,7 +4,6 @@ import {
   createWorld,
   defaultConfig,
   dispositionOf,
-  facilityKeys,
   upkeep,
   validate,
   type EngineDeps,
@@ -40,7 +39,7 @@ describe("the core's Rivals hire back to rivalRosterMin by need (DL-60)", () => 
         const hero = document.world.heroes[heroId];
         if (hero !== undefined) hero.diedOnTurn = document.world.turn;
       }
-      for (const facility of facilityKeys) rival.hall[facility] = topGrade(facility);
+      for (const facility of Object.keys(content.facilities)) rival.hall[facility] = topGrade(facility);
       rival.wealth = 1_000;
       const threshold = (content.dispositions[dispositionOf(rival) ?? '']?.recruitThreshold ?? 0) * upkeep(rival, document.world, deps.config, content);
       expect(rival.wealth, dispositionOf(rival) ?? '').toBeLessThan(threshold);

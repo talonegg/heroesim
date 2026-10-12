@@ -14,7 +14,7 @@ import { potentialHint } from './potential.js';
 import { regardOnQuestResolved, regardValue } from './regard.js';
 import { cheapestUnattached, effectiveStats, signingFee, upkeep } from './selectors.js';
 import { nightOf } from './time.js';
-import { buildDocument, testContent, testDeps } from './world.test-support.js';
+import { buildDocument, testContent, testDeps, withFacilityEffect } from './world.test-support.js';
 
 // The Guildmaster's five Stat rules and the closed union of Trait effects (R8, pre-M0 review
 // B2, B6, D9, INPUTS 6.5, DL-43). Every value these tests rely on is pinned here.
@@ -27,10 +27,8 @@ const pinned: Partial<GameConfig> = {
   judgementHintSharpening: 0.25,
   potentialHintBands: { modest: 0, promising: 6, exceptional: 10 },
   moraleBaseline: 60,
-  quartersMoraleBonus: 5,
   moraleMin: 0,
   moraleMax: 100,
-  xpPerTrainingDay: 2,
   patronRegardOnSuccess: 2,
   wagePerLevel: 20,
   hallMaintenancePerGrade: 10,
@@ -39,7 +37,8 @@ const pinned: Partial<GameConfig> = {
   signingFeeStatDivisor: 4,
   fameRequiredPerLevel: 10,
 };
-const deps = testDeps(pinned);
+/** The quarters' Morale and the training yard's XP, 5 and 2 a grade, pinned in content. */
+const deps = testDeps(pinned, withFacilityEffect('quarters', 'moraleBaseline', [0, 5, 10, 15], withFacilityEffect('training-yard', 'trainingXp', [0, 2, 4, 6])));
 
 /** Content's Guildmaster Stats range 1 to 20 (DL-17 item 6). */
 const bottom = 1;
@@ -51,7 +50,7 @@ function scene(): { world: World; ids: ReturnType<typeof buildDocument>['ids']; 
   const { document, ids } = buildDocument({ rosterSize: 3, unattached: 2 });
   const { world } = document;
   const guild = world.guilds[ids.playerGuild] as Guild;
-  guild.hall.trainingYard = 2;
+  guild.hall['training-yard'] = 2;
   const guildmaster = world.guildmasters[guild.guildmasterId] as Guildmaster;
   guildmaster.traits = [];
   for (const key of Object.values(guildmasterStatKeys)) guildmaster.stats[key] = middle;

@@ -166,6 +166,7 @@ export {
   type Encounter,
   type EncounterCheck,
   type EncounterKind,
+  type FacilityKey,
   type GuildmasterTrait,
   type InjuryTypeKey,
   type ItemDefinition,
@@ -205,7 +206,6 @@ export {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  facilityKeys,
   isId,
   parseId,
   schemaVersion,
@@ -216,7 +216,6 @@ export {
   type EntityId,
   type Entry,
   type EventType,
-  type FacilityKey,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -340,6 +339,7 @@ export {
   type RegardContext,
   type ResolvedForRegard,
 } from './regard.js';
+export { facilityGrade, topGrade } from './facilities.js';
 export { fatigueBand } from './fatigue.js';
 export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';

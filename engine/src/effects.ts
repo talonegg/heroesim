@@ -8,7 +8,7 @@
 //   adjustWealth  the Guild's Wealth, `guild.wealth-changed` always
 //   adjustRegard  `adjustRegard` (regard.ts) for a Patron, a Guildmaster or a Hero, and the holder's
 //                 `*.regard-changed` only on a band crossing (data-model rule 10)
-//   injure        `inflictInjury` with the infirmary's `healFactor` (injuries.ts), `hero.injured`
+//   injure        `inflictInjury` with the Hall's `healFactor` (injuries.ts), `hero.injured`
 //   offerQuest    the Quest Generator (`generateQuest`) from the module's own stream, `quest.offered`
 //
 // Each event names the module (`moduleId`) and, where the event has a cause, has the cause `module`.
@@ -72,7 +72,7 @@ export interface AdjustRegard {
 
 /**
  * Injures a Hero with the Injury type `typeKey` for `days` Days, a whole number from 1, before the
- * infirmary of the Hero's Guild shortens them as it shortens a Quest's Injury (`healFactor`).
+ * Hall of the Hero's Guild shortens them as it shortens a Quest's Injury (`healFactor`).
  */
 export interface Injure {
   kind: 'injure';
@@ -242,9 +242,9 @@ function applyInjury(world: World, effect: Injure, ctx: EffectContext): EffectRe
   if (outOfPlay(hero)) return refuse('hero-gone');
   if (hero.partyId !== null) return refuse('hero-away');
   if (hero.injury !== null) return refuse('hero-injured');
-  // A Hero on no Roster has no infirmary: the factor of none, grade 0.
+  // A Hero on no Roster reads an empty Hall, every Facility at grade 0.
   const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
-  const factor = healFactor(guild ?? { hall: { infirmary: 0 } }, ctx.config);
+  const factor = healFactor(guild?.hall ?? {}, ctx.content);
   const healsOnTurn = inflictInjury(hero, typeKey, healDays(days, factor), ctx.turn);
   const payload = { heroId, questId: null, typeKey, healsOnTurn, moduleId: ctx.moduleId };
   return applied(effect, [ctx.emit({ type: 'hero.injured', participants: [heroId], payload })], ctx);

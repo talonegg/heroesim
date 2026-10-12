@@ -96,9 +96,9 @@ const samples: Samples = {
   'load unsupported-version': {
     action: 'load',
     reason: 'unsupported-version',
-    documentVersion: 11,
+    documentVersion: schemaVersion + 1,
     schemaVersion,
-    message: 'The save is schema version 11',
+    message: `The save is schema version ${schemaVersion + 1}`,
   },
   'load invalid': {
     action: 'load',
@@ -148,7 +148,7 @@ const samples: Samples = {
 
   'build guild-folded': { action: 'build', reason: 'guild-folded', guildId },
   'build max-grade': { action: 'build', reason: 'max-grade', facility: 'quarters', grade: 3 },
-  'build insufficient-wealth': { action: 'build', reason: 'insufficient-wealth', facility: 'trainingYard', cost: 800, wealth: 500 },
+  'build insufficient-wealth': { action: 'build', reason: 'insufficient-wealth', facility: 'training-yard', cost: 800, wealth: 500 },
 
   'equip guild-folded': { action: 'equip', reason: 'guild-folded', guildId },
   'equip hero-not-on-roster': { action: 'equip', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
@@ -275,7 +275,7 @@ const exactly: Record<keyof Samples, string> = {
   'newGame portrait-of-another-sex': "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female.",
   'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
-  'load unsupported-version': 'Cannot load the save: The save is schema version 11.',
+  'load unsupported-version': `Cannot load the save: The save is schema version ${schemaVersion + 1}.`,
   'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
   'load unsound-config': "Cannot load the save: The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0.",
 

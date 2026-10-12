@@ -12,7 +12,7 @@ import { phaseContext } from '../phases/phase.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
-import { setup, testContent, testDeps, withCaptaincy } from '../world.test-support.js';
+import { setup, testContent, testDeps, withCaptaincy, withFacilityEffect } from '../world.test-support.js';
 import { capability } from './check.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { chanceBand, chanceToReach, estimateQuest, partyEstimator, type CheckEstimate, type QuestEstimate } from './estimate.js';
@@ -422,7 +422,7 @@ describe('the estimate', () => {
     ['without its Captain, the baseline lifted by the Captain at home', false],
   ])('reads a Party sent %s as the resolver meets it', (_name, withCaptain) => {
     const content = withCaptaincy({ ...testContent, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
-    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5, captainFormFactor: 1.05 }, content);
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5, captainFormFactor: 1.05 }, withFacilityEffect('quarters', 'moraleBaseline', [0], content));
     const created = createWorld(withCaptain ? 'estimate-captain-away' : 'estimate-captain-home', setup, deps).document;
     const { world } = created;
     for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
@@ -460,7 +460,7 @@ describe('the estimate', () => {
     // Scarred, which Deep cut leaves, takes Leadership from its least to its most.
     const scarred = { key: 'scarred', name: 'Scarred', excludes: [], effects: [{ kind: 'statModifiers' as const, modifiers: { leadership: 19 } }] };
     const content = withCaptaincy({ ...testContent, heroTraits: { ...testContent.heroTraits, scarred }, encounters: { ...testContent.encounters, march: { key: 'march', name: 'March', kind: 'travel', checks: [{ key: 'march', name: 'March', score: strength, skills: [], difficultyFactor: 0.3 }], consequences: { success: [], failure: [] } } } });
-    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, moraleDrift: 1, quartersMoraleBonus: 0, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5 }, content);
+    const deps = testDeps({ rivalCount: 0, moraleBaseline: 50, moraleDrift: 1, inspirationMoraleShift: 0, fatigueScaling: 0, captainHomeBaselineBonus: 5 }, withFacilityEffect('quarters', 'moraleBaseline', [0], content));
     const { world } = createWorld('estimate-captain-pool', setup, deps).document;
     for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
     const guild = playerGuild(world) as Guild;

@@ -155,7 +155,7 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       `chance of success by the estimate, ties to the higher reward, then the Quest id, and again from the Heroes ` +
       `left (v1.1.5-S2), each Party the engine's Best Party by the chance estimate at a margin of ` +
       `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
-      `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
+      `serves the Quest (DL-62); one purchase a Turn: the next grade of the first Facility that heals while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
       `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +

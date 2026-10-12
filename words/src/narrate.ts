@@ -45,9 +45,10 @@ import {
   type TurnEvent,
   type World,
 } from '@heroesim/engine';
-import { type ContentSet, type Degree, type FacilityKey } from '@heroesim/engine/content';
+import { type ContentSet, type Degree } from '@heroesim/engine/content';
 import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
 import { coinWords } from './coins.js';
+import { facilityIs, facilityName } from './facilities.js';
 import { listed, nameIn, signed, signedCoins } from './names.js';
 
 // ── Sentences ────────────────────────────────────────────────────────────────────────────────
@@ -253,20 +254,6 @@ export const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze
   'roster-wiped': 'had its Roster wiped out',
 });
 
-/** A facility of the Hall as a sentence names it: the infirmary, the training yard, the quarters. */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
-
 /** What moved a Patron's Regard, after the band it reached. */
 const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-success': 'after a Quest of theirs succeeded',
@@ -432,7 +419,7 @@ const sentences: Sentences = {
   'hero.left-guild': (event) => say`${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`,
   'guild.improved': (event, content) => {
     const { guildId, facility, grade, improvementKey, cost } = event.payload;
-    return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${coinWords(cost)}: its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`;
+    return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${coinWords(cost)}: its ${facilityName(content, facility)} ${facilityIs(content, facility)} now grade ${grade}.`;
   },
   // DL-287: a Captain named to an empty post, or in another's place, the post then locked until a date.
   'guild.captain-named': (event, _content, calendar) => {

@@ -4,7 +4,6 @@ import {
   baseStat,
   createWorld,
   defaultConfig,
-  facilityKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
@@ -19,6 +18,7 @@ import {
   type GuildId,
   type WorldDocument,
 } from '@heroesim/engine';
+import { facilityDoes, facilityName } from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import {
@@ -160,12 +160,12 @@ describe('hallView', () => {
     const view = hallView(document);
 
     expect(view?.mine).toBe(true);
-    expect(view?.facilities.map((row) => row.facility)).toEqual([...facilityKeys]);
+    expect(view?.facilities.map((row) => row.facility)).toEqual(Object.keys(content.facilities));
     for (const row of view?.facilities ?? []) {
       const next = nextImprovement(guild, row.facility, content);
       expect(row.grade).toBe(guild.hall[row.facility]);
       expect(row.next).toEqual(next === null ? null : { name: next.name, cost: next.cost });
-      expect(row.does.length).toBeGreaterThan(10);
+      expect(row.does).toBe(`The ${facilityName(content, row.facility)} ${facilityDoes(content, row.facility)}.`);
     }
     expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null });
     expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none' });
@@ -192,7 +192,7 @@ describe('hallView', () => {
       Math.max(...Object.values(content.improvements).flatMap((row) => (row.facility === facility ? [row.grade] : [])));
     expect(rows.map(({ facility, grade, top }) => [facility, grade, top])).toEqual([
       ['infirmary', 1, topOf('infirmary')],
-      ['trainingYard', 0, topOf('trainingYard')],
+      ['training-yard', 0, topOf('training-yard')],
       ['quarters', 0, topOf('quarters')],
     ]);
   });

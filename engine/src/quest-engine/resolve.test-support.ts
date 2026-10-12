@@ -8,7 +8,7 @@ import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World } from '../document.js';
 import { playerGuild } from '../selectors.js';
-import { demandsCheck, heroStatKeys, testContent, testDeps } from '../world.test-support.js';
+import { demandsCheck, heroStatKeys, testContent, testDeps, withFacilityEffect } from '../world.test-support.js';
 
 export const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -33,7 +33,6 @@ export const pinned = {
   // Tiers (DL-262, DL-265).
   tiers: defaultConfig.tiers.map((tier) => ({ ...tier, xpFactor: 1, deathScale: 1 })),
   deathFactor: 1,
-  infirmaryHealFactor: [1, 1 / 2, 1 / 3],
   // No Fatigue on form or harm, as the scenes' numbers were worked out before it acted (DL-284); the
   // tests of Fatigue on the Quest set it.
   fatigueScaling: 0,
@@ -69,7 +68,9 @@ export interface Scene {
  * `size` above the starting Roster's 4 starts the Roster with `size` Heroes.
  */
 export function scene(seed: string, content: ContentSet, keys: string[], { size = 3, difficulty = 40 } = {}): Scene {
-  const deps = testDeps({ ...pinned, ...(size > 4 ? { startingRosterSize: size } : {}) }, content);
+  // The infirmary's heal factors pinned, as the scenes' Injuries were worked out under.
+  const pinnedContent = withFacilityEffect('infirmary', 'healFactor', [1, 1 / 2, 1 / 3], content);
+  const deps = testDeps({ ...pinned, ...(size > 4 ? { startingRosterSize: size } : {}) }, pinnedContent);
   const { world } = createWorld(seed, setup, deps).document;
   const guild = playerGuild(world) as Guild;
   const heroes = guild.rosterIds.slice(0, size).map((id) => world.heroes[id] as Hero);

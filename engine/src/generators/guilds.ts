@@ -6,7 +6,6 @@
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { BackgroundKey, ContentSet, DispositionKey, GuildmasterTrait, PortraitKey, TraitKey } from '../content-types.js';
 import {
-  facilityKeys,
   rowOf,
   takeId,
   type Controller,
@@ -15,7 +14,6 @@ import {
   type GuildId,
   type Guildmaster,
   type GuildmasterId,
-  type Hall,
   type Sex,
   type StatValues,
   type Turn,
@@ -23,6 +21,7 @@ import {
 } from '../document.js';
 import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
+import { foundedHall } from '../facilities.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
 import { ageIntoPortrait, choosePortrait, guildmasterPortraitsInUse, portraitRowOf } from '../portraits.js';
 import { int, weightedPick } from '../rng.js';
@@ -45,9 +44,6 @@ import {
   type Stream,
 } from './draw.js';
 import { generateHero } from './heroes.js';
-
-/** A Hall facility's grade before any Improvement (M3-S6). */
-const unimprovedGrade = 0;
 
 export interface GuildOptions extends DrawsFrom {
   /** The one thing a player's Guild and a Rival's differ in (ADR-0002). */
@@ -106,7 +102,7 @@ export interface GeneratedGuild {
 /**
  * Generates a Guild into `world` (DL-19 items 6 and 7): the Guild, its Guildmaster, and its Roster
  * through the Heroes Generator, all drawn from `options.stream` (`generation` by default); ids
- * from the counters; the Hall at grade 0 in every facility and Fame `foundingFame` (DL-261).
+ * from the counters; the Hall founded with every Facility content defines at grade 0 (`foundedHall`) and Fame `foundingFame` (DL-261).
  * Returns both rows and the events for the caller to append.
  *
  * Throws, changing nothing, on a programming error: a blank name, a key that is not a Guild
@@ -157,7 +153,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     fame: deps.config.foundingFame,
     belowFloorSince: null,
     foldedOnTurn: null,
-    hall: Object.fromEntries(facilityKeys.map((key) => [key, unimprovedGrade])) as Hall,
+    hall: foundedHall(deps.content),
     // A copy: Rivals given one controller object must not share it.
     controller: { ...controller },
     regard: {},

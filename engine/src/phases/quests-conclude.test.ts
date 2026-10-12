@@ -24,6 +24,7 @@ import {
   testDeps,
   withDispositions,
   withEncounters,
+  withFacilityEffect,
   withValid,
   setEncounters,
 } from '../world.test-support.js';
@@ -280,8 +281,13 @@ describe('questsConclude', () => {
 
   test('an injured Hero carries the Injury until the night its Days run out, the infirmary at the time shortening it', () => {
     const injureOnly = soloDeps(
-      { infirmaryHealFactor: [1, 1 / 2, 1 / 3] },
-      withEncounters({ success: [], failure: [{ kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 }] }),
+      {},
+      withFacilityEffect(
+        'infirmary',
+        'healFactor',
+        [1, 1 / 2, 1 / 3],
+        withEncounters({ success: [], failure: [{ kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 }] }),
+      ),
     );
     const healDays = (grade: number): { days: number; heroId: HeroId; typeKey: string; world: World; night: number } => {
       const { eve, guildId, party } = sentAway('injury', injureOnly, { difficulty: 5000, encounterKeys: oneEncounter });
@@ -1108,11 +1114,13 @@ describe('the Quest named on what its return causes', () => {
     // and 90 and a Death's cost −20 (DL-283 item 4, Q18; aade1bc6…, 63d230cf… and 75219227…); and
     // the rest bands, every Guild choosing its Parties from its pool (DL-286; d675f275…, a1ad6174… and
     // 3796609d…); and the Rivals' heal Items, bought in the gear step and carried (DL-288; 95fad3af…,
-    // ab51c1f9… and d7713b5c…, which `rivalHealItemStock` 0 gives again).
+    // ab51c1f9… and d7713b5c…, which `rivalHealItemStock` 0 gives again); and the training yard's key
+    // spelt as content's, `training-yard`, in each `guild.improved` (DL-297; fbab43fa…, bea70df3… and
+    // 036f6031…, which its old spelling gives again: no play moved).
     expect(fingerprints).toEqual([
-      'fbab43fa5add419d813f2587dc39fecc358a2beceeb8b41a41915b55c94191c0',
-      'bea70df3352d6200ea5b54a24f62d82f8a982a5af5b685484d0691b07d01c392',
-      '036f603172c38bb26d0210d0ee4b05afc8acfd6721f87c1bde133511b7d44424',
+      '1d3cdc9c78aa1f7fd75019486d5faddd04843345a3a398b0918bab840e83b813',
+      '31fb72fd85a78f34c590dabc9374c7c7c9e13322d93ff3b9de735728ca0ae10b',
+      '015a560653d56edcbd9f981400a3414099ceebc20a097eb9df088df0b314fdd0',
     ]);
   });
 

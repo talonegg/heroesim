@@ -169,7 +169,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], {
     guildId,
-    facility: 'trainingYard',
+    facility: 'training-yard',
     grade: 2,
     improvementKey: 'training-yard-2',
     cost: 500,

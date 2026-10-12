@@ -127,7 +127,9 @@ wealth, fame                                Wealth in whole Silver, 100 Silver a
 belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
 foldedOnTurn:   turn | null                 a Rival that reached an ending; out of play and out of
                                             Rankings, its Roster released to the pool (DL-28)
-hall:           Record<FacilityKey, grade>  infirmary, trainingYard, quarters
+hall:           Record<FacilityKey, grade>  each Facility's grade by its content key, a whole number
+                                            from 0; founded with every Facility content defines at
+                                            0, one it lacks reading 0 (DL-294 item 3, DL-297)
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
 regard:         Record<EntityId, RegardEntry>  reserved: nothing writes or reads it, a Guild's
                                             opinion being its Guildmaster's (DL-43 item 3, DL-84)
@@ -358,7 +360,8 @@ checks the entry's type, participants and Turn, and indexes it (`history.ts`):
 - Some types require a payload field, which the validator holds (`entry-field-missing`, DL-246):
   a Guild's founding names its Wealth; an entry caused by a Quest's return names the Quest
   (`questCauses`); an Encounter names its Degree, the Check that decided it and the Checks rolled;
-  a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
+  a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262); and every amount an
+  entry carries, a fee, a cost, a price, proceeds or Wealth, is whole Silver (`moneyFields`, DL-297).
 - Appending costs one push to `entries` plus one integer per participant, one per type, and one
   for a Milestone.
 
@@ -420,7 +423,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282, DL-287). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282, DL-287, DL-297). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 
@@ -432,7 +435,7 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 
 | Check | What it refuses |
 | --- | --- |
-| `document-shape` | A section, row or entry missing a field or holding one of the wrong kind; a holder's kind, or a `sex` other than `"female"` or `"male"` (a Patron's may be `null`, DL-133); a Quest with no Encounter (DL-248), a Tier below 1, or a line too many or too few for its Encounters (DL-262) |
+| `document-shape` | A section, row or entry missing a field or holding one of the wrong kind; a holder's kind, or a `sex` other than `"female"` or `"male"` (a Patron's may be `null`, DL-133); a Quest with no Encounter (DL-248), a Tier below 1, or a line too many or too few for its Encounters (DL-262); a Hall's grade not a whole number from 0 (DL-297) |
 | `json-safe` | A value rule 6 forbids |
 | `id-format`, `counter-range` | An id not of the form `<table>-<six digits>`; a counter past 999,999 or not above every id in use |
 | `dangling-reference` | An id naming no row of its table |
@@ -447,14 +450,14 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 | `offer-hero-not-on-roster`, `offer-expired` | A Transfer Offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past |
 | `history-position-out-of-range`, `history-index-mismatch`, `history-turn-order` | An index position outside `entries`; an index that disagrees with the entries; an entry out of Turn order or after `world.turn` |
 | `removed-hero-in-history` | A Hero's row removed while an entry other than the passive two names them (rule 8) |
-| `entry-field-missing` | An entry lacking a field its type requires (§4, DL-246) |
+| `entry-field-missing` | An entry lacking a field its type requires, or holding an amount that is not whole Silver (§4, DL-246, DL-297) |
 | `module-slice` | A slice its installed Module refuses, or cannot migrate or read (DL-76) |
 
 **Warned** (the key is kept and ignored, rule 5, and the load goes on):
 
 | Check | What it warns of |
 | --- | --- |
-| `unknown-stat`, `unknown-class`, `unknown-skill`, `unknown-background`, `unknown-sphere`, `unknown-item`, `unknown-template`, `unknown-injury`, `unknown-disposition`, `unknown-encounter`, `unknown-loot-table` | A Stat, Class, Skill, Background, Sphere, Item, Quest template, Injury type, Disposition, Encounter or Loot table key that content does not define |
+| `unknown-stat`, `unknown-class`, `unknown-skill`, `unknown-background`, `unknown-sphere`, `unknown-item`, `unknown-template`, `unknown-injury`, `unknown-disposition`, `unknown-facility`, `unknown-encounter`, `unknown-loot-table` | A Stat, Class, Skill, Background, Sphere, Item, Quest template, Injury type, Disposition, Facility in a Hall, Encounter or Loot table key that content does not define (a Facility's grade read by no rule, DL-297) |
 | `unknown-trait` | A Guildmaster's Trait that is no Guildmaster Trait content defines, or a Hero's that is no Hero Trait |
 | `unknown-portrait` | A Guildmaster's Portrait that is no Guildmaster picture content lists, or a Hero's that is no Hero picture (DL-125 item 3) |
 | `unknown-slot` | An Item a Hero holds in a slot that is no gear slot (`gearSlotKeys`, DL-48) |

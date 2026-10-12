@@ -17,13 +17,13 @@
 //   hold that it excludes or that excludes it, each with `hero.trait-lost` after (v1.1.4-S7, DL-150
 //   item 5): the wound is a fact of the body.
 // - **Morale drift.** Morale moves `moraleDrift` toward the Hero's baseline, `moraleBaselineFor`
-//   (`moraleBaseline`, raised by the Guild's quarters, DL-38, and moved by its Guildmaster's
+//   (`moraleBaseline`, raised by the Guild's Hall, DL-294 item 3, and moved by its Guildmaster's
 //   Inspiration and Traits, DL-43), and stops there. Drift emits
 //   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
 // - **Fatigue** (fatigue.ts, DL-282). A Hero away on a Quest tires by the Quest's Tier
-//   (`fatigueRiseByTier`), and one at home rests by their Guild's quarters grade
-//   (`fatigueFallByQuarters`), held inside 0 to `fatigueMax`; `hero.fatigue-changed` only on the
+//   (`fatigueRiseByTier`), and one at home rests by their Guild's Hall's
+//   `fatigueFall` (`hallEffect`, DL-294 item 3), held inside 0 to `fatigueMax`; `hero.fatigue-changed` only on the
 //   night it crosses from one of `fatigueBands` into another. The return night is a night at home:
 //   `questsConclude`, which runs first, has freed the Party.
 // - **Regard decay** (M4-S4, hero-regard.ts). The Hero's Regard for each other Hero with whom they
@@ -44,8 +44,9 @@
 
 import { leaveRoster } from '../captain.js';
 import type { GameConfig } from '../config.js';
-import { requireRow, rowOf, type GuildId, type Hero, type HeroId, type History, type Quest, type Turn, type World } from '../document.js';
+import { requireRow, rowOf, type GuildId, type Hall, type Hero, type HeroId, type History, type Quest, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
+import { hallEffect } from '../facilities.js';
 import { fatigueNight } from '../fatigue.js';
 import { streamOf } from '../generators/draw.js';
 import { decayHeroRegard } from '../hero-regard.js';
@@ -93,7 +94,7 @@ export type HeroNightContext = Pick<PhaseContext, 'config' | 'content' | 'turn' 
  * Hero away on a Quest.
  */
 export function heroNight(hero: Hero, world: World, ctx: HeroNightContext, awayOn: Pick<Quest, 'tier'> | null = questAwayOn(hero, world)): EngineEvent[] {
-  const night = awayOn === null ? { quarters: quartersOf(hero, world) } : { away: awayOn };
+  const night = awayOn === null ? { fall: hallEffect(hallOf(hero, world), 'fatigueFall', ctx.content) } : { away: awayOn };
   return [...heal(hero, ctx), ...drift(hero, world, ctx), ...fatigueNight(hero, night, ctx.config, ctx.emit), ...decayHeroRegard(hero, world, ctx)];
 }
 
@@ -103,10 +104,10 @@ function questAwayOn(hero: Hero, world: World): Quest | null {
   return requireRow(world.quests, requireRow(world.parties, hero.partyId).questId);
 }
 
-/** The grade of the quarters of `hero`'s Guild; 0 for a Hero on no Roster, who has none. */
-function quartersOf(hero: Hero, world: World): number {
+/** The Hall of `hero`'s Guild; an empty one, every Facility at grade 0, for a Hero on no Roster. */
+function hallOf(hero: Hero, world: World): Readonly<Hall> {
   const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
-  return guild?.hall.quarters ?? 0;
+  return guild?.hall ?? {};
 }
 
 /**

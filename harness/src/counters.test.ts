@@ -317,7 +317,7 @@ describe("M3's counters, from the History", () => {
     improved(document, 100, a, 'infirmary', 1);
     const c = found(90, 200);
     improved(document, 250, c, 'quarters', 1);
-    improved(document, 299, player, 'trainingYard', 1);
+    improved(document, 299, player, 'training-yard', 1);
     // Year 11 begins on Turn 300, after 10 years: what is built on it, and a Rival founded after it, are not counted.
     improved(document, 300, player, 'quarters', 1);
     const d = found(91, 310);
@@ -327,16 +327,16 @@ describe("M3's counters, from the History", () => {
     const { improvementGrades, improvementGradesByDisposition } = countGame(document, shortYears);
 
     expect(improvementGrades).toEqual({
-      player: { infirmary: [0, 0, 1, 0], trainingYard: [0, 1, 0, 0], quarters: [1, 0, 0, 0] },
+      player: { infirmary: [0, 0, 1, 0], 'training-yard': [0, 1, 0, 0], quarters: [1, 0, 0, 0] },
       // Rivals A, B and the replacement C.
-      rival: { infirmary: [2, 1, 0, 0], trainingYard: [3, 0, 0, 0], quarters: [2, 1, 0, 0] },
+      rival: { infirmary: [2, 1, 0, 0], 'training-yard': [3, 0, 0, 0], quarters: [2, 1, 0, 0] },
     });
     // The Rivals again by Disposition (M6, DL-69): A is `ambitious`, B `miserly`, and C inherits B's.
     expect([a, b, c].map((guild) => dispositionOf(guild))).toEqual(['ambitious', 'miserly', 'miserly']);
-    const none = { infirmary: [0, 0, 0, 0], trainingYard: [0, 0, 0, 0], quarters: [0, 0, 0, 0] };
+    const none = { infirmary: [0, 0, 0, 0], 'training-yard': [0, 0, 0, 0], quarters: [0, 0, 0, 0] };
     expect(improvementGradesByDisposition).toEqual({
-      ambitious: { infirmary: [0, 1, 0, 0], trainingYard: [1, 0, 0, 0], quarters: [1, 0, 0, 0] },
-      miserly: { infirmary: [2, 0, 0, 0], trainingYard: [2, 0, 0, 0], quarters: [1, 1, 0, 0] },
+      ambitious: { infirmary: [0, 1, 0, 0], 'training-yard': [1, 0, 0, 0], quarters: [1, 0, 0, 0] },
+      miserly: { infirmary: [2, 0, 0, 0], 'training-yard': [2, 0, 0, 0], quarters: [1, 1, 0, 0] },
       reckless: none,
       steady: none,
     });

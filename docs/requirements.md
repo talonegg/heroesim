@@ -50,7 +50,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
-| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | To be built, v1.2.2 (DL-294) | A choosable starting Hall; selling Hall assets (DL-294) |
+| Facilities: parts of the Hall defined in content, each with effects, grades and an upkeep | Yes, the upkeep charged with the Hall's (DL-294, DL-297) | A choosable starting Hall; selling Hall assets (DL-294) |
 | The Hall's upkeep: a sum for each Guild and a share for each Hero, every 30 Days, with its Facilities' | To be built, v1.2.2 (DL-294) | — |
 | Rival Guilds: Roster, Wealth, Disposition | Yes | Rival encounters during Quests; a fuller Guild engine |
 | Direct contests between Guilds | No | A later feature, separate from what [Guild Battle](../CONTEXT.md) names (DL-89) |
@@ -240,12 +240,12 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R33. The Hall has an infirmary (faster healing), a training yard (XP off-Quest) and quarters
   (Morale), each raised through three grades by Improvements bought for Wealth; each grade adds
   to Upkeep. Workers, hired staff with a wage and a Stat that scale a Facility, are deferred. The
-  Facilities are to be content (R42) and the Hall's upkeep its own charge (R43).
+  Facilities are content (R42), and the Hall's upkeep is to be its own charge (R43).
 - R42. A Facility is a part of the Hall defined in content, with its name, its upkeep at its first
   grade, and effects taken from a closed set: healing speed, training XP, the Morale baseline and
   Fatigue's fall. Its grades run 1, 2, 3 and on with no gap, a grade being an Improvement with a
   price, a name and the effects' values; a Facility or a grade may be added with no change to the
-  engine. The content editor adds and checks them (DL-294; to be built, v1.2.2).
+  engine. The content editor adds and checks them (DL-294, DL-297).
 - R43. The Hall costs upkeep every 30 Days: a sum each Guild has from its founding, a share for each
   Hero on its Roster that grows with their number, and each built Facility's upkeep, which rises
   with its grade. It is charged apart from the Roster's wages, which stay every 10 Days, and one

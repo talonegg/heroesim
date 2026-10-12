@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { tierFigures } from '@heroesim/engine';
-import { encounterKinds, facilityKeys, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
+import { encounterKinds, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { contentSources, parseContent } from './index.js';
 import { contentDir, loadContent, readContentDir, readSource } from './node.js';
@@ -167,9 +167,9 @@ describe('loadContent()', () => {
     }
   });
 
-  test('costs more for each grade of a Hall facility (INPUTS 7.3)', () => {
+  test('costs more for each grade of a Facility (INPUTS 7.3)', () => {
     const improvements = Object.values(content.improvements);
-    for (const facility of facilityKeys) {
+    for (const facility of Object.keys(content.facilities)) {
       const costs = improvements
         .filter((it) => it.facility === facility)
         .sort((a, b) => a.grade - b.grade)

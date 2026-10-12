@@ -168,7 +168,7 @@ describe("the engine's content entry", () => {
 
   test("exports every value of content's types, its lists and queryProblems", () => {
     expect(Object.keys(contentTypes).filter((name) => !Object.hasOwn(contentEntry, name))).toEqual([]);
-    for (const name of ['queryProblems', 'tierLadder', 'tierFields', 'tierRowProblems', 'beatsDrawn', 'inBeatPool', 'shortBeats', 'facilityKeys', 'sexes', 'descriptiveAttributeMaxLength', 'biographyTraitSentences', 'heroBiographyTraitSentences']) {
+    for (const name of ['queryProblems', 'tierLadder', 'tierFields', 'tierRowProblems', 'beatsDrawn', 'inBeatPool', 'shortBeats', 'facilityEffectKinds', 'sexes', 'descriptiveAttributeMaxLength', 'biographyTraitSentences', 'heroBiographyTraitSentences']) {
       expect(contentEntry).toHaveProperty(name);
     }
     expect(contentNames.has('ContentSet') && contentNames.has('QueryKeys') && contentNames.has('Sex')).toBe(true);

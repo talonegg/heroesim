@@ -8,10 +8,8 @@ import {
   compareByCodeUnit,
   descriptiveAttributeMaxLength,
   encounterKinds,
-  facilityKeys,
   regardBandNames,
   type EngineDeps,
-  type FacilityKey,
   type RegardBand,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -280,9 +278,16 @@ const heroRow = (totals: SweepTotals, label: string, counts: ByController): stri
 /** The sweep's years as the report writes them: whole, or to two places. */
 const yearsTextOf = ({ sweep }: ReportContext): string => (Number.isInteger(sweep.years) ? whole(sweep.years) : fixed(sweep.years, 2));
 
-/** The top grade content gives any facility: the report's grade columns run from 0 to it. */
+/** The top grade content gives any Facility: the report's grade columns run from 0 to it. */
 function topGrade(deps: EngineDeps): number {
   return Object.values(deps.content.improvements).reduce((top, row) => Math.max(top, row.grade), 0);
+}
+
+/** The Facilities a grade table lists: content's, in its order, then any other a count names (DL-297). */
+function facilitiesOf(deps: EngineDeps, ...counts: readonly Record<string, unknown>[]): string[] {
+  const known = Object.keys(deps.content.facilities);
+  const extra = counts.flatMap((count) => Object.keys(count)).filter((key) => !known.includes(key));
+  return [...new Set([...known, ...extra.sort(compareByCodeUnit)])];
 }
 
 /** Keys a table lists: content's, in key order, then any other a count names. */
@@ -864,13 +869,14 @@ const grades: Declared<GameCounters['improvementGrades'], SweepTotals['improveme
       const graded = counts.reduce((total, n, grade) => total + n * grade, 0);
       return [label, whole(guilds), ratio(graded, guilds), ...numbered.map((grade) => whole(counts[grade] ?? 0))];
     };
+    const facilities = facilitiesOf(deps, ...controllerKinds.map((kind) => totals.improvementGrades[kind]), ...Object.values(totals.improvementGradesByDisposition));
     const gradeRows = [
       ...controllerKinds.flatMap((kind) =>
-        facilityKeys.map((facility: FacilityKey) => gradeRow(`${kindLabel(kind)}: ${facility}`, totals.improvementGrades[kind][facility])),
+        facilities.map((facility) => gradeRow(`${kindLabel(kind)}: ${facility}`, totals.improvementGrades[kind][facility] ?? [])),
       ),
       // The Rivals' rows again, by Disposition (DL-69).
       ...dispositionKeys(totals, deps).flatMap((disposition) =>
-        facilityKeys.map((facility: FacilityKey) =>
+        facilities.map((facility) =>
           gradeRow(`The Rivals, \`${disposition}\`: ${facility}`, totals.improvementGradesByDisposition[disposition]?.[facility] ?? []),
         ),
       ),

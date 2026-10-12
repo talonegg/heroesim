@@ -72,8 +72,8 @@ import {
   dayOf,
   dispositionOf,
   encounterKinds,
-  facilityKeys,
   fatigueBand,
+  topGrade,
   isEngineEvent,
   isId,
   partyPool,
@@ -246,7 +246,7 @@ export interface GrowthAgainstDecline {
   pointsDeclinedAfter: number;
 }
 
-/** For each facility, how many Guilds reached each grade: index 0, never built, first. */
+/** For each Facility, by its content key, how many Guilds reached each grade: index 0, never built, first. */
 export type GradeCounts = Record<FacilityKey, number[]>;
 
 /** Everything a harness game's History is counted by (M2-S12's counters, DL-34; M3's, DL-40). */
@@ -726,8 +726,9 @@ function isBand(value: unknown): value is QuestBand {
   return (questBands as readonly unknown[]).includes(value);
 }
 
+/** A Facility's key as an entry names it: any string, content's or not (DL-297). */
 function isFacility(value: unknown): value is FacilityKey {
-  return (facilityKeys as readonly unknown[]).includes(value);
+  return typeof value === 'string';
 }
 
 const byYear = (): ByYear => ({ player: [], rival: [] });
@@ -834,15 +835,12 @@ export function progressionCounters(
 }
 
 /**
- * A grade count for each facility, as long as `content`'s grades of it go, all zero; without `content`,
- * each empty, as the sweep's totals begin before a game adds its counts (v1.1.6-S1, DL-187).
+ * A grade count for each of `content`'s Facilities, as long as its grades of it go, all zero; without
+ * `content`, none, as the sweep's totals begin before a game adds its counts (DL-187, DL-297).
  */
 export function noGrades(content?: EngineDeps['content']): GradeCounts {
-  const top = (facility: FacilityKey): number =>
-    content === undefined
-      ? -1
-      : Object.values(content.improvements).reduce((most, row) => (row.facility === facility ? Math.max(most, row.grade) : most), 0);
-  return Object.fromEntries(facilityKeys.map((facility) => [facility, Array.from({ length: top(facility) + 1 }, () => 0)])) as GradeCounts;
+  if (content === undefined) return {};
+  return Object.fromEntries(Object.keys(content.facilities).map((facility) => [facility, Array.from({ length: topGrade(facility, content) + 1 }, () => 0)]));
 }
 
 /** A grade count for each Disposition content holds, each as `noGrades`. */
@@ -882,10 +880,10 @@ export function improvementGrades(
     if (founded.has(guild.id)) return;
     founded.add(guild.id);
     const disposition = dispositionOf(guild);
-    for (const facility of facilityKeys) {
+    for (const facility of Object.keys(deps.content.facilities)) {
       const grade = highest.get(`${guild.id} ${facility}`) ?? 0;
-      addAt(grades[guild.controller.kind][facility], grade, 1);
-      if (disposition !== null) addAt((byDisposition[disposition] ??= noGrades(deps.content))[facility], grade, 1);
+      addAt((grades[guild.controller.kind][facility] ??= []), grade, 1);
+      if (disposition !== null) addAt(((byDisposition[disposition] ??= noGrades(deps.content))[facility] ??= []), grade, 1);
     }
   });
   return { byController: grades, byDisposition };

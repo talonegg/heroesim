@@ -35,7 +35,7 @@ describe('generateGuild', () => {
       captainChangedOnTurn: null,
       belowFloorSince: null,
       foldedOnTurn: null,
-      hall: { infirmary: 0, trainingYard: 0, quarters: 0 },
+      hall: { infirmary: 0, 'training-yard': 0, quarters: 0 },
       controller: rival,
       regard: {},
     });

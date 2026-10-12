@@ -21,6 +21,9 @@ import type {
   Encounter,
   EncounterCheck,
   EncounterKind,
+  Facility,
+  FacilityEffectKind,
+  FacilityEffects,
   GuildmasterTrait,
   GuildmasterTraitEffect,
   HeroTraitEffect,
@@ -43,7 +46,6 @@ import type {
 } from './content-types.js';
 import {
   emptyDocument,
-  facilityKeys,
   makeId,
   schemaVersion,
   type EntityId,
@@ -333,17 +335,42 @@ function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], l
 }
 
 /**
- * The Hall Improvements of the core (INPUTS 7.3): three grades of each facility, at 200, 500 and
- * 1,000 Wealth, keyed `infirmary-1`, `training-yard-2` and so on.
+ * The core's Facilities' effects by grade, grade 0 first (`facilities.json`, `improvements.json`): the
+ * infirmary's heal factor, the training yard's XP a night, the quarters' Morale and Fatigue's fall.
+ */
+const coreFacilityEffects: Readonly<Record<string, Readonly<Partial<Record<FacilityEffectKind, readonly number[]>>>>> = {
+  infirmary: { healFactor: [1, 0.5, 0.3333333333333333, 0.25] },
+  'training-yard': { trainingXp: [0, 2, 4, 6] },
+  quarters: { moraleBaseline: [0, 5, 10, 15], fatigueFall: [5, 6, 7, 8] },
+};
+
+/** The effects of `byKind` at `grade`, a grade past a list reading its last. */
+function effectsAt(byKind: Readonly<Partial<Record<FacilityEffectKind, readonly number[]>>>, grade: number): FacilityEffects {
+  return Object.fromEntries(Object.entries(byKind).map(([kind, values]) => [kind, values[Math.min(grade, values.length - 1)] as number]));
+}
+
+/** The core's three Facilities, in its order, each with an upkeep of 15. */
+function facilities(): Record<string, Facility> {
+  return Object.fromEntries(
+    Object.entries(coreFacilityEffects).map(([key, byKind]): [string, Facility] => [
+      key,
+      { key, name: key.replaceAll('-', ' '), plural: key === 'quarters', upkeep: 15, effects: effectsAt(byKind, 0) },
+    ]),
+  );
+}
+
+/**
+ * The Hall Improvements of the core (INPUTS 7.3): three grades of each Facility, at 200, 500 and
+ * 1,000 Wealth, keyed `infirmary-1`, `training-yard-2` and so on, with the core's effects.
  */
 function improvements(): Record<string, Improvement> {
   const costs = [200, 500, 1000];
   return Object.fromEntries(
-    facilityKeys.flatMap((facility) =>
+    Object.entries(coreFacilityEffects).flatMap(([facility, byKind]) =>
       costs.map((cost, index): [string, Improvement] => {
         const grade = index + 1;
-        const key = `${facility.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-${grade}`;
-        return [key, { key, name: `${title(facility)} ${grade}`, facility, grade, cost }];
+        const key = `${facility}-${grade}`;
+        return [key, { key, name: `${title(facility)} ${grade}`, facility, grade, cost, effects: effectsAt(byKind, grade) }];
       }),
     ),
   );
@@ -381,7 +408,8 @@ export function deepFreeze<T>(value: T): T {
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
  * two to a Sphere, in Tiers and Beats as the core's, four Injury types, the core's four
- * Dispositions and their weights, the core's nine Hall Improvements, the core's twelve
+ * Dispositions and their weights, the core's three Facilities and nine Hall Improvements with their
+ * effects, the core's twelve
  * Encounter keys, two or more of each kind, the core's six Synergies, the
  * core's twenty Item definitions, so that fixture Items raise no warning, and the core's two
  * Loot tables, named by six of the templates.
@@ -493,6 +521,7 @@ export const testContent: ContentSet = deepFreeze({
     ...disposition('reckless', { questRiskAppetite: 1, recruitThreshold: 30, buildThreshold: 4, gearThreshold: 3, transferAppetite: 0.5, partyMargin: 0.1, restBand: null }),
     ...disposition('steady', { questRiskAppetite: 0, recruitThreshold: 60, buildThreshold: 3, gearThreshold: 3, transferAppetite: 0.25, partyMargin: 0.05, restBand: 'tired' }),
   },
+  facilities: facilities(),
   improvements: improvements(),
   // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure:
   // the core's twelve keys, simpler demands, and harm only on a failure.
@@ -848,6 +877,30 @@ export function withCaptaincy(content: ContentSet = testContent, statKey = 'lead
 }
 
 /**
+ * `content` (the test content by default) with the effect `kind` of the Facility `facility` valued
+ * `values` at its grades from 0, a grade past the list reading its last, frozen: for a test that must
+ * say what a Facility gives at each grade (DL-297), as a test once set the setting it replaces.
+ */
+export function withFacilityEffect(
+  facility: string,
+  kind: FacilityEffectKind,
+  values: readonly number[],
+  content: ContentSet = testContent,
+): ContentSet {
+  const row = content.facilities[facility];
+  if (row === undefined) throw new RangeError(`No Facility ${facility}`);
+  const at = (grade: number): number => values[Math.min(grade, values.length - 1)] as number;
+  const improvements = Object.fromEntries(
+    Object.entries(content.improvements).map(([key, improvement]): [string, Improvement] => [
+      key,
+      improvement.facility === facility ? { ...improvement, effects: { ...improvement.effects, [kind]: at(improvement.grade) } } : improvement,
+    ]),
+  );
+  const facilities = { ...content.facilities, [facility]: { ...row, effects: { ...row.effects, [kind]: at(0) } } };
+  return deepFreeze({ ...content, facilities, improvements });
+}
+
+/**
  * Rivals who never recruit, build or buy gear or heal Items, whatever their Wealth, but still equip and
  * take Quests as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth
  * and must not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of
@@ -1030,7 +1083,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       fame: g,
       belowFloorSince: null,
       foldedOnTurn: null,
-      hall: { infirmary: 0, trainingYard: 0, quarters: 0 },
+      hall: { infirmary: 0, 'training-yard': 0, quarters: 0 },
       controller: g === 0 ? { kind: 'player' } : { kind: 'rival', disposition: 'steady' },
       regard: {},
     };
@@ -1075,7 +1128,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   log(0, 'patron.generated', [secondPatron]);
 
   const resolvedQuest = next('quests');
-  log(9, 'quest.resolved', [resolvedQuest, patron, playerGuild], false);
+  // Its Wealth whole Silver, as the validator holds every amount an entry carries (DL-297).
+  log(9, 'quest.resolved', [resolvedQuest, patron, playerGuild], false, { wealthDelta: 0 });
   log(12, 'hero.left-pool', [departedHero]);
   deadHero.diedOnTurn = 30;
   log(30, 'hero.died', [deadHero.id, playerGuild], true);
@@ -1147,7 +1201,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     offeredOnTurn: 39,
     expiresOnTurn: 45,
   };
-  log(39, 'guild.transfer-offered', [offer, rivalHero, rivalGuild, playerGuild]);
+  log(39, 'guild.transfer-offered', [offer, rivalHero, rivalGuild, playerGuild], false, { fee: 300 });
 
   // Items and stacks, one per kind of holder.
   const item = next('items');

@@ -419,7 +419,7 @@ describe('sweepPlay', () => {
     }
 
     const [first, second] = sweep.games as [GameRecord, GameRecord];
-    const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    const grades = { infirmary: [1, 1], 'training-yard': [1], quarters: [1, 1, 1] };
     /** The takings of the first Tier the first game took a Quest of, whichever Tiers its Board offered (DL-273). */
     const taken = Object.values(first.counters.questTiers).find((tier) => Object.keys(tier.byController).length > 0)?.byController;
     if (taken === undefined) throw new Error('The first game took no Quest');
@@ -610,8 +610,8 @@ describe('sweepPlay', () => {
       const none = sweepTotals({ ...sweep, games: [] }, deps.config.turnsPerYear);
       expect(none.games).toBe(0);
       expect([...leaves({ ...none, yearsSurvived: undefined }, '').values()].every((n) => n === 0)).toBe(true);
-      const noGrades = { infirmary: [], trainingYard: [], quarters: [] };
-      expect(none.improvementGrades).toEqual({ player: noGrades, rival: noGrades });
+      // No Facility until a game names its content's (DL-297).
+      expect(none.improvementGrades).toEqual({ player: {}, rival: {} });
       expect(none.endedInYear).toEqual([0]);
       expect(none.rivalFolds).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0 });
     });
@@ -774,7 +774,7 @@ describe('sweepPlay', () => {
       expect(report).toContain('`signing-refused` rejections returned to the automatic policy: 0.');
       expect(report).toContain('No game was in play after 10 years.');
       expect(report).toContain('over the 0 games that played them');
-      expect(report).toContain('| The Rivals: trainingYard | 0 | — | 0 | 0 | 0 | 0 |');
+      expect(report).toContain('| The Rivals: training-yard | 0 | — | 0 | 0 | 0 | 0 |');
     });
 
     test("gives M4's counters: the Encounters by kind, the Synergies, the Injuries, the silent Patrons and the Regard", () => {
@@ -925,8 +925,8 @@ describe('sweepPlay', () => {
           dispositions: Object.fromEntries(Object.keys(content.dispositions).map((key) => [key, disposition(k)])),
           marketPurchases: { player: { purchases: 4 * k, items: 6 * k, cost: 400 * k }, ambitious: { purchases: k, items: k, cost: 100 * k } },
           improvementGradesByDisposition: {
-            ambitious: { infirmary: [0, k, 1], trainingYard: [k], quarters: [0, 0, k] },
-            miserly: { infirmary: [2 * k], trainingYard: [0, k], quarters: [k] },
+            ambitious: { infirmary: [0, k, 1], 'training-yard': [k], quarters: [0, 0, k] },
+            miserly: { infirmary: [2 * k], 'training-yard': [0, k], quarters: [k] },
           },
           wealth: {
             player: { ...noWealth(), signing: 100 * k, transferFeesPaid: 100 * k, items: 200 * k, upkeep: 600 * k, questRewards: 1000 * k, transferFeesTaken: 310 * k },
@@ -976,8 +976,8 @@ describe('sweepPlay', () => {
         });
       }
       expect(summed.improvementGradesByDisposition).toEqual({
-        ambitious: { infirmary: [0, 3, 2], trainingYard: [3], quarters: [0, 0, 3] },
-        miserly: { infirmary: [6], trainingYard: [0, 3], quarters: [3] },
+        ambitious: { infirmary: [0, 3, 2], 'training-yard': [3], quarters: [0, 0, 3] },
+        miserly: { infirmary: [6], 'training-yard': [0, 3], quarters: [3] },
       });
 
       const text = playReport(made, context);
@@ -1018,7 +1018,7 @@ describe('sweepPlay', () => {
       }
       // The Improvement grades by Disposition (M3's table): Guilds, mean grade, then Guilds at each grade.
       expect(text).toContain('| The Rivals, `ambitious`: infirmary | 5 | 1.40 | 0 | 3 | 2 | 0 |');
-      expect(text).toContain('| The Rivals, `miserly`: trainingYard | 3 | 1.00 | 0 | 3 | 0 | 0 |');
+      expect(text).toContain('| The Rivals, `miserly`: training-yard | 3 | 1.00 | 0 | 3 | 0 | 0 |');
     });
 
     test('sums the Patron-years and the Regard after 10 years over the games that reached them', () => {

@@ -106,9 +106,10 @@ Commands:
       --consumables the Party carries n of each consumable key from the Guild's holding;
       what it does not use comes home with it. Rivals take Quests from the Board each
       afternoon.
-  build --facility <infirmary | training-yard | quarters>
-      Raise a facility of the player's Guild's Hall by one grade, for the next grade's
-      cost, and print what was built, the Wealth left and what the next grade costs.
+  build --facility <key>
+      Raise a Facility of the player's Guild's Hall by one grade, for the next grade's
+      cost, and print what was built, the Wealth left and what the next grade costs. The
+      key is the Facility's in content: infirmary, training-yard or quarters in the core.
   captain --hero <heroId>
       Name one of the player's Heroes, at home or away, the Guild's Captain. To an empty
       post it is free; in another Captain's place, the one replaced loses Morale and the
@@ -429,19 +430,12 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
   };
 }
 
-/** The words `--facility` takes, and the Hall facility each names (M3-S6). */
-const facilityWords: Readonly<Record<string, FacilityKey>> = Object.freeze({
-  infirmary: 'infirmary',
-  'training-yard': 'trainingYard',
-  quarters: 'quarters',
-});
-
-/** `--facility`: one of the Hall's facilities, in the CLI's words. */
+/**
+ * `--facility`: a Facility's key, the CLI's word for it (DL-297). The word has a key's form; whether
+ * content has the Facility is `build`'s to say, once the save and its content are open.
+ */
 function facility(value: string): FacilityKey {
-  if (!Object.hasOwn(facilityWords, value)) {
-    refuse(`--facility takes ${Object.keys(facilityWords).join(', ')}; got "${value}"`);
-  }
-  return facilityWords[value] as FacilityKey;
+  return /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(value) ? value : refuse(`--facility needs a Facility's key such as training-yard; got "${value}"`);
 }
 
 /** `--hero` for `equip`, `unequip` and `transfer`: one Hero id (M5-S2). */

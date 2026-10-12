@@ -91,7 +91,7 @@ export interface GameConfig {
   /** Each starting Skill is rated from 1 to this. */
   startingSkillRatingMax: number;
   /**
-   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's quarters and
+   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's Hall and
    * Guildmaster move it (DL-29), and where Morale's factor on their form is 1 (DL-283).
    */
   moraleBaseline: number;
@@ -335,18 +335,6 @@ export interface GameConfig {
   heroRetirementChancePerYear: number;
   /** The Retirement chance is multiplied by this while the Hero is injured. */
   heroRetirementInjuredMultiplier: number;
-  /**
-   * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
-   * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5, DL-193). A factor for each grade content has, so that
-   * each grade built does something (DL-53).
-   */
-  infirmaryHealFactor: readonly number[];
-  /**
-   * Added to `moraleBaseline` for each grade of the Guild's quarters: what nightly drift returns a
-   * Roster Hero's Morale to (`moraleBaselineFor`; R33, DL-38).
-   */
-  quartersMoraleBonus: number;
 
   // ── `fatigue`: Fatigue (DL-280 item 2, DL-282) ─────────────────────────────────────────────────
   /**
@@ -365,11 +353,6 @@ export interface GameConfig {
    * past the list reads the last, so a longer ladder leaves the list sound (DL-193).
    */
   fatigueRiseByTier: readonly number[];
-  /**
-   * Fatigue's fall each night a Hero is at home, by their Guild's quarters grade, grade 0's first; a
-   * grade past the list reads the last, as `infirmaryHealFactor` does.
-   */
-  fatigueFallByQuarters: readonly number[];
   /**
    * FS, how much Fatigue takes from a Hero on a Quest (DL-280 item 2, Q13; DL-284): with f their
    * Fatigue on an Encounter's Day, their Physical and Magical Stats are times 1 − FS·f ÷ `fatigueMax`
@@ -454,11 +437,6 @@ export interface GameConfig {
    */
   xpPerDifficultyPoint: number;
   xpBandFactor: Readonly<Record<QuestBand, number>>;
-  /**
-   * Training XP: each night, a Hero on a Roster, in no Party and not injured, gains this times the
-   * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
-   */
-  xpPerTrainingDay: number;
 
   // ── `regard`: Regard's scale, and Regard between Heroes (data-model §3.2, rule 10, DL-43) ─────
   /**

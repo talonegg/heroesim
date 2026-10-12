@@ -378,3 +378,71 @@ the search in the commit message is the check. A sentence with an amount is long
   mutations tried; the six page amounts no test read (the Treasury's Upkeep parts, a Rival's Wealth and
   its Hall's next costs, Home's last-Day reward, a stop's Quest buttons, a Hero's Transfer fee chip) are
   now read by tests, and two stale comments are put right.
+
+## DL-297 — v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's facilities
+
+**Status:** Accepted · **Date:** 2026-10-12 · **Decided by:** the agent, on the owner's answers in DL-294
+
+**Context.** DL-294 item 3 (Q5, Q5b) makes the Hall's Facilities content with a base upkeep and effects
+from a closed set. The three were a tuple in code, and their four effects config settings. S3 changes
+no play.
+
+**Decision.**
+
+1. *The kind.* `facilities.json`: each Facility's key, name, `plural`, `upkeep` (whole Silver, 0 or
+   more; S4 charges it) and its effects' values at grade 0, at least one. Each Improvement names a
+   Facility content defines, its grades 1 to n with no gap, any n, and holds a value for exactly its
+   Facility's effects. Content's order is every Hall's and a Rival's build order.
+2. *The effects,* described once as a Trait's are (DL-243): `healFactor`, `trainingXp`,
+   `moraleBaseline`, `fatigueFall`, each a number with its bounds. `infirmaryHealFactor`,
+   `xpPerTrainingDay`, `quartersMoraleBonus` and `fatigueFallByQuarters` leave config for the rows,
+   with today's values; config version 31.
+3. *The engine names no Facility.* `facilityKeys` goes; the Hall is a map from a Facility's key to its
+   grade, founded with every Facility at 0; healing, training, Morale and Fatigue read `hallEffect`.
+   `build` refuses a key content lacks as a programming error; `guild.improved` names the key.
+4. *Rivals and the policy.* A Rival builds content's Facilities in content's order, or its
+   Disposition's `buildOrder`, now checked against content's keys; the policy builds the first
+   Facility with `healFactor`.
+5. *Words.* A Facility's name, verb and what it does are read from its row and effects
+   (`@heroesim/words`), in the History, the refusals, the page's Hall and the CLI.
+6. *The save.* `schemaVersion` 12, no migration; a Hall's grade a whole number from 0; a Hall key
+   content lacks warns (`unknown-facility`) and no rule reads it. Every amount an entry carries is
+   whole Silver (`moneyFields`), refused at load, so the formatter never meets a fraction (DL-296).
+7. *The editor.* `npm run edit -- facilities …` (`tools/editor`): two lists, the Facilities and their
+   grades, in one session (`.editor/facilities.json`), the commands `list`, `show`, `add`, `change`,
+   `remove`, `grade add|change|remove`, `effect add|set|remove`, `forms`, `doctor`, and the session's.
+   Its forms and checks derive from the effects' description (`facility-effects.ts`). Its API is
+   `/api/facilities/…`, the quests family's pattern. `facilities doctor` holds the grades to 1..n and
+   to their Facility's effects, each grade's cost above the one below, the build orders, and the
+   pending edits, and notes a grade that does no more (DL-53) and content with no Facility that heals.
+   `docs/agents/facilities.md` and `AGENTS.md` say Facilities change only through it.
+8. *Content version* 46.
+
+*Judgement calls, for the owner to see.*
+- Two Facilities with one effect join: heal factors multiply, the others add; a Hall with none reads
+  the neutral (1, 0, 0, 0). A Hero on no Roster reads an empty Hall, so their Fatigue falls 5 a night at
+  home as before. A grade past content's top reads the top's values, as the lists' last did.
+- The training yard's key is `training-yard`, the content kind's own rule, as its Improvements already
+  were; `compare` shows the harness's grade counters renamed, not play moved. The History's
+  fingerprints in `quests-conclude.test.ts` move by that spelling alone.
+- `buildOrder` stays, checked against content's keys, rather than removed: a Facility added makes a
+  Disposition that writes one fail its check until it lists it. None of the shipped four does.
+- The quarters' line now says Fatigue too; each effect's words are derived from the effects.
+- An effect is added to or taken from a Facility with its grades' values in one hold (`effect add`),
+  since the rules need a value at every grade and no single edit makes that; `change` gives `effects`
+  whole. A Facility is added last and cannot be reordered by the editor.
+- The doctor fails a grade that costs no more than the one below (a test held it on the shipped
+  files) and only notes one that does no more, as DL-53 is a design aim, not a rule.
+- Removal of a Facility is refused while a grade or a `buildOrder` names it; a grade is removed from
+  the top only. The page has no controls for them, as for the Quest templates (DL-267).
+
+**Consequences.** A Facility or a grade is content alone (the tests' fourth grade and chapel), made
+through the editor. Older saves are refused (no compatibility is owed yet). `v1.2.4`'s pass tunes
+`fatigueFallByQuarters` and the others as the quarters' rows' values, through these commands. S4 charges
+each Facility's `upkeep`.
+
+**Evidence.**
+- The commit `v1.2.2-S3 (DL-297)`: the checks with their counts and the doctors' readings, the three
+  before and after (`facilities doctor` did not exist before the story); the epic's S3 boxes ticked.
+- A quick run (`v1.2.2-s3-quick`, 4 seeds, 2 years) against S2's (`v1.2.2-s2-quick`): `compare` 0
+  counters moved, 577 the same; the fingerprint moves with the schema, `389f5232…`.

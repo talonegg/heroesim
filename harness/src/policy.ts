@@ -49,8 +49,8 @@ export interface PolicyConfig {
   /** Recruit only while the Roster holds fewer Heroes than this ("the Roster is below 8"). */
   rosterLimit: number;
   /**
-   * Build the infirmary's next grade only while Wealth is above this many times its cost (M3-S6:
-   * "when Wealth exceeds three times its cost", DL-38).
+   * Build the healing Facility's next grade only while Wealth is above this many times its cost ("when
+   * Wealth exceeds three times its cost", DL-38).
    */
   buildWealthMultiple: number;
   /**
@@ -107,8 +107,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
  *   carrying nothing, as the Best Party weighs it.
  * - **One purchase a Turn**, the first of these that applies:
- *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
- *     (M3-S6, DL-38), until the infirmary is at its top grade.
+ *   - **Build** the next grade of the healing Facility, the first in content's order with the
+ *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times
+ *     its cost (DL-38, DL-297), until it is at its top grade.
  *   - **Buy armour** while the Roster has more Heroes with nothing in their armour slot than the
  *     Guild holds armour to give them (M5-S4, DL-51): one piece, the dearest armour the Market has
  *     for sale whose price Wealth is above `buyWealthMultiple` times, lowest key among equal prices.
@@ -164,7 +165,7 @@ export function automaticPolicy(
   }
 
   const purchase =
-    infirmaryBuild(guild, deps, policy) ??
+    healingBuild(guild, deps, policy) ??
     armourPurchase(document, guild, deps, policy) ??
     recruitment(world, guild, deps, policy) ??
     consumablePurchase(world, guild, keeping(policy), deps);
@@ -198,13 +199,16 @@ function keeping(policy: Readonly<PolicyConfig>): ConsumableKeeping {
 }
 
 /**
- * A build of the infirmary's next grade when Wealth is above the policy's `buildWealthMultiple`
- * times its cost (the engine's `affordableImprovement`, as `steady` decides with the game's);
- * `null` otherwise, and once the infirmary is at its top grade.
+ * A build of the next grade of the healing Facility, the first of content's Facilities with the
+ * `healFactor` effect (DL-297), when Wealth is above the policy's `buildWealthMultiple` times its cost
+ * (the engine's `affordableImprovement`, as `steady` decides with the game's); `null` otherwise, once
+ * it is at its top grade, and where content has no such Facility.
  */
-function infirmaryBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
-  const next = affordableImprovement(guild, 'infirmary', policy.buildWealthMultiple, deps.content);
-  return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
+function healingBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
+  const facility = Object.values(deps.content.facilities).find((row) => Object.hasOwn(row.effects, 'healFactor'))?.key;
+  if (facility === undefined) return null;
+  const next = affordableImprovement(guild, facility, policy.buildWealthMultiple, deps.content);
+  return next === null ? null : { kind: 'build', guildId: guild.id, facility };
 }
 
 /**

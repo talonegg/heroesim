@@ -16,6 +16,7 @@ import type {
   ContentRef,
   DispositionKey,
   EncounterKey,
+  FacilityKey,
   InjuryTypeKey,
   ItemDefinitionKey,
   LootTableKey,
@@ -205,12 +206,11 @@ export type SkillRating = 1 | 2 | 3 | 4 | 5;
 export const lowestSkillRating = 1;
 export const highestSkillRating = 5;
 
-/** The Hall's facilities, each at a grade raised by Improvements (M3-S6). */
-export const facilityKeys = ['infirmary', 'trainingYard', 'quarters'] as const;
-
-export type FacilityKey = (typeof facilityKeys)[number];
-
-/** A grade per facility. */
+/**
+ * A Guild's Hall: the grade of each Facility by its content key (DL-294 item 3), from 0, raised by
+ * Improvements. Founded with every Facility content defines at grade 0 (`foundedHall`); a Facility it
+ * lacks reads grade 0, and a key content does not define is kept and read by no rule (rule 5).
+ */
 export type Hall = Record<FacilityKey, number>;
 
 /** What makes a Guild's choices: the player, or a Rival's Disposition (ADR-0002). */
@@ -522,9 +522,11 @@ export interface Stack {
  * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
  * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266); 10, Heroes'
  * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282); 11,
- * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287).
+ * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287);
+ * 12, a Guild's Hall keyed by content's Facilities, refusing every older save likewise (DL-294 item 3,
+ * DL-297).
  */
-export const schemaVersion = 11;
+export const schemaVersion = 12;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

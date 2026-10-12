@@ -98,7 +98,7 @@ import { queryParty, type OnQuest, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 import { deathScaleOf, scaledDeathChance, tierFigures } from '../tiers.js';
 
-/** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
+/** An Injury the outcome inflicts: its type and the Days it takes to heal, the Hall's heal factor applied. */
 export interface QuestInjury {
   heroId: HeroId;
   typeKey: InjuryTypeKey;
@@ -273,8 +273,8 @@ interface Working {
  * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × its Tier's `xpFactor`
  * (`tierFigures`, DL-262) × the Encounters' XP factors, divided by
  * the size of the Party sent, its Dead counted, and rounded down: each Hero who comes home takes that
- * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
- * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
+ * share (v1.1.5-S13, DL-182). An Injury's Days are drawn from its type's range and multiplied by the heal factor of
+ * the Guild's Hall now (`healFactor`, DL-294 item 3), rounded to the nearest Day and at least 1
  * (INPUTS 4.5). The consumables the Party carries add to each Check, roll a failed Encounter's again,
  * and are spent at an Injury, relieving and shortening it (M5-S3, DL-50, DL-285, `kitOf`); the Items
  * used are the resolution's `consumables`.
@@ -508,7 +508,7 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
     case 'injury': {
       const type = rowOf(content.injuries, consequence.typeKey);
       if (type === undefined) throw new RangeError(`Content defines no Injury type ${JSON.stringify(consequence.typeKey)}`);
-      const factor = healFactor(at.guild, config);
+      const factor = healFactor(at.guild.hall, content);
       for (let time = 0; time < consequence.count; time += 1) {
         // Whether it lands and on whom, two draws (harm.ts), then its Days, a third, whether or not it lands.
         // The chance on the Hero chosen is times Fatigue's on its Day, held at 1, before their guard (DL-284).
@@ -519,7 +519,7 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
           const injury: QuestInjury = { heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) };
           working.injuries.push(injury);
           harm.injured.push(hurt.id);
-          // A heal Item carried is spent on it now, the infirmary applied first: it relieves the hurt for
+          // A heal Item carried is spent on it now, the Hall's heal factor applied first: it relieves the hurt for
           // the rest of the Quest and shortens the Injury, which the return applies (DL-285).
           if (at.kit.heal(injury, at.encounterIndex)) working.relieved.add(hurt.id);
         }

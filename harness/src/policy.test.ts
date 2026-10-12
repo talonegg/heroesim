@@ -497,6 +497,20 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(building(multiple * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
     });
 
+    // DL-297: the Facility it builds is content's first with the heal effect, the infirmary in the core.
+    test("builds the first Facility in content's order with the heal effect, and nothing where none has it", () => {
+      const { document, guild } = building(1_000_000);
+      const { facilities, improvements } = deps.content;
+      const hospice = { key: 'hospice', name: 'hospice', plural: false, upkeep: 15, effects: { healFactor: 1 } };
+      const hospice1 = { key: 'hospice-1', name: 'Hospice', facility: 'hospice', grade: 1, cost: 200, effects: { healFactor: 0.5 } };
+      const first = { ...deps, content: { ...deps.content, facilities: { hospice, ...facilities }, improvements: { ...improvements, 'hospice-1': hospice1 } } };
+      const unhealing = Object.fromEntries(Object.entries(facilities).map(([key, row]) => [key, { ...row, effects: { moraleBaseline: 0 } }]));
+      const none = { ...deps, content: { ...deps.content, facilities: unhealing } };
+
+      expect(automaticPolicy(document, first)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'hospice' });
+      expect(automaticPolicy(document, none).map((action) => action.kind)).toEqual(['recruit']);
+    });
+
     test('nothing past the top grade, and no other facility: then it recruits', () => {
       const { document } = building(1_000_000, 3);
       expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);

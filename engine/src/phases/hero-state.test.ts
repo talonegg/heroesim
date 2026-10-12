@@ -392,7 +392,7 @@ describe('Retirement', () => {
 // keeps each Guild's lift once worked out, and each Hero's drift must still read the Captain as they
 // stand when that Hero's turn comes: healed of an Injury tonight, or retired tonight.
 describe("the Captain's lift through a night", () => {
-  const pins = { rivalCount: 0, moraleDrift: 1, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0, captainHomeBaselineBonus: 5 };
+  const pins = { rivalCount: 0, moraleDrift: 1, moraleBaseline: 50, inspirationMoraleShift: 0, captainHomeBaselineBonus: 5 };
 
   /** A world of three plain Heroes at Morale 50, the second the Captain, under `deps`. */
   function captained(seed: string, deps: EngineDeps) {

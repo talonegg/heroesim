@@ -6,15 +6,14 @@ import {
   schemaVersion,
   descriptiveAttributeLabels,
   descriptiveAttributes,
-  facilityKeys,
   isId,
   parseId,
   type Controller,
   type Entry,
-  type FacilityKey,
   type Guild,
   type GuildId,
   type Guildmaster,
+  type Hall,
   type GuildmasterId,
   type Hero,
   type HeroId,
@@ -88,7 +87,7 @@ const guild: Guild = {
   fame: 3,
   belowFloorSince: null,
   foldedOnTurn: null,
-  hall: { infirmary: 1, trainingYard: 0, quarters: 0 },
+  hall: { infirmary: 1, 'training-yard': 0, quarters: 0 },
   controller: { kind: 'player' },
   regard: { [patronId]: regardEntry },
 };
@@ -373,10 +372,6 @@ describe('the World State document', () => {
     ]);
   });
 
-  test('the Hall has the three facilities of data-model §3.2', () => {
-    expect(facilityKeys).toEqual(['infirmary', 'trainingYard', 'quarters']);
-  });
-
   test("a Guildmaster's descriptive Attributes are three, each labelled by its CONTEXT.md name, which both front ends show (the M9 review)", () => {
     expect(descriptiveAttributes).toEqual(['birthplace', 'appearance', 'biography']);
     expect(descriptiveAttributes.map((attribute) => descriptiveAttributeLabels[attribute])).toEqual(['Birthplace', 'Appearance', 'Biography']);
@@ -652,7 +647,7 @@ describe('the types match data-model.md', () => {
     expectTypeOf<Extract<Controller, { kind: 'rival' }>>().toHaveProperty('disposition');
     expectTypeOf<Quest['status']>().toEqualTypeOf<'offered' | 'taken' | 'resolved'>();
     expectTypeOf<TransferOffer['kind']>().toEqualTypeOf<'transfer'>();
-    expectTypeOf<FacilityKey>().toEqualTypeOf<'infirmary' | 'trainingYard' | 'quarters'>();
+    expectTypeOf<Hall>().toEqualTypeOf<Record<string, number>>();
     expectTypeOf<Hero['skills'][string]>().toEqualTypeOf<1 | 2 | 3 | 4 | 5>();
     expectTypeOf<Hero['guildId']>().toEqualTypeOf<GuildId | null>();
     expectTypeOf<World['board']>().toEqualTypeOf<QuestId[]>();

@@ -23,7 +23,7 @@ import {
   holdings,
   itemDefinition,
   patronRegardFor,
-  facilityKeys,
+  facilityGrade,
   nextImprovement,
   playerGuild,
   regardBand,
@@ -50,7 +50,8 @@ import {
   dateOfDay,
   dateOfTurn,
   deadlyWords,
-  facilityNames,
+  facilityDoes,
+  facilityName,
   kindWords,
   listed,
   modifierWords,
@@ -241,7 +242,9 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
       ? []
       : [
           `${player.name}'s Hall: ` +
-            facilityKeys.map((facility) => `${facilityNames[facility]} grade ${player.hall[facility]}`).join(', ') +
+            Object.keys(deps.content.facilities)
+              .map((facility) => `${facilityName(deps.content, facility)} grade ${facilityGrade(player.hall, facility)}`)
+              .join(', ') +
             ' (show hall gives each grade and what the next costs).',
         ];
   return [
@@ -263,25 +266,28 @@ export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[
 // ── The Hall ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `show hall [guildId]`: each facility of the Guild's Hall, its grade and the Improvement built at
+ * `show hall [guildId]`: each Facility of the Guild's Hall, its grade and the Improvement built at
  * it, and the next grade's Improvement and cost (`nextImprovement`), or that it is at the top; then
- * what the facilities do, in words. The player's Guild unless given another.
+ * what the Facilities do, in words read from their effects (`facilityDoes`). The player's Guild unless
+ * given another.
  */
 export function renderHall(guild: Guild, deps: EngineDeps): string[] {
   const { content } = deps;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? '';
-  const rows = facilityKeys.map((facility) => {
-    const grade = guild.hall[facility];
+  const facilities = Object.keys(content.facilities);
+  const rows = facilities.map((facility) => {
+    const grade = facilityGrade(guild.hall, facility);
     const next = nextImprovement(guild, facility, content);
     return [
-      capitalised(facilityNames[facility]),
+      capitalised(facilityName(content, facility)),
       String(grade),
       grade === 0 ? 'None' : builtAt(facility, grade),
       next === null ? 'None: the top grade' : next.name,
       next === null ? '' : coinLetters(next.cost),
     ];
   });
+  const does = facilities.map((facility) => `the ${facilityName(content, facility)} ${facilityDoes(content, facility)}`).join('; ');
   return [
     `Hall of ${guild.name} (${guild.id})`,
     '',
@@ -296,10 +302,23 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
       rows,
     ),
     '',
-    'The infirmary shortens the Days an Injury takes to heal; the training yard gives every Hero on',
-    'the Roster who is home and unhurt XP each night; the quarters raise the Morale the Roster settles',
-    'toward. Each grade does more than the one below it, and each adds to the Upkeep.',
+    ...wrapped(`${capitalised(does)}. Each grade does more than the one below it, and each adds to the Upkeep.`),
   ];
+}
+
+/** `text` in lines of at most `width` characters, broken between words. */
+function wrapped(text: string, width = 100): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (line !== '' && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line === '' ? word : `${line} ${word}`;
+    }
+  }
+  return line === '' ? lines : [...lines, line];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────

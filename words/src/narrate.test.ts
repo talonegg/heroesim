@@ -389,7 +389,7 @@ describe('the variations of a sentence', () => {
     ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
     ['a Captain named to an empty post', varied('guild.captain-named', { replacedId: null, lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain.`],
     ['a Captain changed with no lock', varied('guild.captain-named', { lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain in place of ${aldred}.`],
-    ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 5 Gold: its training yard is now grade 2.`],
+    ['the training yard built, which is', varied('guild.improved', { facility: 'training-yard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 5 Gold: its training yard is now grade 2.`],
     ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +1 Gold 50 Silver, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
     // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
     ['a Bankruptcy floor of 50', varied('guild.below-floor', { wealth: 40, floor: 50, dueDay: 13 }), `${kestrel}'s Wealth, 40 Silver, fell below the Bankruptcy floor of 50 Silver: Bankruptcy on the night of Year 1 Day 14 unless it recovers by then.`],

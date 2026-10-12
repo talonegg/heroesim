@@ -788,8 +788,8 @@ _Avoid_: Base, Headquarters, Guildhall
 A part of the Hall, defined in content: its name, its upkeep at its first grade, which rises with
 each grade, and its effects, taken from a closed set (healing speed, training XP, the Morale
 baseline and Fatigue's fall). Its grades are Improvements, each with a price, a name and the
-effects' values at that grade. Today the three Facilities are fixed in the engine's code, and
-Facilities as content, with an upkeep, are to be built (DL-294).
+effects' values at that grade. The core has three, the infirmary, the training yard and the
+quarters (DL-294, DL-297); their upkeep is held, and charged with the Hall's (to be built).
 _Avoid_: Room, Amenity, Building
 
 **Improvement**:

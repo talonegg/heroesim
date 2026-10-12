@@ -133,7 +133,7 @@ describe("upkeepParts and nextUpkeepDay", () => {
     const { world } = createWorld('upkeep-parts', setup, deps).document;
     const guild = playerGuild(world) as Guild;
     for (const [index, id] of guild.rosterIds.entries()) (world.heroes[id] as Hero).level = index === 0 ? 3 : 1;
-    guild.hall = { infirmary: 1, trainingYard: 2, quarters: 0 };
+    guild.hall = { infirmary: 1, 'training-yard': 2, quarters: 0 };
     (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = ['spendthrift'];
     const rest = guild.rosterIds.length - 1;
 
@@ -157,7 +157,7 @@ describe("upkeepParts and nextUpkeepDay", () => {
       const { world } = createWorld(seed, setup, deps).document;
       Object.values(world.guilds).forEach((guild, guildIndex) => {
         guild.rosterIds.forEach((id, index) => ((world.heroes[id] as Hero).level = 1 + ((index + guildIndex) % 4)));
-        guild.hall = { infirmary: guildIndex % 4, trainingYard: (guildIndex + 1) % 4, quarters: (guildIndex + 2) % 4 };
+        guild.hall = { infirmary: guildIndex % 4, 'training-yard': (guildIndex + 1) % 4, quarters: (guildIndex + 2) % 4 };
       });
       for (const guild of Object.values(world.guilds)) {
         const parts = upkeepParts(guild, world, deps.config, deps.content);
@@ -193,7 +193,7 @@ describe('upkeep', () => {
     if (first === undefined || second === undefined) throw new Error('need two Heroes on the Roster');
     (world.heroes[first] as Hero).level = 3;
     (world.heroes[second] as Hero).level = 2;
-    guild.hall = { infirmary: 1, trainingYard: 2, quarters: 0 };
+    guild.hall = { infirmary: 1, 'training-yard': 2, quarters: 0 };
 
     const wages = guild.rosterIds.reduce((total, id) => total + 5 * (world.heroes[id] as Hero).level, 0);
 

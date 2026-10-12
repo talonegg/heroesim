@@ -11,7 +11,7 @@
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
-import type { FacilityKey, Sex } from './document.js';
+import type { Sex } from './document.js';
 import type { FatigueBand, TierOverride } from './config.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
@@ -67,7 +67,9 @@ export const purchaseSteps = ['build', 'gear', 'transfer', 'recruit', 'debt'] as
 /** One of a Rival's purchases: one of `purchaseSteps`. */
 export type PurchaseStep = (typeof purchaseSteps)[number];
 
-/** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
+/** A Facility of the Hall (DL-294 item 3, `facilities.json`). */
+export type FacilityKey = string;
+/** A Hall Improvement, one grade of one Facility (`improvements.json`). */
 export type ImprovementKey = string;
 /** A Synergy, a bonus for a combination of Classes or Skills in a Party (M4-S3, `synergies.json`). */
 export type SynergyKey = string;
@@ -649,8 +651,8 @@ export interface Synergy {
 }
 
 /**
- * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before an infirmary
- * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). An
+ * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before the Hall's heal
+ * factor shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). An
  * Encounter's injury consequence names the type it inflicts (M4-S1).
  */
 export interface InjuryType {
@@ -721,27 +723,67 @@ export interface Disposition {
    */
   gearSlotOrder?: SlotKey[];
   /**
-   * The order it builds the facilities of its Hall in, each of the Hall's facilities once; when absent,
-   * the Hall's own order (the infirmary, the training yard, the quarters).
+   * The order it builds the Facilities of its Hall in, each of content's Facilities once; when absent,
+   * content's own order (`facilities.json`).
    */
   buildOrder?: FacilityKey[];
 }
 
 /**
- * A Hall Improvement (R33, INPUTS 7.3; `improvements.json`, M3-S6): one grade of one facility, and
- * what it costs to build. `build` raises a facility from grade g to g + 1 at the cost of the row
- * whose `grade` is g + 1; a facility's grades run 1, 2, 3, … with no gap, and its top grade is the
- * highest content defines.
+ * What a Facility does (DL-294 item 3): a closed set, as a Trait's effects are (DL-150 item 8), so a
+ * new kind is an engine change. Each is one number at each grade, read where it bears, and joined
+ * across the Hall's Facilities by `facilityEffectRules` (`facilities.ts`):
+ *
+ * - `healFactor`: what an Injury's Days to heal are multiplied by when it is inflicted on a Hero of the
+ *   Guild (`healDays`);
+ * - `trainingXp`: the XP each Hero of the Roster at home and unhurt gains a night, times the
+ *   Guildmaster's Coaching, rounded down (the night's training);
+ * - `moraleBaseline`: added to the Morale baseline the Roster's Morale drifts toward
+ *   (`moraleBaselineFor`);
+ * - `fatigueFall`: Fatigue's fall each night a Hero of the Guild spends at home (`fatigueNight`).
+ */
+export const facilityEffectKinds = ['healFactor', 'trainingXp', 'moraleBaseline', 'fatigueFall'] as const;
+
+/** One of `facilityEffectKinds`. */
+export type FacilityEffectKind = (typeof facilityEffectKinds)[number];
+
+/** The values of a Facility's effects at one grade, by kind: exactly the kinds the Facility has. */
+export type FacilityEffects = Partial<Record<FacilityEffectKind, number>>;
+
+/**
+ * A Facility of the Hall (R42; `facilities.json`, DL-294 item 3): a part every Guild's Hall has from
+ * its founding, at grade 0, raised a grade at a time by its Improvements. Its row holds its effects'
+ * values at grade 0; each Improvement of it, their values at its grade.
+ */
+export interface Facility {
+  key: FacilityKey;
+  /** Its name as a sentence says it, in lower case: `training yard`. */
+  name: string;
+  /** Whether its name is plural, a sentence saying "the quarters are" where it says "the infirmary is". */
+  plural: boolean;
+  /** Its upkeep a month at grade 1, whole Silver, 0 or more (DL-294 item 3). */
+  upkeep: number;
+  /** Its effects' values at grade 0, before any Improvement: at least one kind. */
+  effects: FacilityEffects;
+}
+
+/**
+ * A Hall Improvement (R33, INPUTS 7.3; `improvements.json`): one grade of one Facility, what it costs
+ * to build, and its Facility's effects' values at that grade. `build` raises a Facility from grade g to
+ * g + 1 at the cost of the row whose `grade` is g + 1; a Facility's grades run 1, 2, 3, … with no gap,
+ * and its top grade is the highest content defines.
  */
 export interface Improvement {
   key: ImprovementKey;
   name: string;
-  /** The Hall facility the Improvement raises. */
+  /** The Facility the Improvement raises: a key of content's `facilities`. */
   facility: FacilityKey;
-  /** The grade it raises the facility to, from 1. */
+  /** The grade it raises the Facility to, from 1. */
   grade: number;
   /** The Wealth it costs, a whole number above 0. */
   cost: number;
+  /** Its Facility's effects' values at this grade: exactly the kinds its Facility has. */
+  effects: FacilityEffects;
 }
 
 /** An Item is permanent gear a Hero carries in a slot, or a consumable that is used up (R30). */
@@ -1069,7 +1111,9 @@ export interface ContentSet {
   injuries: Record<InjuryTypeKey, InjuryType>;
   /** The Rival Dispositions, each the weights a Rival controller's one rule reads (M2-S9, M6-S1); at least one. */
   dispositions: Record<DispositionKey, Disposition>;
-  /** The Hall Improvements, each one grade of one facility and its cost (M3-S6). */
+  /** The Hall's Facilities, in the order every Hall lists and a Rival builds them (DL-294 item 3). */
+  facilities: Record<FacilityKey, Facility>;
+  /** The Hall Improvements, each one grade of one Facility, its cost and its effects' values. */
   improvements: Record<ImprovementKey, Improvement>;
   /** The Encounters a Quest's sequence is drawn from, by the kinds its template names (M4-S1). */
   encounters: Record<EncounterKey, Encounter>;

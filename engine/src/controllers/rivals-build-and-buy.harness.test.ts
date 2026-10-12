@@ -3,7 +3,6 @@ import type { EngineDeps } from '../config.js';
 import type { DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
 import {
-  facilityKeys,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -67,7 +66,7 @@ interface Tally {
   armoured: { wearing: number; of: number };
 }
 
-const hallTotal = (guild: Pick<Guild, 'hall'>): number => facilityKeys.reduce((sum, key) => sum + guild.hall[key], 0);
+const hallTotal = (guild: Pick<Guild, 'hall'>): number => Object.values(guild.hall).reduce((sum, grade) => sum + grade, 0);
 
 /** The Rivals in play, by Guild id. */
 const rivalsInPlay = (world: World): Guild[] =>

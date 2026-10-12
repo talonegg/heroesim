@@ -31,7 +31,6 @@ import {
 } from '../content-types.js';
 import {
   compareByCodeUnit,
-  facilityKeys,
   rowOf,
   type Guild,
   type Hero,
@@ -66,10 +65,9 @@ import {
  *    DL-288);
  * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
- *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
- *      when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its
- *      Wealth is above `buildThreshold` times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4
- *      every facility);
+ *    - build the next grade of the first Facility of its Hall, in its `buildOrder` (content's order
+ *      when it has none), whose next grade's cost its Wealth is above `buildThreshold` times
+ *      (`hallBuild`: every Facility, DL-58);
  *    - buy one piece of gear at the Market for its Heroes who lack it, in its `gearSlotOrder` (when it
  *      has none, armour first, then the other slots in `gearSlotKeys`' order): the dearest whose price
  *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4); and
@@ -428,16 +426,15 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
 }
 
 /**
- * A build of the next grade of the first facility of `guild`'s Hall, in its Disposition's `buildOrder`
- * (`facilityKeys`' order when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its Wealth
+ * A build of the next grade of the first Facility of `guild`'s Hall, in its Disposition's `buildOrder`
+ * (content's order of `facilities` when it has none, DL-294 item 3), whose next grade's cost its Wealth
  * is above its Disposition's `buildThreshold` times (`affordableImprovement`); `null` when there is
- * none, every facility being at its top grade or dearer than its Wealth allows (M6-S4, DL-58). The
- * infirmary comes first, as it came alone in M3-S6 (DL-38); a dearer grade of it that is out of reach
- * does not stop a cheaper grade of another facility, so a Rival saving for the Physicians' wing builds
- * its practice yard meanwhile. Draws nothing.
+ * none, every Facility being at its top grade or dearer than its Wealth allows (DL-58). A dearer grade
+ * of one that is out of reach does not stop a cheaper grade of another, so a Rival saving for a costly
+ * grade builds a cheap one meanwhile. Draws nothing.
  */
 function hallBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  const facility = (disposition.buildOrder ?? facilityKeys).find(
+  const facility = (disposition.buildOrder ?? Object.keys(deps.content.facilities)).find(
     (key) => affordableImprovement(guild, key, disposition.buildThreshold, deps.content) !== null,
   );
   return facility === undefined ? null : { kind: 'build', guildId: guild.id, facility };

@@ -7,7 +7,7 @@ import type { Hero, Turn } from './document.js';
 import { dayOf, nightOf } from './time.js';
 
 /**
- * An Injury's Days to heal once `factor`, the infirmary's (`healFactor`), is applied: rounded to the
+ * An Injury's Days to heal once `factor`, the Hall's (`healFactor`), is applied: rounded to the
  * nearest Day, and at least 1.
  */
 export function healDays(days: number, factor: number): number {

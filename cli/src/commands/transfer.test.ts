@@ -238,7 +238,7 @@ describe('Transfer Offers', () => {
       // builds and buys gear before it weighs a Transfer (DL-58).
       const rival = guildOf(world, ambitious);
       rival.wealth = 1_000_000;
-      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+      rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
       for (const heroId of rival.rosterIds) {
         for (const [slot, key] of [['weapon', 'short-sword'], ['armour', 'padded-jack'], ['trinket', 'lucky-charm']] as const) {
           addStack(world, key, 1, { kind: 'hero', id: heroId, slot });

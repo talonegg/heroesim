@@ -9,8 +9,9 @@
 // harness and the tools may read (DL-198); a Stat's breakdown, the engine's `statBreakdown`, in words
 // (DL-199); a date as a player reads it, `Year 2 Day 45`, the Year and the Day counted from 1
 // (DL-210); every refusal a play can meet, behind the same Namer seam (DL-240); and the readings of a
-// Hero, a Quest and a pool or Roster row, through the player's reading (DL-241); and an amount of
-// Wealth in Gold and Silver (DL-294 item 1).
+// Hero, a Quest and a pool or Roster row, through the player's reading (DL-241); an amount of
+// Wealth in Gold and Silver (DL-294 item 1); and a Facility, its name and what it does, from content
+// (DL-294 item 3).
 
 export { coinLetters, coinParts, coinWords, silverPerGold, type Coin, type CoinPart, type CoinParts } from './coins.js';
 export { atHallWords, gearUnavailableWords, unavailableChipWords, unavailableWords } from './availability.js';
@@ -39,8 +40,6 @@ export {
   crossed,
   degreeWords,
   endingWords,
-  facilityIs,
-  facilityNames,
   itemsWords,
   narrate,
   narrateStop,
@@ -61,6 +60,7 @@ export {
   type Sentence,
   type Slot,
 } from './narrate.js';
+export { facilityDoes, facilityEffectWords, facilityIs, facilityName } from './facilities.js';
 export { formEffectWords, reliefWords } from './party.js';
 export {
   chanceWords,

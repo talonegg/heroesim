@@ -215,7 +215,7 @@ describe('parseArgs', () => {
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
       name: 'build',
       save: 'demo',
-      facility: 'trainingYard',
+      facility: 'training-yard',
     });
     expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
   });
@@ -335,8 +335,8 @@ describe('parseArgs', () => {
     [['preview', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:0'], '--consumables whetstone needs a whole number from 1; got "0"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:1,whetstone:2'], '--consumables names whetstone twice'],
     [['build'], 'build needs --facility'],
-    [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
-    [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
+    [['build', '--facility', 'trainingYard'], `--facility needs a Facility's key such as training-yard; got "trainingYard"`],
+    [['build', '--facility', 'Stables'], 'got "Stables"'],
     [['build', 'infirmary'], 'does not take "infirmary"'],
     [['recruit'], 'recruit needs --hero'],
     [['equip', '--hero', 'hero-000001'], 'equip needs --item or --stack, and one of them only'],

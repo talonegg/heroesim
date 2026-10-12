@@ -6,11 +6,10 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, DispositionKey, Improvement, Stat, StatKey } from './content-types.js';
+import type { ContentSet, DispositionKey, FacilityKey, Improvement, Stat, StatKey } from './content-types.js';
 import {
   compareByCodeUnit,
   rowOf,
-  type FacilityKey,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -21,6 +20,7 @@ import {
   type Turn,
   type World,
 } from './document.js';
+import { facilityGrade, hallEffect } from './facilities.js';
 import { gearModifiers } from './gear.js';
 import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
 import { dayOf, nightOf } from './time.js';
@@ -462,29 +462,28 @@ export function effectiveStats(
 }
 
 /**
- * The Improvement that would raise `guild`'s `facility` one grade (M3-S6): content's row for that
- * facility whose grade is the facility's grade now plus one, or `null` when content has none, the
- * facility being at its top grade. `build` builds it and charges its cost; a controller reads its
- * cost before choosing to build.
+ * The Improvement that would raise `guild`'s `facility` one grade: content's row for that Facility
+ * whose grade is the Facility's grade now plus one, or `null` when content has none, the Facility
+ * being at its top grade. `build` builds it and charges its cost; a controller reads its cost before
+ * choosing to build.
  */
 export function nextImprovement(
   guild: Pick<Guild, 'hall'>,
   facility: FacilityKey,
   content: Pick<ContentSet, 'improvements'>,
 ): Improvement | null {
-  const grade = guild.hall[facility] + 1;
+  const grade = facilityGrade(guild.hall, facility) + 1;
   return Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade) ?? null;
 }
 
 /**
- * What an Injury's Days to heal are multiplied by when it is inflicted on a Hero of `guild`
- * (INPUTS 4.5): `infirmaryHealFactor` at the Guild's infirmary grade now, index 0 being no
- * infirmary, and a grade past the list reading its last factor (DL-29 item 8). The Quest Engine
- * reads it; the defaults give every grade content defines a factor of its own (DL-53).
+ * What an Injury's Days to heal are multiplied by when it is inflicted on a Hero of a Guild with
+ * `hall` (INPUTS 4.5): the Hall's `healFactor` effect (`hallEffect`, DL-294 item 3), 1 where no
+ * Facility has it. A Hero on no Roster reads an empty Hall. The Quest Engine and the modules' `injure`
+ * read it.
  */
-export function healFactor(guild: { hall: Pick<Hall, 'infirmary'> }, config: Pick<GameConfig, 'infirmaryHealFactor'>): number {
-  const factors = config.infirmaryHealFactor;
-  return factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
+export function healFactor(hall: Readonly<Hall>, content: Pick<ContentSet, 'facilities' | 'improvements'>): number {
+  return hallEffect(hall, 'healFactor', content);
 }
 
 /**

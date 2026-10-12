@@ -382,7 +382,7 @@ describe('injure', () => {
 
     const hero = after.world.heroes[heroId] as Hero;
     const guild = after.world.guilds[hero.guildId as GuildId] as Guild;
-    const healsOnTurn = nightOf(dayOf(1) + healDays(6, healFactor(guild, deps.config)));
+    const healsOnTurn = nightOf(dayOf(1) + healDays(6, healFactor(guild.hall, deps.content)));
     expect(hero.injury).toEqual({ typeKey: 'deep-cut', healsOnTurn });
     expect(ofType(events, 'hero.injured')).toEqual([
       expect.objectContaining({ participants: [heroId, guild.id], payload: { heroId, questId: null, typeKey: 'deep-cut', healsOnTurn, moduleId: 'fx' } }),
@@ -404,7 +404,7 @@ describe('injure', () => {
     );
 
     const guild = after.world.guilds[after.world.heroes[heroId]?.guildId as GuildId] as Guild;
-    const days = healDays(6, healFactor(guild, deps.config));
+    const days = healDays(6, healFactor(guild.hall, deps.content));
     // The test sees the infirmary only if it changes the Days.
     expect(guild.hall.infirmary).toBe(grade);
     expect(days).toBeLessThan(6);

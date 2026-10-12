@@ -4,7 +4,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, facilityKeys, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { addStack, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
@@ -727,7 +727,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     // one's threshold: only the need hires. Every Hall built to its top, so that none spends the Wealth
     // on a build first (DL-58's order); harmless Encounters, so that no Hero is lost meanwhile.
     const rows = testDeps({ negotiationRange: 0, marketSize: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 }, harmlessContent);
-    const top = Object.fromEntries(facilityKeys.map((key) => [key, Math.max(...Object.values(rows.content.improvements).filter((row) => row.facility === key).map((row) => row.grade))]));
+    const top = Object.fromEntries(Object.keys(rows.content.facilities).map((key) => [key, Math.max(...Object.values(rows.content.improvements).filter((row) => row.facility === key).map((row) => row.grade))]));
     let document = createWorld('need-play', setup, rows).document;
     for (const rival of rivalsOf(document.world)) {
       cut(document.world, rival, 2);
@@ -830,7 +830,7 @@ describe('steady: building', () => {
 
     // The next grade costs 500; the other facilities built to their top, so that the infirmary is the
     // only one with a grade to build (DL-58: it builds every facility, the next test).
-    rival.hall = { infirmary: 1, trainingYard: 3, quarters: 3 };
+    rival.hall = { infirmary: 1, 'training-yard': 3, quarters: 3 };
     rival.wealth = 3 * 500;
     expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
     rival.wealth = 3 * 500 + 1;
@@ -842,22 +842,22 @@ describe('steady: building', () => {
     const { world, rival } = scene('build-top', deps);
     rival.wealth = 1_000_000;
 
-    rival.hall = { infirmary: 3, trainingYard: 0, quarters: 0 };
-    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'trainingYard' }]);
-    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 1 };
+    rival.hall = { infirmary: 3, 'training-yard': 0, quarters: 0 };
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'training-yard' }]);
+    rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 1 };
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'quarters' }]);
-    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+    rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
     expect(purchases(world, rival).map((action) => action.kind)).toEqual(['recruit']);
   });
 
   test("a dearer grade out of its reach gives way to a cheaper grade of the next facility, each at its own threshold", () => {
     const { world, rival } = scene('build-next', deps);
-    rival.hall = { infirmary: 1, trainingYard: 0, quarters: 0 }; // the infirmary's next grade costs 500
+    rival.hall = { infirmary: 1, 'training-yard': 0, quarters: 0 }; // the infirmary's next grade costs 500
 
     rival.wealth = 3 * 200;
     expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
     rival.wealth = 3 * 200 + 1; // below 3 × 500, above 3 × 200: the practice yard, not the infirmary ward
-    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'trainingYard' }]);
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'training-yard' }]);
     rival.wealth = 3 * 500 + 1;
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
   });
@@ -875,7 +875,7 @@ describe('steady: building', () => {
     }
     expect(built).toEqual([
       'infirmary 1', 'infirmary 2', 'infirmary 3',
-      'trainingYard 1', 'trainingYard 2', 'trainingYard 3',
+      'training-yard 1', 'training-yard 2', 'training-yard 3',
       'quarters 1', 'quarters 2', 'quarters 3',
     ]);
     expect(rival.wealth).toBe(100_000 - 3 * 1700);
@@ -889,7 +889,7 @@ describe('rivalChoices', () => {
     // and gear, which it buys before it hires (DL-58).
     const { world, rival, deps } = scene('both', testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 })));
     rival.wealth = 100_000;
-    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 }; // built to the top, so that its purchase is a recruit
+    rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 }; // built to the top, so that its purchase is a recruit
 
     const choices = rivalChoices(world, rival, deps);
 
@@ -1042,7 +1042,7 @@ describe('one rule for every Disposition, reading its row', () => {
       expect(purchase(), disposition).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
 
       // Recruiting, with the Hall built to its top (a Rival builds every facility, DL-58).
-      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+      rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
       const threshold = row.recruitThreshold * upkeep(rival, world, deps.config, deps.content);
       rival.wealth = threshold;
       expect(purchase(), disposition).toBeUndefined();
@@ -1100,7 +1100,7 @@ describe('one rule for every Disposition, reading its row', () => {
       expect(purchase()?.kind).not.toBe('build');
       rival.wealth = 2.5 * 200 + 1;
       expect(purchase()).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
-      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+      rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
       const threshold = 7 * upkeep(rival, world, deps.config, deps.content);
       rival.wealth = threshold;
       expect(purchase()).toBeUndefined();
@@ -1151,7 +1151,7 @@ describe('buying gear at the Market', () => {
       { negotiationRange: 0, ...config },
       withDispositions({ gearThreshold, recruitThreshold: 1_000_000, transferAppetite: 0 }),
     );
-  const fullHall = { infirmary: 3, trainingYard: 3, quarters: 3 } as const;
+  const fullHall = { infirmary: 3, 'training-yard': 3, quarters: 3 } as const;
 
   /** A `disposition` Rival with its Hall built (nothing left to build first), rich, and the Market holding `stacks` alone. */
   function outfitting(

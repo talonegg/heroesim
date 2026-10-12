@@ -137,7 +137,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
       'kinds/descriptions.ts',
       'kinds/dispositions.ts',
       'kinds/encounters.ts',
-      'kinds/improvements.ts',
+      'kinds/facility-effects.ts',
       'kinds/items.ts',
       'kinds/names.ts',
       'kinds/portraits.ts',
@@ -165,7 +165,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
 describe("content repeats none of the engine's values", () => {
   const lists: Record<string, readonly string[]> = {
     encounterKinds: engine.encounterKinds,
-    facilityKeys: engine.facilityKeys,
+    facilityEffectKinds: engine.facilityEffectKinds,
     gearSlotKeys: engine.gearSlotKeys,
     descriptiveAttributes: engineMain.descriptiveAttributes,
     sexes: engine.sexes,

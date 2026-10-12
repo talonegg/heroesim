@@ -1,11 +1,11 @@
 {
-  "infirmary-1": { "facility": "infirmary", "grade": 1, "cost": 200, "name": "Sickroom" },
-  "infirmary-2": { "facility": "infirmary", "grade": 2, "cost": 500, "name": "Infirmary ward" },
-  "infirmary-3": { "facility": "infirmary", "grade": 3, "cost": 1000, "name": "Physicians' wing" },
-  "training-yard-1": { "facility": "trainingYard", "grade": 1, "cost": 200, "name": "Practice yard" },
-  "training-yard-2": { "facility": "trainingYard", "grade": 2, "cost": 500, "name": "Drill ground" },
-  "training-yard-3": { "facility": "trainingYard", "grade": 3, "cost": 1000, "name": "Tiltyard and armoury" },
-  "quarters-1": { "facility": "quarters", "grade": 1, "cost": 200, "name": "Dormitory" },
-  "quarters-2": { "facility": "quarters", "grade": 2, "cost": 500, "name": "Private rooms" },
-  "quarters-3": { "facility": "quarters", "grade": 3, "cost": 1000, "name": "Comfortable lodgings" }
+  "infirmary-1": { "facility": "infirmary", "grade": 1, "cost": 200, "name": "Sickroom", "effects": { "healFactor": 0.5 } },
+  "infirmary-2": { "facility": "infirmary", "grade": 2, "cost": 500, "name": "Infirmary ward", "effects": { "healFactor": 0.3333333333333333 } },
+  "infirmary-3": { "facility": "infirmary", "grade": 3, "cost": 1000, "name": "Physicians' wing", "effects": { "healFactor": 0.25 } },
+  "training-yard-1": { "facility": "training-yard", "grade": 1, "cost": 200, "name": "Practice yard", "effects": { "trainingXp": 2 } },
+  "training-yard-2": { "facility": "training-yard", "grade": 2, "cost": 500, "name": "Drill ground", "effects": { "trainingXp": 4 } },
+  "training-yard-3": { "facility": "training-yard", "grade": 3, "cost": 1000, "name": "Tiltyard and armoury", "effects": { "trainingXp": 6 } },
+  "quarters-1": { "facility": "quarters", "grade": 1, "cost": 200, "name": "Dormitory", "effects": { "moraleBaseline": 5, "fatigueFall": 6 } },
+  "quarters-2": { "facility": "quarters", "grade": 2, "cost": 500, "name": "Private rooms", "effects": { "moraleBaseline": 10, "fatigueFall": 7 } },
+  "quarters-3": { "facility": "quarters", "grade": 3, "cost": 1000, "name": "Comfortable lodgings", "effects": { "moraleBaseline": 15, "fatigueFall": 8 } }
 }

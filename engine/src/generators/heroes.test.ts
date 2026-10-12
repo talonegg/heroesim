@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import type { ContentSet } from '../content-types.js';
 import { heroDescriptionDraws } from '../descriptions.js';
-import { descriptiveAttributeMaxLength, facilityKeys, makeId, type Guild, type Hall, type Hero, type World } from '../document.js';
+import { descriptiveAttributeMaxLength, makeId, type Guild, type Hero, type World } from '../document.js';
 import { heroPortraitsInUse } from '../portraits.js';
 import { createStreams, next, type StreamName } from '../rng.js';
+import { foundedHall } from '../facilities.js';
 import { generateHero } from './heroes.js';
-import { plannedStreams, testDeps, testWorld, withoutPortraits } from '../world.test-support.js';
+import { plannedStreams, testContent, testDeps, testWorld, withoutPortraits } from '../world.test-support.js';
 
 function heroes(world: World, deps = testDeps(), count: number, classKey?: string): Hero[] {
   const made: Hero[] = [];
@@ -34,7 +35,7 @@ function bareGuild(world: World): Guild {
     fame: 0,
     belowFloorSince: null,
     foldedOnTurn: null,
-    hall: Object.fromEntries(facilityKeys.map((key) => [key, 0])) as Hall,
+    hall: foundedHall(testContent),
     controller: { kind: 'player' },
     regard: {},
   };

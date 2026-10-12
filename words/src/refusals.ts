@@ -30,7 +30,8 @@ import { gearUnavailableWords, unavailableWords } from './availability.js';
 import { dateOfTurn, type Calendar } from './calendar.js';
 import { coinWords } from './coins.js';
 import { listed, nameIn, rowOf } from './names.js';
-import { endingWords, facilityIs, facilityNames, ids, say, type CommandSlot, type NameSlot, type Piece, type QuestSlot, type Sentence } from './narrate.js';
+import { facilityIs, facilityName } from './facilities.js';
+import { endingWords, ids, say, type CommandSlot, type NameSlot, type Piece, type QuestSlot, type Sentence } from './narrate.js';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
 
@@ -254,9 +255,9 @@ const sentences: Sentences = {
   // build.
   'build guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and builds nothing.`,
   'build max-grade': ({ facility, grade }, setting) =>
-    say`${player(setting)}'s ${facilityNames[facility]} ${facilityIs[facility]} at grade ${grade}, the highest there is.`,
+    say`${player(setting)}'s ${facilityName(setting.content, facility)} ${facilityIs(setting.content, facility)} at grade ${grade}, the highest there is.`,
   'build insufficient-wealth': ({ facility, cost, wealth }, setting) =>
-    say`The next grade of ${player(setting)}'s ${facilityNames[facility]} costs ${coinWords(cost)}; ${player(setting)} has ${coinWords(wealth)}.`,
+    say`The next grade of ${player(setting)}'s ${facilityName(setting.content, facility)} costs ${coinWords(cost)}; ${player(setting)} has ${coinWords(wealth)}.`,
 
   // equip and unequip.
   'equip guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and equips no one.`,

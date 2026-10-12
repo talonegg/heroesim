@@ -17,7 +17,7 @@ import {
   dayOf,
   descriptiveAttributeLabels,
   descriptiveAttributes,
-  facilityKeys,
+  facilityGrade,
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
@@ -27,6 +27,7 @@ import {
   regardValue,
   retirementTurn,
   retiresOn,
+  topGrade,
   upkeep,
   yearOf,
   type FacilityKey,
@@ -40,7 +41,7 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
+import { capitalised, dateOfTurn, endingWords, facilityDoes, facilityName, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
 import { classMarkOf, type ClassMarked, controllerWords, placeWords } from './names';
 import { readingOf } from './reading';
@@ -154,13 +155,6 @@ function foldedWords(guild: Pick<Guild, 'foldedOnTurn'>, calendar: Calendar): st
 
 // ── A Hall ───────────────────────────────────────────────────────────────────────────────────
 
-/** What each facility does, in the CLI's words (`show hall`), after its name. */
-const facilityDoes: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'shortens the Days an Injury takes to heal',
-  trainingYard: 'gives every Hero on the Roster who is home and unhurt XP each night',
-  quarters: 'raise the Morale the Roster settles toward',
-});
-
 export interface HallRow {
   facility: FacilityKey;
   /** `Training yard`. */
@@ -190,22 +184,20 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
   if (guild === undefined) return null;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? 'none';
-  const topOf = (facility: FacilityKey): number =>
-    Math.max(0, ...Object.values(content.improvements).flatMap((row) => (row.facility === facility ? [row.grade] : [])));
   return {
     guildId: guild.id,
     guildName: guild.name,
     mine: guild.controller.kind === 'player',
-    facilities: facilityKeys.map((facility) => {
-      const grade = guild.hall[facility];
+    facilities: Object.keys(content.facilities).map((facility) => {
+      const grade = facilityGrade(guild.hall, facility);
       const next = nextImprovement(guild, facility, content);
       return {
         facility,
-        name: capitalised(facilityNames[facility]),
+        name: capitalised(facilityName(content, facility)),
         grade,
-        top: topOf(facility),
+        top: topGrade(facility, content),
         built: grade === 0 ? 'none' : builtAt(facility, grade),
-        does: `The ${facilityNames[facility]} ${facilityDoes[facility]}.`,
+        does: `The ${facilityName(content, facility)} ${facilityDoes(content, facility)}.`,
         next: next === null ? null : { name: next.name, cost: next.cost },
       };
     }),

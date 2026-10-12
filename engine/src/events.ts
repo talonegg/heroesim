@@ -7,6 +7,7 @@ import type { FatigueBand, MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
   EncounterKey,
+  FacilityKey,
   ImprovementKey,
   InjuryTypeKey,
   ItemDefinitionKey,
@@ -22,7 +23,6 @@ import type {
   EndingReason,
   EntityId,
   Entry,
-  FacilityKey,
   GuildId,
   EventType,
   GuildmasterId,
