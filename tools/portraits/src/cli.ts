@@ -4,7 +4,7 @@
 // a check that failed or a change refused or undone, and 2 for a command line the tool cannot read.
 // The commands and the draft's shape are in this package's README.
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NotUndone, transaction, Undone } from '@heroesim/content/write';
@@ -26,6 +26,8 @@ export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url
 export const usage = `Usage: npm run portraits -- <command> [--root <dir>] [--json]
 
   convert <source>... [--out <dir>]    Write <name>.webp and <name>.thumb.webp beside each source
+  convert-tree <sourceDir> --out <dir> Convert an entire tree of pictures, preserving subfolders
+               [--overwrite] [--concurrency <n>]
   fingerprint <file or folder>...      Each picture's hash, and the nearest pictures in the register
               [--nearest <n>]
   check                                The register, media/ and the content agree, within the limits
@@ -58,10 +60,24 @@ interface Parsed {
   run: string | null;
   draft: string | null;
   nearest: number;
+  overwrite: boolean;
+  concurrency: number;
 }
 
 function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { command: '', args: [], json: false, root: repositoryRoot, out: null, date: null, run: null, draft: null, nearest: 5 };
+  const parsed: Parsed = {
+    command: '',
+    args: [],
+    json: false,
+    root: repositoryRoot,
+    out: null,
+    date: null,
+    run: null,
+    draft: null,
+    nearest: 5,
+    overwrite: false,
+    concurrency: 4,
+  };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -81,12 +97,18 @@ function parse(argv: readonly string[]): Parsed {
     else if (arg === '--nearest') {
       parsed.nearest = Number(value(arg, index++));
       if (!Number.isInteger(parsed.nearest) || parsed.nearest < 1) throw new UsageError('--nearest wants a whole number of 1 or more');
+    }
+    else if (arg === '--overwrite') parsed.overwrite = true;
+    else if (arg === '--concurrency') {
+      parsed.concurrency = Number(value(arg, index++));
+      if (!Number.isInteger(parsed.concurrency) || parsed.concurrency < 1) throw new UsageError('--concurrency wants a whole number of 1 or more');
     } else if (arg.startsWith('--')) throw new UsageError(`${arg} is not a flag the tool knows`);
     else if (parsed.command === '') parsed.command = arg;
     else parsed.args.push(arg);
   }
   return parsed;
 }
+
 
 /** Every picture a command names: files as named, and every picture in a folder, deep. */
 function picturesNamed(args: readonly string[]): string[] {
@@ -145,6 +167,118 @@ async function commandConvert(options: Parsed, chromium: Chromium): Promise<unkn
   return { converted };
 }
 
+interface ConvertedItem {
+  source: string;
+  file: string;
+  picture: { file: string; bytes: number; quality: number | null };
+  thumbnail: { file: string; bytes: number; quality: number | null };
+}
+
+interface SkippedItem {
+  source: string;
+  file: string;
+  picture: string;
+  thumbnail: string;
+}
+
+interface FailureItem {
+  source: string;
+  file: string;
+  error: string;
+}
+
+interface ConvertTreeResult {
+  ok: boolean;
+  total: number;
+  converted: ConvertedItem[];
+  skipped: SkippedItem[];
+  failures: FailureItem[];
+}
+
+async function commandConvertTree(options: Parsed, chromium: Chromium, io?: Io): Promise<ConvertTreeResult> {
+  if (options.args.length !== 1) throw new UsageError('convert-tree wants one source directory');
+  const sourceDir = path.resolve(options.args[0]!);
+  if (!existsSync(sourceDir) || !statSync(sourceDir).isDirectory()) throw new UsageError(`${options.args[0]}: a directory is wanted`);
+  if (options.out === null) throw new UsageError('convert-tree wants --out <dir>');
+  const destDir = path.resolve(options.out);
+
+  const rawEntries = readdirSync(sourceDir, { recursive: true, encoding: 'utf8' });
+  const relativePictures = rawEntries
+    .filter((rel) => {
+      const full = path.join(sourceDir, rel);
+      return statSync(full).isFile() && isPicture(full) && !/\.thumb\.webp$/i.test(full);
+    })
+    .sort();
+
+  if (relativePictures.length === 0) throw new UsageError(`${options.args[0]}: no pictures found`);
+
+  const converted: ConvertedItem[] = [];
+  const skipped: SkippedItem[] = [];
+  const failures: FailureItem[] = [];
+
+  let completed = 0;
+  const total = relativePictures.length;
+
+  const queue = [...relativePictures];
+  const workers = Array.from({ length: Math.min(total, options.concurrency) }, async () => {
+    while (queue.length > 0) {
+      const rel = queue.shift();
+      if (rel === undefined) break;
+
+      const sourceFile = path.join(sourceDir, rel);
+      const shownName = rel.replace(/\\/g, '/');
+      const relDir = path.dirname(rel);
+      const base = path.basename(rel, path.extname(rel));
+      const targetFolder = path.join(destDir, relDir);
+      const pictureFile = path.join(targetFolder, `${base}.webp`);
+      const thumbnailFile = path.join(targetFolder, `${base}.thumb.webp`);
+
+      if (!options.overwrite && existsSync(pictureFile) && existsSync(thumbnailFile)) {
+        skipped.push({ source: sourceFile, file: shownName, picture: pictureFile, thumbnail: thumbnailFile });
+        completed += 1;
+        if (io && !options.json && (completed % 25 === 0 || completed === total)) {
+          io.out(`[${completed}/${total}] ${shownName} (skipped)`);
+        }
+        continue;
+      }
+
+      try {
+        const drawn = await convert(chromium, dataUrlOf(sourceFile), shownName);
+        mkdirSync(targetFolder, { recursive: true });
+        writeFileSync(pictureFile, drawn.picture.bytes);
+        writeFileSync(thumbnailFile, drawn.thumbnail.bytes);
+        converted.push({
+          source: sourceFile,
+          file: shownName,
+          picture: { file: pictureFile, bytes: drawn.picture.bytes.length, quality: drawn.picture.quality },
+          thumbnail: { file: thumbnailFile, bytes: drawn.thumbnail.bytes.length, quality: drawn.thumbnail.quality },
+        });
+      } catch (error) {
+        failures.push({
+          source: sourceFile,
+          file: shownName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      completed += 1;
+      if (io && !options.json && (completed % 25 === 0 || completed === total)) {
+        io.out(`[${completed}/${total}] ${shownName}`);
+      }
+    }
+  });
+
+  await Promise.all(workers);
+
+  return {
+    ok: failures.length === 0,
+    total,
+    converted,
+    skipped,
+    failures,
+  };
+}
+
 async function commandFingerprint(options: Parsed, chromium: Chromium): Promise<unknown> {
   const files = picturesNamed(options.args);
   if (files.length === 0) throw new UsageError('fingerprint wants a picture, or a folder holding one');
@@ -178,7 +312,7 @@ async function commandFingerprint(options: Parsed, chromium: Chromium): Promise<
 
 type Result = { code: number; json: unknown; text: string[] };
 
-async function dispatch(options: Parsed): Promise<Result> {
+async function dispatch(options: Parsed, io?: Io): Promise<Result> {
   switch (options.command) {
     case 'convert': {
       const json = (await withChromium((chromium) => commandConvert(options, chromium))) as {
@@ -189,6 +323,14 @@ async function dispatch(options: Parsed): Promise<Result> {
           `${each.picture.file}: ${each.picture.bytes} bytes at ${each.picture.quality}; ${each.thumbnail.file}: ${each.thumbnail.bytes} bytes at ${each.thumbnail.quality}`,
       );
       return { code: 0, json, text };
+    }
+    case 'convert-tree': {
+      const result = await withChromium((chromium) => commandConvertTree(options, chromium, io), options.concurrency);
+      const text = [
+        `Done: ${result.converted.length} converted, ${result.skipped.length} skipped, ${result.failures.length} failed (Total: ${result.total})`,
+        ...result.failures.map((f) => `  ${f.file}: ${f.error}`),
+      ];
+      return { code: result.failures.length === 0 ? 0 : 1, json: result, text };
     }
     case 'fingerprint': {
       const json = (await withChromium((chromium) => commandFingerprint(options, chromium))) as {
@@ -258,7 +400,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
   let options: Parsed | null = null;
   try {
     options = parse(argv);
-    const result = await dispatch(options);
+    const result = await dispatch(options, io);
     if (options.json) io.out(JSON.stringify(result.json, null, 2));
     else for (const line of result.text) (result.code === 0 ? io.out : io.err)(line);
     return result.code;

@@ -176,8 +176,8 @@ export function chromiumInstalled(): boolean {
   }
 }
 
-/** Launches Chromium, with one page that every drawing uses. */
-export async function launchChromium(): Promise<Chromium> {
+/** Launches Chromium, with a pool of worker pages that drawings use. */
+export async function launchChromium(concurrency = 1): Promise<Chromium> {
   let browser: Browser;
   try {
     browser = await chromium.launch();
@@ -185,20 +185,42 @@ export async function launchChromium(): Promise<Chromium> {
     const reason = error instanceof Error ? error.message.split('\n')[0] : String(error);
     throw new Error(`Chromium did not start (${reason}); install it with \`npx playwright install chromium\``, { cause: error });
   }
-  const page: Page = await browser.newPage();
-  await page.evaluate(drawScript);
+  const pages: Page[] = [];
+  for (let i = 0; i < Math.max(1, concurrency); i += 1) {
+    const page: Page = await browser.newPage();
+    await page.evaluate(drawScript);
+    pages.push(page);
+  }
+  const available: Page[] = [...pages];
+  const waiters: ((page: Page) => void)[] = [];
+  const acquire = (): Promise<Page> => {
+    const page = available.pop();
+    if (page !== undefined) return Promise.resolve(page);
+    return new Promise((resolve) => waiters.push(resolve));
+  };
+  const release = (page: Page) => {
+    const waiter = waiters.shift();
+    if (waiter !== undefined) waiter(page);
+    else available.push(page);
+  };
+
   const drawEach = async (dataUrl: string, { width, height, aspect = width / height, output }: Drawing, trims: readonly Trim[]): Promise<Drawn[]> => {
-    const request: DrawRequest = { dataUrl, width, height, aspect, trims, output };
-    const results = await page.evaluate(
-      (drawn) => (globalThis as unknown as { heroesimDraw(request: DrawRequest): Promise<DrawResult[]> }).heroesimDraw(drawn),
-      request,
-    );
-    return results.map((result) => ({
-      bytes: Buffer.from(result.base64, 'base64'),
-      quality: result.quality,
-      fits: result.fits,
-      natural: result.natural,
-    }));
+    const page = await acquire();
+    try {
+      const request: DrawRequest = { dataUrl, width, height, aspect, trims, output };
+      const results = await page.evaluate(
+        (drawn) => (globalThis as unknown as { heroesimDraw(request: DrawRequest): Promise<DrawResult[]> }).heroesimDraw(drawn),
+        request,
+      );
+      return results.map((result) => ({
+        bytes: Buffer.from(result.base64, 'base64'),
+        quality: result.quality,
+        fits: result.fits,
+        natural: result.natural,
+      }));
+    } finally {
+      release(page);
+    }
   };
   return {
     async draw(dataUrl, drawing, trim = noTrim) {
@@ -214,11 +236,12 @@ export async function launchChromium(): Promise<Chromium> {
 }
 
 /** Runs `work` with a Chromium, and closes it afterwards whatever happens. */
-export async function withChromium<T>(work: (chromium: Chromium) => Promise<T>): Promise<T> {
-  const running = await launchChromium();
+export async function withChromium<T>(work: (chromium: Chromium) => Promise<T>, concurrency = 1): Promise<T> {
+  const running = await launchChromium(concurrency);
   try {
     return await work(running);
   } finally {
     await running.close();
   }
 }
+

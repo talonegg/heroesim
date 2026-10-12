@@ -171,5 +171,69 @@ describe.skipIf(!chromiumInstalled())('in Chromium', () => {
       expect(json.files.map((each) => each.similar)).toEqual([['gm-female-01'], ['gm-male-01'], ['gm-male-01']]);
       expect(json.files.map((each) => each.similarUploads.map((upload) => path.basename(upload.file)))).toEqual([[], ['two.webp'], ['one.webp']]);
     });
+
+    test('convert-tree converts a tree of pictures preserving subfolders, and skips existing unless --overwrite', async () => {
+      const src = path.join(scratch, 'tree-src');
+      const outDir = path.join(scratch, 'tree-out');
+      mkdirSync(path.join(src, 'female', 'healers'), { recursive: true });
+      mkdirSync(path.join(src, 'male', 'warriors'), { recursive: true });
+      copyFileSync(pictures[1]?.file ?? '', path.join(src, 'female', 'healers', 'cleric.png'));
+      copyFileSync(pictures[0]?.file ?? '', path.join(src, 'male', 'warriors', 'knight.png'));
+
+      let out = '';
+      const code1 = await run(['convert-tree', src, '--out', outDir, '--json'], { out: (text) => (out += text), err: () => undefined });
+      expect(code1).toBe(0);
+      const json1 = JSON.parse(out) as { ok: boolean; total: number; converted: { file: string }[]; skipped: unknown[]; failures: unknown[] };
+      expect(json1.ok).toBe(true);
+      expect(json1.total).toBe(2);
+      expect(json1.converted).toHaveLength(2);
+      expect(json1.skipped).toHaveLength(0);
+      expect(json1.failures).toHaveLength(0);
+
+      expect(existsSync(path.join(outDir, 'female', 'healers', 'cleric.webp'))).toBe(true);
+      expect(existsSync(path.join(outDir, 'female', 'healers', 'cleric.thumb.webp'))).toBe(true);
+      expect(existsSync(path.join(outDir, 'male', 'warriors', 'knight.webp'))).toBe(true);
+      expect(existsSync(path.join(outDir, 'male', 'warriors', 'knight.thumb.webp'))).toBe(true);
+
+      expect(webpSize(readFileSync(path.join(outDir, 'female', 'healers', 'cleric.webp')))).toEqual({ width: 480, height: 640 });
+      expect(webpSize(readFileSync(path.join(outDir, 'female', 'healers', 'cleric.thumb.webp')))).toEqual({ width: 160, height: 213 });
+
+      // Run 2: skips existing by default
+      out = '';
+      const code2 = await run(['convert-tree', src, '--out', outDir, '--json'], { out: (text) => (out += text), err: () => undefined });
+      expect(code2).toBe(0);
+      const json2 = JSON.parse(out) as { converted: unknown[]; skipped: unknown[] };
+      expect(json2.converted).toHaveLength(0);
+      expect(json2.skipped).toHaveLength(2);
+
+      // Run 3: with --overwrite, re-converts
+      out = '';
+      const code3 = await run(['convert-tree', src, '--out', outDir, '--overwrite', '--json'], { out: (text) => (out += text), err: () => undefined });
+      expect(code3).toBe(0);
+      const json3 = JSON.parse(out) as { converted: unknown[]; skipped: unknown[] };
+      expect(json3.converted).toHaveLength(2);
+      expect(json3.skipped).toHaveLength(0);
+    });
+
+    test('convert-tree reports failures and continues when an image is refused', async () => {
+      const src = path.join(scratch, 'tree-fail-src');
+      const outDir = path.join(scratch, 'tree-fail-out');
+      mkdirSync(path.join(src, 'female', 'mages'), { recursive: true });
+      copyFileSync(pictures[1]?.file ?? '', path.join(src, 'female', 'mages', 'good.png'));
+      writeFileSync(path.join(src, 'female', 'mages', 'bad.png'), noisePng(480, 640));
+
+      let out = '';
+      const code = await run(['convert-tree', src, '--out', outDir, '--json'], { out: (text) => (out += text), err: () => undefined });
+      expect(code).toBe(1);
+      const json = JSON.parse(out) as { ok: boolean; total: number; converted: { file: string }[]; failures: { file: string; error: string }[] };
+      expect(json.ok).toBe(false);
+      expect(json.total).toBe(2);
+      expect(json.converted).toHaveLength(1);
+      expect(json.converted[0]?.file).toBe('female/mages/good.png');
+      expect(json.failures).toHaveLength(1);
+      expect(json.failures[0]?.file).toBe('female/mages/bad.png');
+      expect(json.failures[0]?.error).toContain('it is refused');
+    });
   });
 });
+
