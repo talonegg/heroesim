@@ -101,7 +101,7 @@ describe('the Treasury', () => {
 
     expect(within(ledger()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Date', 'What happened', 'Category', 'Amount']);
     const shown = rows();
-    expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
+    expect(shown.map((row) => row[2])).toEqual(['Wages', 'Signing fees', 'Item sales', 'Opening balance']);
     // It opens with the Wealth the Guild was founded with (DL-120 item 4).
     expect(shown[3]).toEqual(['Year 1 Day 1, morning', `Founded with ${coinWords(founded)}`, 'Opening balance', coinWords(founded)]);
     expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
@@ -119,16 +119,16 @@ describe('the Treasury', () => {
     const categories = within(treasury()).getByRole('group', { name: 'Show of category' });
     const words = (group: HTMLElement): string[] => within(group).getAllByRole('button').map((button) => button.textContent ?? '');
     expect(words(flow)).toEqual(['All', 'Income 1', 'Expense 2']);
-    expect(words(categories)).toEqual(['All', 'Upkeep 1', 'Market 1', 'Heroes 1']);
+    expect(words(categories)).toEqual(['All', 'Item sales 1', 'Wages 1', 'Signing fees 1']);
 
     fireEvent.click(within(flow).getByRole('button', { name: /^Income/ }));
     expect(within(flow).getByRole('button', { name: /^Income/ }).getAttribute('aria-pressed')).toBe('true');
     expect(within(flow).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('false');
-    expect(rows().map((row) => row[2])).toEqual(['Market']);
+    expect(rows().map((row) => row[2])).toEqual(['Item sales']);
     expect(totals()).toMatch(new RegExp(`^Income \\+(${amountPattern}) · Expense 0 Silver · Net \\+\\1$`));
     // The categories count their income; those with none greyed.
-    expect(words(categories)).toEqual(['All', 'Upkeep 0', 'Market 1', 'Heroes 0']);
-    expect(within(categories).getByRole('button', { name: /^Upkeep/ }).classList.contains('is-empty')).toBe(true);
+    expect(words(categories)).toEqual(['All', 'Item sales 1', 'Wages 0', 'Signing fees 0']);
+    expect(within(categories).getByRole('button', { name: /^Wages/ }).classList.contains('is-empty')).toBe(true);
 
     // Both ways pressed reads as All: every change, and the opening row.
     fireEvent.click(within(flow).getByRole('button', { name: /^Expense/ }));
@@ -136,14 +136,14 @@ describe('the Treasury', () => {
     expect(rows()).toHaveLength(4);
 
     fireEvent.click(within(flow).getByRole('button', { name: /^Expense/ }));
-    expect(rows().map((row) => row[2])).toEqual(['Upkeep', 'Heroes']);
+    expect(rows().map((row) => row[2])).toEqual(['Wages', 'Signing fees']);
 
-    fireEvent.click(within(categories).getByRole('button', { name: /^Heroes/ }));
-    expect(rows().map((row) => row[2])).toEqual(['Heroes']);
+    fireEvent.click(within(categories).getByRole('button', { name: /^Signing fees/ }));
+    expect(rows().map((row) => row[2])).toEqual(['Signing fees']);
     // A second category: either shown.
-    fireEvent.click(within(categories).getByRole('button', { name: /^Upkeep/ }));
-    expect(rows().map((row) => row[2])).toEqual(['Upkeep', 'Heroes']);
-    fireEvent.click(within(categories).getByRole('button', { name: /^Upkeep/ }));
+    fireEvent.click(within(categories).getByRole('button', { name: /^Wages/ }));
+    expect(rows().map((row) => row[2])).toEqual(['Wages', 'Signing fees']);
+    fireEvent.click(within(categories).getByRole('button', { name: /^Wages/ }));
 
     fireEvent.click(within(flow).getByRole('button', { name: /^Expense/ }));
     fireEvent.click(within(flow).getByRole('button', { name: /^Income/ }));

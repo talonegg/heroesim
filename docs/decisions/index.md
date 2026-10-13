@@ -120,12 +120,12 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-108 | 2026-09-29 | M9 verified and closed: the code review's seven findings fixed, the 50 × 20 sweep's every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-109 | 2026-09-29 | The owner's answers to M9's open questions: Guildmaster Traits drawn as a whole legal set, eight … | item 2 in part by DL-111; item 3 in part by DL-111 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-110 | 2026-09-29 | DL-109 items 1 and 2 built: a drawn Guildmaster's Traits as one whole legal set by the same draws … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-111 | 2026-09-29 | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the … | item 10 by DL-113 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113; item 3 in part by DL-298 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-111 | 2026-09-29 | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the … | item 10 by DL-113; item 5 in part by DL-302 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113; item 3 in part by DL-298; item 6 in part by DL-302 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-113 | 2026-09-29 | The follow-on's plan approved as amended: DL-112's readings confirmed, every Guildmaster 21 to 50 … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-114 | 2026-09-29 | M9-F1 built: the Quest named on what its return causes, Upkeep's parts and Day exported, every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-115 | 2026-09-29 | M9-F2 built: seven views in one order at every width, the Guildmaster and the Market as views, the … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-116 | 2026-09-29 | M9-F3 built: the Guild's Stores and Treasury, the ledger read from the History by six categories … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-116 | 2026-09-29 | M9-F3 built: the Guild's Stores and Treasury, the ledger read from the History by six categories … | item 2 in part by DL-302; item 5 in part by DL-302 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-117 | 2026-09-29 | M9-F4 built: the History's scopes, the player's Guild's and a Rival's History filtered, the rail … | item 5 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-118 | 2026-09-29 | M9-F5 built: a Quest's return read from the History by its Party and Quest, one entry in the rail … | item 4 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-119 | 2026-09-30 | M9's follow-on verified and closed: the code review's ten findings and the six carried answered … | item 1.1 in part by DL-121; item 2.2 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
@@ -311,6 +311,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-299 | 2026-10-12 | The CI minutes: check times out and cancels superseded runs, the watch runs weekly |  | [decision-log](../decision-log.md) |
 | DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [decision-log](../decision-log.md) |
 | DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [decision-log](../decision-log.md) |
+| DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

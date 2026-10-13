@@ -587,3 +587,28 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2-S6 (DL-301)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s6-quick`; the epic's S6 boxes.
 
+## DL-302 — v1.2.2-S7 built: The Treasury's income and expenses
+
+**Status:** Accepted · **Date:** 2026-10-13 · **Decided by:** the agent, on the owner's answers in DL-294 (Q19) and the epic
+
+**Context.** In the first build (DL-111 item 5, DL-112 item 6, DL-116), the Treasury's ledger grouped Wealth movements into six broad categories: Upkeep, Quest rewards, Market, Hall, Heroes, and Other. The player and the harness could not distinguish wages from Hall or Improvement upkeep, item purchases from Hall improvements, or signing fees from Transfers. DL-294 item 4 (Q19) restructures the accounts into ten distinct income and expense lines with section totals.
+
+**Decision.**
+
+1. *The ledger lines* (Q19, `web/src/state/treasury.ts`): Read from History:
+   - Income lines: Quest rewards (`quest.resolved`), Item sales (`item.sold`), Transfers out (`hero.transferred`, the leaving Guild).
+   - Expense lines: Wages (`guild.wages-paid`), the Hall's upkeep (`guild.hall-upkeep-paid` base and Heroes share), the Improvements' upkeep (`guild.hall-upkeep-paid` Facilities share), Item purchases (`item.bought`), Improvements (`guild.improved`), signing fees (`hero.recruited`), Transfers in (`hero.transferred`, the receiving Guild).
+   - Other: `guild.wealth-changed`.
+   Each a line, each section with its total for the period shown. Release payouts join with `v1.2.3`.
+2. *Split charges:* When `guild.hall-upkeep-paid` carries both Hall and Improvement parts, `wealthChangeOf` and `WealthFlows` split it into `'hall-upkeep'` and `'improvement-upkeep'` according to the scaled Facilities upkeep sum, ensuring `hallUpkeep + improvementUpkeep === amount`.
+3. *The harness* (`harness/src/counters.ts`, `game-counters.ts`): `WealthFlows` records all ten lines; the report displays the complete breakdown table and reports shares of spending (across the seven expense lines, summing to 100%) and taking (across the three income lines, summing to 100%).
+4. *Supersedes in part* DL-111 item 5, DL-112 item 6, and DL-116 items 2 and 5.
+
+*Judgement calls, for the owner to see.*
+- Upkeep splitting computes `improvementUpkeep = Math.round(facilitiesSum * traitFactor)` and allocates the remainder `amount - improvementUpkeep` to `hallUpkeep`, ensuring exact conservation of Silver.
+- In `web/src/state/history-reader.ts`, `wealthChanges` allows returning a single `WealthChange` or an array of changes, enabling a single History entry to map to multiple ledger lines.
+
+**Consequences.** The Treasury and harness reports clearly separate every economic flow into its constituent income and expense lines, showing where Wealth originates and where it is spent. The quick run confirms all lines and exact 100% share sums.
+
+**Evidence.** The commit `v1.2.2-S7 (DL-302)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s7-quick`; the epic's S7 boxes.
+

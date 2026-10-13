@@ -486,9 +486,9 @@ export interface WealthFlows {
   improvements: number;
   /** The wages (`guild.wages-paid`). */
   wages: number;
-  /** The Hall's upkeep with its Improvements' (`guild.hall-upkeep-paid`), the Guildmaster's factor applied. */
+  /** The Hall's upkeep alone (`guild.hall-upkeep-paid`), base and Heroes, the Guildmaster's factor applied. */
   hallUpkeep: number;
-  /** Of `hallUpkeep`, each Facility's charge summed (its `facilities`), before the Guildmaster's factor: no part of Spent in all. */
+  /** The Improvements' upkeep (`guild.hall-upkeep-paid`), each Facility's charge with the Guildmaster's factor applied. */
   improvementUpkeep: number;
   questRewards: number;
   transferFeesTaken: number;
@@ -1072,13 +1072,19 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
     into.wages += numberField(entry, 'amount', what);
   });
   each('guild.hall-upkeep-paid', (into, entry, what) => {
-    into.hallUpkeep += numberField(entry, 'amount', what);
+    const amount = numberField(entry, 'amount', what);
     const facilities = payloadField(entry, 'facilities');
     if (typeof facilities !== 'object' || facilities === null) throw new Error(`${what} has no facilities`);
+    let facilitiesSum = 0;
     for (const charge of Object.values(facilities)) {
       if (typeof charge !== 'number') throw new Error(`${what} has a Facility's charge that is no number`);
-      into.improvementUpkeep += charge;
+      facilitiesSum += charge;
     }
+    const factor = typeof payloadField(entry, 'traitFactor') === 'number' ? (payloadField(entry, 'traitFactor') as number) : 1;
+    const improvementUpkeep = Math.round(facilitiesSum * factor);
+    const hallUpkeep = amount - improvementUpkeep;
+    into.hallUpkeep += hallUpkeep;
+    into.improvementUpkeep += improvementUpkeep;
   });
   each('quest.resolved', (into, entry, what) => {
     into.questRewards += numberField(entry, 'wealthDelta', what);

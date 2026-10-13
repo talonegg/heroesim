@@ -995,15 +995,16 @@ describe('sweepPlay', () => {
       const text = playReport(made, context);
       // Wealth (M5's table): the player's 0.5 + 0.5 Guild-years, the Rivals' 2 + 2.
       expect(text).toContain('| Spent: Transfers (`hero.transferred` `fee`, the buying Guild) | 300 | 300.0 | 3,840 | 960.0 |');
-      expect(text).toContain('| Spent in all | 3,000 | 3,000.0 | 11,940 | 2,985.0 |');
+      expect(text).toContain('| Spent in all | 3,120 | 3,120.0 | 12,540 | 3,135.0 |');
       expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
-      expect(text).toContain("The player's Guild: signing 10.0%, Transfers 10.0%, Items 20.0%, Improvements 0.0%, Upkeep 60.0% (wages 50.0%, Hall upkeep 10.0%);");
+      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%;");
+      expect(text).toContain("Shares of the Wealth taken: The player's Guild: Quest rewards 76.3%, Item sales 0.0%, Transfers 23.7%;");
       // The Upkeep's two charges by line, the Improvements' of the Hall's apart and no part of the whole (DL-298).
       expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');
       expect(text).toContain("| Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`) | 300 | 300.0 | 1,500 | 375.0 |");
-      expect(text).toContain("| Of the Hall's, the Improvements' (its `facilities`, before the Guildmaster's factor) | 120 | 120.0 | 600 | 150.0 |");
-      expect(text).toContain('| Spent: Upkeep in all, the two charges | 1,800 | 1,800.0 | 6,000 | 1,500.0 |');
+      expect(text).toContain("| Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid`) | 120 | 120.0 | 600 | 150.0 |");
+      expect(text).toContain('| Spent: Upkeep in all | 1,920 | 1,920.0 | 6,600 | 1,650.0 |');
       // The Transfers by direction and by way, over two games.
       expect(text).toContain("| Into the player's Guild | 3 | 1.50 | 300 | 100 |");
       expect(text).toContain("| Out of the player's Guild | 6 | 3.00 | 930 | 155 |");

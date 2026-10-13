@@ -133,7 +133,7 @@ export function awayAt(history: History, heroId: HeroId, position: number): bool
 export function wealthChanges<Change extends object>(
   history: History,
   guildId: GuildId,
-  changeOf: (entry: Entry) => Change | null,
+  changeOf: (entry: Entry) => Change | readonly Change[] | null,
 ): (Change & { position: number; entry: Entry })[] {
   const positions = positionsOf(history, guildId);
   const changes: (Change & { position: number; entry: Entry })[] = [];
@@ -142,7 +142,14 @@ export function wealthChanges<Change extends object>(
     const entry = history.entries[position];
     if (entry === undefined) continue;
     const change = changeOf(entry);
-    if (change !== null) changes.push({ ...change, position, entry });
+    if (change === null) continue;
+    if (Array.isArray(change)) {
+      for (const item of change) {
+        changes.push({ ...(item as Change), position, entry });
+      }
+    } else {
+      changes.push({ ...(change as Change), position, entry });
+    }
   }
   return changes;
 }

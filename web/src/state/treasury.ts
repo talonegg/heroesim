@@ -37,21 +37,62 @@ import { countdownView } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
 
-/** The ledger's categories, the owner's (DL-111 item 5), mapped to events by DL-112 item 6. */
-export type LedgerCategory = 'upkeep' | 'quest' | 'market' | 'hall' | 'heroes' | 'other';
+/** The ledger's income lines (Q19). */
+export type IncomeLine = 'quest-rewards' | 'item-sales' | 'transfers-out';
+
+/** The ledger's expense lines (Q19). */
+export type ExpenseLine =
+  | 'wages'
+  | 'hall-upkeep'
+  | 'improvement-upkeep'
+  | 'item-purchases'
+  | 'improvements'
+  | 'signing-fees'
+  | 'transfers-in';
+
+/** The ledger's lines (DL-302, Q19): income and expense lines, and 'other' for module events. */
+export type LedgerLine = IncomeLine | ExpenseLine | 'other';
+
+/** The ledger's categories, the lines the owner asked for (DL-302, superseding DL-111 item 5, DL-112 item 6). */
+export type LedgerCategory = LedgerLine;
+
+/** The income lines in the order the Treasury names them. */
+export const incomeLines: readonly IncomeLine[] = ['quest-rewards', 'item-sales', 'transfers-out'];
+
+/** The expense lines in the order the Treasury names them. */
+export const expenseLines: readonly ExpenseLine[] = [
+  'wages',
+  'hall-upkeep',
+  'improvement-upkeep',
+  'item-purchases',
+  'improvements',
+  'signing-fees',
+  'transfers-in',
+];
+
+/** All ledger lines in the order the Treasury names them. */
+export const ledgerLines: readonly LedgerLine[] = [...incomeLines, ...expenseLines, 'other'];
 
 /** The categories in the order the Treasury names them. */
-export const ledgerCategories: readonly LedgerCategory[] = ['upkeep', 'quest', 'market', 'hall', 'heroes', 'other'];
+export const ledgerCategories: readonly LedgerCategory[] = ledgerLines;
 
-/** Each category's name on the page. */
-export const categoryWords: Readonly<Record<LedgerCategory, string>> = Object.freeze({
-  upkeep: 'Upkeep',
-  quest: 'Quest rewards',
-  market: 'Market',
-  hall: 'Hall',
-  heroes: 'Heroes',
+/** Each line's name on the page. */
+export const lineWords: Readonly<Record<LedgerLine, string>> = Object.freeze({
+  'quest-rewards': 'Quest rewards',
+  'item-sales': 'Item sales',
+  'transfers-out': 'Transfers out',
+  wages: 'Wages',
+  'hall-upkeep': 'Hall upkeep',
+  'improvement-upkeep': 'Improvements’ upkeep',
+  'item-purchases': 'Item purchases',
+  improvements: 'Improvements',
+  'signing-fees': 'Signing fees',
+  'transfers-in': 'Transfers in',
   other: 'Other',
 });
+
+/** Each category's name on the page. */
+export const categoryWords: Readonly<Record<LedgerCategory, string>> = lineWords;
 
 /** What an entry did to one Guild's Wealth: its category, and the amount, positive for income. */
 export interface WealthChange {
@@ -59,7 +100,10 @@ export interface WealthChange {
   amount: number;
 }
 
-type Reader<Type extends EngineEventType> = (payload: EngineEventOf<Type>['payload'], guildId: GuildId) => WealthChange | null;
+type Reader<Type extends EngineEventType> = (
+  payload: EngineEventOf<Type>['payload'],
+  guildId: GuildId,
+) => WealthChange | readonly WealthChange[] | null;
 
 /** `amount` in `category` when `mine`; none otherwise. */
 function when(mine: boolean, category: LedgerCategory, amount: number): WealthChange | null {
@@ -78,17 +122,31 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'hero.generated': null,
   'patron.generated': null,
   'world.rules-adopted': null,
-  'guild.wages-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
-  'guild.hall-upkeep-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
+  'guild.wages-paid': (payload, guildId) => when(payload.guildId === guildId, 'wages', -payload.amount),
+  'guild.hall-upkeep-paid': (payload, guildId) => {
+    if (payload.guildId !== guildId) return null;
+    const facilities = payload.facilities ?? {};
+    const facilitiesSum = Object.values(facilities).reduce((total, charge) => total + charge, 0);
+    if (facilitiesSum === 0) {
+      return { category: 'hall-upkeep', amount: -payload.amount };
+    }
+    const factor = payload.traitFactor ?? 1;
+    const improvementPart = Math.round(facilitiesSum * factor);
+    const hallPart = payload.amount - improvementPart;
+    const lines: WealthChange[] = [];
+    if (hallPart !== 0) lines.push({ category: 'hall-upkeep', amount: -hallPart });
+    if (improvementPart !== 0) lines.push({ category: 'improvement-upkeep', amount: -improvementPart });
+    return lines;
+  },
   'guild.below-floor': null,
   'guild.floor-recovered': null,
-  'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'heroes', -payload.fee),
+  'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'signing-fees', -payload.fee),
   'hero.left-pool': null,
   'quest.offered': null,
   'quest.expired': null,
   'quest.taken': null,
   'quest.encounter': null,
-  'quest.resolved': (payload, guildId) => when(payload.guildId === guildId, 'quest', payload.wealthDelta),
+  'quest.resolved': (payload, guildId) => when(payload.guildId === guildId, 'quest-rewards', payload.wealthDelta),
   'quest.loot': null,
   'hero.injured': null,
   'hero.died': null,
@@ -104,7 +162,7 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'guild.folded': null,
   'guildmaster.succeeded': null,
   'hero.left-guild': null,
-  'guild.improved': (payload, guildId) => when(payload.guildId === guildId, 'hall', -payload.cost),
+  'guild.improved': (payload, guildId) => when(payload.guildId === guildId, 'improvements', -payload.cost),
   'guild.captain-named': null,
   'hero.levelled': null,
   'patron.regard-changed': null,
@@ -114,12 +172,14 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'item.equipped': null,
   'item.unequipped': null,
   'item.returned': null,
-  'item.bought': (payload, guildId) => when(payload.guildId === guildId, 'market', -payload.cost),
+  'item.bought': (payload, guildId) => when(payload.guildId === guildId, 'item-purchases', -payload.cost),
   // A folding Guild's unique Items go to the Market for it (`cause: 'fold'`): a sale all the same.
-  'item.sold': (payload, guildId) => when(payload.guildId === guildId, 'market', payload.proceeds),
-  // The fee is paid by the Guild the Hero goes to, to the one they leave.
+  'item.sold': (payload, guildId) => when(payload.guildId === guildId, 'item-sales', payload.proceeds),
+  // The fee is paid by the Guild the Hero goes to (Transfers in), to the one they leave (Transfers out).
   'hero.transferred': (payload, guildId) =>
-    payload.toGuildId === guildId ? { category: 'heroes', amount: -payload.fee } : when(payload.fromGuildId === guildId, 'heroes', payload.fee),
+    payload.toGuildId === guildId
+      ? { category: 'transfers-in', amount: -payload.fee }
+      : when(payload.fromGuildId === guildId, 'transfers-out', payload.fee),
   'guild.transfer-offered': null,
   'guild.transfer-offer-declined': null,
   'guild.transfer-offer-expired': null,
@@ -131,11 +191,17 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
  * none of it, a module's own event among them. An amount of nothing gives no row, as a failed
  * Quest's nil reward does not (DL-116).
  */
-export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): WealthChange | null {
+export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): WealthChange | readonly WealthChange[] | null {
   if (!isEngineEvent(entry)) return null;
   const read = readers[entry.type] as Reader<EngineEventType> | null;
   const change = read === null ? null : read(entry.payload as never, guildId);
-  return change === null || change.amount === 0 ? null : change;
+  if (change === null) return null;
+  if (Array.isArray(change)) {
+    const nonZero = change.filter((c) => c.amount !== 0);
+    return nonZero.length === 0 ? null : nonZero.length === 1 ? nonZero[0]! : nonZero;
+  }
+  const single = change as WealthChange;
+  return single.amount === 0 ? null : single;
 }
 
 // ── The ledger ───────────────────────────────────────────────────────────────────────────────
@@ -175,7 +241,7 @@ function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
 function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: Narration): LedgerRow {
   const segments = narrateSegments(entry as TurnEvent, narration);
   return {
-    key: `ledger-${position}`,
+    key: `ledger-${position}-${category}`,
     when: whenOfTurn(entry.turn, narration.calendar),
     segments,
     sentence: textOf(segments),
@@ -224,11 +290,22 @@ const flowLabels: readonly { key: LedgerFlow; label: string }[] = [
   { key: 'expense', label: 'Expense' },
 ];
 
-/** The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together. */
+/** A section of the ledger totals: its total for the period, and each line's part. */
+export interface LedgerSection<Line extends string = string> {
+  total: number;
+  lines: Record<Line, number>;
+}
+
+/** The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together, and each section with its lines (DL-302, Q19). */
 export interface LedgerTotals {
   income: number;
   expense: number;
   net: number;
+  sections: {
+    income: LedgerSection<IncomeLine>;
+    expenses: LedgerSection<ExpenseLine>;
+    expense: LedgerSection<ExpenseLine>;
+  };
 }
 
 /** The ledger shown: a page of it and what the filters let through. */
@@ -301,11 +378,54 @@ function ledgerFacets(held: readonly LedgerCategory[]): Facets<LedgerChange, 'fl
   };
 }
 
-function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
-  const income = rows.reduce((sum, row) => (row.amount > 0 ? sum + row.amount : sum), 0);
-  const expense = rows.reduce((sum, row) => (row.amount < 0 ? sum + row.amount : sum), 0);
+function zeroLines<Line extends string>(keys: readonly Line[]): Record<Line, number> {
+  const result = {} as Record<Line, number>;
+  for (const key of keys) {
+    result[key] = 0;
+  }
+  return result;
+}
+
+export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
+  const incomeLinesMap = zeroLines(incomeLines);
+  const expenseLinesMap = zeroLines(expenseLines);
+  let income = 0;
+  let expense = 0;
+
+  for (const row of rows) {
+    if (row.amount > 0) {
+      income += row.amount;
+      if (row.category in incomeLinesMap) {
+        incomeLinesMap[row.category as IncomeLine] += row.amount;
+      }
+    } else if (row.amount < 0) {
+      expense += row.amount;
+      if (row.category in expenseLinesMap) {
+        expenseLinesMap[row.category as ExpenseLine] += row.amount;
+      }
+    }
+  }
+
   const net = income + expense;
-  return { income, expense, net };
+  const expensesSection: LedgerSection<ExpenseLine> = {
+    total: expense,
+    lines: expenseLinesMap,
+  };
+  const incomeSection: LedgerSection<IncomeLine> = {
+    total: income,
+    lines: incomeLinesMap,
+  };
+
+  return {
+    income,
+    expense,
+    net,
+    sections: {
+      income: incomeSection,
+      expenses: expensesSection,
+      expense: expensesSection,
+    },
+  };
 }
 
 /**
