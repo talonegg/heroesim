@@ -47,9 +47,11 @@ import {
   observeSave,
   observeWorld,
   playerRanking,
+  playerWealthMonths,
   portraitCounters,
   questsTakenByController,
   regardSnapshot,
+  rivalsAtFloor,
   savedLength,
   type HeroesSeen,
   type SaveSize,
@@ -1690,6 +1692,24 @@ describe("the Targets' counters (DL-259)", () => {
     ]);
   });
 
+  test('a Rival at the Roster floor holding exactly hoardingUpkeeps Upkeeps is not hoarding, and one Silver more is (DL-69 item 4, DL-300)', () => {
+    const { document, rivals } = fixture('counters-hoarding-edge');
+    const { world } = document;
+    const [a] = rivals;
+    a.rosterIds = a.rosterIds.slice(0, shortYears.config.rivalRosterMin);
+    (world.guildmasters[a.guildmasterId] as Guildmaster).traits = [];
+    // An Upkeep divisible by 3, so that 20 ÷ 3 of them is a whole Wealth, the edge itself.
+    a.hallBaseUpkeep += (3 - (upkeep(a, world, shortYears.config, content) % 3)) % 3;
+    const owed = upkeep(a, world, shortYears.config, content);
+    expect(owed % 3).toBe(0);
+    const hoarding = (): number => rivalsAtFloor(world, shortYears)[dispositionOf(a) ?? '']?.hoarding ?? 0;
+
+    a.wealth = (owed * 20) / 3;
+    const atEdge = hoarding();
+    a.wealth += 1;
+    expect(hoarding() - atEdge).toBe(1);
+  });
+
   test("the Board's top Tier, and each side's best four and the Tier it unlocks, as each year begins (DL-271)", () => {
     const { document, player, rivals } = fixture('counters-unlocks');
     const { world } = document;
@@ -1752,6 +1772,18 @@ describe("the Targets' counters (DL-259)", () => {
     census(document, shortYears, months);
 
     expect(months.value()).toEqual([3, -1]);
+  });
+
+  test("the player's Wealth in months is none while it owes no Upkeep: no Roster, no Hall (DL-83 item 7, DL-300)", () => {
+    const { document, player } = fixture('counters-months-none');
+    const { world } = document;
+    player.rosterIds = [];
+    player.hallBaseUpkeep = 0;
+    player.hall = {};
+    player.wealth = 500;
+    expect(upkeep(player, world, shortYears.config, content)).toBe(0);
+
+    expect(playerWealthMonths(world, shortYears)).toBeNull();
   });
 
   test('the Transfers that left their seller below rivalRosterMin, its Roster followed through the Turn from the world it began with', () => {

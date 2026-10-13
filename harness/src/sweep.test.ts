@@ -664,6 +664,19 @@ describe('sweepPlay', () => {
       expect(report.indexOf('## Targets')).toBeLessThan(report.indexOf('## Counters'));
     });
 
+    test("states the policy's Upkeeps as a reader counts them: a whole number as it is, a fraction to two places (DL-62, DL-300)", () => {
+      const policyLine = (recruitWealthMultiple: number, consumableReserveUpkeeps: number): string =>
+        playReport({ ...sweep, policy: { ...sweep.policy, recruitWealthMultiple, consumableReserveUpkeeps } }, context)
+          .split('\n')
+          .find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      const thirds = policyLine(1, 20 / 3);
+      expect(thirds).toContain(' while Wealth exceeds 1 Upkeep and the Roster is below ');
+      expect(thirds).toContain(' once paid, 6.67 Upkeeps (DL-62)');
+      const whole = policyLine(3, 20);
+      expect(whole).toContain(' while Wealth exceeds 3 Upkeeps and the Roster is below ');
+      expect(whole).toContain(' once paid, 20 Upkeeps (DL-62)');
+    });
+
     test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
       expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
       expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);

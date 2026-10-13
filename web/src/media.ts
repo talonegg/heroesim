@@ -40,7 +40,10 @@ export interface Pictured {
  * Every Silhouette and picture under `media/` as the URL the build gives it, keyed by the path Vite
  * resolved it from (`../../media/items/silhouette.svg`): a Silhouette's is a `data:` URL, a
  * picture's `./assets/<name>-<hash>.webp`. The portrait tool's inbox, `media/inbox/`, is never
- * shipped: an upload, or a trial conversion beside it, waits there to be taken in (v1.1.3-S2).
+ * shipped: an upload, or a trial conversion beside it, waits there to be taken in (v1.1.3-S2). Nor
+ * is a folder under a Hero sex's, `portraits/heroes/<sex>/<class>/`: the converted Hero pictures wait
+ * there to be taken in (docs/planning/heroes-portrait-conversion.md), and a Portrait's picture is
+ * found only at `portraits/<role>/<sex>/<key>.webp`.
  */
 const shipped = import.meta.glob<string>(
   ['../../media/**/*.{svg,webp}', '!../../media/inbox/**', '!../../media/portraits/heroes/*/*/**'],

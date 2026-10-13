@@ -262,6 +262,9 @@ describe('upkeep, the measure the readers of Upkeeps count in (DL-298, DL-300)',
     // Non-multiple cadence rounds to whole Silver.
     const nonMultiple = { ...deps.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 30 };
     expect(upkeep(guild, world, nonMultiple, deps.content)).toBe(Math.round((20 * 30) / 7 + 62));
+    // To the nearest Silver, either way: 85.71 + 62 is 148, and 91.43 + 62 is 153.
+    expect(upkeep(guild, world, nonMultiple, deps.content)).toBe(148);
+    expect(upkeep(guild, world, { ...deps.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 32 }, deps.content)).toBe(153);
   });
 
   test('is a selector: no `upkeep` field on the Guild row, at the type level or in a created world', () => {

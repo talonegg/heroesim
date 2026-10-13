@@ -3,7 +3,8 @@ import { sweepTotals } from './counter.js';
 import type { SweepTotals } from './game-counters.js';
 import { coreDeps as deps, content, twentyDays as years } from './harness.test-support.js';
 import type { GameRecord } from './play.js';
-import { machine } from './report.js';
+import { hoardingUpkeeps } from './counters.js';
+import { machine, upkeepsWords } from './report.js';
 import { runReport, type RunReport } from './run-report.js';
 import { seedNames } from './seeds.js';
 import { sweepPlay } from './sweep.js';
@@ -36,6 +37,11 @@ describe('the bands', () => {
       ['transfersBackSoon', 'DL-69 item 4', 'none'],
       ['transfersShort', 'DL-69 item 4', 'none'],
     ]);
+  });
+
+  test('the hoarding lines name the Upkeeps the counter reads, hoardingUpkeeps, as the report words them (DL-69 item 4, DL-300)', () => {
+    const hoarding = targets(['steady']).find((target) => target.key === 'hoarding:steady');
+    expect(hoarding?.what).toContain(` with more than ${upkeepsWords(hoardingUpkeeps)} in hand, `);
   });
 
   test("a band's ends are inside it, but an `under`'s", () => {

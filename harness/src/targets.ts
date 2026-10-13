@@ -11,10 +11,10 @@
 
 import { compareByCodeUnit } from '@heroesim/engine';
 import { sweepTotals } from './counter.js';
-import { countedYear, playerSide } from './counters.js';
+import { countedYear, hoardingUpkeeps, playerSide } from './counters.js';
 import type { SweepTotals } from './game-counters.js';
 import { defaultYears } from './play.js';
-import { fixed, markdownTable, whole } from './report.js';
+import { fixed, markdownTable, upkeepsWords, whole } from './report.js';
 import type { RunReport } from './run-report.js';
 import type { PlaySweep } from './sweep.js';
 
@@ -222,7 +222,7 @@ export function targets(dispositions: readonly string[]): Target[] {
     ...dispositions.map(
       (disposition): Target => ({
         key: `hoarding:${disposition}`,
-        what: `\`${disposition}\` Rivals at the Roster floor (\`rivalRosterMin\` Heroes or fewer) with more than 6.67 Upkeeps in hand, a share of its year-starts`,
+        what: `\`${disposition}\` Rivals at the Roster floor (\`rivalRosterMin\` Heroes or fewer) with more than ${upkeepsWords(hoardingUpkeeps)} in hand, a share of its year-starts`,
         source: 'DL-69 item 4',
         unit: 'share',
         band: { under: 0.5 },

@@ -94,6 +94,11 @@ export function whole(value: number): string {
   return fixed(value, 0);
 }
 
+/** A count of Upkeeps in words: a whole number as it is, a fraction to two places (`20 / 3` is 6.67, DL-300). */
+export function upkeepsWords(count: number): string {
+  return `${Number.isInteger(count) ? whole(count) : fixed(count, 2)} ${count === 1 ? 'Upkeep' : 'Upkeeps'}`;
+}
+
 /** `n` as a share of `of`, to one place: `33.3%`; a dash when `of` is 0 (v1.1.6-S1, DL-186 item 19). */
 export function percent(n: number, of: number): string {
   return of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`;

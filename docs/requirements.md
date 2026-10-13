@@ -250,7 +250,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
   Hero on its Roster that grows with their number, and each built Facility's upkeep, which rises
   with its grade, the Guildmaster's Thrifty or Spendthrift scaling it alone. It is charged apart
   from the Roster's wages, which stay every 10 Days, each for what is there that night (DL-294,
-  DL-298). One Upkeep as a measure is a month of both (DL-294; to be built, v1.2.2).
+  DL-298). One Upkeep as a measure is a month of both (DL-294, DL-300).
 
 ### 3.8 Endings
 

@@ -561,6 +561,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Every game's fingerprint moves with the new config and content versions. Thresholds and reserves in Upkeeps align with the month-based definition while preserving the economic behaviour of S4.
 
 **Evidence.** The commit `v1.2.2-S5 (DL-300)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s5-quick` and its `compare` with `v1.2.2-s4-quick`; the epic's S5 boxes ticked.
+- Verified 2026-10-14 at 4ac28b9: of 36 mutations, three survivors (the measure rounded up, a Rival at the hoarding edge counted, months read with nothing owed) are now killed by new tests, four tuning values surviving by design; the report's policy line printed 6.666666666666667 Upkeeps, now 6.67, the hoarding Target's text reads its constant, and R43, a test's comment and name and the media comments, which still read the old measure or the inbox alone, rewritten.
 
 ## DL-301 — v1.2.2-S6 built: Loot-only values, and the surplus sold
 

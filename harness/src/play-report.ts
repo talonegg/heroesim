@@ -9,7 +9,7 @@ import { sections, sweepTotals, type ReportContext, type Section } from './count
 import { harnessSetup } from './creation.js';
 import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
 import { defaultYears } from './play.js';
-import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
+import { fixed, localTimestamp, markdownTable, upkeepsWords, whole, type Machine } from './report.js';
 import { summarise, type Summary } from './stats.js';
 import { sweepFingerprint, type PlaySweep } from './sweep.js';
 import { targetsOf, targetsSection, type TargetsReport } from './targets.js';
@@ -158,10 +158,10 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       `serves the Quest (DL-62); one purchase a Turn: the next grade of the first Facility that heals while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
-      `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +
+      `Wealth exceeds ${upkeepsWords(sweep.policy.recruitWealthMultiple)} and the Roster is below ${sweep.policy.rosterLimit}, ` +
       `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
-      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${sweep.policy.consumableReserveUpkeeps} ` +
-      `Upkeeps (DL-62); never sell; never transfer a Hero in or out.`,
+      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${upkeepsWords(sweep.policy.consumableReserveUpkeeps)} ` +
+      `(DL-62); never sell; never transfer a Hero in or out.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,

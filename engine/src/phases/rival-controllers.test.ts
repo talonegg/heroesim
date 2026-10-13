@@ -53,7 +53,7 @@ vi.mock('../actions/buy.js', async (importOriginal) => {
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * INPUTS 4.6's wage and 4.12's three Upkeeps (one Upkeep a month of costs, DL-300), under which every
+ * INPUTS 4.6's wage and 4.12's threshold, one Upkeep, a month of costs (DL-300), under which every
  * starting Rival has the Wealth to recruit on its first afternoon: the tests that watch a recruit pin
  * them on every Disposition, since the balance passes raised both (DL-35, DL-41) and the threshold is
  * in the rows (DL-56).

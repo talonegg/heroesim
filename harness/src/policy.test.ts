@@ -422,7 +422,7 @@ describe('automaticPolicy', () => {
       return { document, guild, threshold: defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content) };
     }
 
-    test('the cheapest Unattached Hero, lowest id among equal fees, when Wealth exceeds three Upkeeps', () => {
+    test('the cheapest Unattached Hero, lowest id among equal fees, when Wealth exceeds recruitWealthMultiple Upkeeps', () => {
       const { document, guild } = recruiting(10_000);
       const pool = unattachedHeroes(document.world);
       const cheapest = Math.min(...pool.map((hero) => signingFee(hero, deps)));

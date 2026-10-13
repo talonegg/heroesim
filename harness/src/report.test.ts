@@ -10,6 +10,7 @@ import {
   percent,
   reportPath,
   reportsDir,
+  upkeepsWords,
   whole,
   writeReport,
 } from './report.js';
@@ -31,6 +32,13 @@ describe('numbers', () => {
     expect(fixed(0.1234, 3)).toBe('0.123');
     expect(fixed(Number.NaN)).toBe('—');
     expect(whole(1000)).toBe('1,000');
+  });
+
+  test('upkeepsWords gives a whole count as it is and a fraction to two places, one Upkeep singular (DL-300)', () => {
+    expect(upkeepsWords(1)).toBe('1 Upkeep');
+    expect(upkeepsWords(20)).toBe('20 Upkeeps');
+    expect(upkeepsWords(20 / 3)).toBe('6.67 Upkeeps');
+    expect(upkeepsWords(0.5)).toBe('0.50 Upkeeps');
   });
 
   // DL-186 item 19, DL-187: one share formatter for the play report and the Succession probe's.
