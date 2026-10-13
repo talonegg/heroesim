@@ -340,7 +340,7 @@ export {
   type RegardContext,
   type ResolvedForRegard,
 } from './regard.js';
-export { facilityGrade, topGrade } from './facilities.js';
+export { facilityGrade, facilityUpkeep, topGrade } from './facilities.js';
 export { fatigueBand } from './fatigue.js';
 export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';

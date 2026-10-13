@@ -312,6 +312,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [decision-log](../decision-log.md) |
 | DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [decision-log](../decision-log.md) |
 | DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [decision-log](../decision-log.md) |
+| DL-303 | 2026-10-14 | v1.2.2-S8 built: The page and the CLI |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

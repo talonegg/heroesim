@@ -6,8 +6,7 @@
 // A part of the Guild, its tab's panel (DL-103, DL-111 items 5 to 7, DL-112 item 5); the
 // Guildmaster and the Market are views of their own. Each facility is one
 // row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
-// defines, what it does, and "Build <name> · <cost>". The Upkeep, which each grade adds to, is the
-// Treasury's (DL-112 item 6, DL-116).
+// defines, what it does, its upkeep in coins, and "Build <name> · <cost>".
 
 import type { WorldDocument } from '@heroesim/engine';
 import { coinWords } from '@heroesim/words';
@@ -38,6 +37,7 @@ export function HallDetails({ view, busy = false, play }: { view: HallView; busy
                 {'○'.repeat(Math.max(0, row.top - row.grade))}
               </span>
               {row.built === 'none' ? null : <span className="subtle">{row.built}</span>}
+              <span className="subtle">Upkeep <Coins silver={row.upkeep} /></span>
             </span>
             <span className="facility__does">{row.does}</span>
             <span className="facility__next">

@@ -612,3 +612,27 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2-S7 (DL-302)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s7-quick`; the epic's S7 boxes.
 
+## DL-303 — v1.2.2-S8 built: The page and the CLI
+
+**Status:** Accepted · **Date:** 2026-10-14 · **Decided by:** the agent, on the owner's answers in DL-294 and the epic
+
+**Context.** In the first build (DL-106, DL-111, DL-112), the Hall's facilities did not display individual upkeeps, the Upkeep sentence having moved to the Treasury (DL-112 item 6). DL-294 items 1–4 and the epic define the presentation across the web interface and CLI: each Facility in the Hall showing its grade, upkeep, and next grade's price; the Treasury's Upkeep section with wages every 10 Days and the Hall's upkeep every 30 Days; the Guilds table displaying Upkeep a month; and the CLI's `build` command and `show hall` render.
+
+**Decision.**
+
+1. *The Hall* (`web/src/views/hall.tsx`, `web/src/state/world-views.ts`): Each Facility row displays its name, grade pips, built Improvement, upkeep at its grade in coins (`Coins`), what it does, and next grade's Improvement and price (with Build button on the player's own Hall). `facilityUpkeep` is exported from `@heroesim/engine` and `HallRow` carries `upkeep: number`.
+2. *The Treasury* (`web/src/views/treasury.tsx`, `web/src/state/treasury.ts`): Displays its two sections: Upkeep (`<h3>Upkeep</h3>` with wages every 10 Days sentence, Hall upkeep every 30 Days sentence, and Bankruptcy floor) and Ledger (`<h3>Ledger</h3>` with income, expense, net totals, and ten lines).
+3. *The Guilds table* (`web/src/views/guilds.tsx`, `cli/src/render.ts`): Displays Upkeep a month (`upkeep(guild, world, config, content)` from S5/DL-300) in coins.
+4. *Stops and Hero page amounts* (`web/src/views/stop.tsx`, `web/src/views/hero-page.tsx`): Display amounts formatted in coins (`Coins` or `coinWords`), including rewards, signing fees, and transfer fees.
+5. *The CLI* (`cli/src/commands/build.ts`, `cli/src/render.ts`): `build` reports the built Improvement, cost, Wealth, wages every 10 Days, Hall upkeep every 30 Days, and next grade cost; `show hall` renders each facility, grade, built Improvement, next grade, and cost.
+6. *E2E spec* (`web/e2e/journey.spec.ts`): Updates recruitment ledger row regex to match S7's `Signing fees` category.
+7. *Supersedes in part* DL-112 item 6.
+
+*Judgement calls, for the owner to see.*
+- Each Facility row in the Hall displays `Upkeep <Coins silver={row.upkeep} />` beside the grade pips and built Improvement, rendering 0 Silver at grade 0 and the scaled upkeep at higher grades.
+- The journey e2e spec accepts both `Signing fees` and legacy `Heroes` category text for signing entries in the ledger table.
+
+**Consequences.** Players see the upkeep contribution of each Facility directly in the Hall. The e2e test suite passes across all three viewports (360, 820, and 1280 wide), and the production bundle passes within the 900 kB budget.
+
+**Evidence.** The commit `v1.2.2-S8 (DL-303)`: the checks with their counts, the doctors' readings, e2e passing across phone, tablet and desktop viewports, and the bundle check passing within budget; the epic's S8 boxes.
+

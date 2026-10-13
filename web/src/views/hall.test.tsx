@@ -27,7 +27,7 @@ function facility(name: string): HTMLElement {
 }
 
 describe("the Hall's facilities (the review's B9)", () => {
-  test('are one row each: the grade as pips to the top grade, what it does, and Build with its cost; the Upkeep is not here', () => {
+  test('are one row each: the grade as pips to the top grade, its upkeep in coins, what it does, and Build with its cost', () => {
     renderHall(
       changed(started(), (_, player) => {
         player.hall.infirmary = 1;
@@ -50,7 +50,10 @@ describe("the Hall's facilities (the review's B9)", () => {
     expect(within(quarters).getByRole('img', { name: 'Grade 3 of 3' }).textContent).toBe('●●●');
     expect(within(quarters).getByText('At the top grade')).toBeDefined();
     expect(within(quarters).queryByRole('button')).toBeNull();
-    // The Upkeep sentence left the Hall for the Treasury (DL-112 item 6).
-    expect(screen.queryByText(/Upkeep/)).toBeNull();
+    // Each Facility gives its upkeep at its grade in coins (DL-294 item 3, DL-298).
+    const upkeepOf = (el: HTMLElement): HTMLElement => within(el).getByText((_, node) => node?.classList.contains('subtle') === true && node.textContent?.startsWith('Upkeep') === true);
+    expect(silverOf(upkeepOf(infirmary))).toBe(10);
+    expect(silverOf(upkeepOf(facility('Training yard')))).toBe(0);
+    expect(silverOf(upkeepOf(quarters))).toBe(30);
   });
 });

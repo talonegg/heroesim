@@ -18,6 +18,7 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributes,
   facilityGrade,
+  facilityUpkeep,
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
@@ -164,6 +165,8 @@ export interface HallRow {
   top: number;
   /** The Improvement built at its grade, or `none`. */
   built: string;
+  /** What the facility costs to keep each time the Hall's upkeep falls due (DL-294 item 3, DL-298). */
+  upkeep: number;
   /** `The training yard gives …`. */
   does: string;
   /** The next grade's Improvement and cost (`nextImprovement`), or `null` at the top grade. */
@@ -182,6 +185,7 @@ export interface HallView {
 export function hallView(document: WorldDocument, guildId?: GuildId): HallView | null {
   const guild = guildOf(document, guildId);
   if (guild === undefined) return null;
+  const { config } = readingOf(document).deps;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? 'none';
   return {
@@ -189,6 +193,7 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
     guildName: guild.name,
     mine: guild.controller.kind === 'player',
     facilities: Object.keys(content.facilities).map((facility) => {
+      const def = content.facilities[facility];
       const grade = facilityGrade(guild.hall, facility);
       const next = nextImprovement(guild, facility, content);
       return {
@@ -197,6 +202,7 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
         grade,
         top: topGrade(facility, content),
         built: grade === 0 ? 'none' : builtAt(facility, grade),
+        upkeep: def === undefined ? 0 : facilityUpkeep(def, grade, config),
         does: `The ${facilityName(content, facility)} ${facilityDoes(content, facility)}.`,
         next: next === null ? null : { name: next.name, cost: next.cost },
       };

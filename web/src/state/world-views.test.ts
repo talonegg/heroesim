@@ -4,6 +4,7 @@ import {
   baseStat,
   createWorld,
   defaultConfig,
+  facilityUpkeep,
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
@@ -162,13 +163,16 @@ describe('hallView', () => {
     expect(view?.mine).toBe(true);
     expect(view?.facilities.map((row) => row.facility)).toEqual(Object.keys(content.facilities));
     for (const row of view?.facilities ?? []) {
+      const def = content.facilities[row.facility];
+      if (def === undefined) throw new Error(`no ${row.facility}`);
       const next = nextImprovement(guild, row.facility, content);
       expect(row.grade).toBe(guild.hall[row.facility]);
       expect(row.next).toEqual(next === null ? null : { name: next.name, cost: next.cost });
+      expect(row.upkeep).toBe(facilityUpkeep(def, row.grade, deps.config));
       expect(row.does).toBe(`The ${facilityName(content, row.facility)} ${facilityDoes(content, row.facility)}.`);
     }
-    expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null });
-    expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none' });
+    expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null, upkeep: 30 });
+    expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none', upkeep: 0 });
     // The Upkeep left the Hall for the Treasury (DL-112 item 6).
     expect(view).not.toHaveProperty('upkeep');
   });
