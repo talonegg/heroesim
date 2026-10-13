@@ -28,6 +28,7 @@ import {
   offersTo,
   partyPool,
   playerGuild,
+  surplusChoices,
   upkeep,
   type BestParties,
   type ConsumableEffectKind,
@@ -163,6 +164,10 @@ export function automaticPolicy(
     // cannot from fewer.
     choices = staffed(best, choices.filter((other) => other !== choice).map((other) => other.quest), available);
   }
+
+  // DL-301: sell surplus outside the afternoon's one purchase
+  const surplus = surplusChoices(world, guild, keeping(policy), deps, actions);
+  actions.push(...surplus);
 
   const purchase =
     healingBuild(guild, deps, policy) ??

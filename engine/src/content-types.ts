@@ -822,11 +822,15 @@ interface ItemDefinitionBase {
    */
   unique: boolean;
   /**
-   * The Wealth one costs at the Market, a whole number above 0; `null` for an Item the Market never
-   * stocks, found only as Loot. The Market's refresh draws stacks, so it never stocks a unique Item,
-   * whatever its price (DL-48).
+   * The Wealth one costs at the Market, a whole number above 0; present for an Item stocked at the Market
+   * (DL-48, DL-301). Exactly one of `buyPrice` and `value` is present on an Item definition.
    */
-  buyPrice: number | null;
+  buyPrice?: number;
+  /**
+   * The Wealth one is valued at, a whole number above 0; present for an Item found only as Loot (DL-301).
+   * Exactly one of `buyPrice` and `value` is present on an Item definition.
+   */
+  value?: number;
   /** Kebab-case words, none twice; may be none. */
   tags: ItemTagKey[];
 }

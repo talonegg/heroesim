@@ -306,12 +306,15 @@ function gear(
   key: string,
   slot: SlotKey,
   modifiers: string,
-  buyPrice: number | null,
+  priceOrValue: number | { buyPrice?: number; value?: number },
   tags: string[],
   unique = false,
 ): [string, ItemDefinition] {
   const statModifiers = Object.fromEntries(demandsOf(modifiers));
-  return [key, { key, name: title(key), kind: 'gear', unique, slot, statModifiers, buyPrice, tags }];
+  const pricing = typeof priceOrValue === 'number'
+    ? (unique ? { value: priceOrValue } : { buyPrice: priceOrValue })
+    : priceOrValue;
+  return [key, { key, name: title(key), kind: 'gear', unique, slot, statModifiers, ...pricing, tags }];
 }
 
 /** A common consumable definition from its effect, its price and its tags. */
@@ -578,11 +581,11 @@ export const testContent: ContentSet = deepFreeze({
     consumable('blessed-candle', { kind: 'reroll', kinds: ['arcane', 'social'] }, 60, ['holy']),
     consumable('healing-draught', { kind: 'heal', days: 5 }, 30, ['potion']),
     consumable('physicians-kit', { kind: 'heal', days: 10 }, 70, ['tool']),
-    gear('barrow-kings-blade', 'weapon', 'weaponry:4 strength:2 courage:1', null, ['relic'], true),
-    gear('vault-wardens-staff', 'weapon', 'arcana:3 power:3', null, ['relic'], true),
-    gear('mantle-of-the-fells', 'armour', 'endurance:3 constitution:2 adaptability:1', null, ['relic'], true),
-    gear('lantern-of-stannary', 'trinket', 'perception:3 wits:2', null, ['relic'], true),
-    gear('abbots-reliquary', 'trinket', 'spirit:3 willpower:2 resistance:1', null, ['relic', 'holy'], true),
+    gear('barrow-kings-blade', 'weapon', 'weaponry:4 strength:2 courage:1', 600, ['relic'], true),
+    gear('vault-wardens-staff', 'weapon', 'arcana:3 power:3', 600, ['relic'], true),
+    gear('mantle-of-the-fells', 'armour', 'endurance:3 constitution:2 adaptability:1', 600, ['relic'], true),
+    gear('lantern-of-stannary', 'trinket', 'perception:3 wits:2', 600, ['relic'], true),
+    gear('abbots-reliquary', 'trinket', 'spirit:3 willpower:2 resistance:1', 600, ['relic', 'holy'], true),
   ]),
   // The core's two (DL-52), by difficulty band: each entry `definition:weight:quantity range`.
   lootTables: Object.fromEntries([

@@ -415,7 +415,7 @@ export function reviewPage(input: ReviewInput, { fragment = false }: { fragment?
           `<span id="item-${esc(it.key)}">${esc(it.name)}</span>`,
           it.kind === 'gear' ? capitalised(it.slot) : 'Consumable',
           it.kind === 'gear' ? esc(modifierWords(it, content)) : '',
-          it.buyPrice === null ? '—' : coinWords(it.buyPrice),
+          it.buyPrice !== undefined ? coinWords(it.buyPrice) : '—',
           esc(notes.items?.[it.key] ?? ''),
         ]),
       )}`,

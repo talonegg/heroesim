@@ -444,7 +444,10 @@ describe('loadContent()', () => {
 
     test('make the unique gear Loot only, among them one of each slot', () => {
       const unique = gear.filter((it) => it.unique);
-      for (const it of unique) expect(it.buyPrice, it.key).toBeNull();
+      for (const it of unique) {
+        expect(it.value, it.key).toBe(600);
+        expect(it.buyPrice, it.key).toBeUndefined();
+      }
       expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(gearSlotKeys));
     });
 
@@ -471,7 +474,11 @@ describe('loadContent()', () => {
       const worth = (table: (typeof tables)[number]): number => {
         const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
         const value = table.entries.reduce(
-          (sum, entry) => sum + entry.weight * ((entry.quantityMin + entry.quantityMax) / 2) * (content.items[entry.definitionKey]?.buyPrice ?? 0),
+          (sum, entry) =>
+            sum +
+            entry.weight *
+              ((entry.quantityMin + entry.quantityMax) / 2) *
+              (content.items[entry.definitionKey]?.buyPrice ?? content.items[entry.definitionKey]?.value ?? 0),
           0,
         );
         return value / total;

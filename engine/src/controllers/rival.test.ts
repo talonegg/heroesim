@@ -5,7 +5,7 @@ import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
-import { addStack, holdings } from '../items.js';
+import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
@@ -1448,3 +1448,63 @@ describe('heal Items: a Rival buys them in its gear step and carries them on dis
     expect(left('physicians-kit')).toBe(0);
   });
 });
+
+// ── Surplus and debt (DL-301, Q18) ────────────────────────────────────────────────────────────
+
+describe('surplus and debt (DL-301, Q18)', () => {
+  const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
+  test('sells surplus outside its purchase step', () => {
+    const deps = testDeps({ rivalHealItemStock: 2 });
+    const { world, rival } = scene('surplus-sale', deps);
+    // Equip all heroes with weapon, armour, trinket:
+    for (const heroId of rival.rosterIds) {
+      addStack(world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+      addStack(world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+      addStack(world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+    }
+    // Add extra gear, non-heal consumable and loot-only item to vault:
+    const sword = addStack(world, 'short-sword', 1, vaultOf(rival));
+    const whetstone = addStack(world, 'whetstone', 2, vaultOf(rival));
+    const blade = createItem(world, 'barrow-kings-blade', vaultOf(rival));
+
+    const choices = rivalChoices(world, rival, deps);
+    const sells = choices.filter((a) => a.kind === 'sell');
+    expect(sells).toEqual([
+      { kind: 'sell', guildId: rival.id, itemId: blade },
+      { kind: 'sell', guildId: rival.id, stackId: sword, quantity: 1 },
+      { kind: 'sell', guildId: rival.id, stackId: whetstone, quantity: 2 },
+    ]);
+  });
+
+  test('a Rival in debt sells its holding first before transferring a Hero out', () => {
+    const deps = testDeps({ rivalHealItemStock: 2 });
+    const { world, rival } = scene('debt-holding-first', deps, 'ambitious');
+    for (const other of rivalsOf(world)) {
+      if (other.id !== rival.id) other.wealth = 100_000;
+    }
+    rival.wealth = -2000;
+    rival.belowFloorSince = 0;
+
+    // Put a piece of gear and a consumable in the holding:
+    const blade = createItem(world, 'barrow-kings-blade', vaultOf(rival));
+    const draughts = addStack(world, 'healing-draught', 2, vaultOf(rival));
+
+    const choices = rivalChoices(world, rival, deps);
+    // It sells the holding items, and DOES NOT transfer a hero out!
+    expect(choices.filter((a) => a.kind === 'sell')).toEqual([
+      { kind: 'sell', guildId: rival.id, itemId: blade },
+      { kind: 'sell', guildId: rival.id, stackId: draughts, quantity: 2 },
+    ]);
+    expect(choices.some((a) => a.kind === 'transferOut')).toBe(false);
+
+    // Apply the sales:
+    for (const action of choices.filter((a) => a.kind === 'sell')) {
+      expect(applyGuildAction(world, action, deps)).toMatchObject({ ok: true });
+    }
+
+    // Now the holding is empty of saleable items; next afternoon in debt, it transfers out:
+    const nextChoices = rivalChoices(world, rival, deps);
+    expect(nextChoices.some((a) => a.kind === 'transferOut')).toBe(true);
+  });
+});
+

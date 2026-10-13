@@ -1119,11 +1119,13 @@ describe('the Quest named on what its return causes', () => {
     // 036f6031…, which its old spelling gives again: no play moved); and the Hall's upkeep with its
     // Improvements' charged apart from the wages every 30 Days, a base, a share for each Hero and each
     // Facility's, in `guild.wages-paid` and `guild.hall-upkeep-paid` (DL-298; 1d3cdc9c…, 31fb72fd… and
-    // 015a5606…), which moves every Guild's Wealth and so its purchases.
+    // 015a5606…), which moves every Guild's Wealth and so its purchases; and the surplus sold by
+    // Rivals outside the purchase step (DL-301; d0d1d4eb…, 52d50c39… and 9bc95dbc…), which moves each
+    // Guild's Wealth and gear.
     expect(fingerprints).toEqual([
-      'd0d1d4ebb7d20731b26ac8afd9e536f323e53d35c3a3d0676420df2c9361154a',
-      '52d50c39f0d6447796a90b708d7da3aa9f6f4a61a2d93a9c7fba052d6c767b70',
-      '9bc95dbcc20fafe5dda638847a0bb10cf7ca7a0bfc0183366f18c8dcf85c6588',
+      'ce0f9958d3fc5b816d08426645ab2809953f0ac9cb78b0e17dcae45e955e5543',
+      'c7cff6d61d943c66a4506a99688cfa8c3aa75ea12401f8ae015c86fb02dedab8',
+      '1e05000c3407cf2e27a678ca5ed2eefb5cb4f0c92514258cb492a03af08c62a6',
     ]);
   });
 

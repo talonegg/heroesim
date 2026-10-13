@@ -25,7 +25,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, marketHolder } from '@heroesim/engine/testing';
+import { createItem, makeId, marketHolder } from '@heroesim/engine/testing';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -745,7 +745,7 @@ describe('automaticPolicy', () => {
         { definitionKey: 'whetstone', quantity: 1 },
       ]);
       expect(sent[1]?.consumables).toEqual([{ definitionKey: 'blessed-candle', quantity: 1 }]);
-      // Applied in order, every one is accepted, and what was not carried stays at home.
+      // Applied in order, every one is accepted, and what was not carried or sold as surplus stays at home.
       for (const action of actions) {
         const result = applyAction(document, action, deps);
         expect(result.ok, action.kind).toBe(true);
@@ -754,8 +754,8 @@ describe('automaticPolicy', () => {
       const home = holdings(document.world, vault).stacks.map((stack) => [stack.definitionKey, stack.quantity]);
       expect(home).toEqual(
         expect.arrayContaining([
-          ['whetstone', 2],
-          ['lockpicks', 3],
+          ['whetstone', 1],
+          ['lockpicks', 2],
           ['blessed-candle', 1],
         ]),
       );
@@ -849,5 +849,51 @@ describe('automaticPolicy', () => {
     openBoard(quests);
     document.world.ended = { turn: 0, reason: 'bankruptcy' };
     expect(automaticPolicy(document, deps)).toEqual([]);
+  });
+
+  describe('sells surplus outside its purchase step (DL-301, Q18)', () => {
+    test('sells surplus gear, consumables above stock, and loot-only items in holding', () => {
+      const { document, guild } = scene('policy-surplus');
+      const vault = { kind: 'guild', id: guild.id } as const;
+      for (const heroId of guild.rosterIds) {
+        addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+        addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+        addStack(document.world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+      }
+      const sword = addStack(document.world, 'short-sword', 1, vault);
+      const draughts = addStack(document.world, 'healing-draught', 3, vault);
+      const blade = createItem(document.world, 'barrow-kings-blade', vault);
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      const sells = actions.filter((a) => a.kind === 'sell');
+      expect(sells).toEqual([
+        { kind: 'sell', guildId: guild.id, itemId: blade },
+        { kind: 'sell', guildId: guild.id, stackId: sword, quantity: 1 },
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 1 },
+      ]);
+    });
+
+    test('in debt, sells the entire holding', () => {
+      const { document, guild } = scene('policy-debt');
+      document.world.board = [];
+      for (const heroId of guild.rosterIds) {
+        addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+        addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+        addStack(document.world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+      }
+      guild.belowFloorSince = 0;
+      const vault = { kind: 'guild', id: guild.id } as const;
+      const blade = createItem(document.world, 'barrow-kings-blade', vault);
+      const draughts = addStack(document.world, 'healing-draught', 2, vault);
+      const sword = addStack(document.world, 'short-sword', 1, vault);
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      const sells = actions.filter((a) => a.kind === 'sell');
+      expect(sells).toEqual([
+        { kind: 'sell', guildId: guild.id, itemId: blade },
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 2 },
+        { kind: 'sell', guildId: guild.id, stackId: sword, quantity: 1 },
+      ]);
+    });
   });
 });

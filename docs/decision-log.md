@@ -561,3 +561,29 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Every game's fingerprint moves with the new config and content versions. Thresholds and reserves in Upkeeps align with the month-based definition while preserving the economic behaviour of S4.
 
 **Evidence.** The commit `v1.2.2-S5 (DL-300)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s5-quick` and its `compare` with `v1.2.2-s4-quick`; the epic's S5 boxes ticked.
+
+## DL-301 — v1.2.2-S6 built: Loot-only values, and the surplus sold
+
+**Status:** Accepted · **Date:** 2026-10-13 · **Decided by:** the agent, on the owner's answers in DL-294 (Q13, Q18) and §2's defaults
+
+**Context.** In the first build (DL-48, DL-51), items found only as loot had `buyPrice: null`, and the Market Engine priced them with a single flat config setting `lootOnlyPrice` 600. Rivals and the harness policy never sold items to the Market (DL-51 item 8, DL-58 item 6), causing gear and consumables to pile up in holdings indefinitely (#25). DL-294 item 5 (Q13, Q18) redesigns item values and surplus liquidation.
+
+**Decision.**
+
+1. *Loot-only values* (Q13): An Item definition holds exactly one of `buyPrice` and `value` (a whole number above 0); the five loot-only Items (`barrow-kings-blade`, `vault-wardens-staff`, `mantle-of-the-fells`, `lantern-of-stannary`, `abbots-reliquary`) carry their own `value` (600 each, today's `lootOnlyPrice`). `lootOnlyPrice` leaves config (*config* 34, *content* 49). `marketPrice` returns `buyPrice ?? value ?? null`; a standard sale is `floor(price × sellRatio)`; a folding Guild's unique Items sell at their `value`.
+2. *The surplus* (Q18, DL-288, `engine/src/surplus.ts`): Outside the afternoon's one purchase, Rivals and the policy sell surplus from holding:
+   - loot-only Items in holding (which no Hero carries);
+   - consumables of effects not kept, and excess units above the Guild's stock (`rivalHealItemStock` 2 for Rivals keeping `heal` only; policy keeps every effect to `consumableStock`), counting holding and Parties together;
+   - gear in holding no Hero would equip over what they carry (beyond what living Heroes lack in each slot, best pieces kept first).
+   Planned equips and dispatches are deducted before surplus is determined.
+3. *Debt order* (Q18): When in debt (`belowFloorSince !== null`), a Guild sells its entire holding first; a Rival does not initiate debt transfers while holding items remain to sell.
+4. *Supersedes in part* DL-51 items 2, 6, 7 and 8.
+
+*Judgement calls, for the owner to see.*
+- Gear ranking uses `worthOf` (sum of stat modifiers), keeping the best pieces in holding for living heroes lacking gear in that slot.
+- Dispatched consumables and planned equips in the same turn are reserved and protected from surplus sale.
+
+**Consequences.** Rivals and the policy actively liquidate surplus, preventing holding bloat and providing proceeds to debt-ridden Guilds. The quick run shows non-zero sales by cause for Rivals and the policy. Old saves without `value` or with removed `lootOnlyPrice` are refused as allowed by the save policy.
+
+**Evidence.** The commit `v1.2.2-S6 (DL-301)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s6-quick`; the epic's S6 boxes.
+

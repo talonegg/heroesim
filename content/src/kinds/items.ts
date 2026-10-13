@@ -17,12 +17,12 @@ import {
   boolean,
   choicesOf,
   integer,
-  integerOrNull,
   number,
   numbers,
   oneOf,
   oneOfEach,
   oneOfKinds,
+  optional,
   readFields,
   strings,
   table,
@@ -48,7 +48,13 @@ const consumableEffect: Union<ConsumableEffect['kind'], ConsumableEffect> = {
 };
 
 type Common = Omit<GearDefinition, 'key' | 'kind' | 'slot' | 'statModifiers'>;
-const common: Fields<Common> = { name: text, unique: boolean, buyPrice: integerOrNull, tags: strings };
+const common: Fields<Common> = {
+  name: text,
+  unique: boolean,
+  buyPrice: optional(integer),
+  value: optional(integer),
+  tags: strings,
+};
 const gear: Fields<Pick<GearDefinition, 'slot' | 'statModifiers'>> = { slot: oneOf<SlotKey>(choicesOf(gearSlotKeys)), statModifiers: numbers };
 const consumable: Fields<Pick<ConsumableDefinition, 'effect'>> = { effect: oneOfKinds(consumableEffect) };
 
@@ -78,10 +84,10 @@ const itemRow: RowShape<Omit<ItemDefinition, 'key'>> = {
 export const itemsKind = table<'items', ItemDefinition>('items', 'items/', itemRow);
 
 /**
- * The Items' rules (DL-48). Every Item: a price that is a whole number above 0, or `null` for
- * Loot only; tags in kebab-case, none twice. Gear: a slot of the three and no effect; Stat modifiers,
+ * The Items' rules (DL-48, DL-301). Every Item: exactly one of `buyPrice` and `value`, a whole number
+ * above 0; tags in kebab-case, none twice. Gear: a slot of the three and no effect; Stat modifiers,
  * at least one, each on a Hero Stat, each a whole number other than 0. A consumable: not unique, since
- * it is expended from a stack; no slot and no modifiers; an effect within its kind's bounds.
+ * it is expended from a stack; a buyPrice, never a value; no slot and no modifiers; an effect within its kind's bounds.
  */
 export const itemsRules: KindRules = {
   key: 'items',
@@ -89,9 +95,16 @@ export const itemsRules: KindRules = {
     checkRowKeys('items', set.items, problems);
     for (const [key, item] of Object.entries(set.items)) {
       const where = `items.${key}`;
-      const { buyPrice } = item;
-      if (buyPrice !== null && !(Number.isInteger(buyPrice) && buyPrice > 0)) {
-        problems.push(`${where}.buyPrice is ${buyPrice}; it is a whole number above 0, or null for an Item found only as Loot`);
+      const hasBuyPrice = item.buyPrice !== undefined;
+      const hasValue = item.value !== undefined;
+      if (hasBuyPrice === hasValue) {
+        problems.push(`${where} has ${hasBuyPrice ? 'both buyPrice and value' : 'neither buyPrice nor value'}: an Item has exactly one`);
+      }
+      if (hasBuyPrice && !(Number.isInteger(item.buyPrice) && (item.buyPrice as number) > 0)) {
+        problems.push(`${where}.buyPrice is ${item.buyPrice}; it is a whole number above 0`);
+      }
+      if (hasValue && !(Number.isInteger(item.value) && (item.value as number) > 0)) {
+        problems.push(`${where}.value is ${item.value}; it is a whole number above 0`);
       }
       checkTags(`${where}.tags`, item.tags, problems);
       switch (item.kind) {
@@ -112,6 +125,7 @@ export const itemsRules: KindRules = {
         }
         case 'consumable':
           if (item.unique) problems.push(`${where}.unique is true; a consumable is common, expended from a stack`);
+          if (item.value !== undefined) problems.push(`${where}.value: a consumable has a buyPrice, never a value`);
           if (Reflect.has(item, 'slot')) problems.push(`${where}.slot: a consumable has no slot; only gear has one`);
           if (Reflect.has(item, 'statModifiers')) problems.push(`${where}.statModifiers: a consumable modifies no Stat`);
           checkConsumableEffect(`${where}.effect`, item.effect, problems);

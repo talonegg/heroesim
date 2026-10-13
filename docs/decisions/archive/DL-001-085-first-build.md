@@ -3479,6 +3479,7 @@ rejections, the events' payloads, and whom the fold's sale pays.
    uniques carry five to seven, and one sells for 300, a masterwork's price. One flat number rather
    than a price from the modifiers: no rule but the Market's reads it, and the M5 close can tune one
    number.
+   *Superseded in part by DL-301 item 1, 2026-10-13: `lootOnlyPrice` goes, each loot-only Item carries its own `value` in content; a standard sale is `floor(price × sellRatio)`, and a fold's Unique Items sell at their `value`. The record: [superseded/DL-51.md](superseded/DL-51.md).*
 3. **`buy`** (`actions/buy.ts`) moves `quantity` of the definition from the Market to the Guild's own
    holding, each at `marketPrice`: a common one from the Market's stack into the Guild's stack of it
    (`moveStack`), a unique one as that many of the Items the Market lists, lowest id first
@@ -3521,15 +3522,18 @@ rejections, the events' payloads, and whom the fold's sale pays.
    nightly return of a dead Hero's gear.
    *Superseded in part by DL-54 item 1, 2026-09-26: The sale's placement (after hero.left-guild, before the Parties are disbanded); now in the new fold order. The record: [superseded/DL-51.md](superseded/DL-51.md).*
    *Superseded in part by DL-54 item 2, 2026-09-26: The sale's sweep over the Guild's Parties and Heroes; now it reads the Guild's own holding only. Prices and whom it pays stand. The record: [superseded/DL-51.md](superseded/DL-51.md).*
+   *Superseded in part by DL-301 item 1, 2026-10-13: A fold's Unique Items sell at their `value` rather than `sellPrice`. The record: [superseded/DL-51.md](superseded/DL-51.md).*
 7. **Config**: `marketSize` 10, `marketStackMin` 1, `marketStackMax` 5, `sellRatio` 0.5 (INPUTS 7.2
    and the epic), `lootOnlyPrice` 600. Fields are added and no default changes, so **`configVersion`
    stays 4** (DL-48 item 2's reading).
+   *Superseded in part by DL-301 item 1, 2026-10-13: `lootOnlyPrice` removed from config. The record: [superseded/DL-51.md](superseded/DL-51.md).*
 8. **The Rivals.** `steady` neither buys nor sells in M5 (M6-S4 retires this); the Market Engine
    still runs every morning for the whole world (ADR-0002). A test plays four Rivals for twenty Days
    with a stocked Market and a purchase by the player, and again with `marketSize` 0 and none, and
    finds every Rival's Wealth and Roster the same and no `item.bought` or `item.sold` naming a Rival.
    A Rival's fold does sell its unique Items (item 6), as any Guild's would.
    *Superseded in part by DL-58 item 6, 2026-09-26: "`steady` neither buys nor sells"; now Rivals buy gear from the Market and sell none. The record: [superseded/DL-51.md](superseded/DL-51.md).*
+   *Superseded in part by DL-301 item 2, 2026-10-13: Rivals and the policy sell surplus outside the afternoon's one purchase; in debt, the Holding is sold first. The record: [superseded/DL-51.md](superseded/DL-51.md).*
 9. **The automatic policy** (`harness/src/policy.ts`). Its one purchase a Turn is now the first of:
    build the infirmary (M3-S6), **buy armour**, recruit. It buys while the Roster's Heroes with an
    empty armour slot outnumber the armour in the Guild's own holding: one piece, the dearest armour

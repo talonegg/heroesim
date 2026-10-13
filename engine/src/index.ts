@@ -192,6 +192,7 @@ export {
 export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
+export { surplusChoices, type SurplusKeeping } from './surplus.js';
 export * from './create.js';
 export {
   describeGuildmaster,

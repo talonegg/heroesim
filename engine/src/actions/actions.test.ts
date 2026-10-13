@@ -29,7 +29,7 @@ afterEach(() => {
   vi.mocked(copyWorld).mockClear();
 });
 
-const deps = testDeps({ rivalCount: 0, sellRatio: 0.5, lootOnlyPrice: 600 });
+const deps = testDeps({ rivalCount: 0, sellRatio: 0.5 });
 
 /** The built document, its player's Guild at `wealth`: 3 Healing draughts in its holding, 12 on the Market. */
 function built(wealth = 100) {

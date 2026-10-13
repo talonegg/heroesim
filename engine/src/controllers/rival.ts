@@ -21,6 +21,7 @@ import { bestParties, partyPool, requiredParty } from '../best-party.js';
 import { captainChoice } from '../captain.js';
 import type { EngineDeps } from '../config.js';
 import { consumablePurchase, consumablesToCarry } from '../consumable-choices.js';
+import { surplusChoices } from '../surplus.js';
 import {
   gearSlotKeys,
   purchaseSteps,
@@ -102,16 +103,25 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
 
   // DL-287: a post left empty is filled first, free; it moves no Wealth and sends no one.
   const captain = captainChoice(world, guild, deps);
-  const choices: GuildAction[] = [...(captain === null ? [] : [captain]), ...gearChoices(world, guild, deps)];
+  const choices: GuildAction[] = [
+    ...(captain === null ? [] : [captain]),
+    ...(guild.belowFloorSince === null ? gearChoices(world, guild, deps) : []),
+  ];
   const quest = preferredQuest(world, guild, disposition, deps);
   if (quest !== null) choices.push(quest);
   const dispatched = new Set(quest?.heroIds ?? []);
+
+  // DL-301: sell surplus outside the afternoon's one purchase; in debt, the Holding is sold first.
+  const keeping = { effects: healItems, stock: deps.config.rivalHealItemStock };
+  const surplus = surplusChoices(world, guild, keeping, deps, choices);
+  choices.push(...surplus);
+
   const attempts: Record<PurchaseStep, () => GuildAction | null> = {
     build: () => hallBuild(guild, disposition, deps),
     gear: () => gearBuy(world, guild, disposition, deps) ?? healBuy(world, guild, disposition, deps),
     transfer: () => transferChoice(world, guild, disposition, deps),
     recruit: () => cheapestHire(world, guild, deps),
-    debt: () => debtTransfer(world, guild, dispatched, deps),
+    debt: () => (surplus.length > 0 ? null : debtTransfer(world, guild, dispatched, deps)),
   };
   // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
   // taken only then.
@@ -421,7 +431,8 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
   const candidates = staffable.filter((quest) => quest.difficulty === wanted);
   const quest = pick(streamOf(world, 'rivals'), candidates);
   const heroIds = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
-  const consumables = consumablesToCarry(world, guild, healItems, deps)(quest, heroIds);
+  const consumables =
+    guild.belowFloorSince === null ? consumablesToCarry(world, guild, healItems, deps)(quest, heroIds) : [];
   return { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) };
 }
 

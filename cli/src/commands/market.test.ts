@@ -27,7 +27,7 @@ const { play, current, saved, document } = playground('heroesim-market-', conten
 function newWorld(wealth: number): { guild: Guild; draughts: string; blade: string } {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const edited = document();
-  Object.assign(edited.meta.config, { sellRatio: 0.5, lootOnlyPrice: 600 });
+  Object.assign(edited.meta.config, { sellRatio: 0.5 });
   const { world } = edited;
   const guild = playerGuild(world);
   if (guild === undefined) throw new Error("No player's Guild");

@@ -496,7 +496,6 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   marketStackMax: drawnMax('marketStackMin'),
   // An Item sells for less than it costs (R31).
   sellRatio: finite({ min: 0, below: 1 }),
-  lootOnlyPrice: whole({ min: 0 }),
 });
 
 /** A value in a problem's words: a number as it reads, anything else as JSON, a setting absent as missing. */

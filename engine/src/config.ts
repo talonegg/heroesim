@@ -622,12 +622,6 @@ export interface GameConfig {
    * (INPUTS 7.2: half). Below 1, so that an Item sells for less than it costs (R31).
    */
   sellRatio: number;
-  /**
-   * The Market price of an Item whose definition has no `buyPrice`, found only as Loot (DL-48): what
-   * a Guild pays for such an Item listed on the Market, as a folded Guild's unique Items are (pre-M0
-   * review D6), and, × `sellRatio`, what the Market pays for one.
-   */
-  lootOnlyPrice: number;
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; by its Encounters succeeded, DL-42). */

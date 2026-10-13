@@ -335,7 +335,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   marketStackMin: { refused: [0, 1.5], allowed: [1, defaultConfig.marketStackMax] },
   marketStackMax: maxOf('marketStackMin', 'marketStackMax'),
   sellRatio: { refused: [-0.01, 1, Number.NaN], allowed: [0, 0.99] },
-  lootOnlyPrice: wholeFrom(0),
 };
 
 describe('each setting', () => {

@@ -18,7 +18,7 @@ import {
 import type { TurnEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { addStack, createItem, holdings } from '../items.js';
-import { marketHolder, sellPrice } from '../market.js';
+import { marketHolder } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
@@ -925,7 +925,6 @@ describe("a fold's one order (DL-54)", () => {
       rivalCount: 1,
       marketSize: 0,
       sellRatio: 0.5,
-      lootOnlyPrice: 600,
       bankruptcyGraceDays: 0,
     });
     stillRivalControllers();
@@ -982,13 +981,13 @@ describe("a fold's one order (DL-54)", () => {
     expect(events.slice(-expected.length).map(told)).toEqual(expected);
     expect(guildOf(after, rival.id)).toMatchObject({ foldedOnTurn: nightOf(0), rosterIds: [] });
 
-    // Every unique Item is on the Market exactly once, sold at sell price to the folded Guild's
+    // Every unique Item is on the Market exactly once, sold at its value (DL-301) to the folded Guild's
     // credit; the Market lists nothing else.
     expect(holdings(after, marketHolder)).toEqual({ items: uniques.map((itemId) => after.items[itemId]), stacks: [] });
     const sold = ofType(events, 'item.sold');
     expect(sold.flatMap((event) => event.payload.itemIds)).toEqual(uniques);
     for (const event of sold) {
-      expect(event.payload).toMatchObject({ guildId: rival.id, quantity: 1, unitPrice: sellPrice(event.payload.definitionKey, deps) });
+      expect(event.payload).toMatchObject({ guildId: rival.id, quantity: 1, unitPrice: deps.content.items[event.payload.definitionKey]?.value });
     }
 
     // Nothing is left with the Guild, a Party of its own, or a Hero who was on its Roster: the Party
