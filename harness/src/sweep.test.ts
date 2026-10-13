@@ -677,6 +677,17 @@ describe('sweepPlay', () => {
       expect(whole).toContain(' once paid, 20 Upkeeps (DL-62)');
     });
 
+    test('says the policy sells its surplus outside its one purchase, and its whole Holding in debt (DL-301)', () => {
+      const policyLine = report.split('\n').find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      expect(policyLine).not.toContain('never sell');
+      expect(policyLine).toContain(
+        `; outside that purchase, it sells its surplus (DL-301): Gear in its Holding beyond what its Heroes with the slot ` +
+          `empty would put on, Consumables above ${sweep.policy.consumableStock} of each, what its Parties carry counted, ` +
+          `and Loot-only Items; in debt, its whole Holding but what the Turn's equips and dispatches take; never transfer ` +
+          `a Hero in or out.`,
+      );
+    });
+
     test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
       expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
       expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);

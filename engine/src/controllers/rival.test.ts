@@ -1506,5 +1506,28 @@ describe('surplus and debt (DL-301, Q18)', () => {
     const nextChoices = rivalChoices(world, rival, deps);
     expect(nextChoices.some((a) => a.kind === 'transferOut')).toBe(true);
   });
-});
 
+  test('a loot-only Item its gear step puts on a bare Hero is kept, not sold, and every choice is accepted in order', () => {
+    const deps = testDeps({ rivalHealItemStock: 2 });
+    const { world, rival } = scene('surplus-equipped', deps);
+    const blade = createItem(world, 'barrow-kings-blade', vaultOf(rival));
+
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices).toContainEqual(expect.objectContaining({ kind: 'equip', itemId: blade }));
+    expect(choices.filter((a) => a.kind === 'sell')).toEqual([]);
+    for (const action of choices) expect(applyGuildAction(world, action, deps), action.kind).toMatchObject({ ok: true });
+  });
+
+  test('sells its surplus and still makes its one purchase the same afternoon', () => {
+    const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1, gearThreshold: 1_000_000, transferAppetite: 0 }));
+    const { world, rival } = scene('surplus-and-purchase', deps);
+    rival.wealth = 3 * 200 + 1;
+    const whetstones = addStack(world, 'whetstone', 2, vaultOf(rival));
+
+    const choices = rivalChoices(world, rival, deps).filter((action) => action.kind !== 'dispatch');
+    expect(choices).toEqual([
+      { kind: 'sell', guildId: rival.id, stackId: whetstones, quantity: 2 },
+      { kind: 'build', guildId: rival.id, facility: 'infirmary' },
+    ]);
+  });
+});

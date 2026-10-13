@@ -105,4 +105,15 @@ describe('validateContent on a set built in memory', () => {
       'items.short-sword.effect: gear has no effect; only a consumable has one',
     );
   });
+
+  test('refuses a buyPrice or a value that is not whole, which the parser cannot see in memory (DL-301)', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.items['short-sword'] ?? {}, { buyPrice: 39.5 });
+    Object.assign(content.items['barrow-kings-blade'] ?? {}, { value: 599.5 });
+
+    const { message } = refusalOf(() => validateContent(content));
+
+    expect(message).toContain('items.short-sword.buyPrice is 39.5; it is a whole number above 0');
+    expect(message).toContain('items.barrow-kings-blade.value is 599.5; it is a whole number above 0');
+  });
 });

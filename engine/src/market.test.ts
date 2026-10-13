@@ -177,11 +177,12 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
 });
 
 // The Rivals buy gear from the Market, armour first, by their Disposition's `gearThreshold` (DL-58): a
-// Rival buys only what the Market has, sells nothing but by a fold, and with no Market buys nothing.
+// Rival buys only what the Market has, and with no Market buys nothing. A Rival sells only its surplus
+// (DL-301; controllers/rival.test.ts), and a new world's Rivals hold none in their first two Days.
 // controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.harness.test.ts the twenty
 // years. Two Days are played: by the first night two Rivals had bought, so this keeps twice that.
 describe('the Rivals and the Market', () => {
-  test('Rivals buy gear from the Market and sell none; with an empty Market they buy nothing', () => {
+  test('Rivals buy gear from the Market, and sell none while they hold no surplus; with an empty Market they buy nothing', () => {
     const withMarket = testDeps({ ...pinned, rivalCount: 4 });
     const noMarket = testDeps({ ...pinned, rivalCount: 4, marketSize: 0 });
     const play = (deps: EngineDeps): WorldDocument => {

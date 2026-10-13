@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { Guild, GuildId, QuestId, WorldDocument } from './document.js';
+import { makeId, type Guild, type GuildId, type QuestId, type WorldDocument } from './document.js';
 import { addStack, createItem, holdings } from './items.js';
 import { surplusChoices, type SurplusKeeping } from './surplus.js';
 import { buildDocument, testDeps } from './world.test-support.js';
@@ -178,7 +178,147 @@ describe('surplusChoices: what a controller sells from its holding (Q18, DL-301)
     });
   });
 
+  describe('what is reserved, and the bounds of a sale', () => {
+    test('a loot-only Item a planned equip puts on a Hero is kept', () => {
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      const [heroId] = guild.rosterIds;
+      if (heroId === undefined) throw new Error('Need hero');
+      const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+      const planned = [{ kind: 'equip' as const, guildId: guild.id, heroId, itemId: blade }];
+
+      expect(surplusChoices(document.world, guild, keeping, deps, planned)).toEqual([]);
+    });
+
+    test("a planned equip of a stack's unit fills that Hero's slot, and the rest of the stack is surplus", () => {
+      const { document, ids } = buildDocument({ rosterSize: 4 });
+      const guild = cleanGuild(document, ids.playerGuild);
+      const [h0, h1, h2, h3] = guild.rosterIds;
+      if (!h0 || !h1 || !h2 || !h3) throw new Error('Need 4 heroes');
+      for (const heroId of [h0, h1, h2]) addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+      const swords = addStack(document.world, 'short-sword', 2, { kind: 'guild', id: guild.id });
+      const planned = [{ kind: 'equip' as const, guildId: guild.id, heroId: h3, stackId: swords }];
+
+      // The one Hero who lacks a weapon is given one by the plan: the other sword is wanted by no one.
+      expect(surplusChoices(document.world, guild, keeping, deps, planned)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: swords, quantity: 1 },
+      ]);
+    });
+
+    test('gear whose modifiers sum to 0 or less is sold, since no controller would put it on (DL-49)', () => {
+      const content = {
+        ...deps.content,
+        items: {
+          ...deps.content.items,
+          'cracked-charm': {
+            key: 'cracked-charm',
+            name: 'Cracked charm',
+            kind: 'gear' as const,
+            unique: false,
+            slot: 'trinket' as const,
+            statModifiers: { courage: 1, wits: -1 },
+            buyPrice: 40,
+            tags: [],
+          },
+          'cracked-crown': {
+            key: 'cracked-crown',
+            name: 'Cracked crown',
+            kind: 'gear' as const,
+            unique: true,
+            slot: 'trinket' as const,
+            statModifiers: { courage: 2, wits: -2 },
+            buyPrice: 80,
+            tags: [],
+          },
+        },
+      };
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      // Heroes lack a trinket, yet neither the charm nor the crown is any use to them.
+      const charms = addStack(document.world, 'cracked-charm', 1, { kind: 'guild', id: guild.id });
+      const crown = createItem(document.world, 'cracked-crown', { kind: 'guild', id: guild.id });
+
+      expect(surplusChoices(document.world, guild, keeping, { ...deps, content })).toEqual([
+        { kind: 'sell', guildId: guild.id, itemId: crown },
+        { kind: 'sell', guildId: guild.id, stackId: charms, quantity: 1 },
+      ]);
+    });
+
+    test("another Guild's Parties are not counted toward this Guild's stock", () => {
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      const draughts = addStack(document.world, 'healing-draught', 3, { kind: 'guild', id: guild.id });
+      const theirs = makeId('parties', 99);
+      const ours = Object.values(document.world.parties).find((p) => p.guildId === guild.id);
+      if (!ours) throw new Error('No party');
+      document.world.parties[theirs] = { ...ours, id: theirs, guildId: ids.rivalGuild, heroIds: [] };
+      addStack(document.world, 'healing-draught', 2, { kind: 'party', id: theirs });
+
+      // Stock 2, none carried by its own Parties: 1 of the 3 at home is surplus.
+      expect(surplusChoices(document.world, guild, keeping, deps)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 1 },
+      ]);
+    });
+
+    test('Parties carrying more than the stock: what is at home is sold, never more than it holds', () => {
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      const draughts = addStack(document.world, 'healing-draught', 2, { kind: 'guild', id: guild.id });
+      const party = Object.values(document.world.parties).find((p) => p.guildId === guild.id);
+      if (!party) throw new Error('No party');
+      addStack(document.world, 'healing-draught', 3, { kind: 'party', id: party.id });
+
+      expect(surplusChoices(document.world, guild, keeping, deps)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 2 },
+      ]);
+    });
+
+    test('a consumable a planned dispatch takes all of is not offered for sale', () => {
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      const [h0] = guild.rosterIds;
+      if (!h0) throw new Error('Need hero');
+      addStack(document.world, 'whetstone', 2, { kind: 'guild', id: guild.id });
+      const planned = [
+        {
+          kind: 'dispatch' as const,
+          guildId: guild.id,
+          questId: 'quest-000001' as QuestId,
+          heroIds: [h0],
+          consumables: [{ definitionKey: 'whetstone', quantity: 2 }],
+        },
+      ];
+
+      // Whetstones are not kept (`heal` alone is), but none is left at home to sell.
+      expect(surplusChoices(document.world, guild, keeping, deps, planned)).toEqual([]);
+    });
+  });
+
   describe('in debt: the whole holding is sold before the debt sale (DL-301)', () => {
+    test("in debt, the turn's planned equips and dispatches are still reserved", () => {
+      const { document, ids } = buildDocument();
+      const guild = cleanGuild(document, ids.playerGuild);
+      guild.belowFloorSince = 10;
+      const [h0] = guild.rosterIds;
+      if (!h0) throw new Error('Need hero');
+      const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+      const draughts = addStack(document.world, 'healing-draught', 3, { kind: 'guild', id: guild.id });
+      const planned = [
+        { kind: 'equip' as const, guildId: guild.id, heroId: h0, itemId: blade },
+        {
+          kind: 'dispatch' as const,
+          guildId: guild.id,
+          questId: 'quest-000001' as QuestId,
+          heroIds: [h0],
+          consumables: [{ definitionKey: 'healing-draught', quantity: 1 }],
+        },
+      ];
+
+      expect(surplusChoices(document.world, guild, keeping, deps, planned)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 2 },
+      ]);
+    });
+
     test('sells all items and stacks in holding when in debt', () => {
       const { document, ids } = buildDocument();
       const guild = cleanGuild(document, ids.playerGuild);

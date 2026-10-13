@@ -895,5 +895,36 @@ describe('automaticPolicy', () => {
         { kind: 'sell', guildId: guild.id, stackId: sword, quantity: 1 },
       ]);
     });
+
+    test('a loot-only Item it puts on a bare Hero is kept, not sold, and every action is accepted in order', () => {
+      const scened = scene('policy-surplus-equip');
+      const { guild } = scened;
+      let { document } = scened;
+      document.world.board = [];
+      const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      expect(actions).toContainEqual(expect.objectContaining({ kind: 'equip', itemId: blade }));
+      expect(actions.filter((a) => a.kind === 'sell')).toEqual([]);
+      for (const action of actions) {
+        const result = applyAction(document, action, deps);
+        expect(result.ok, action.kind).toBe(true);
+        if (result.ok) document = result.document;
+      }
+    });
+
+    test('sells its surplus and still makes its one purchase the same Turn', () => {
+      const { document, guild } = scene('policy-surplus-purchase');
+      document.world.board = [];
+      guild.wealth = defaultPolicyConfig.buyWealthMultiple * 300 + 1;
+      guild.hall.infirmary = 3;
+      addStack(document.world, 'plate-harness', 2, marketHolder);
+      const whetstones = addStack(document.world, 'whetstone', 5, { kind: 'guild', id: guild.id });
+
+      expect(automaticPolicy(document, deps)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: whetstones, quantity: 5 - defaultPolicyConfig.consumableStock },
+        { kind: 'buy', guildId: guild.id, definitionKey: 'plate-harness', quantity: 1 },
+      ]);
+    });
   });
 });

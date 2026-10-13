@@ -1,8 +1,8 @@
 // `sell` (M5-S4, R31, DL-51): a Guild sells Items from its holding to the Market, which pays its
 // sell price and lists them: a stack until the next morning's refresh clears the Market's stacks, a
 // unique Item until a Guild buys it. Every Guild sells through this one rule, `applySell`, a front
-// end by `applyAction` and a controller on the Turn's copy (ADR-0002, DL-30); in M5 no Disposition
-// does.
+// end by `applyAction` and a controller on the Turn's copy (ADR-0002, DL-30), as a Rival and the
+// harness's policy sell their surplus (`surplusChoices`, DL-301).
 
 import type { EngineDeps } from '../config.js';
 import type { ItemDefinitionKey, SlotKey } from '../content-types.js';

@@ -13,7 +13,7 @@ import { applyAction } from './action.js';
 
 // Buying from the Market (R31, DL-51). Each test arranges the Market by hand, so that no
 // test leans on what the refresh drew; prices are the test content's (a Healing draught 30, a Padded
-// jack 40) and the Loot-only price is pinned. No Rival acts.
+// jack 40, a Loot-only Item its value of 600, DL-301). No Rival acts.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const deps = testDeps({ rivalCount: 0, sellRatio: 0.5 });

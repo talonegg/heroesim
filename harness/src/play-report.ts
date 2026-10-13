@@ -161,7 +161,10 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       `Wealth exceeds ${upkeepsWords(sweep.policy.recruitWealthMultiple)} and the Roster is below ${sweep.policy.rosterLimit}, ` +
       `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
       `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${upkeepsWords(sweep.policy.consumableReserveUpkeeps)} ` +
-      `(DL-62); never sell; never transfer a Hero in or out.`,
+      `(DL-62); outside that purchase, it sells its surplus (DL-301): Gear in its Holding beyond what its Heroes ` +
+      `with the slot empty would put on, Consumables above ${sweep.policy.consumableStock} of each, what its Parties ` +
+      `carry counted, and Loot-only Items; in debt, its whole Holding but what the Turn's equips and dispatches take; ` +
+      `never transfer a Hero in or out.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,

@@ -83,7 +83,7 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 
 /**
  * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
- * DL-287): decline, name a Captain, equip, dispatch, then one purchase.
+ * DL-287, DL-301): decline, name a Captain, equip, dispatch, sell its surplus, then one purchase.
  *
  * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
  *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
@@ -107,6 +107,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   of each consumable** the Guild holds that could serve its Quest (the engine's `consumablesToCarry`, DL-62, DL-288), while
  *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
  *   carrying nothing, as the Best Party weighs it.
+ * - **Sell its surplus** to the Market, outside its one purchase (the engine's `surplusChoices`, as a
+ *   Rival sells, DL-301): the gear in its holding beyond what its Heroes with the slot empty would put
+ *   on, consumables above `consumableStock` of each, what its Parties carry counted, and Loot-only
+ *   Items; in debt, its whole holding; never what the equips and dispatches above take.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the next grade of the healing Facility, the first in content's order with the
  *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times
@@ -129,9 +133,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   describes it, and Rivals' offers are declined above.
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
- * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices
- * do not depend on one another, and every one is an action the rules accept on it when applied in
- * order. None once the game has ended, and none for a world without a player's Guild.
+ * dispatch moves no Wealth and a purchase sends no one, a sale only adds Wealth and takes nothing
+ * the equips and dispatches take, and there is one purchase, so the choices do not depend on one
+ * another, and every one is an action the rules accept on it when applied in order. None once the
+ * game has ended, and none for a world without a player's Guild.
  */
 export function automaticPolicy(
   document: WorldDocument,

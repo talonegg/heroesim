@@ -58,13 +58,17 @@ import {
  * Disposition shares, reading the weights of its row (M6-S1, DL-56):
  *
  * 1. name to its post, when it is empty, its Hero highest in the captaincy Stat (`captainChoice`,
- *    DL-287), and put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`,
- *    DL-49), each of which moves no Wealth and sends no one;
+ *    DL-287), and, while it is not in debt, put the gear its Guild holds on its Heroes with the slot
+ *    empty (`gearChoices`, DL-49), each of which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it may take, by its Fame,
  *    and can staff (`preferredQuest`), drawing from `rivals` to choose among Quests of the same
- *    difficulty, its Party carrying one of each heal Item the Guild holds (`consumablesToCarry`,
- *    DL-288);
- * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
+ *    difficulty, its Party carrying, while it is not in debt, one of each heal Item the Guild holds
+ *    (`consumablesToCarry`, DL-288);
+ * 3. sell its surplus to the Market, outside its one purchase (`surplusChoices`, DL-301): the gear
+ *    in its holding beyond what its Heroes with the slot empty would put on, heal Items above
+ *    `rivalHealItemStock` of each and every other consumable, and Loot-only Items; in debt, its whole
+ *    holding; never what the equips and the dispatch above take;
+ * 4. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
  *    - build the next grade of the first Facility of its Hall, in its `buildOrder` (content's order
  *      when it has none), whose next grade's cost its Wealth is above `buildThreshold` times
@@ -82,14 +86,17 @@ import {
  *      itself;
  *    - recruit the cheapest Unattached Hero who would sign while it would hire, for no more than it
  *      would spend (`cheapestHire`);
- *    - while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
- *      pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
+ *    - while it is in debt (`belowFloorSince`) and has nothing left in its holding to sell, transfer
+ *      its dearest Hero at home to the Guild that pays most for them and consents (`debtTransfer`,
+ *      `transferOut`, M6-S2): the holding is sold before the debt sale (DL-301).
  *
  * At most one dispatch and one purchase an afternoon. The dispatch and the purchase do not depend on
  * each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen on the same
  * world (a Hero is transferred out only if the dispatch leaves them at home); one purchase, so that the second
- * never finds the Wealth the first spent. The gear bought waits in the Guild's holding for the next
- * afternoon's first choice, the equip, as the policy's does (DL-54).
+ * never finds the Wealth the first spent. The sales only add Wealth, and take nothing the equips or
+ * the dispatch take, so the purchase chosen beside them stays one the rules accept. The gear bought
+ * waits in the Guild's holding for the next afternoon's first choice, the equip, as the policy's
+ * does (DL-54).
  *
  * None for the player's Guild, whose choices are the player's; none for a folded Guild, which has
  * left play (M2-S10); and none for a Disposition content does not define (data-model rule 5: the

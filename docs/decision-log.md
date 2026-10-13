@@ -584,9 +584,10 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 - Gear ranking uses `worthOf` (sum of stat modifiers), keeping the best pieces in holding for living heroes lacking gear in that slot.
 - Dispatched consumables and planned equips in the same turn are reserved and protected from surplus sale.
 
-**Consequences.** Rivals and the policy actively liquidate surplus, preventing holding bloat and providing proceeds to debt-ridden Guilds. The quick run shows non-zero sales by cause for Rivals and the policy. Old saves without `value` or with removed `lootOnlyPrice` are refused as allowed by the save policy.
+**Consequences.** Rivals and the policy actively liquidate surplus, preventing holding bloat and providing proceeds to debt-ridden Guilds. The quick run's sales by cause show the Rivals' and none of the policy's: it wins no Loot in two years, so holds no surplus, and sells once Loot comes. Old saves without `value` or with removed `lootOnlyPrice` are refused as allowed by the save policy.
 
 **Evidence.** The commit `v1.2.2-S6 (DL-301)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s6-quick`; the epic's S6 boxes.
+- Verified 2026-10-14 at 5c454c5: the values, the surplus, the debt order and the quick run re-derived (its fingerprint `93c75e85…` played again, refusals 0; the policy's first sales come with Loot, 25 Items in a six-year validated game), 16 of 63 mutations survived and are killed by 13 new tests, and the comments and the report's policy line that still said nothing sells were rewritten.
 
 ## DL-302 — v1.2.2-S7 built: The Treasury's income and expenses
 

@@ -5,8 +5,8 @@
 //
 // Every Guild meets the same prices (ADR-0002). The player's Guild buys and sells by choice; a
 // Rival buys gear for its Heroes, armour first, by its Disposition's `gearThreshold`
-// (`gearPurchase`, DL-58), and sells nothing, though a folding Rival's unique Items are sold to it
-// as any Guild's would be.
+// (`gearPurchase`, DL-58), and sells its surplus outside its one purchase (`surplusChoices`,
+// DL-301); a folding Guild's unique Items are sold to it at their value.
 
 import type { EngineDeps } from './config.js';
 import type { ContentSet, ItemDefinition, ItemDefinitionKey } from './content-types.js';
