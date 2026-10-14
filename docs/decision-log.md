@@ -613,6 +613,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** The Treasury and harness reports clearly separate every economic flow into its constituent income and expense lines, showing where Wealth originates and where it is spent. The quick run confirms all lines and exact 100% share sums.
 
 **Evidence.** The commit `v1.2.2-S7 (DL-302)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s7-quick`; the epic's S7 boxes.
+- Verified 2026-10-14 at b66dacb: every Wealth-moving event lands on one line, and the split's two copies agree; of 53 mutations, ten survived, one equivalent, and nine (the split's rounding, another Guild's charge, a lone line of a split, the rows' keys, the lines' words, the shares with sales) are now killed by new tests; a section's total is now its lines' sum, Other apart; the harness's Hall rows are labelled as the parts they are; the supersession notes, CONTEXT.md's Treasury and stale comments rewritten.
 
 ## DL-303 — v1.2.2-S8 built: The page and the CLI
 

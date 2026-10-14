@@ -2,7 +2,8 @@
 // view. Its Wealth; the Upkeep's two charges, the wages and the Hall's, each with its next Day and the
 // Hall's with its parts (DL-298); the Bankruptcy floor, and the
 // countdown while the Guild is below it; and the ledger, every change to its Wealth read from the
-// History, by six categories, newest first and a page at a time, with the totals of what is shown.
+// History, each change on its line of income or expenses or on Other (DL-302), newest first and a page
+// at a time, with the totals of what is shown.
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every amount is an event's payload, as the
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
@@ -386,6 +387,11 @@ function zeroLines<Line extends string>(keys: readonly Line[]): Record<Line, num
   return result;
 }
 
+/**
+ * The sums of `rows`: income and expense, each change by its sign, and net; and each section, its lines
+ * and its total their sum. Other, a module's change, counts in income or expense and in no section
+ * (DL-302 item 1).
+ */
 export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
   const incomeLinesMap = zeroLines(incomeLines);
   const expenseLinesMap = zeroLines(expenseLines);
@@ -407,12 +413,13 @@ export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
   }
 
   const net = income + expense;
+  const sumOf = (lines: Record<string, number>): number => Object.values(lines).reduce((total, part) => total + part, 0);
   const expensesSection: LedgerSection<ExpenseLine> = {
-    total: expense,
+    total: sumOf(expenseLinesMap),
     lines: expenseLinesMap,
   };
   const incomeSection: LedgerSection<IncomeLine> = {
-    total: income,
+    total: sumOf(incomeLinesMap),
     lines: incomeLinesMap,
   };
 

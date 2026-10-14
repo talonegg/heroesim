@@ -128,7 +128,8 @@ export function awayAt(history: History, heroId: HeroId, position: number): bool
 
 /**
  * Each change to `guildId`'s Wealth the History holds, newest first, with its entry and its place: the
- * entries naming the Guild that `changeOf` reads as one. Every Wealth event names its Guild (DL-112).
+ * entries naming the Guild that `changeOf` reads as one, or as several in the entry's place, as a charge
+ * split between two lines is (DL-302). Every Wealth event names its Guild (DL-112).
  */
 export function wealthChanges<Change extends object>(
   history: History,

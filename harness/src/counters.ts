@@ -471,11 +471,10 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
  * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
  * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
  * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
- * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), of
- * which the Improvements' (its `facilities`, before the Guildmaster's factor) is counted apart too
- * (DL-298); taken from Quests (`quest.resolved`'s `wealthDelta`), from
- * Transfer fees (the same `fee`, for the selling Guild, M6) and from the Market (`item.sold`'s
- * `proceeds`, by its `cause`).
+ * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), split
+ * as the Treasury splits it between the Hall's and the Improvements' (DL-298, DL-302); taken from
+ * Quests (`quest.resolved`'s `wealthDelta`), from Transfer fees (the same `fee`, for the selling Guild,
+ * M6) and from the Market (`item.sold`'s `proceeds`, by its `cause`).
  */
 export interface WealthFlows {
   signing: number;

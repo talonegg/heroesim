@@ -28,10 +28,10 @@ import { changed, documentOf, played, playerOf, started, withTrades, withWealth 
 import { initialGameState, playDeps, type GameState } from './reducer';
 import { countdownView } from './selectors';
 import { faceted, type FacetChoices } from './facets';
-import { ledgerCategories, ledgerOf, ledgerPage, treasuryAccounts, wealthChangeOf } from './treasury';
+import { ledgerCategories, ledgerOf, ledgerPage, lineWords, totalsOf, treasuryAccounts, wealthChangeOf } from './treasury';
 
 // The Treasury (DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
-// Wealth read from the History by six categories. Its heart is that it misses nothing: from its opening
+// Wealth read from the History, each on its line (DL-302). Its heart is that it misses nothing: from its opening
 // row, the Wealth the Guild was founded with (DL-120 item 4), it adds up to its Wealth now.
 
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-30T09:00:00.000Z' };
@@ -66,6 +66,21 @@ describe('wealthChangeOf: each line takes exactly its events', () => {
       { category: 'hall-upkeep', amount: -32 },
       { category: 'improvement-upkeep', amount: -27 },
     ]);
+  });
+
+  test('the charge splits as the Improvements’ part rounded to the nearest Silver and the Hall’s the rest, one line alone where the other is nothing (DL-302)', () => {
+    const charge = (amount: number, base: number, heroes: number, facilities: Record<string, number>, traitFactor: number) =>
+      entry('guild.hall-upkeep-paid', { guildId: lantern, amount, wealthAfter: 0, base, heroCount: heroes / 5, heroes, facilities, traitFactor });
+    // 17 × 0.9 is 15.3, and 17 × 1.1 is 18.7: the nearest Silver, neither floored nor ceiled.
+    expect(wealthChangeOf(charge(54, 30, 15, { infirmary: 17 }, 0.9), lantern)).toEqual([
+      { category: 'hall-upkeep', amount: -39 },
+      { category: 'improvement-upkeep', amount: -15 },
+    ]);
+    expect(wealthChangeOf(charge(70, 30, 15, { infirmary: 17 }, 1.1), lantern)).toEqual([
+      { category: 'hall-upkeep', amount: -51 },
+      { category: 'improvement-upkeep', amount: -19 },
+    ]);
+    expect(wealthChangeOf(charge(10, 0, 0, { infirmary: 10 }, 1), lantern)).toEqual({ category: 'improvement-upkeep', amount: -10 });
   });
 
   test("a Quest's reward is what it paid the Guild, and a failed Quest's nil reward gives no row", () => {
@@ -116,10 +131,48 @@ describe('wealthChangeOf: each line takes exactly its events', () => {
 
   test('an entry of another Guild, one that moves no Wealth, and a module’s own event give none', () => {
     expect(wealthChangeOf(entry('guild.wages-paid', { guildId: ashford, amount: 120, wealthAfter: 80 }, [ashford]), lantern)).toBeNull();
+    const theirHall = { guildId: ashford, amount: 65, wealthAfter: 15, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 30 }, traitFactor: 1 };
+    expect(wealthChangeOf(entry('guild.hall-upkeep-paid', theirHall, [ashford]), lantern)).toBeNull();
     expect(wealthChangeOf(entry('item.bought', { guildId: ashford, definitionKey: 'whetstone', quantity: 1, unitPrice: 15, cost: 15, itemIds: [] }, [ashford]), lantern)).toBeNull();
     expect(wealthChangeOf(entry('guild.below-floor', { guildId: lantern, wealth: -5, floor: 0, dueDay: 30 }), lantern)).toBeNull();
     expect(wealthChangeOf(entry('guild.transfer-offered', { offerId: makeId('offers', 1), fromGuildId: ashford, toGuildId: lantern, heroId: hero, fee: 180, expiresOnTurn: 20 }), lantern)).toBeNull();
     expect(wealthChangeOf(entry('probe.fired', { guildId: lantern }), lantern)).toBeNull();
+  });
+});
+
+describe('the lines (DL-302)', () => {
+  test('each has its words on the page', () => {
+    expect(lineWords).toEqual({
+      'quest-rewards': 'Quest rewards',
+      'item-sales': 'Item sales',
+      'transfers-out': 'Transfers out',
+      wages: 'Wages',
+      'hall-upkeep': 'Hall upkeep',
+      'improvement-upkeep': 'Improvements’ upkeep',
+      'item-purchases': 'Item purchases',
+      improvements: 'Improvements',
+      'signing-fees': 'Signing fees',
+      'transfers-in': 'Transfers in',
+      other: 'Other',
+    });
+  });
+
+  test('a section totals its own lines; Other, a module’s change, counts in income or expense and in no section', () => {
+    const totals = totalsOf([
+      { category: 'quest-rewards', amount: 300 },
+      { category: 'transfers-out', amount: 80 },
+      { category: 'other', amount: 40 },
+      { category: 'wages', amount: -120 },
+      { category: 'hall-upkeep', amount: -35 },
+      { category: 'improvement-upkeep', amount: -30 },
+      { category: 'other', amount: -25 },
+    ]);
+    expect(totals).toMatchObject({ income: 420, expense: -210, net: 210 });
+    expect(totals.sections.income).toEqual({ total: 380, lines: { 'quest-rewards': 300, 'item-sales': 0, 'transfers-out': 80 } });
+    expect(totals.sections.expenses).toEqual({
+      total: -185,
+      lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0 },
+    });
   });
 });
 
@@ -248,6 +301,15 @@ describe('the ledger misses nothing', () => {
       }
     },
   );
+
+  test('each row has a key of its own, the two lines of a split charge among them', () => {
+    for (const { now } of games) {
+      for (const guild of Object.values(now.world.guilds)) {
+        const keys = ledgerOf(now, guild.id).map((row) => row.key);
+        expect(new Set(keys).size, guild.name).toBe(keys.length);
+      }
+    }
+  });
 
   test('the game brings up every category, for the player’s Guild and for the Rivals', () => {
     const player = (document: WorldDocument) => playerGuild(document.world)?.id ?? '';

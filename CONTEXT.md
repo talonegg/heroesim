@@ -762,11 +762,10 @@ _Avoid_: Copper, Penny, Cent
 
 **Treasury**:
 The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
-History; a part of the Guild's view (DL-111, DL-116). It reads income (Quest rewards, Item sales and
-Transfers out) and expenses (wages, the Hall's upkeep, the Improvements' upkeep, Item purchases,
-Improvements, signing fees and Transfers in), a line for each and a total for each; today it reads
-by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other), and the income and the
-expenses are to be built (DL-294).
+History; a part of the Guild's view (DL-111, DL-116). Each change stands on a line of income (Quest
+rewards, Item sales and Transfers out) or of expenses (wages, the Hall's upkeep, the Improvements'
+upkeep, Item purchases, Improvements, signing fees and Transfers in), or on Other, a module's; the
+Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:

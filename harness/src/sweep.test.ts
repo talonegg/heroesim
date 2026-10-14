@@ -1024,10 +1024,10 @@ describe('sweepPlay', () => {
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
       expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%;");
       expect(text).toContain("Shares of the Wealth taken: The player's Guild: Quest rewards 76.3%, Item sales 0.0%, Transfers 23.7%;");
-      // The Upkeep's two charges by line, the Improvements' of the Hall's apart and no part of the whole (DL-298).
+      // The Upkeep's two charges by line, the Hall's as its own part and the Improvements', each of the whole (DL-298, DL-302).
       expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');
-      expect(text).toContain("| Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`) | 300 | 300.0 | 1,500 | 375.0 |");
-      expect(text).toContain("| Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid`) | 120 | 120.0 | 600 | 150.0 |");
+      expect(text).toContain("| Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`, less the Improvements') | 300 | 300.0 | 1,500 | 375.0 |");
+      expect(text).toContain("| Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid` `facilities` × `traitFactor`, rounded) | 120 | 120.0 | 600 | 150.0 |");
       expect(text).toContain('| Spent: Upkeep in all | 1,920 | 1,920.0 | 6,600 | 1,650.0 |');
       // The Transfers by direction and by way, over two games.
       expect(text).toContain("| Into the player's Guild | 3 | 1.50 | 300 | 100 |");

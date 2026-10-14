@@ -748,7 +748,7 @@ describe("M5's counters, from the History", () => {
     wages(9, player, 70);
     wages(9, rivals[0], 90);
     wages(9, rivals[1], 60);
-    // The Hall's upkeep, its Improvements' counted apart, before the Guildmaster's factor (DL-298).
+    // The Hall's upkeep, split between the Hall's and the Improvements', the Guildmaster's factor applied to both (DL-302).
     const hall = (turn: number, guild: Guild, amount: number, facilities: Record<string, number>): void => {
       add(document, turn, 'guild.hall-upkeep-paid', [guild.id], {
         guildId: guild.id,
@@ -825,6 +825,31 @@ describe("M5's counters, from the History", () => {
         itemsSold: { sale: 0, fold: 1 },
       },
     });
+  });
+
+  test("the Hall's charge splits as the Treasury splits it: the Improvements' part rounded to the nearest Silver, the Hall's the rest (DL-302)", () => {
+    const { document, player, rivals } = fixture('counters-hall-split');
+    const hall = (guild: Guild, amount: number, traitFactor: number): void => {
+      add(document, 9, 'guild.hall-upkeep-paid', [guild.id], {
+        guildId: guild.id,
+        amount,
+        wealthAfter: 900,
+        base: 30,
+        heroCount: 3,
+        heroes: 15,
+        facilities: { infirmary: 17 },
+        traitFactor,
+      });
+    };
+    // 17 × 0.9 is 15.3, and 17 × 1.1 is 18.7: the nearest Silver, neither floored nor ceiled.
+    hall(player, 54, 0.9);
+    hall(rivals[0], 70, 1.1);
+    document.world.turn = 20;
+
+    const { wealth } = countGame(document, shortYears);
+
+    expect([wealth.player.hallUpkeep, wealth.player.improvementUpkeep]).toEqual([39, 15]);
+    expect([wealth.rival.hallUpkeep, wealth.rival.improvementUpkeep]).toEqual([51, 19]);
   });
 
   test('Loot awarded by controller and table: awards, the Items they gave, and the unique counted apart', () => {
