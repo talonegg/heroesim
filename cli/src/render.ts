@@ -24,6 +24,7 @@ import {
   itemDefinition,
   patronRegardFor,
   facilityGrade,
+  facilityUpkeep,
   nextImprovement,
   playerGuild,
   regardBand,
@@ -266,25 +267,29 @@ export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[
 // ── The Hall ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `show hall [guildId]`: each Facility of the Guild's Hall, its grade and the Improvement built at
- * it, and the next grade's Improvement and cost (`nextImprovement`), or that it is at the top; then
- * what the Facilities do, in words read from their effects (`facilityDoes`). The player's Guild unless
- * given another.
+ * `show hall [guildId]`: each Facility of the Guild's Hall, its grade, the Improvement built at it and
+ * its upkeep there (`facilityUpkeep`), and the next grade's Improvement, cost (`nextImprovement`) and
+ * upkeep, or that it is at the top; then what the Facilities do, in words read from their effects
+ * (`facilityDoes`). Each upkeep is the Facility's part of the Hall's before the Guildmaster's Traits, as
+ * the page's Hall gives it (DL-303). The player's Guild unless given another.
  */
 export function renderHall(guild: Guild, deps: EngineDeps): string[] {
-  const { content } = deps;
+  const { content, config } = deps;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? '';
   const facilities = Object.keys(content.facilities);
-  const rows = facilities.map((facility) => {
+  const rows = Object.values(content.facilities).map((def) => {
+    const facility = def.key;
     const grade = facilityGrade(guild.hall, facility);
     const next = nextImprovement(guild, facility, content);
     return [
       capitalised(facilityName(content, facility)),
       String(grade),
       grade === 0 ? 'None' : builtAt(facility, grade),
+      coinLetters(facilityUpkeep(def, grade, config)),
       next === null ? 'None: the top grade' : next.name,
       next === null ? '' : coinLetters(next.cost),
+      next === null ? '' : coinLetters(facilityUpkeep(def, next.grade, config)),
     ];
   });
   const does = facilities.map((facility) => `the ${facilityName(content, facility)} ${facilityDoes(content, facility)}`).join('; ');
@@ -296,13 +301,16 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
         { heading: 'Facility' },
         { heading: 'Grade', align: 'right' },
         { heading: 'Built' },
+        { heading: 'Upkeep', align: 'right' },
         { heading: 'Next grade' },
         { heading: 'Cost', align: 'right' },
+        { heading: 'Next upkeep', align: 'right' },
       ],
       rows,
     ),
     '',
-    ...wrapped(`${capitalised(does)}. Each grade does more than the one below it, and each adds to the Upkeep.`),
+    ...wrapped(`${capitalised(does)}.`),
+    ...wrapped(`Each grade does more and costs more to keep, its upkeep paid with the Hall's every ${config.hallUpkeepEveryDays} Days.`),
   ];
 }
 

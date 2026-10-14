@@ -619,22 +619,29 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Status:** Accepted · **Date:** 2026-10-14 · **Decided by:** the agent, on the owner's answers in DL-294 and the epic
 
-**Context.** In the first build (DL-106, DL-111, DL-112), the Hall's facilities did not display individual upkeeps, the Upkeep sentence having moved to the Treasury (DL-112 item 6). DL-294 items 1–4 and the epic define the presentation across the web interface and CLI: each Facility in the Hall showing its grade, upkeep, and next grade's price; the Treasury's Upkeep section with wages every 10 Days and the Hall's upkeep every 30 Days; the Guilds table displaying Upkeep a month; and the CLI's `build` command and `show hall` render.
+**Context.** The epic's S8 shows the finished engine's economy on the page and in the CLI: the Hall from content, each Facility with its grade, the next grade's price and the upkeep at each; the Treasury's two sections and its sentences; the Guilds table's Upkeep a month; the stops' and the Hero page's amounts; the CLI's `build` and its render of the Hall and the Treasury. The stories before it built most of this with the engine each one shows. S8 added each Facility's upkeep to the Hall, and its verification found the rest in place, added what was missing and asks the owner about the CLI's Treasury.
 
 **Decision.**
 
-1. *The Hall* (`web/src/views/hall.tsx`, `web/src/state/world-views.ts`): Each Facility row displays its name, grade pips, built Improvement, upkeep at its grade in coins (`Coins`), what it does, and next grade's Improvement and price (with Build button on the player's own Hall). `facilityUpkeep` is exported from `@heroesim/engine` and `HallRow` carries `upkeep: number`.
-2. *The Treasury* (`web/src/views/treasury.tsx`, `web/src/state/treasury.ts`): Displays its two sections: Upkeep (`<h3>Upkeep</h3>` with wages every 10 Days sentence, Hall upkeep every 30 Days sentence, and Bankruptcy floor) and Ledger (`<h3>Ledger</h3>` with income, expense, net totals, and ten lines).
-3. *The Guilds table* (`web/src/views/guilds.tsx`, `cli/src/render.ts`): Displays Upkeep a month (`upkeep(guild, world, config, content)` from S5/DL-300) in coins.
-4. *Stops and Hero page amounts* (`web/src/views/stop.tsx`, `web/src/views/hero-page.tsx`): Display amounts formatted in coins (`Coins` or `coinWords`), including rewards, signing fees, and transfer fees.
-5. *The CLI* (`cli/src/commands/build.ts`, `cli/src/render.ts`): `build` reports the built Improvement, cost, Wealth, wages every 10 Days, Hall upkeep every 30 Days, and next grade cost; `show hall` renders each facility, grade, built Improvement, next grade, and cost.
-6. *E2E spec* (`web/e2e/journey.spec.ts`): The recruitment's ledger row is matched by S7's `Signing fees` line alone; the first build's `Heroes` category no longer exists (corrected at the close, the S8 commit having matched both).
-7. *Supersedes in part* DL-112 item 6.
+1. *The Hall* (`web/src/views/hall.tsx`, `web/src/state/world-views.ts`). Each Facility's row gives its grade as pips, the Improvement built and its upkeep at its grade, from `facilityUpkeep`, which `@heroesim/engine` now exports (S8). It then gives what the Facility does and the next grade's Improvement and price, with Build on the player's own Hall alone. Beside them is the upkeep at the grade it would reach, "At grade 2, upkeep 17 Silver" (added at verification). The rows have been read from content since S3 (DL-297), the prices in coins since S2 (DL-296).
+2. *The CLI's `show hall`* (`cli/src/render.ts`) gives the same: the Upkeep and Next upkeep columns beside Grade, Built, Next grade and Cost, and a line saying that each upkeep is paid with the Hall's every 30 Days (added at verification). `build` prints what was built and its cost, the Wealth, the wages every 10 Days, the Hall's upkeep every 30 and the next grade's cost, as S4 built it (DL-298).
+3. *In place before S8, and checked:*
+   - The Treasury's two sections, from S4 (DL-298). The Upkeep gives the two charges' sentences, wages every 10 Days and the Hall's upkeep every 30, each with its next night and the Hall's with its parts, then the Bankruptcy floor. The Ledger follows.
+   - The Ledger, from S7 (DL-302): each row's line in its Category column, the chips by line with their counts, and the sentence of Income · Expense · Net over what is shown. A table of the lines, each with its total, is S9's (the owner's answer, 2026-10-14).
+   - The Guilds table's Upkeep, on the page and in `show guilds`: a month of costs since S5 (DL-300).
+   - The amounts on the stops and the Hero page (a Quest's reward, the signing and Transfer fees): in coins since S2 (DL-296).
+4. *The words* (`web/src/views/section.tsx`, `cli/src/args.ts`, at verification). The Hall's help gives each Facility's upkeep and the next grade's. The Guilds table's help says an Upkeep is a month of costs. The CLI's usage gives `show hall`'s upkeep and `build`'s two charges.
+5. *The journey's e2e* (`web/e2e/journey.spec.ts`) matches the recruitment's ledger row by S7's `Signing fees` line alone. The first build's `Heroes` category no longer exists (corrected at the close; the S8 commit had matched both).
+6. *The CLI has no Treasury.* No `show` view gives the wages or the Hall's upkeep; only `build` prints them, and the Bankruptcy countdown is shown while it runs. The epic's "render of ... the Treasury" is left for the owner's answer (the verification's question).
+7. *Supersedes in part* DL-112 item 6: the Hall gives each Facility's upkeep, and the Upkeep's two charges stay the Treasury's.
 
 *Judgement calls, for the owner to see.*
-- Each Facility row in the Hall displays `Upkeep <Coins silver={row.upkeep} />` beside the grade pips and built Improvement, rendering 0 Silver at grade 0 and the scaled upkeep at higher grades.
+- Each upkeep that the Hall and `show hall` give is the Facility's part before the Guildmaster's Traits, as the Treasury's parts give it. The Treasury applies Thrifty's or Spendthrift's factor to the whole charge, which is rounded once (DL-298). Parts scaled one by one would not sum to the charge.
+- "The upkeep at each" is read as the upkeep at the Facility's grade and at the next grade, beside that grade's price.
+- The Guilds table's heading stays "Upkeep", the glossary's term for a month of costs, and its help says so.
 
-**Consequences.** Players see the upkeep contribution of each Facility directly in the Hall. The e2e test suite passes across all three viewports (360, 820, and 1280 wide), and the production bundle passes within the 900 kB budget.
+**Consequences.** Before paying for a grade, a player sees what each Facility costs to keep and what building the next grade would add. In the CLI, the two charges are seen only after a `build`, until the owner answers item 6.
 
-**Evidence.** The commit `v1.2.2-S8 (DL-303)`: the checks with their counts, the doctors' readings, e2e passing across phone, tablet and desktop viewports, and the bundle check passing within budget; the epic's S8 boxes.
+**Evidence.** The commit `v1.2.2-S8 (DL-303)` (`4ac28b9`): the checks with their counts, the doctors' readings, the e2e at 360, 820 and 1280 wide, and the bundle check; the epic's S8 box.
+- Verified 2026-10-14 at 8b65a42: each S8 item was traced to the commit that built it, and this entry now credits S2, S4, S5 and S7. Four of 43 mutations of the shown code survived (Build on another Guild's Hall, the Facility a button builds, the Treasury's headings, a floor other than 0), and new tests now kill them. The next grade's upkeep was missing from the Hall and every upkeep from `show hall`; both are now built test first (9 more mutations, all killed). The help texts are rewritten, and DL-112 item 6's note and record are written.
 

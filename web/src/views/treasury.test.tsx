@@ -89,6 +89,17 @@ describe('the Treasury', () => {
     expect(within(part).queryByText(/below the Bankruptcy floor since/)).toBeNull();
   });
 
+  test("is in two sections, the Upkeep and the Ledger, and gives the Bankruptcy floor the Guild's rules set (DL-303)", () => {
+    renderTreasury(
+      changed(started(), (document) => {
+        document.meta.config = { ...document.meta.config, bankruptcyFloor: 250 };
+      }),
+    );
+
+    expect(within(treasury()).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['Upkeep', 'Ledger']);
+    expect(spokenText(within(treasury()).getByTestId('floor'))).toBe('The Bankruptcy floor is 2 Gold 50 Silver.');
+  });
+
   test('gives the countdown while the Guild is below the floor', () => {
     renderTreasury(withWealth(started(), -50, 0));
 

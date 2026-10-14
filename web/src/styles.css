@@ -3318,8 +3318,13 @@ th.number .sort {
   color: var(--ink-soft);
 }
 
+/* The next grade: Build, or what it is, with the upkeep at that grade beneath (DL-303). */
 .facility__next {
   grid-area: next;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
 }
 
 /* The page's filter chips, several choices to a filter, and a choice of one in their look (DL-213). */

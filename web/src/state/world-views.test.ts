@@ -7,6 +7,7 @@ import {
   facilityUpkeep,
   guildmasterOf,
   guildmasterRegardForGuild,
+  hallUpkeepParts,
   nextImprovement,
   patronRegardFor,
   playerGuild,
@@ -153,7 +154,7 @@ describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)"
 });
 
 describe('hallView', () => {
-  test("gives each facility's grade, what it does and the next grade's Improvement and cost, and the Guild's Upkeep", () => {
+  test("gives each Facility's grade, its upkeep there, what it does, and the next grade's Improvement, cost and upkeep", () => {
     const document = structuredClone(newDocument('world-views'));
     const guild = playerOf(document);
     guild.hall.quarters = 3;
@@ -167,14 +168,29 @@ describe('hallView', () => {
       if (def === undefined) throw new Error(`no ${row.facility}`);
       const next = nextImprovement(guild, row.facility, content);
       expect(row.grade).toBe(guild.hall[row.facility]);
-      expect(row.next).toEqual(next === null ? null : { name: next.name, cost: next.cost });
+      expect(row.next).toEqual(next === null ? null : { name: next.name, cost: next.cost, upkeep: facilityUpkeep(def, next.grade, deps.config) });
       expect(row.upkeep).toBe(facilityUpkeep(def, row.grade, deps.config));
       expect(row.does).toBe(`The ${facilityName(content, row.facility)} ${facilityDoes(content, row.facility)}.`);
     }
     expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null, upkeep: 30 });
-    expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none', upkeep: 0 });
-    // The Upkeep left the Hall for the Treasury (DL-112 item 6).
+    expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none', upkeep: 0, next: { upkeep: 10 } });
+    // The Upkeep's two charges are the Treasury's (DL-112 item 6, DL-303): the Hall gives each Facility's part.
     expect(view).not.toHaveProperty('upkeep');
+  });
+
+  test("gives each Facility's upkeep as the Treasury's parts give it, before the Guildmaster's Traits (DL-303)", () => {
+    const document = structuredClone(newDocument('world-views'));
+    const guild = playerOf(document);
+    Object.assign(guild.hall, { infirmary: 2, quarters: 3 });
+    const guildmaster = guildmasterOf(guild, document.world);
+    if (guildmaster === undefined) throw new Error('no Guildmaster');
+    guildmaster.traits = ['thrifty'];
+    const parts = hallUpkeepParts(guild, document.world, deps.config, content);
+
+    const built = (hallView(document)?.facilities ?? []).filter((row) => row.grade > 0);
+
+    expect(parts.traitFactor).not.toBe(1);
+    expect(Object.fromEntries(built.map((row) => [row.facility, row.upkeep]))).toEqual(parts.facilities);
   });
 
   test("is another Guild's when named, which the player cannot build", () => {

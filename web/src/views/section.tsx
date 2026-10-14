@@ -125,8 +125,10 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Sort from "Sort by" or by a column’s heading, any but Traits and Items. This browser keeps Tiles or Table, ' +
     'the order, the Table’s columns and a phone’s tab; the chips start at All each time.',
   hall:
-    'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
-    'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',
+    'Your Guild’s premises: each Facility’s grade and its upkeep there, what it does, and Build, which raises it one ' +
+    'grade for the cost on the button, with the upkeep at the grade it would reach. Each grade does more than the one ' +
+    'below it and costs more to keep. Each Facility’s upkeep is paid with the Hall’s, before your Guildmaster’s ' +
+    'Traits; the Treasury gives the whole.',
   stores:
     'Everything your Guild owns, wherever it is: what it holds, the Gear each Hero on the Roster carries, at home or ' +
     'away, and what its Parties took. Show some kinds, or some places, with the chips above the table, one choice ' +
@@ -177,7 +179,8 @@ export const help: Readonly<Record<SectionId, string>> = {
   guilds:
     'Every Guild in one table, yours marked, in the Rankings by Fame at first. A column’s heading orders the table ' +
     'by it: by Fame or by Wealth it is the Rankings, where Guilds level share a place; by any other column the order ' +
-    'is for display, and Place still reads by Fame. A folded Guild is listed last, with the Day it folded. Open a ' +
+    'is for display, and Place still reads by Fame. A Guild’s Upkeep is a month of its costs, its wages and its ' +
+    'Hall’s upkeep. A folded Guild is listed last, with the Day it folded. Open a ' +
     'Guild for its Roster, with the Transfer fee your Guild would pay to take each Hero in, and its Hall and ' +
     'Guildmaster.',
   patrons:

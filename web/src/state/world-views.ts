@@ -6,7 +6,7 @@
 // and `show patrons`, in its words (`cli/src/render.ts`), less the ids a command line takes.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every number is a document field or an
-// engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
+// engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `facilityUpkeep`, `transferFee`, `ageOf`,
 // `retirementTurn`, `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`).
 // Regard is shown as its band, never its number (M4-S5); Potential not at all.
 
@@ -165,12 +165,16 @@ export interface HallRow {
   top: number;
   /** The Improvement built at its grade, or `none`. */
   built: string;
-  /** What the facility costs to keep each time the Hall's upkeep falls due (DL-294 item 3, DL-298). */
+  /**
+   * What the Facility costs to keep at its grade each time the Hall's upkeep falls due (`facilityUpkeep`,
+   * DL-298): its part of the Hall's upkeep before the Guildmaster's Traits, as the Treasury's parts give it
+   * (DL-303).
+   */
   upkeep: number;
   /** `The training yard gives …`. */
   does: string;
-  /** The next grade's Improvement and cost (`nextImprovement`), or `null` at the top grade. */
-  next: { name: string; cost: number } | null;
+  /** The next grade's Improvement, cost (`nextImprovement`) and upkeep at that grade, or `null` at the top grade (DL-303). */
+  next: { name: string; cost: number; upkeep: number } | null;
 }
 
 export interface HallView {
@@ -192,8 +196,8 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
     guildId: guild.id,
     guildName: guild.name,
     mine: guild.controller.kind === 'player',
-    facilities: Object.keys(content.facilities).map((facility) => {
-      const def = content.facilities[facility];
+    facilities: Object.values(content.facilities).map((def) => {
+      const facility = def.key;
       const grade = facilityGrade(guild.hall, facility);
       const next = nextImprovement(guild, facility, content);
       return {
@@ -202,9 +206,9 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
         grade,
         top: topGrade(facility, content),
         built: grade === 0 ? 'none' : builtAt(facility, grade),
-        upkeep: def === undefined ? 0 : facilityUpkeep(def, grade, config),
+        upkeep: facilityUpkeep(def, grade, config),
         does: `The ${facilityName(content, facility)} ${facilityDoes(content, facility)}.`,
-        next: next === null ? null : { name: next.name, cost: next.cost },
+        next: next === null ? null : { name: next.name, cost: next.cost, upkeep: facilityUpkeep(def, next.grade, config) },
       };
     }),
   };

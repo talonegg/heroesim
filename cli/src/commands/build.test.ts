@@ -2,7 +2,7 @@
 // temporary directory, with the real content set, as main.test.ts runs the other commands.
 
 import { writeFileSync } from 'node:fs';
-import { hallUpkeepParts, playerGuild, serialise, wages, type Guild } from '@heroesim/engine';
+import { facilityUpkeep, hallUpkeepParts, playerGuild, serialise, wages, type Guild } from '@heroesim/engine';
 import { count } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
@@ -73,16 +73,25 @@ describe('build', () => {
     expect(saved()).toBe(before);
   });
 
-  test('show hall gives each facility its grade, what is built and what the next grade costs, and spends nothing', () => {
+  test('show hall gives each Facility its grade, what is built, its upkeep, and the next grade, its cost and its upkeep, and spends nothing', () => {
     newWorld(10_000);
     const name = (key: string): string => content.improvements[key]?.name ?? key;
     const rowOf = (output: string, facility: string): string =>
       output.split('\n').find((line) => line.startsWith(facility)) ?? `no ${facility} row`;
+    // A Facility's upkeep at a grade, as the Hall's upkeep charges it (DL-298, DL-303).
+    const upkeepAt = (facility: string, grade: number): string => {
+      const def = content.facilities[facility];
+      if (def === undefined) throw new Error(`no ${facility}`);
+      return coinLetters(facilityUpkeep(def, grade, document().meta.config));
+    };
 
     const unbuilt = play(['show', 'hall']);
     expect(unbuilt).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(unbuilt.out).toContain(`Hall of The Test (${thePlayer(document().world).id})`);
-    expect(rowOf(unbuilt.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+0\\s+None\\s+${name('infirmary-1')}\\s+2g$`));
+    expect(unbuilt.out.split('\n').find((line) => line.startsWith('Facility'))).toMatch(/^Facility\s+Grade\s+Built\s+Upkeep\s+Next grade\s+Cost\s+Next upkeep$/);
+    expect(rowOf(unbuilt.out, 'Infirmary')).toMatch(
+      new RegExp(`^Infirmary\\s+0\\s+None\\s+${upkeepAt('infirmary', 0)}\\s+${name('infirmary-1')}\\s+2g\\s+${upkeepAt('infirmary', 1)}$`),
+    );
     expect(thePlayer(document().world).wealth).toBe(10_000);
 
     play(['build', '--facility', 'infirmary']);
@@ -90,10 +99,18 @@ describe('build', () => {
     const built = play(['show', 'hall']);
     const summary = play(['show']);
 
-    expect(rowOf(built.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+1\\s+${name('infirmary-1')}\\s+${name('infirmary-2')}\\s+5g$`));
-    expect(rowOf(built.out, 'Training yard')).toMatch(new RegExp(`^Training yard\\s+0\\s+None\\s+${name('training-yard-1')}\\s+2g$`));
-    expect(rowOf(built.out, 'Quarters')).toMatch(new RegExp(`^Quarters\\s+3\\s+${name('quarters-3')}\\s+None: the top grade$`));
+    expect(rowOf(built.out, 'Infirmary')).toMatch(
+      new RegExp(`^Infirmary\\s+1\\s+${name('infirmary-1')}\\s+${upkeepAt('infirmary', 1)}\\s+${name('infirmary-2')}\\s+5g\\s+${upkeepAt('infirmary', 2)}$`),
+    );
+    expect(rowOf(built.out, 'Training yard')).toMatch(
+      new RegExp(`^Training yard\\s+0\\s+None\\s+${upkeepAt('training-yard', 0)}\\s+${name('training-yard-1')}\\s+2g\\s+${upkeepAt('training-yard', 1)}$`),
+    );
+    expect(rowOf(built.out, 'Quarters')).toMatch(new RegExp(`^Quarters\\s+3\\s+${name('quarters-3')}\\s+${upkeepAt('quarters', 3)}\\s+None: the top grade$`));
+    expect(upkeepAt('infirmary', 2)).not.toBe(upkeepAt('infirmary', 1));
     expect(built.out).toContain('The infirmary shortens the Days an Injury takes to heal');
+    expect(built.out.replace(/\s+/g, ' ')).toContain(
+      `Each grade does more and costs more to keep, its upkeep paid with the Hall's every ${document().meta.config.hallUpkeepEveryDays} Days.`,
+    );
     expect(summary.out).toContain("The Test's Hall: infirmary grade 1, training yard grade 0, quarters grade 3 (show hall");
 
     // A Rival's Hall by its id; an id the save lacks is refused.

@@ -1,8 +1,9 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { changed, documentOf, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { Hall } from './hall';
+import { hallView } from '../state/world-views';
+import { Hall, HallDetails } from './hall';
 import { silverOf } from './page.test-support';
 
 // The Hall redesigned (DL-106; the review's B9): each facility one row with its grade as pips
@@ -27,7 +28,7 @@ function facility(name: string): HTMLElement {
 }
 
 describe("the Hall's facilities (the review's B9)", () => {
-  test('are one row each: the grade as pips to the top grade, its upkeep in coins, what it does, and Build with its cost', () => {
+  test('are one row each: the grade as pips to the top grade, its upkeep in coins, what it does, and Build with its cost and the upkeep it would bring', () => {
     renderHall(
       changed(started(), (_, player) => {
         player.hall.infirmary = 1;
@@ -55,5 +56,29 @@ describe("the Hall's facilities (the review's B9)", () => {
     expect(silverOf(upkeepOf(infirmary))).toBe(10);
     expect(silverOf(upkeepOf(facility('Training yard')))).toBe(0);
     expect(silverOf(upkeepOf(quarters))).toBe(30);
+    // And the upkeep at the next grade, beside its price: what building it would cost to keep (DL-303).
+    const nextUpkeepOf = (el: HTMLElement, grade: number): HTMLElement => within(el).getByText(new RegExp(`^At grade ${grade}, upkeep$`));
+    expect(silverOf(nextUpkeepOf(infirmary, 2))).toBe(17);
+    expect(silverOf(nextUpkeepOf(facility('Training yard'), 1))).toBe(10);
+    expect(within(quarters).queryByText(/^At grade \d/)).toBeNull();
+  });
+
+  test("give Build on the player's own Hall alone, each button building its own Facility (DL-303)", () => {
+    const state = started();
+    const play = vi.fn();
+    render(<Hall document={documentOf(state)} busy={false} play={play} />);
+    fireEvent.click(within(facility('Training yard')).getByRole('button', { name: /^Build / }));
+    expect(play).toHaveBeenCalledWith({ kind: 'build', facility: 'training-yard' });
+    cleanup();
+
+    // Another Guild's Hall, though given a way to play, offers no Build: it says what comes next.
+    const document = documentOf(state);
+    const other = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'rival');
+    const view = other === undefined ? null : hallView(document, other.id);
+    if (view === null) throw new Error('no Rival');
+    render(<HallDetails view={view} play={play} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(within(facility('Training yard')).getByText(/^Next: /)).toBeDefined();
+    expect(within(facility('Training yard')).getByText(/^At grade \d+, upkeep$/)).toBeDefined();
   });
 });

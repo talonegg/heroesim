@@ -1,12 +1,14 @@
-// The Hall (M7-S3 part 2; the CLI's `show hall [guildId]` and `build`, M3-S6): each facility's
-// grade and the Improvement built at it, what it does, and the next grade's Improvement and cost
-// (`nextImprovement`); in the player's own Hall, a button to build it. Another Guild's Hall is shown
+// The Hall (M7-S3 part 2; the CLI's `show hall [guildId]` and `build`, M3-S6): each Facility's
+// grade, the Improvement built at it and its upkeep, what it does, and the next grade's Improvement,
+// cost (`nextImprovement`) and upkeep; in the player's own Hall, a button to build it. Another Guild's Hall is shown
 // on its page, without one. The engine's `build` decides.
 //
 // A part of the Guild, its tab's panel (DL-103, DL-111 items 5 to 7, DL-112 item 5); the
 // Guildmaster and the Market are views of their own. Each facility is one
 // row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
-// defines, what it does, its upkeep in coins, and "Build <name> · <cost>".
+// defines, its upkeep at that grade, what it does, and "Build <name> · <cost>" with the upkeep at the
+// grade it would reach (DL-303). Each upkeep is the Facility's part of the Hall's before the
+// Guildmaster's Traits, as the Treasury's parts give it; the Upkeep's charges are the Treasury's.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { coinWords } from '@heroesim/words';
@@ -58,6 +60,11 @@ export function HallDetails({ view, busy = false, play }: { view: HallView; busy
               ) : (
                 <span className="subtle">
                   Next: {row.next.name}, <Coins silver={row.next.cost} />
+                </span>
+              )}
+              {row.next === null ? null : (
+                <span className="subtle">
+                  At grade {row.grade + 1}, upkeep <Coins silver={row.next.upkeep} />
                 </span>
               )}
             </span>
