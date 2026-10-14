@@ -561,7 +561,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Every game's fingerprint moves with the new config and content versions. Thresholds and reserves in Upkeeps align with the month-based definition while preserving the economic behaviour of S4.
 
 **Evidence.** The commit `v1.2.2-S5 (DL-300)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s5-quick` and its `compare` with `v1.2.2-s4-quick`; the epic's S5 boxes ticked.
-- Verified 2026-10-14 at 4ac28b9: of 36 mutations, three survivors (the measure rounded up, a Rival at the hoarding edge counted, months read with nothing owed) are now killed by new tests, four tuning values surviving by design; the report's policy line printed 6.666666666666667 Upkeeps, now 6.67, the hoarding Target's text reads its constant, and R43, a test's comment and name and the media comments, which still read the old measure or the inbox alone, rewritten.
+- Verified 2026-10-14 at cf42436: of 36 mutations, three survivors (the measure rounded up, a Rival at the hoarding edge counted, months read with nothing owed) are now killed by new tests, four tuning values surviving by design; the report's policy line printed 6.666666666666667 Upkeeps, now 6.67, the hoarding Target's text reads its constant, and R43, a test's comment and name and the media comments, which still read the old measure or the inbox alone, rewritten.
 
 ## DL-301 — v1.2.2-S6 built: Loot-only values, and the surplus sold
 
@@ -587,7 +587,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Rivals and the policy actively liquidate surplus, preventing holding bloat and providing proceeds to debt-ridden Guilds. The quick run's sales by cause show the Rivals' and none of the policy's: it wins no Loot in two years, so holds no surplus, and sells once Loot comes. Old saves without `value` or with removed `lootOnlyPrice` are refused as allowed by the save policy.
 
 **Evidence.** The commit `v1.2.2-S6 (DL-301)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s6-quick`; the epic's S6 boxes.
-- Verified 2026-10-14 at 5c454c5: the values, the surplus, the debt order and the quick run re-derived (its fingerprint `93c75e85…` played again, refusals 0; the policy's first sales come with Loot, 25 Items in a six-year validated game), 16 of 63 mutations survived and are killed by 13 new tests, and the comments and the report's policy line that still said nothing sells were rewritten.
+- Verified 2026-10-14 at 63affe9: the values, the surplus, the debt order and the quick run re-derived (its fingerprint `93c75e85…` played again, refusals 0; the policy's first sales come with Loot, 25 Items in a six-year validated game), 16 of 63 mutations survived and are killed by 13 new tests, and the comments and the report's policy line that still said nothing sells were rewritten.
 
 ## DL-302 — v1.2.2-S7 built: The Treasury's income and expenses
 
@@ -613,7 +613,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** The Treasury and harness reports clearly separate every economic flow into its constituent income and expense lines, showing where Wealth originates and where it is spent. The quick run confirms all lines and exact 100% share sums.
 
 **Evidence.** The commit `v1.2.2-S7 (DL-302)`: the checks with their counts, the doctors' readings, the quick run `v1.2.2-s7-quick`; the epic's S7 boxes.
-- Verified 2026-10-14 at b66dacb: every Wealth-moving event lands on one line, and the split's two copies agree; of 53 mutations, ten survived, one equivalent, and nine (the split's rounding, another Guild's charge, a lone line of a split, the rows' keys, the lines' words, the shares with sales) are now killed by new tests; a section's total is now its lines' sum, Other apart; the harness's Hall rows are labelled as the parts they are; the supersession notes, CONTEXT.md's Treasury and stale comments rewritten.
+- Verified 2026-10-14 at 16d10a4: every Wealth-moving event lands on one line, and the split's two copies agree; of 53 mutations, ten survived, one equivalent, and nine (the split's rounding, another Guild's charge, a lone line of a split, the rows' keys, the lines' words, the shares with sales) are now killed by new tests; a section's total is now its lines' sum, Other apart; the harness's Hall rows are labelled as the parts they are; the supersession notes, CONTEXT.md's Treasury and stale comments rewritten.
 
 ## DL-303 — v1.2.2-S8 built: The page and the CLI
 
@@ -642,6 +642,6 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Consequences.** Before paying for a grade, a player sees what each Facility costs to keep and what building the next grade would add. In the CLI, the two charges are seen only after a `build`, until the owner answers item 6.
 
-**Evidence.** The commit `v1.2.2-S8 (DL-303)` (`4ac28b9`): the checks with their counts, the doctors' readings, the e2e at 360, 820 and 1280 wide, and the bundle check; the epic's S8 box.
-- Verified 2026-10-14 at 8b65a42: each S8 item was traced to the commit that built it, and this entry now credits S2, S4, S5 and S7. Four of 43 mutations of the shown code survived (Build on another Guild's Hall, the Facility a button builds, the Treasury's headings, a floor other than 0), and new tests now kill them. The next grade's upkeep was missing from the Hall and every upkeep from `show hall`; both are now built test first (9 more mutations, all killed). The help texts are rewritten, and DL-112 item 6's note and record are written.
+**Evidence.** The commit `v1.2.2-S8 (DL-303)` (`cf42436`): the checks with their counts, the doctors' readings, the e2e at 360, 820 and 1280 wide, and the bundle check; the epic's S8 box.
+- Verified 2026-10-14 at 6875f18: each S8 item was traced to the commit that built it, and this entry now credits S2, S4, S5 and S7. Four of 43 mutations of the shown code survived (Build on another Guild's Hall, the Facility a button builds, the Treasury's headings, a floor other than 0), and new tests now kill them. The next grade's upkeep was missing from the Hall and every upkeep from `show hall`; both are now built test first (9 more mutations, all killed). The help texts are rewritten, and DL-112 item 6's note and record are written.
 
