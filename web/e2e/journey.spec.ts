@@ -159,7 +159,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(treasury.getByText(new RegExp(`^Hall upkeep of The Lantern: ${amountPattern} every 30 Days$`))).toBeVisible();
   await expect.poll(() => spokenText(treasury.getByTestId('hall-upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year \\d+ Day \\d+: ${amountPattern}\\.$`));
   const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
-  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for ${amountPattern}\\.(Signing fees|Heroes)-`) })).toHaveCount(1);
+  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for ${amountPattern}\\.Signing fees-`) })).toHaveCount(1);
   // It opens with the Wealth the Guild was founded with, last on its only page (DL-120 item 4).
   await expect(ledger.getByRole('row').last()).toHaveText(new RegExp(`^Year 1 Day 1, morningFounded with ${amountPattern}Opening balance`));
   await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: /^Expense \d+$/ }).click();

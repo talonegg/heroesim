@@ -628,12 +628,11 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 3. *The Guilds table* (`web/src/views/guilds.tsx`, `cli/src/render.ts`): Displays Upkeep a month (`upkeep(guild, world, config, content)` from S5/DL-300) in coins.
 4. *Stops and Hero page amounts* (`web/src/views/stop.tsx`, `web/src/views/hero-page.tsx`): Display amounts formatted in coins (`Coins` or `coinWords`), including rewards, signing fees, and transfer fees.
 5. *The CLI* (`cli/src/commands/build.ts`, `cli/src/render.ts`): `build` reports the built Improvement, cost, Wealth, wages every 10 Days, Hall upkeep every 30 Days, and next grade cost; `show hall` renders each facility, grade, built Improvement, next grade, and cost.
-6. *E2E spec* (`web/e2e/journey.spec.ts`): Updates recruitment ledger row regex to match S7's `Signing fees` category.
+6. *E2E spec* (`web/e2e/journey.spec.ts`): The recruitment's ledger row is matched by S7's `Signing fees` line alone; the first build's `Heroes` category no longer exists (corrected at the close, the S8 commit having matched both).
 7. *Supersedes in part* DL-112 item 6.
 
 *Judgement calls, for the owner to see.*
 - Each Facility row in the Hall displays `Upkeep <Coins silver={row.upkeep} />` beside the grade pips and built Improvement, rendering 0 Silver at grade 0 and the scaled upkeep at higher grades.
-- The journey e2e spec accepts both `Signing fees` and legacy `Heroes` category text for signing entries in the ledger table.
 
 **Consequences.** Players see the upkeep contribution of each Facility directly in the Hall. The e2e test suite passes across all three viewports (360, 820, and 1280 wide), and the production bundle passes within the 900 kB budget.
 
