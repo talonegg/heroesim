@@ -17,13 +17,13 @@ import { media, mediaCatalogue, mediaFiles, mediaPathOf, neutralSilhouette } fro
 // - a Portrait's picture has its thumbnail beside it, `<key>.thumb.webp` (DL-135 item 9).
 // Three things under `media/` are the portrait tool's and never the page's (DL-135 item 11):
 // its register, `portraits/registry.json`; its inbox, `inbox/`, which is ignored but for each
-// folder's `.gitkeep`; and the converted Hero pictures waiting to be taken in, a folder under each
-// Hero sex's (`portraits/heroes/<sex>/<class>/`). None is shipped (src/media.ts), and none is held
-// to these rules.
+// folder's `.gitkeep`; and any batch of converted Hero pictures kept until it is taken in, a folder
+// under each Hero sex's (`portraits/heroes/<sex>/<class>/`, DL-300). None is shipped (src/media.ts),
+// and none is held to these rules.
 
 const mediaDir = fileURLToPath(new URL('../../media/', import.meta.url));
 
-/** The portrait tool's own files under `media/`: its register, its inbox, and the converted Hero pictures' folders. */
+/** The portrait tool's own files under `media/`: its register, its inbox, and any converted Hero pictures' folders. */
 const toolsOwn = (entry: string): boolean =>
   entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/') || /^portraits\/heroes\/(?:female|male)\/[^/.]+(?:\/|$)/.test(entry);
 

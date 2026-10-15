@@ -41,9 +41,9 @@ export interface Pictured {
  * resolved it from (`../../media/items/silhouette.svg`): a Silhouette's is a `data:` URL, a
  * picture's `./assets/<name>-<hash>.webp`. The portrait tool's inbox, `media/inbox/`, is never
  * shipped: an upload, or a trial conversion beside it, waits there to be taken in (v1.1.3-S2). Nor
- * is a folder under a Hero sex's, `portraits/heroes/<sex>/<class>/`: the converted Hero pictures wait
- * there to be taken in (docs/planning/heroes-portrait-conversion.md), and a Portrait's picture is
- * found only at `portraits/<role>/<sex>/<key>.webp`.
+ * is a folder under a Hero sex's, `portraits/heroes/<sex>/<class>/`, where a batch of converted Hero
+ * pictures is kept until it is taken in (DL-300); a Portrait's picture is found only at
+ * `portraits/<role>/<sex>/<key>.webp`.
  */
 const shipped = import.meta.glob<string>(
   ['../../media/**/*.{svg,webp}', '!../../media/inbox/**', '!../../media/portraits/heroes/*/*/**'],
