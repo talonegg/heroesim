@@ -678,3 +678,26 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 - Verified 2026-10-16 at 61a0470 (c33d41c, c60ecef): the split, rows and lines re-derived; of 51 mutations, 11 survivors (the payload's defaults, the harness's refusals, Other's row) are killed by new tests, one equivalent; Other set at a section's level.
 - Verified 2026-10-16 at 4381fe0 (d244939, 66851a7, 61a0470): of 33 mutations, 7 survivors (the factor, a charge's night, the fold, the order, a lower-case Facility) killed by new tests; the EPERM is no scan's; every probe's writer retries.
 
+## DL-305 — v1.2.2-S9: the release's commits reviewed
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the agent
+
+**Context.** The close's first item (the epic's S9): the release's commits, `a93f208..6ea2494`, S1 to S9 and their verifications (DL-295 to DL-304), read across the stories for what each story's verification would miss: the whole Silver against every new amount, one figure for the Hall's charge, the month's measure and the ledger wherever they are shown, Facilities as content against every place that once named one, the replaced paths, the words a player reads, the comments and the live pages.
+
+**Decision.**
+
+1. *The Hall's list named its Facilities lower case* to a screen reader ("The facilities of …'s Hall"); it says "The Facilities of …'s Hall" (`web/src/views/hall.tsx`, ui-text.md rule 2). Test first: `hall.test.tsx`.
+2. *A Hall upkeep charge's `traitFactor` was read unchecked.* A save edited by hand to a factor that is no number passed the validator, and its split (`hallUpkeepSplit`) carried NaN to the words' formatter, which throws, so the Treasury could not be shown. The validator refuses a `traitFactor` written and not a number above 0 (`entry-field-missing`, `engine/src/validate.ts`); one left out still reads 1. Test first: `validate.test.ts`. DL-304's judgement call that the validator requires neither `facilities` nor `traitFactor` is half right: it has required `facilities`, a map of whole Silver, since DL-298 (`moneyMaps`).
+3. *The probes' writers.* Twelve comments and test titles in ten files still said `engine/src/boundary.test.ts` writes the `boundary-probe-*` files, false since DL-246; each names the real writers (`content/src/imports.test.ts`, `words/src/imports.test.ts` into `web/src`, `harness/src/settings.test.ts`), or, in `engine/src`, that none writes there. Every filter and test is kept.
+4. *The ledger's categories,* S7's lines under the replaced six's names (`LedgerCategory`, `ledgerCategories`, `categoryWords`), aliases beside `LedgerLine`, `ledgerLines` and `lineWords`, are removed (`web/src/state/treasury.ts`). The page still heads the column Category.
+5. *Words and pages.* The Treasury's help names the lines' table; `docs/approach.md`'s night says training XP and the wages and the Hall's upkeep on their Days; R33's quarters bring Fatigue's fall; a test's comment cites DL-297, not the story; the Hall view's and its test's comments and `breakpoints.ts`' say Facility.
+
+*Judgement calls, for the owner to see.*
+- Found sound and left: the engine names no Facility; every new amount is whole (each charge, part and measure rounded once, the sale floored, the fold at `value`); the Hall's charge is `hallUpkeepParts`' total in the engine, the Treasury, `show` and `build`, and the month's `upkeep` in the Guilds table and `show guilds`; the surplus buys and sells by one count of holding and Parties, so nothing a Guild buys is sold back; no reader of Upkeeps left on ten Days; no `guild.upkeep-paid`, `hallMaintenancePerGrade`, `lootOnlyPrice` or engine `facilityKeys` but in the log, the epic and the changelogs.
+- Noted, not built: the CLI's usage gives no words for `show guilds`, whose Upkeep is a month (the page's help says so); the glossary's Market says an Item sells for less than it costs, which a loot-only Item at a fold does not; the harness report's shares are not rounded by largest remainder.
+- `cli/src/main.test.ts` stays LF: the repository has no `.gitattributes`, the index stores LF and the file is not mixed.
+
+**Consequences.** Play does not move: the validator refuses only what no rule writes. A save whose Hall upkeep charge has a factor that is no number is refused at load.
+
+**Evidence.** The commit `v1.2.2-S9 (DL-305)`: the checks with their counts, the bundle's bytes, the e2e and the doctors' readings.
+

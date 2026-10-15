@@ -240,7 +240,7 @@ const harnessDir = fileURLToPath(new URL('.', import.meta.url));
 const environmentReaders = (): string[] =>
   readdirSync(harnessDir)
     .filter((file) => file.endsWith('.ts') && file !== 'settings.ts' && file !== 'settings.test.ts')
-    // engine/src/boundary.test.ts writes and deletes probe files here while other tests run (DL-236).
+    // This file's own test writes and deletes a probe file here while other tests run (DL-236).
     .filter((file) => !file.startsWith('boundary-probe-'))
     .filter((file) => readFileSync(`${harnessDir}/${file}`, 'utf8').includes('process.env'));
 
@@ -249,7 +249,7 @@ test('no harness source but settings.ts reads the environment', () => {
   expect(environmentReaders()).toEqual(['main.ts']);
 });
 
-test("the sources read leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+test('the sources read leave out the boundary-probe files this test writes, which come and go while other tests run (DL-236)', () => {
   const file = `boundary-probe-${randomUUID()}.ts`;
   writeFileSync(`${harnessDir}/${file}`, "export const env = process.env['HOME'];\n");
   try {

@@ -238,7 +238,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 ### 3.7 The Hall
 
 - R33. The Hall has an infirmary (faster healing), a training yard (XP off-Quest) and quarters
-  (Morale), each raised through three grades by Improvements bought for Wealth; each grade adds
+  (Morale, and Fatigue's fall at home), each raised through three grades by Improvements bought for Wealth; each grade adds
   to the Hall's upkeep. Workers, hired staff with a wage and a Stat that scale a Facility, are
   deferred. The Facilities are content (R42), and the Hall's upkeep is its own charge (R43).
 - R42. A Facility is a part of the Hall defined in content, with its name, its upkeep at its first

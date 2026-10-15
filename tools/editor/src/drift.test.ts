@@ -89,7 +89,7 @@ describe('the drift test', () => {
     expect(drift(dir).unlisted.map((read) => `${read.file} ${read.name} ${read.reads}`)).toEqual([`engine/src/quest-engine/planted.ts ${reads}`]);
   });
 
-  test("reads a file named as boundary.test.ts's probes, except where that test writes them", () => {
+  test('reads a file named as a boundary probe, except where the probes are written', () => {
     const dir = scratch({ engine: true });
     const probe = 'boundary-probe-0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d.ts';
     const text = 'export const planted = (c: { heroTraits: object }): object => c.heroTraits;\n';

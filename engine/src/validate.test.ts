@@ -791,6 +791,24 @@ describe('document-shape', () => {
     }
   });
 
+  // DL-304: the factor splits the charge into its two ledger lines (`hallUpkeepSplit`); one not a number would
+  // carry NaN to the words' formatter, which throws. The reader takes 1 where it is absent.
+  test('a guild.hall-upkeep-paid entry whose traitFactor is written and not a number above 0 is refused; absent, it is accepted', () => {
+    const whole = { amount: 65, wealthAfter: -10, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 20, quarters: 10 } };
+    const paying = (payload: object): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const entry = { turn: fixtureTurn, type: 'guild.hall-upkeep-paid', participants: [ids.playerGuild], labels: {}, milestone: false, payload };
+      return { document, at: append(document.history, entry as Entry) };
+    };
+
+    expect(validate(paying(whole).document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(validate(paying({ ...whole, traitFactor: 0.9 }).document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const traitFactor of ['0.9', 0, -1, null]) {
+      const { document, at } = paying({ ...whole, traitFactor });
+      expect(validate(document, deps), String(traitFactor)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
+  });
+
   test('a field no interface names is kept and ignored (rule 5)', () => {
     const { document } = buildDocument();
     set(hero(document, ids.partyHero), 'nickname', 'the Lantern');

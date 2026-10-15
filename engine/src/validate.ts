@@ -1413,7 +1413,8 @@ const moneyFieldsIfWritten: Readonly<Partial<Record<EventType, readonly string[]
 /**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
  * (DL-246): a Guild's founding names its founding Wealth in whole Silver (DL-120 item 4, DL-294
- * item 1), every amount of an entry is whole Silver (`moneyFields`, `moneyFieldsIfWritten`, `moneyMaps`), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
+ * item 1), every amount of an entry is whole Silver (`moneyFields`, `moneyFieldsIfWritten`, `moneyMaps`), the Hall's upkeep's
+ * `traitFactor`, which splits it into its ledger lines, a number above 0 where written (DL-304), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
  * 2), an Encounter's names its Degree, the Check that decided it and its Checks rolled (DL-152,
  * DL-247), and a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
  */
@@ -1432,6 +1433,10 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
       (rowOf(moneyMaps, entry.type) ?? []).find((field) => !(isMap(payload[field]) && Object.values(payload[field]).every(isInteger)));
     if (fraction !== undefined) {
       failures.push({ check: 'entry-field-missing', id, detail: `${id} is a ${entry.type} whose ${fraction} is not whole Silver` });
+    }
+    const { traitFactor } = payload;
+    if (entry.type === 'guild.hall-upkeep-paid' && traitFactor !== undefined && !(typeof traitFactor === 'number' && traitFactor > 0)) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} is a guild.hall-upkeep-paid whose traitFactor is not a number above 0` });
     }
     const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
     if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {

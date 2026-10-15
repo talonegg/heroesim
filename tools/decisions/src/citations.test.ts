@@ -36,7 +36,7 @@ describe('citations', () => {
     }
   });
 
-  test("leaves out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+  test('leaves out the boundary-probe files tests write, which come and go while other tests run (DL-236)', () => {
     const { dir, remove } = scratchRepository({
       ...smallLog,
       'engine/src/a.ts': `// ${planted}\n`,

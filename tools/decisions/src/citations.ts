@@ -33,8 +33,9 @@ export function unknownCitations(files: readonly { file: string; text: string }[
 }
 
 /**
- * The repository's files as git lists them: tracked, or new and not ignored, with `/`. The probe
- * files engine/src/boundary.test.ts writes and deletes while other tests run are left out (DL-236).
+ * The repository's files as git lists them: tracked, or new and not ignored, with `/`. The boundary-probe
+ * files that content's, the words' and the harness's imports and settings tests write and delete while
+ * other tests run are left out (DL-236).
  */
 function listed(root: string): string[] {
   const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });

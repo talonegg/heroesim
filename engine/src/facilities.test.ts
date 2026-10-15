@@ -102,8 +102,8 @@ function withFourthGrade(base: ContentSet = content): ContentSet {
   return deepFreeze({ ...base, improvements: { ...base.improvements, 'infirmary-4': infirmary4 } });
 }
 
-// The epic's acceptance (S3): a Facility with a fourth grade, and a fourth Facility, built and read with
-// no engine change: content alone adds them.
+// A Facility with a fourth grade, and a fourth Facility, built and read with
+// no engine change: content alone adds them (DL-294 item 3, DL-297).
 describe('a fourth grade and a fourth Facility, from content alone', () => {
   const extended = withFourthGrade(withFourthFacility({ moraleBaseline: [0, 4] }));
   const deps = testDeps({ rivalCount: 0 }, extended);

@@ -6,7 +6,7 @@ import { hallView } from '../state/world-views';
 import { Hall, HallDetails } from './hall';
 import { silverOf } from './page.test-support';
 
-// The Hall redesigned (DL-106; the review's B9): each facility one row with its grade as pips
+// The Hall redesigned (DL-106; the review's B9): each Facility one row with its grade as pips
 // and the cost on its button. The Upkeep sentence above them left for the Treasury (DL-116). A part of the Guild (DL-115):
 // the part alone is rendered here, and its tab in the Guild is `guild.test.tsx`'s; the Guildmaster and the Market left it
 // for views of their own (`guildmaster.test.tsx`, `market.test.tsx`).
@@ -18,7 +18,7 @@ function renderHall(state: GameState): void {
   render(<Hall document={documentOf(state)} busy={false} play={vi.fn()} />);
 }
 
-/** The Hall's facility rows, by their names. */
+/** The Hall's Facility rows, by their names. */
 function facility(name: string): HTMLElement {
   const row = screen
     .getAllByTestId('facility')
@@ -27,7 +27,7 @@ function facility(name: string): HTMLElement {
   return row;
 }
 
-describe("the Hall's facilities (the review's B9)", () => {
+describe("the Hall's Facilities (the review's B9)", () => {
   test('are one row each: the grade as pips to the top grade, its upkeep in coins, what it does, and Build with its cost and the upkeep it would bring', () => {
     renderHall(
       changed(started(), (_, player) => {
@@ -37,6 +37,8 @@ describe("the Hall's facilities (the review's B9)", () => {
     );
 
     expect(screen.getAllByTestId('facility')).toHaveLength(3);
+    // The list names its Facilities as the glossary writes the term, to a screen reader too (ui-text.md, DL-125 item 9).
+    expect(within(screen.getByRole('list', { name: /^The Facilities of .+'s Hall$/ })).getAllByTestId('facility')).toHaveLength(3);
     const infirmary = facility('Infirmary');
     const pips = within(infirmary).getByRole('img', { name: 'Grade 1 of 3' });
     expect(pips.textContent).toBe('●○○');

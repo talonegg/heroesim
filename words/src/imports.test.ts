@@ -159,7 +159,7 @@ function frontEndSources(): string[] {
   return ['cli/src', 'web/src'].flatMap((dir) =>
     readdirSync(`${root}${dir}`, { recursive: true, encoding: 'utf8' })
       .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-support\.tsx?$/.test(file))
-      // engine/src/boundary.test.ts writes and deletes probe files here while other tests run (DL-236).
+      // This file's own test writes and deletes a probe file in web/src while other tests run (DL-236).
       .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
       .map((file) => `${dir}/${file.replace(/\\/g, '/')}`),
   );
@@ -169,7 +169,7 @@ describe('the copies gone', () => {
   const sources = frontEndSources();
   const names = Object.keys(words);
 
-  test("leaves out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+  test('leaves out the boundary-probe files this test writes in web/src, which come and go while other tests run (DL-236)', () => {
     // A probe that defines a word of the package, which the tests below would count as a copy.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const planted = `${root}web/src/${file}`;

@@ -40,7 +40,7 @@ export function scratchRepository(options: { engine?: boolean } = {}): { dir: st
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-'));
   cpSync(inject('editorTemplate'), dir, { recursive: true, preserveTimestamps: true });
   if (options.engine === true) {
-    // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
+    // A boundary probe (`isBoundaryProbe`), which a test may write in a package's src/ while other tests run, is left out.
     cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {
       recursive: true,
       filter: (source) => !isBoundaryProbe(path.relative(root, source).replace(/\\/g, '/')),

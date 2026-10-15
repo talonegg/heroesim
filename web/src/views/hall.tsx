@@ -4,7 +4,7 @@
 // on its page, without one. The engine's `build` decides.
 //
 // A part of the Guild, its tab's panel (DL-103, DL-111 items 5 to 7, DL-112 item 5); the
-// Guildmaster and the Market are views of their own. Each facility is one
+// Guildmaster and the Market are views of their own. Each Facility is one
 // row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
 // defines, its upkeep at that grade, what it does, and "Build <name> · <cost>" with the upkeep at the
 // grade it would reach (DL-303). Each upkeep is the Facility's part of the Hall's before the
@@ -24,12 +24,12 @@ export function Hall({ document, busy, play }: { document: WorldDocument; busy: 
   return view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} busy={busy} play={play} />;
 }
 
-/** A Hall's facilities; with `play`, and the Hall the player's own, a Build button for each next grade. */
+/** A Hall's Facilities; with `play`, and the Hall the player's own, a Build button for each next grade. */
 export function HallDetails({ view, busy = false, play }: { view: HallView; busy?: boolean; play?: (action: GameAction) => void }) {
   const builds = view.mine && play !== undefined;
   return (
     <div className="facilities">
-      <ul className="facility-rows" aria-label={`The facilities of ${view.guildName}'s Hall`}>
+      <ul className="facility-rows" aria-label={`The Facilities of ${view.guildName}'s Hall`}>
         {view.facilities.map((row) => (
           <li key={row.facility} className="facility" data-testid="facility">
             <span className="facility__name">{row.name}</span>

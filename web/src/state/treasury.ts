@@ -52,11 +52,11 @@ export type ExpenseLine =
   | 'signing-fees'
   | 'transfers-in';
 
-/** The ledger's lines (DL-302, Q19): income and expense lines, and 'other' for module events. */
+/**
+ * The ledger's lines (DL-302, Q19, superseding DL-111 item 5's and DL-112 item 6's categories): income and
+ * expense lines, and 'other' for module events. The page's Category column and chips name them.
+ */
 export type LedgerLine = IncomeLine | ExpenseLine | 'other';
-
-/** The ledger's categories, the lines the owner asked for (DL-302, superseding DL-111 item 5, DL-112 item 6). */
-export type LedgerCategory = LedgerLine;
 
 /** The income lines in the order the Treasury names them. */
 export const incomeLines: readonly IncomeLine[] = ['quest-rewards', 'item-sales', 'transfers-out'];
@@ -75,9 +75,6 @@ export const expenseLines: readonly ExpenseLine[] = [
 /** All ledger lines in the order the Treasury names them. */
 export const ledgerLines: readonly LedgerLine[] = [...incomeLines, ...expenseLines, 'other'];
 
-/** The categories in the order the Treasury names them. */
-export const ledgerCategories: readonly LedgerCategory[] = ledgerLines;
-
 /** Each line's name on the page. */
 export const lineWords: Readonly<Record<LedgerLine, string>> = Object.freeze({
   'quest-rewards': 'Quest rewards',
@@ -93,12 +90,9 @@ export const lineWords: Readonly<Record<LedgerLine, string>> = Object.freeze({
   other: 'Other',
 });
 
-/** Each category's name on the page. */
-export const categoryWords: Readonly<Record<LedgerCategory, string>> = lineWords;
-
 /** What an entry did to one Guild's Wealth: its category, and the amount, positive for income. */
 export interface WealthChange {
-  category: LedgerCategory;
+  category: LedgerLine;
   amount: number;
 }
 
@@ -108,7 +102,7 @@ type Reader<Type extends EngineEventType> = (
 ) => WealthChange | readonly WealthChange[] | null;
 
 /** `amount` in `category` when `mine`; none otherwise. */
-function when(mine: boolean, category: LedgerCategory, amount: number): WealthChange | null {
+function when(mine: boolean, category: LedgerLine, amount: number): WealthChange | null {
   return mine ? { category, amount } : null;
 }
 
@@ -214,7 +208,7 @@ export interface LedgerRow {
   segments: Segment[];
   sentence: string;
   /** `null` for the opening row. */
-  category: LedgerCategory | null;
+  category: LedgerLine | null;
   /** `Quest rewards`; `Opening balance` for the opening row. */
   categoryWords: string;
   /** In Silver (DL-294 item 1): positive for income, negative for an expense; the founding Wealth for the opening row, a balance and not a change. */
@@ -254,7 +248,7 @@ function ledgerRow(change: LedgerChange, narration: Narration): LedgerRow {
     segments,
     sentence: textOf(segments),
     category,
-    categoryWords: categoryWords[category],
+    categoryWords: lineWords[category],
     amount,
   };
 }
@@ -382,10 +376,10 @@ export interface TreasuryAccounts {
 }
 
 /** The ledger's filters, of the categories `held`. A change is never of nothing (`wealthChangeOf`). */
-function ledgerFacets(held: readonly LedgerCategory[]): Facets<LedgerChange, 'flow' | 'category'> {
+function ledgerFacets(held: readonly LedgerLine[]): Facets<LedgerChange, 'flow' | 'category'> {
   return {
     flow: { label: 'Show income or expense', options: flowLabels, of: (row) => (row.amount > 0 ? 'income' : 'expense') },
-    category: { label: 'Show of category', options: held.map((key) => ({ key, label: categoryWords[key] })), of: (row) => row.category },
+    category: { label: 'Show of category', options: held.map((key) => ({ key, label: lineWords[key] })), of: (row) => row.category },
   };
 }
 
@@ -485,7 +479,7 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
     countdown: countdownView(document),
     ledger: {
       changes,
-      facets: ledgerFacets(ledgerCategories.filter((key) => changes.some((row) => row.category === key))),
+      facets: ledgerFacets(ledgerLines.filter((key) => changes.some((row) => row.category === key))),
       opening: openingOf(document, guild.id),
       narration: readingOf(document).narration,
     },

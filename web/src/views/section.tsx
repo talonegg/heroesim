@@ -139,7 +139,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'payment, and what the Hall’s is made of; the ' +
     'Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the Wealth ' +
     'read from the History, newest first, a page at a time. Show income or expense, and some categories, with the ' +
-    'chips, one choice or several, each counting what it would show; the totals are of what is shown. A name opens whom it names.',
+    'chips, one choice or several, each counting what it would show; the totals, and each line’s in the table under ' +
+    'them, are of what is shown. A name opens whom it names.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
     'What happened, newest first, a page at a time, by date and time of day: your Guild’s, the world’s or a ' +

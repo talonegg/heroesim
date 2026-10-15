@@ -33,7 +33,7 @@ import { narrateText } from './namer';
 import {
   expenseLines,
   incomeLines,
-  ledgerCategories,
+  ledgerLines,
   ledgerOf,
   ledgerPage,
   lineWords,
@@ -346,7 +346,7 @@ describe('the ledger misses nothing', () => {
         both,
         { flow: ['income'] },
         { flow: ['expense'] },
-        ...ledgerCategories.map((category) => ({ category: [category] })),
+        ...ledgerLines.map((category) => ({ category: [category] })),
         { flow: ['expense'], category: ['other', 'wages'] },
       ];
       for (const choice of choices) {
@@ -377,8 +377,8 @@ describe('the ledger misses nothing', () => {
             .flatMap((id) => ledgerOf(now, id as GuildId).flatMap((row) => (row.category === null ? [] : [row.category]))),
         ),
       );
-    expect([...categories(false)].sort()).toEqual([...ledgerCategories].sort());
-    expect([...categories(true)].sort()).toEqual([...ledgerCategories].sort());
+    expect([...categories(false)].sort()).toEqual([...ledgerLines].sort());
+    expect([...categories(true)].sort()).toEqual([...ledgerLines].sort());
   });
 });
 
