@@ -304,22 +304,22 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred | item 2 in part by DL-294 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-294 | 2026-10-12 | The economy redesigned before its pass: Silver, the Hall's upkeep, Contracts; three releases |  | [decision-log](../decision-log.md) |
-| DL-295 | 2026-10-12 | v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury … |  | [decision-log](../decision-log.md) |
-| DL-296 | 2026-10-12 | v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins |  | [decision-log](../decision-log.md) |
-| DL-297 | 2026-10-12 | v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's … |  | [decision-log](../decision-log.md) |
-| DL-298 | 2026-10-12 | v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages |  | [decision-log](../decision-log.md) |
-| DL-299 | 2026-10-12 | The CI minutes: check times out and cancels superseded runs, the watch runs weekly |  | [decision-log](../decision-log.md) |
-| DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [decision-log](../decision-log.md) |
-| DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [decision-log](../decision-log.md) |
-| DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [decision-log](../decision-log.md) |
-| DL-303 | 2026-10-14 | v1.2.2-S8 built: The page and the CLI |  | [decision-log](../decision-log.md) |
-| DL-304 | 2026-10-16 | v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and … | item 4 by DL-306 | [decision-log](../decision-log.md) |
-| DL-305 | 2026-10-16 | v1.2.2-S9: the release's commits reviewed, and the close's Gate recorded |  | [decision-log](../decision-log.md) |
-| DL-306 | 2026-10-16 | v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense |  | [decision-log](../decision-log.md) |
-| DL-307 | 2026-10-16 | v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes |  | [decision-log](../decision-log.md) |
-| DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [decision-log](../decision-log.md) |
-| DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [decision-log](../decision-log.md) |
-| DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [decision-log](../decision-log.md) |
+| DL-295 | 2026-10-12 | v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury … |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-296 | 2026-10-12 | v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-297 | 2026-10-12 | v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's … |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-298 | 2026-10-12 | v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-299 | 2026-10-12 | The CI minutes: check times out and cancels superseded runs, the watch runs weekly |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-303 | 2026-10-14 | v1.2.2-S8 built: The page and the CLI |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-304 | 2026-10-16 | v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and … | item 4 by DL-306 | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-305 | 2026-10-16 | v1.2.2-S9: the release's commits reviewed, and the close's Gate recorded |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-306 | 2026-10-16 | v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-307 | 2026-10-16 | v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 
 ## Pre-M0 review decisions
 
