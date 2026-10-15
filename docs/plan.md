@@ -84,7 +84,7 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
 
 - **Now: [`v1.2.2`, Coin and the Hall](./planning/epics/v1.2.2-release.md)** (DL-294), on
   `v1.2.2-dev`, built and verified to S9, its closing Gate run and recorded, not blocking (DL-305);
-  awaiting the owner's playtest and word to release. Wealth held in whole Silver and shown as Gold and Silver; the
+  playtested (DL-307); awaiting the owner's word to release. Wealth held in whole Silver and shown as Gold and Silver; the
   Hall's Facilities as content, each with an upkeep rising with its grade; the Hall's upkeep, a base
   and a share for each Hero, every 30 Days, apart from the wages every 10; one Upkeep a month of
   costs; loot-only Items valued, and every Guild's surplus sold (#25's last part but gear upgraded);

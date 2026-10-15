@@ -732,3 +732,17 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2-S9 (DL-306)`: the checks with their counts. The epic's S9 scope names the ruling; DL-304 item 4 is its stub, and [superseded/DL-304.md](decisions/archive/superseded/DL-304.md) the record.
 
+## DL-307 — v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner
+
+**Context.** The close (delivery.md, A release) asks for the owner's playtest of a few in-game years of the release's build. v1.2.2 aims at none of the Guild Management Design's nine sentences; its playtest asks whether the Treasury tells the player where the Wealth comes from and goes (the epic's "Aims at"). The build at 1d0dc9f, with DL-306's Other lines.
+
+**Decision.**
+
+1. **The playtest is done** (the owner: "playtest complete"), and asked whether the Treasury tells where the Wealth comes from and goes, from (a) yes, (b) partly, (c) no, the owner answered **"a": yes**.
+
+**Consequences.** The release's question is answered as it aimed. The economy stays broken until `v1.2.4` (Q20): every Gate game ends in Bankruptcy (DL-305). The owner's word to release is a separate answer.
+
+**Evidence.** The epic's S9 last box. DL-305's Gate and costs.
+
