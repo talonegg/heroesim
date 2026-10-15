@@ -61,7 +61,7 @@ Commands:
       and its wages and the Hall's upkeep with the night each is next paid; roster shows the
       player's Guild unless given another, each Hero's Morale and Fatigue and who its
       Captain is; hall shows the player's Guild unless given another too, each
-      facility's grade and upkeep, and what the next grade costs and its upkeep;
+      Facility's grade and upkeep, and what the next grade costs and its upkeep;
       pool marks the Heroes who will not yet sign for the player's Guild's Fame;
       patrons shows each Patron's Regard for the player's Guild; board shows the Quests
       on offer, each with its Tier and whether it is Deadly, each Encounter's Checks and

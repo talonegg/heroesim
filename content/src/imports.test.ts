@@ -22,7 +22,7 @@ function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceF
   const dir = join(root, pkg, 'src');
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('.ts') && (withTests || !/\.test(-support)?\.ts$/.test(file)))
-    // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
+    // This file's own test writes and deletes a boundary-probe file in content/src/ while other tests run.
     .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
     .map((file) => ({
       file,

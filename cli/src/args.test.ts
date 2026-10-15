@@ -163,7 +163,7 @@ describe('parseArgs', () => {
     expect(said).toContain("each Hero's Morale and Fatigue and who its Captain is");
     // DL-291: hall's clause says what hall shows, not the roster's Morale, Fatigue and Captain.
     expect(said).not.toContain('Captain is, and so does hall');
-    expect(said).toContain("hall shows the player's Guild unless given another too, each facility's grade");
+    expect(said).toContain("hall shows the player's Guild unless given another too, each Facility's grade");
     expect(said).toContain("each Hero's Fatigue and the Captain among them, what would relieve the hurt");
   });
 
@@ -210,7 +210,7 @@ describe('parseArgs', () => {
     }
   });
 
-  test('reads build: a facility in the CLI’s words', () => {
+  test('reads build: a Facility in the CLI’s words', () => {
     expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
       name: 'build',
