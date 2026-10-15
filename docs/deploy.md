@@ -36,7 +36,7 @@ branch's pull request moves it, and each merge releases unless it is a record (D
    - it reads that Pages's production branch is `main`, so that no upload is a preview;
    - it runs `npm run deploy` from its clean checkout of the tag, which builds the page and its
      bundle gate every time, and fails if Pages took the upload as anything but production;
-   - it runs `npm run e2e:live -w web` on both addresses;
+   - it runs no live check after the upload (DL-309): `npm run e2e:live -w web` is run by hand;
    - it publishes the record as the tag's GitHub Release.
 
    Leaving the pull request open holds the next release while commits gather.
@@ -59,9 +59,8 @@ releases both.
 
 A new line needs only its two branches. Each new dev branch, a line's or a patch's, moves
 Dependabot's `target-branch` (`.github/dependabot.yml`) to itself (DL-147), which takes effect once
-released to `main`. Every Monday `watch.yml` does three things, and opens an issue when any of
-them fails, or when the token expires within 30 days:
-- it plays both addresses;
+released to `main`. Every Monday `watch.yml` does two things, and opens an issue when either
+fails, or when the token expires within 30 days; it no longer plays the addresses (DL-309):
 - it verifies the Cloudflare token and its expiry;
 - it reads Pages's production branch.
 

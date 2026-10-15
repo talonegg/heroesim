@@ -760,3 +760,25 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2 (DL-308)`; the pull request CI raises.
 
+## DL-309 — The live check removed from CI: the deploy and the weekly watch play neither address
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner ("remove the live check")
+
+**Context.** The weekly watch on `main` failed its last three runs: on Pages, the live check's game timed out at 2 minutes at both widths (run 38717265818, 2026-10-15), against v1.2.1 in production. The deploy of a release runs the same check after the upload (DL-122 item 3), so v1.2.2's deploy could fail there.
+
+**Decision.**
+
+1. `deploy.yml` runs no live check: the steps "The live check on both addresses" and its result are gone, and the GitHub Release's words no longer name it. Supersedes DL-122 item 3's step 3 in part.
+2. `watch.yml` has no `live` job: it reads the Cloudflare token and Pages's production branch, and its issue names those alone. Supersedes DL-124 item 10's live check in part.
+3. `release-pr.yml`'s pull request body no longer names the live check.
+4. `web/src/deploy.test.ts` pins that neither workflow runs `e2e:live`, in place of the pins of its place.
+5. `npm run e2e:live -w web`, its config and `e2e/*.live.ts` stay, run by hand (`docs/deploy.md`'s manual deploy).
+
+*Judgement calls, for the owner to see.*
+- "The live check" read as its two CI runs; the command itself kept for a hand run. The cause of the Pages timeout is not looked into.
+- The epics' release lines (`v1.2.2` to `v1.2.4`) no longer ask for a live check after the release.
+
+**Consequences.** A release that uploads but does not play on an address is no longer caught by CI, nor an outage by the watch; the watch still catches a token near its end and Pages's production branch moved.
+
+**Evidence.** The commit `v1.2.2 (DL-309)`; `web/src/deploy.test.ts`. The notes under DL-122 item 3 and DL-124 item 10, and their records in `superseded/`.
+

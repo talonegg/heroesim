@@ -1,8 +1,8 @@
 name: watch
 
-# DL-124 item 10, weekly since DL-299: every Monday, and by hand, production is read as a player and an operator would.
-# The live check plays both addresses; the Cloudflare token is verified active and not expiring
-# within 30 days; and Pages is read to publish `main` as production still
+# DL-124 item 10, weekly since DL-299: every Monday, and by hand, production is read as an operator would.
+# The Cloudflare token is verified active and not expiring within 30 days; and Pages is read to
+# publish `main` as production still; no live check (DL-309)
 # (web/scripts/cloudflare.mjs). Any failure opens an issue, or comments on the one open, so that
 # an outage or a token near its end is seen before a release needs it. The Cloudflare job reads
 # the `production` environment's secrets with `deployment: false`, so it records no deployment.
@@ -16,20 +16,6 @@ permissions:
   contents: read
 
 jobs:
-  live:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: '.node-version'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: The live check on both addresses
-        run: npm run e2e:live -w web
-
   cloudflare:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -54,7 +40,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   report:
-    needs: [live, cloudflare]
+    needs: [cloudflare]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
@@ -63,12 +49,11 @@ jobs:
       - name: An issue for the failure
         env:
           GH_TOKEN: ${{ github.token }}
-          LIVE: ${{ needs.live.result }}
           CLOUDFLARE: ${{ needs.cloudflare.result }}
         run: |
           title='Production watch failed'
           run="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          body="The watch failed on $(date -u +%Y-%m-%d): the live check $LIVE, the Cloudflare checks $CLOUDFLARE. See $run (DL-124 item 10)."
+          body="The watch failed on $(date -u +%Y-%m-%d): the Cloudflare checks $CLOUDFLARE. See $run (DL-124 item 10)."
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number,title \
             --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
           if [ -n "$number" ]; then

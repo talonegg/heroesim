@@ -131,9 +131,9 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-119 | 2026-09-30 | M9's follow-on verified and closed: the code review's ten findings and the six carried answered … | item 1.1 in part by DL-121; item 2.2 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-120 | 2026-09-30 | The owner's answers on the follow-on's close: "Debug: Whole History", Days before a Retirement … | item 5 in part by DL-206 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-121 | 2026-09-30 | M9-F7 built: "Debug: Whole History", the Days before a Retirement under a year and why none came … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124; item 3 in part by DL-309 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-123 | 2026-09-30 | v1.1.0 released: `v1.1-release` created and tagged `m9-redesign` and `v1.1.0`, deployed from CI to … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255; item 10 in part by DL-309 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-125 | 2026-09-30 | Pictures and words for v1.1.2: a `media/` folder, Portraits of the Guildmaster, Heroes and Patrons … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-126 | 2026-09-30 | DL-125's two open items answered: the owner's pictures set the style, and each picture's Appearance … | item 2 in part by DL-127 | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-127 | 2026-09-30 | A picture's Appearance in two parts, keywords for the engine and a narrative for the page, with no … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
@@ -318,6 +318,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-306 | 2026-10-16 | v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense |  | [decision-log](../decision-log.md) |
 | DL-307 | 2026-10-16 | v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes |  | [decision-log](../decision-log.md) |
 | DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [decision-log](../decision-log.md) |
+| DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

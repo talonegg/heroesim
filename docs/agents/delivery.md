@@ -156,8 +156,8 @@ name its path, or use `rg -u`.
    - `v1.M-release` is fast-forwarded to the dev branch and pushed;
    - CI raises the pull request to `main`, naming its tag;
    - the owner merges it with a merge commit;
-   - CI tags the release, deploys it to both addresses, runs `e2e:live` and publishes the GitHub
-     Release.
+   - CI tags the release, deploys it to both addresses and publishes the GitHub Release; no live
+     check runs in CI (DL-309).
 
    `docs/deploy.md` has the detail.
 4. **Record**, and nothing else records a release:
