@@ -43,7 +43,8 @@ describe('npm run decisions', () => {
     expect(again.out).toEqual([`${indexPath} is current.`]);
   });
 
-  test('`check` passes at the baseline, and fails when fewer lines cite a story, asking it lowered: a ratchet', () => {
+  // Starts git in a scratch repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test('`check` passes at the baseline, and fails when fewer lines cite a story, asking it lowered: a ratchet', { timeout: 30_000 }, () => {
     const { dir, remove } = scratchRepository({
       ...smallLog,
       // The index's header cites the entry that made it.

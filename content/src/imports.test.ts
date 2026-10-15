@@ -83,7 +83,9 @@ describe('the sources these tests read', () => {
       expect(files).toContain('node.ts');
       expect(files).not.toContain(file);
     } finally {
-      rmSync(path, { force: true });
+      // Windows refuses to delete (EPERM) a file another test file's whole-repository scan holds open at that moment,
+      // so the removal retries (DL-304).
+      rmSync(path, { force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });

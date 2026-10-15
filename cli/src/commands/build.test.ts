@@ -49,7 +49,8 @@ describe('build', () => {
     expect(count(after.history, 'guild.improved')).toBe(1);
   });
 
-  test('climbs each facility to its top grade, then refuses and writes nothing', () => {
+  // Twelve commands, each opening and saving the world: a long play beside the whole suite's other workers (DL-304).
+  test('climbs each facility to its top grade, then refuses and writes nothing', { timeout: 30_000 }, () => {
     newWorld(10_000);
 
     for (const [word, key] of [

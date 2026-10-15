@@ -889,7 +889,8 @@ describe('the repository holds no deploy credential', () => {
     ]);
   });
 
-  test('no file holds a Cloudflare token or account id', () => {
+  // Reads every file of the repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test('no file holds a Cloudflare token or account id', { timeout: 30_000 }, () => {
     const found: string[] = [];
     for (const file of repositoryFiles()) {
       let bytes: Buffer;

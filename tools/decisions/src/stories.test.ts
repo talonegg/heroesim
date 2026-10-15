@@ -50,7 +50,8 @@ describe('story ids in the source', () => {
     expect([...storyIdsAsData].sort()).toEqual(['harness/src/report.test.ts', 'harness/src/sweep.test.ts', 'tools/decisions/src/stories.test.ts']);
   });
 
-  test("this repository's source tells no history by a story, and cites stories on as many lines as its baseline", () => {
+  // Reads every file of the repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test("this repository's source tells no history by a story, and cites stories on as many lines as its baseline", { timeout: 30_000 }, () => {
     const report = storyReport(repositoryRoot, repositoryTextsOnce());
     expect(report.history).toEqual([]);
     expect(report.cited).toBe(report.baseline);

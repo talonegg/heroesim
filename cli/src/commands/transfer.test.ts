@@ -230,7 +230,8 @@ describe('Transfer Offers', () => {
   });
 
   // The story's fourth box.
-  test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', () => {
+  // Fast forwards up to twenty runs of thirty Turns: a long play beside the whole suite's other workers (DL-304).
+  test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', { timeout: 30_000 }, () => {
     newWorld((world) => {
       // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
