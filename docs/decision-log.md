@@ -782,3 +782,22 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2 (DL-309)`; `web/src/deploy.test.ts`. The notes under DL-122 item 3 and DL-124 item 10, and their records in `superseded/`.
 
+## DL-310 — v1.2.2: on a phone, a fee's coins beside a sticky name column may stack
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner (a)
+
+**Context.** CI's browser specs failed on every v1.2.2 push since S2's coins (a800f9a; the last pass 9ef94bf): `web/e2e/layout.spec.ts:510`, phone, line 573, a Rival's Roster scrolled to its end with the Fee heading at 166.2, 9.7px under the sticky name cell ending at 175.9 (the spec allows 1px). Linux's fonts are wider than Windows', where it passed. A fee's coins never wrap (`.coins`), so the Fee column outgrew the 40% the name column leaves (`.table--first-sticky`). The merge's deploy reruns the specs where `check` failed on the tip, so the release could not deploy. Offered (a) the coins stack in such a cell on a phone, (b) the name column narrowed to about 55%, (c) the test loosened; the owner chose (a).
+
+**Decision.**
+
+1. Below 600px wide, the coins of a number cell in a table with a sticky first column (`.table--first-sticky td.number .coins > [aria-hidden]`) wrap as flex items, right-aligned: Gold over Silver where the column is too narrow for both (`web/src/styles.css`). The column is as wide as its widest coin part.
+2. The spec's check at line 573 is unchanged; at verification it gains one (`web/e2e/layout.spec.ts:574-580`): a Rival's two-coin fee has its Silver under its Gold on a phone only, which fails locally without the rule, as line 573 does only on CI's fonts.
+
+*Judgement calls, for the owner to see.*
+- The rule reaches every such table: the Unattached pool's fee stacks only in the rows too wide for one line, so its column mixes one-line and stacked fees; the Market's two-coin prices stack too, its single-coin ones and the Stores' seen do not change.
+- A debt's minus could wrap alone; no such cell holds a debt.
+
+**Consequences.** On a phone a fee may take two lines. Locally the spec's slack grows from 2.4px to 21.4px, about 19px against CI's 9.7px overlap; with the fonts widened by 0.04em as a stand-in for CI, the slack moves from −11.9px to +8.1px.
+
+**Evidence.** The commit `v1.2.2 (DL-310)`; the push's `check` on CI.
+

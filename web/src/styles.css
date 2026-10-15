@@ -3240,6 +3240,15 @@ th.number .sort {
   max-width: calc(60cqi - 1.25rem);
 }
 
+/* On a phone an amount beside a sticky name column may stack, its Gold over its Silver, so the column is only as wide as one coin part (DL-310). */
+@media (max-width: 599px) {
+  .table--first-sticky td.number .coins > [aria-hidden] {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
 /* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
 .pool-table tr.is-set-back th,
 .pool-table tr.is-set-back td {

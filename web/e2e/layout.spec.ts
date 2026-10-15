@@ -571,6 +571,13 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     const feeHeading = await rival.getByRole('columnheader', { name: 'Transfer fee' }).boundingBox();
     if (nameHeading === null || feeHeading === null) throw new Error(`a Rival's Roster, ${scheme}: no headings drawn`);
     expect(feeHeading.x, `a Rival's Roster, ${scheme}: the Transfer fee's heading clear of the name cell`).toBeGreaterThanOrEqual(nameHeading.x + nameHeading.width - 1);
+    // On a phone a fee stacks, its Silver under its Gold, so that the Fee column is only one coin part wide
+    // whatever the fonts' widths (DL-310); wider, it keeps one line.
+    const fee = rival.getByTestId('fee').filter({ has: page.locator('.coin--silver') }).first();
+    const gold = await fee.locator('.coin--gold').boundingBox();
+    const silver = await fee.locator('.coin--silver').boundingBox();
+    if (gold === null || silver === null) throw new Error(`a Rival's Roster, ${scheme}: no fee in Gold and Silver drawn`);
+    expect(silver.y > gold.y, `a Rival's Roster, ${scheme}: a fee's Silver under its Gold on a phone only`).toBe((page.viewportSize()?.width ?? 0) < 600);
     await page.screenshot({ path: test.info().outputPath(`rival-roster-${scheme}.png`), fullPage: true });
     await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
   }

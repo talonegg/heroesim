@@ -319,6 +319,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-307 | 2026-10-16 | v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes |  | [decision-log](../decision-log.md) |
 | DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [decision-log](../decision-log.md) |
 | DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [decision-log](../decision-log.md) |
+| DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
