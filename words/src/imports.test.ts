@@ -180,7 +180,8 @@ describe('the copies gone', () => {
       expect(files).toContain('web/src/state/namer.ts');
       expect(files).not.toContain(`web/src/${file}`);
     } finally {
-      rmSync(planted, { force: true });
+      // Windows may refuse to delete (EPERM) a file just written while another process holds it, so the removal retries (DL-304).
+      rmSync(planted, { force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 

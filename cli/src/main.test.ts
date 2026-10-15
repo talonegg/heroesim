@@ -345,6 +345,47 @@ describe('show', () => {
     expect(lines()).toEqual([]);
   });
 
+  // DL-304: the engine charges on a charge's night (`nextWagesDay`, `nextHallUpkeepDay`); the summary names that night until it is played.
+  test("names a charge's night as next until it is played, then the one after, the two lines last", () => {
+    const shown = (turn: number): string[] => {
+      edit((edited) => {
+        edited.world.turn = turn;
+      });
+      return play(['show']).out.trimEnd().split('\n').slice(-2).map((line) => line.replace(/^.*next paid on /, ''));
+    };
+
+    expect(shown(nightOf(9) - 1)).toEqual(['the night of Year 1 Day 10.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(9))).toEqual(['the night of Year 1 Day 20.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(29) - 1)).toEqual(['the night of Year 1 Day 30.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(29))).toEqual(['the night of Year 1 Day 40.', 'the night of Year 1 Day 60.']);
+  });
+
+  test("gives the Hall's upkeep with the Guildmaster's factor, and no charge once the player's Guild has folded", () => {
+    edit((edited) => {
+      const guild = thePlayer(edited.world);
+      Object.assign(edited.world.guildmasters[guild.guildmasterId] ?? {}, { traits: ['spendthrift'] });
+    });
+    const { world } = document();
+    const parts = hallUpkeepParts(thePlayer(world), world, defaultConfig, content);
+    expect(parts.traitFactor).not.toBe(1);
+    expect(parts.total).not.toBe(parts.base + parts.heroes);
+
+    expect(play(['show']).out).toContain(`Hall upkeep ${coinLetters(parts.total)} every ${defaultConfig.hallUpkeepEveryDays} Days, next paid`);
+
+    // Folded as a fold leaves a Guild: its Heroes released to the pool, its Roster empty.
+    edit((edited) => {
+      const guild = thePlayer(edited.world);
+      for (const heroId of guild.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+      }
+      guild.rosterIds = [];
+      guild.foldedOnTurn = 0;
+    });
+    const folded = play(['show']);
+    expect(folded.out).toContain("The Test's Hall:");
+    expect(folded.out).not.toMatch(/^(Wages|Hall upkeep) /m);
+  });
+
   test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
     const { world } = document();
 

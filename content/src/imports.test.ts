@@ -71,9 +71,9 @@ function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
 }
 
 describe('the sources these tests read', () => {
-  test("leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run", () => {
-    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below would
-    // count among the files that take the engine's values.
+  test('leave out the boundary-probe files this test writes, which come and go while other tests run', () => {
+    // A probe that imports a value from the engine, which the tests below would count among the files that
+    // take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
     writeFileSync(path, "import { x } from '@heroesim/engine/content';\nexport { x };\n");
@@ -83,8 +83,7 @@ describe('the sources these tests read', () => {
       expect(files).toContain('node.ts');
       expect(files).not.toContain(file);
     } finally {
-      // Windows refuses to delete (EPERM) a file another test file's whole-repository scan holds open at that moment,
-      // so the removal retries (DL-304).
+      // Windows may refuse to delete (EPERM) a file just written while another process holds it, so the removal retries (DL-304).
       rmSync(path, { force: true, maxRetries: 10, retryDelay: 100 });
     }
   });

@@ -164,6 +164,10 @@ describe('parseArgs', () => {
     // DL-291: hall's clause says what hall shows, not the roster's Morale, Fatigue and Captain.
     expect(said).not.toContain('Captain is, and so does hall');
     expect(said).toContain("hall shows the player's Guild unless given another too, each Facility's grade");
+    // Facility is a glossary term, so the usage writes it with its capital everywhere but the flag --facility.
+    expect(said.match(/(?<!-)\bfacilit(y|ies)\b/g)).toBeNull();
+    // DL-304: the summary's two charges, as show words them.
+    expect(said).toContain("the player's Hall, and the wages and Hall upkeep with the night each is next paid");
     expect(said).toContain("each Hero's Fatigue and the Captain among them, what would relieve the hurt");
   });
 

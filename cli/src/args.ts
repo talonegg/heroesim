@@ -58,7 +58,7 @@ Commands:
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts, the player's Hall,
-      and its wages and the Hall's upkeep with the night each is next paid; roster shows the
+      and the wages and Hall upkeep with the night each is next paid; roster shows the
       player's Guild unless given another, each Hero's Morale and Fatigue and who its
       Captain is; hall shows the player's Guild unless given another too, each
       Facility's grade and upkeep, and what the next grade costs and its upkeep;

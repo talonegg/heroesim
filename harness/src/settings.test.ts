@@ -255,6 +255,7 @@ test("the sources read leave out engine/src/boundary.test.ts's probe files, whic
   try {
     expect(environmentReaders()).toEqual(['main.ts']);
   } finally {
-    rmSync(`${harnessDir}/${file}`, { force: true });
+    // Windows may refuse to delete (EPERM) a file just written while another process holds it, so the removal retries (DL-304).
+    rmSync(`${harnessDir}/${file}`, { force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
