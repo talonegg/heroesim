@@ -746,3 +746,17 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The epic's S9 last box. DL-305's Gate and costs.
 
+## DL-308 — v1.2.2: the owner's word to release
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner ("start release process")
+
+**Context.** Every story S1–S9 is built and verified (DL-295 to DL-306); the closing Gate is run and recorded, failing only the 20-year save line, which no game reaches (DL-305, not blocking by Q20); the owner's rulings on the Rival cost lines and the baseline are recorded (DL-305) and the playtest answered (DL-307).
+
+**Decision.**
+
+1. **Release v1.2.2 as built** (delivery.md, A release, step 3; DL-124): `v1.2.2-dev` is pushed, `v1.2-release` fast-forwarded to it and pushed; CI raises the pull request to `main`, naming its tag, for the owner to merge with a merge commit.
+
+**Consequences.** The economy stays broken until `v1.2.4` (Q20): every Gate game ends in Bankruptcy. `v1.2.2-dev-agy` stays local, unchanged, holding 0f26010 (the owner's answer a, 2026-10-16). After the merge, the record and archives follow (delivery.md, A release, step 4).
+
+**Evidence.** The commit `v1.2.2 (DL-308)`; the pull request CI raises.
+
