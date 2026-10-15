@@ -19,7 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { itemEffectWords, kindOf, nameIn, rowOf } from '@heroesim/words';
+import { coinLetters, itemEffectWords, kindOf, nameIn, rowOf } from '@heroesim/words';
 import { refusalLine } from '../namer.js';
 import { renderTime, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
@@ -63,7 +63,7 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
             kindOf(definition),
             itemEffectWords(definition, content),
             String(quantity),
-            String(price),
+            coinLetters(price),
           ]),
         )),
   ];
@@ -74,7 +74,7 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
     ...stacks.map((stack) => [stack.id, stack.definitionKey, stack.quantity] as const),
     ...items.map((item) => [item.id, item.definitionKey, 1] as const),
   ];
-  lines.push('', `${guild.name} has ${guild.wealth} Wealth and holds:`, '');
+  lines.push('', `${guild.name} has Wealth ${coinLetters(guild.wealth)} and holds:`, '');
   if (held.length === 0) return [...lines, 'Nothing to sell.'];
   return [
     ...lines,
@@ -84,7 +84,7 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
         id,
         nameIn(content.items, definitionKey),
         String(quantity),
-        String(sellPrice(definitionKey, deps) ?? 'nothing'),
+        ((price) => (price === null ? 'nothing' : coinLetters(price)))(sellPrice(definitionKey, deps)),
       ]),
     ),
   ];
@@ -111,8 +111,8 @@ export function buyItems(command: Extract<Command, { name: 'buy' }>, document: W
     ok: true,
     document: result.document,
     lines: [
-      `Bought ${what}${itemIds.length === 0 ? '' : ` (${itemIds.join(', ')})`} for ${cost} Wealth, ${unitPrice} each.`,
-      `${guild.name} has ${after.wealth} Wealth left.`,
+      `Bought ${what}${itemIds.length === 0 ? '' : ` (${itemIds.join(', ')})`} for ${coinLetters(cost)}, ${coinLetters(unitPrice)} each.`,
+      `${guild.name} has Wealth ${coinLetters(after.wealth)} left.`,
     ],
   };
 }
@@ -141,8 +141,8 @@ export function sellItems(command: Extract<Command, { name: 'sell' }>, document:
     ok: true,
     document: result.document,
     lines: [
-      `Sold ${counted(quantity, nameIn(deps.content.items, definitionKey))} to the Market for ${proceeds} Wealth, ${unitPrice} each.`,
-      `${guild.name} has ${after.wealth} Wealth.`,
+      `Sold ${counted(quantity, nameIn(deps.content.items, definitionKey))} to the Market for ${coinLetters(proceeds)}, ${coinLetters(unitPrice)} each.`,
+      `${guild.name} has Wealth ${coinLetters(after.wealth)}.`,
     ],
   };
 }

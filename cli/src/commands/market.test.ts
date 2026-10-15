@@ -27,7 +27,7 @@ const { play, current, saved, document } = playground('heroesim-market-', conten
 function newWorld(wealth: number): { guild: Guild; draughts: string; blade: string } {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const edited = document();
-  Object.assign(edited.meta.config, { sellRatio: 0.5, lootOnlyPrice: 600 });
+  Object.assign(edited.meta.config, { sellRatio: 0.5 });
   const { world } = edited;
   const guild = playerGuild(world);
   if (guild === undefined) throw new Error("No player's Guild");
@@ -49,10 +49,10 @@ describe('the Market', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     // Four Padded jacks and the blade: five Items, of two kinds.
     expect(run.out).toContain('Market: 5 Items for sale, of 2 kinds, Turn 0 (Year 1 Day 1, morning)');
-    expect(run.out).toMatch(/barrow-kings-blade +The Barrow King's blade +Weapon Gear, Unique Item +Weaponry \+4, Strength \+2, Courage \+1 +1 +600/);
-    expect(run.out).toMatch(/padded-jack +Padded jack +Armour Gear +Constitution \+1 +4 +40/);
-    expect(run.out).toContain('The Test has 1000 Wealth and holds:');
-    expect(run.out).toMatch(new RegExp(`${draughts} +Healing draught +3 +15`));
+    expect(run.out).toMatch(/barrow-kings-blade +The Barrow King's blade +Weapon Gear, Unique Item +Weaponry \+4, Strength \+2, Courage \+1 +1 +6g/);
+    expect(run.out).toMatch(/padded-jack +Padded jack +Armour Gear +Constitution \+1 +4 +40s/);
+    expect(run.out).toContain('The Test has Wealth 10g and holds:');
+    expect(run.out).toMatch(new RegExp(`${draughts} +Healing draught +3 +15s`));
   });
 
   test('buy --item <key> --quantity <n> deducts the price of each and moves them to the Guild, prints it, and saves', () => {
@@ -61,8 +61,8 @@ describe('the Market', () => {
     const run = play(['buy', '--item', 'padded-jack', '--quantity', '3']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(run.out).toContain('Bought 3 × Padded jack for 120 Wealth, 40 each.');
-    expect(run.out).toContain('The Test has 880 Wealth left.');
+    expect(run.out).toContain('Bought 3 × Padded jack for 1g 20s, 40s each.');
+    expect(run.out).toContain('The Test has Wealth 8g 80s left.');
     const { world, history } = document();
     expect(thePlayer(document().world).wealth).toBe(880);
     expect(findStack(world, 'padded-jack', { kind: 'guild', id: guild.id })?.quantity).toBe(3);
@@ -75,7 +75,7 @@ describe('the Market', () => {
 
     const run = play(['buy', '--item', 'barrow-kings-blade']);
 
-    expect(run.out).toContain(`Bought The Barrow King's blade (${blade}) for 600 Wealth, 600 each.`);
+    expect(run.out).toContain(`Bought The Barrow King's blade (${blade}) for 6g, 6g each.`);
     expect(document().world.items[blade as keyof WorldDocument['world']['items']]?.holder).toEqual({ kind: 'guild', id: guild.id });
   });
 
@@ -85,8 +85,8 @@ describe('the Market', () => {
     const run = play(['sell', '--stack', draughts, '--quantity', '2']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(run.out).toContain('Sold 2 × Healing draught to the Market for 30 Wealth, 15 each.');
-    expect(run.out).toContain('The Test has 130 Wealth.');
+    expect(run.out).toContain('Sold 2 × Healing draught to the Market for 30s, 15s each.');
+    expect(run.out).toContain('The Test has Wealth 1g 30s.');
     expect(thePlayer(document().world).wealth).toBe(130);
     expect(findStack(document().world, 'healing-draught', marketHolder)?.quantity).toBe(2);
     expect(count(document().history, 'item.sold')).toBe(1);
@@ -98,14 +98,14 @@ describe('the Market', () => {
 
     const run = play(['sell', '--item', blade]);
 
-    expect(run.out).toContain("Sold The Barrow King's blade to the Market for 300 Wealth, 300 each.");
+    expect(run.out).toContain("Sold The Barrow King's blade to the Market for 3g, 3g each.");
     expect(thePlayer(document().world).wealth).toBe(300);
   });
 
   test.each([
     [['buy', '--item', 'whetstone'], 'The Market has no Whetstone for sale (show market).'],
     [['buy', '--item', 'padded-jack', '--quantity', '5'], 'The Market has 4 Padded jack; 5 cannot be bought.'],
-    [['buy', '--item', 'padded-jack', '--quantity', '4'], 'That costs 160 Wealth; The Test has 150.'],
+    [['buy', '--item', 'padded-jack', '--quantity', '4'], 'That costs 1 Gold 60 Silver; The Test has 1 Gold 50 Silver.'],
     [['sell', '--stack', 'stack-000999'], 'The Test holds no stack-000999 to sell (show market lists what it holds).'],
     [['sell', '--item', 'item-000999'], 'The Test holds no item-000999 to sell'],
   ])('%j is refused in words, and nothing is written', (argv, problem) => {

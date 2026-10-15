@@ -8,7 +8,6 @@ import {
   milestoneTypes,
   playerGuild,
   serialise,
-  turnsPerDay,
   unattachedHeroes,
   upkeep,
   type EngineDeps,
@@ -34,6 +33,7 @@ import {
   copiesTimed,
   heroFieldsLength,
   historyLengthCounter,
+  hoardingUpkeeps,
   noConsumables,
   noDisposition,
   noFameGate,
@@ -47,9 +47,11 @@ import {
   observeSave,
   observeWorld,
   playerRanking,
+  playerWealthMonths,
   portraitCounters,
   questsTakenByController,
   regardSnapshot,
+  rivalsAtFloor,
   savedLength,
   type HeroesSeen,
   type SaveSize,
@@ -317,7 +319,7 @@ describe("M3's counters, from the History", () => {
     improved(document, 100, a, 'infirmary', 1);
     const c = found(90, 200);
     improved(document, 250, c, 'quarters', 1);
-    improved(document, 299, player, 'trainingYard', 1);
+    improved(document, 299, player, 'training-yard', 1);
     // Year 11 begins on Turn 300, after 10 years: what is built on it, and a Rival founded after it, are not counted.
     improved(document, 300, player, 'quarters', 1);
     const d = found(91, 310);
@@ -327,19 +329,41 @@ describe("M3's counters, from the History", () => {
     const { improvementGrades, improvementGradesByDisposition } = countGame(document, shortYears);
 
     expect(improvementGrades).toEqual({
-      player: { infirmary: [0, 0, 1, 0], trainingYard: [0, 1, 0, 0], quarters: [1, 0, 0, 0] },
+      player: { infirmary: [0, 0, 1, 0], 'training-yard': [0, 1, 0, 0], quarters: [1, 0, 0, 0] },
       // Rivals A, B and the replacement C.
-      rival: { infirmary: [2, 1, 0, 0], trainingYard: [3, 0, 0, 0], quarters: [2, 1, 0, 0] },
+      rival: { infirmary: [2, 1, 0, 0], 'training-yard': [3, 0, 0, 0], quarters: [2, 1, 0, 0] },
     });
     // The Rivals again by Disposition (M6, DL-69): A is `ambitious`, B `miserly`, and C inherits B's.
     expect([a, b, c].map((guild) => dispositionOf(guild))).toEqual(['ambitious', 'miserly', 'miserly']);
-    const none = { infirmary: [0, 0, 0, 0], trainingYard: [0, 0, 0, 0], quarters: [0, 0, 0, 0] };
+    const none = { infirmary: [0, 0, 0, 0], 'training-yard': [0, 0, 0, 0], quarters: [0, 0, 0, 0] };
     expect(improvementGradesByDisposition).toEqual({
-      ambitious: { infirmary: [0, 1, 0, 0], trainingYard: [1, 0, 0, 0], quarters: [1, 0, 0, 0] },
-      miserly: { infirmary: [2, 0, 0, 0], trainingYard: [2, 0, 0, 0], quarters: [1, 1, 0, 0] },
+      ambitious: { infirmary: [0, 1, 0, 0], 'training-yard': [1, 0, 0, 0], quarters: [1, 0, 0, 0] },
+      miserly: { infirmary: [2, 0, 0, 0], 'training-yard': [2, 0, 0, 0], quarters: [1, 1, 0, 0] },
       reckless: none,
       steady: none,
     });
+  });
+
+  // DL-297: the grades are keyed by content's Facilities, so a fourth one content adds is counted with no
+  // change of the harness.
+  test("Improvement grades count every Facility content defines, a fourth among them, by its key", () => {
+    const chapel = { key: 'chapel', name: 'chapel', plural: false, upkeep: 15, effects: { moraleBaseline: 0 } };
+    const shrine = { key: 'chapel-1', name: 'Shrine', facility: 'chapel', grade: 1, cost: 300, effects: { moraleBaseline: 4 } };
+    const withChapel: EngineDeps = {
+      ...shortYears,
+      content: { ...content, facilities: { ...content.facilities, chapel }, improvements: { ...content.improvements, 'chapel-1': shrine } },
+    };
+    const { document, player, rivals } = fixture('counters-chapel', withChapel);
+    improved(document, 10, player, 'chapel', 1);
+    improved(document, 20, rivals[0], 'quarters', 1);
+    document.world.turn = 330;
+
+    const { improvementGrades } = countGame(document, withChapel);
+
+    expect(Object.keys(improvementGrades?.player ?? {})).toEqual(['infirmary', 'training-yard', 'quarters', 'chapel']);
+    expect(improvementGrades?.player.chapel).toEqual([0, 1]);
+    expect(improvementGrades?.rival.chapel).toEqual([2, 0]);
+    expect(improvementGrades?.rival.quarters).toEqual([1, 1, 0, 0]);
   });
 
   test('no Improvement grades for a game that stopped before 10 years', () => {
@@ -718,12 +742,28 @@ describe("M5's counters, from the History", () => {
     bought(6, player, 1, 120);
     improved(document, 7, player, 'infirmary', 1);
     improved(document, 8, rivals[1], 'quarters', 1);
-    const upkeep = (turn: number, guild: Guild, amount: number): void => {
-      add(document, turn, 'guild.upkeep-paid', [guild.id], { guildId: guild.id, amount, wealthAfter: 1000 });
+    const wages = (turn: number, guild: Guild, amount: number): void => {
+      add(document, turn, 'guild.wages-paid', [guild.id], { guildId: guild.id, amount, wealthAfter: 1000 });
     };
-    upkeep(9, player, 70);
-    upkeep(9, rivals[0], 90);
-    upkeep(9, rivals[1], 60);
+    wages(9, player, 70);
+    wages(9, rivals[0], 90);
+    wages(9, rivals[1], 60);
+    // The Hall's upkeep, split between the Hall's and the Improvements', the Guildmaster's factor applied to both (DL-302).
+    const hall = (turn: number, guild: Guild, amount: number, facilities: Record<string, number>): void => {
+      add(document, turn, 'guild.hall-upkeep-paid', [guild.id], {
+        guildId: guild.id,
+        amount,
+        wealthAfter: 900,
+        base: 30,
+        heroCount: 4,
+        heroes: 20,
+        facilities,
+        traitFactor: 1.1,
+      });
+    };
+    hall(9, player, 77, { infirmary: 20 });
+    hall(9, rivals[0], 55, {});
+    hall(9, rivals[1], 83, { quarters: 10, infirmary: 15 });
     const resolved = (turn: number, guild: Guild, wealthDelta: number): void => {
       add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
         band: wealthDelta > 0 ? 'success' : 'fail',
@@ -762,7 +802,9 @@ describe("M5's counters, from the History", () => {
         items: 200,
         itemsBought: 3,
         improvements: 200,
-        upkeep: 70,
+        wages: 70,
+        hallUpkeep: 55,
+        improvementUpkeep: 22,
         questRewards: 150,
         transferFeesTaken: 0,
         sales: { sale: 120, fold: 0 },
@@ -774,13 +816,59 @@ describe("M5's counters, from the History", () => {
         items: 0,
         itemsBought: 0,
         improvements: 200,
-        upkeep: 150,
+        wages: 150,
+        hallUpkeep: 110,
+        improvementUpkeep: 28,
         questRewards: 90,
         transferFeesTaken: 0,
         sales: { sale: 0, fold: 300 },
         itemsSold: { sale: 0, fold: 1 },
       },
     });
+  });
+
+  test("the Hall's charge splits as the Treasury splits it: the Improvements' part rounded to the nearest Silver, the Hall's the rest (DL-302)", () => {
+    const { document, player, rivals } = fixture('counters-hall-split');
+    const hall = (guild: Guild, amount: number, traitFactor: number): void => {
+      add(document, 9, 'guild.hall-upkeep-paid', [guild.id], {
+        guildId: guild.id,
+        amount,
+        wealthAfter: 900,
+        base: 30,
+        heroCount: 3,
+        heroes: 15,
+        facilities: { infirmary: 17 },
+        traitFactor,
+      });
+    };
+    // 17 × 0.9 is 15.3, and 17 × 1.1 is 18.7: the nearest Silver, neither floored nor ceiled.
+    hall(player, 54, 0.9);
+    hall(rivals[0], 70, 1.1);
+    document.world.turn = 20;
+
+    const { wealth } = countGame(document, shortYears);
+
+    expect([wealth.player.hallUpkeep, wealth.player.improvementUpkeep]).toEqual([39, 15]);
+    expect([wealth.rival.hallUpkeep, wealth.rival.improvementUpkeep]).toEqual([51, 19]);
+  });
+
+  test("the Hall's charge with no traitFactor splits at a factor of 1, and one without its facilities, or with a charge that is no number, is refused (DL-304)", () => {
+    const charged = { amount: 52, wealthAfter: 900, base: 30, heroCount: 1, heroes: 5 };
+    const { document, player } = fixture('counters-hall-unscaled');
+    add(document, 9, 'guild.hall-upkeep-paid', [player.id], { guildId: player.id, ...charged, facilities: { infirmary: 17 } });
+    document.world.turn = 20;
+    const { wealth } = countGame(document, shortYears);
+    expect([wealth.player.hallUpkeep, wealth.player.improvementUpkeep]).toEqual([35, 17]);
+
+    const cases: [object, RegExp][] = [
+      [{}, /guild.hall-upkeep-paid entry 0 has no facilities/],
+      [{ facilities: { infirmary: '17' } }, /guild.hall-upkeep-paid entry 0 has a Facility's charge that is no number/],
+    ];
+    for (const [facilities, message] of cases) {
+      const { document: malformed, player: theirs } = fixture('counters-hall-malformed');
+      add(malformed, 9, 'guild.hall-upkeep-paid', [theirs.id], { guildId: theirs.id, ...charged, ...facilities, traitFactor: 1 });
+      expect(() => countGame(malformed, shortYears)).toThrow(message);
+    }
   });
 
   test('Loot awarded by controller and table: awards, the Items they gave, and the unique counted apart', () => {
@@ -1625,18 +1713,18 @@ describe("the Targets' counters (DL-259)", () => {
     expect(highest.value()).toEqual({ player: [4, 4, 4], ambitious: [5, 7, 7], miserly: [2, 9, 9], reckless: [null, 2, 2] });
   });
 
-  test('the Rivals at the Roster floor with more than 20 Upkeeps in hand, by Disposition, as each year begins (DL-69 item 4)', () => {
+  test('the Rivals at the Roster floor with more than 6.67 Upkeeps in hand, by Disposition, as each year begins (DL-69 item 4, DL-300)', () => {
     const { document, rivals } = fixture('counters-hoarding');
     const { world } = document;
     const [a, b] = rivals;
     a.rosterIds = a.rosterIds.slice(0, shortYears.config.rivalRosterMin);
-    a.wealth = 20 * upkeep(a, world, shortYears.config, content) + 1;
+    a.wealth = Math.floor(hoardingUpkeeps * upkeep(a, world, shortYears.config, content)) + 1;
     b.wealth = 1_000_000;
     expect(b.rosterIds.length).toBeGreaterThan(shortYears.config.rivalRosterMin);
     const atFloor = observerOf('rivalsAtFloor');
     census(document, shortYears, atFloor);
     world.turn = 30;
-    a.wealth = 20 * upkeep(a, world, shortYears.config, content);
+    a.wealth = Math.floor(hoardingUpkeeps * upkeep(a, world, shortYears.config, content));
     b.rosterIds = b.rosterIds.slice(0, 3);
     census(document, shortYears, atFloor);
     world.turn = 45; // no year-start
@@ -1646,6 +1734,24 @@ describe("the Targets' counters (DL-259)", () => {
       { ambitious: { starts: 1, hoarding: 1 }, miserly: { starts: 1, hoarding: 0 } },
       { ambitious: { starts: 1, hoarding: 0 }, miserly: { starts: 1, hoarding: 1 } },
     ]);
+  });
+
+  test('a Rival at the Roster floor holding exactly hoardingUpkeeps Upkeeps is not hoarding, and one Silver more is (DL-69 item 4, DL-300)', () => {
+    const { document, rivals } = fixture('counters-hoarding-edge');
+    const { world } = document;
+    const [a] = rivals;
+    a.rosterIds = a.rosterIds.slice(0, shortYears.config.rivalRosterMin);
+    (world.guildmasters[a.guildmasterId] as Guildmaster).traits = [];
+    // An Upkeep divisible by 3, so that 20 ÷ 3 of them is a whole Wealth, the edge itself.
+    a.hallBaseUpkeep += (3 - (upkeep(a, world, shortYears.config, content) % 3)) % 3;
+    const owed = upkeep(a, world, shortYears.config, content);
+    expect(owed % 3).toBe(0);
+    const hoarding = (): number => rivalsAtFloor(world, shortYears)[dispositionOf(a) ?? '']?.hoarding ?? 0;
+
+    a.wealth = (owed * 20) / 3;
+    const atEdge = hoarding();
+    a.wealth += 1;
+    expect(hoarding() - atEdge).toBe(1);
   });
 
   test("the Board's top Tier, and each side's best four and the Tier it unlocks, as each year begins (DL-271)", () => {
@@ -1698,20 +1804,30 @@ describe("the Targets' counters (DL-259)", () => {
     expect(unlocks.value()[0]?.sides[side]).toEqual({ guilds: 2, levels: 7, unlocked: [0, 2, 0, 0, 0] });
   });
 
-  test("the player's Wealth in months of its Upkeep as each year begins, a month a twelfth of a year's Upkeeps", () => {
+  test("the player's Wealth in months of its Upkeep as each year begins, one Upkeep a month of costs (DL-83 item 7, DL-300)", () => {
     const { document, player } = fixture('counters-months');
     const { world } = document;
     const months = observerOf('playerWealthMonths');
     const owed = upkeep(player, world, shortYears.config, content);
-    // A year of 30 Turns is 10 Days: one Upkeep a year.
-    expect(shortYears.config.turnsPerYear / turnsPerDay / shortYears.config.upkeepEveryDays).toBe(1);
     player.wealth = owed * 3;
     census(document, shortYears, months);
     world.turn = 30;
     player.wealth = -owed;
     census(document, shortYears, months);
 
-    expect(months.value()).toEqual([36, -12]);
+    expect(months.value()).toEqual([3, -1]);
+  });
+
+  test("the player's Wealth in months is none while it owes no Upkeep: no Roster, no Hall (DL-83 item 7, DL-300)", () => {
+    const { document, player } = fixture('counters-months-none');
+    const { world } = document;
+    player.rosterIds = [];
+    player.hallBaseUpkeep = 0;
+    player.hall = {};
+    player.wealth = 500;
+    expect(upkeep(player, world, shortYears.config, content)).toBe(0);
+
+    expect(playerWealthMonths(world, shortYears)).toBeNull();
   });
 
   test('the Transfers that left their seller below rivalRosterMin, its Roster followed through the Turn from the world it began with', () => {
@@ -1744,7 +1860,7 @@ describe("the Targets' counters (DL-259)", () => {
       ],
       before,
     );
-    advanced(short, document, [event(7, 'guild.upkeep-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
+    advanced(short, document, [event(7, 'guild.wages-paid', [player.id], { guildId: player.id, amount: 10, wealthAfter: 0 })], before);
 
     expect(short.value()).toBe(2);
   });

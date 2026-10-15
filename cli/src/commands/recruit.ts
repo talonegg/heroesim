@@ -4,7 +4,7 @@
 // It opens the save and says what happened through the commands' shared context, context.ts (DL-234).
 
 import { applyAction, isId, playerGuild, type HeroRecruited } from '@heroesim/engine';
-import { rowOf } from '@heroesim/words';
+import { coinLetters, rowOf } from '@heroesim/words';
 import { exitCodes, open, over, refuse, say, type Context, type Exit } from '../context.js';
 import { refusalLine } from '../namer.js';
 import { writeSave } from '../saves.js';
@@ -38,7 +38,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const size = signed.rosterIds.length;
   const recruited = result.events.find((event): event is HeroRecruited => event.type === 'hero.recruited');
   return say(io, [
-    `Recruited ${hero.name} (${heroId}) for a signing fee of ${recruited?.payload.fee ?? '?'} Wealth.`,
-    `${signed.name}'s Roster now holds ${size} ${size === 1 ? 'Hero' : 'Heroes'}; Wealth ${signed.wealth}.`,
+    `Recruited ${hero.name} (${heroId}) for a signing fee of ${recruited === undefined ? '?' : coinLetters(recruited.payload.fee)}.`,
+    `${signed.name}'s Roster now holds ${size} ${size === 1 ? 'Hero' : 'Heroes'}; Wealth ${coinLetters(signed.wealth)}.`,
   ]);
 }

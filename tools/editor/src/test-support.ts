@@ -40,7 +40,7 @@ export function scratchRepository(options: { engine?: boolean } = {}): { dir: st
   const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-'));
   cpSync(inject('editorTemplate'), dir, { recursive: true, preserveTimestamps: true });
   if (options.engine === true) {
-    // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
+    // A boundary probe (`isBoundaryProbe`), which a test may write in a package's src/ while other tests run, is left out.
     cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {
       recursive: true,
       filter: (source) => !isBoundaryProbe(path.relative(root, source).replace(/\\/g, '/')),
@@ -208,4 +208,34 @@ export function plantQueries(dir: string): void {
   (synergies['shield-wall'] ?? {}).requires = [['>=', ['count', ['where', 'party', ['class', 'warrior']]], 3]];
   writeContentJson(dir, 'synergies.json', synergies);
   git(dir, 'commit', '--quiet', '-am', 'queries');
+}
+
+/**
+ * The Facilities and their grades the facilities tests read, as they plant them, so that a test rests
+ * on these rows and not on the values as shipped, which the tuning pass changes (DL-272, DL-297): the
+ * three Facilities, each three grades, the infirmary's heal factor falling, the others' effects rising.
+ */
+export const plantedFacilities: Readonly<Record<string, Record<string, unknown>>> = {
+  infirmary: { name: 'infirmary', plural: false, upkeep: 15, effects: { healFactor: 1 } },
+  'training-yard': { name: 'training yard', plural: false, upkeep: 15, effects: { trainingXp: 0 } },
+  quarters: { name: 'quarters', plural: true, upkeep: 15, effects: { moraleBaseline: 0, fatigueFall: 5 } },
+};
+
+/** The grades `plantedFacilities` has, by key: costs 200, 500 and 1000. */
+export const plantedGrades: Readonly<Record<string, Record<string, unknown>>> = Object.fromEntries(
+  [
+    ['infirmary', ['Sickroom', 'Infirmary ward', "Physicians' wing"], [{ healFactor: 0.5 }, { healFactor: 0.3 }, { healFactor: 0.2 }]],
+    ['training-yard', ['Practice yard', 'Drill ground', 'Tiltyard'], [{ trainingXp: 2 }, { trainingXp: 4 }, { trainingXp: 6 }]],
+    ['quarters', ['Dormitory', 'Private rooms', 'Lodgings'], [{ moraleBaseline: 5, fatigueFall: 6 }, { moraleBaseline: 10, fatigueFall: 7 }, { moraleBaseline: 15, fatigueFall: 8 }]],
+  ].flatMap(([facility, names, effects]) =>
+    (names as string[]).map((name, index) => [`${String(facility)}-${index + 1}`, { facility, grade: index + 1, cost: [200, 500, 1000][index], name, effects: (effects as unknown[])[index] }]),
+  ),
+);
+
+/** Plants `plantedFacilities` and `plantedGrades` in the scratch copy `dir`, in the files' own layout, committed so that `git status` stays clean. */
+export function plantFacilities(dir: string): void {
+  const lines = (rows: Readonly<Record<string, unknown>>): string => `{\n${Object.entries(rows).map(([key, row]) => `  ${JSON.stringify(key)}: ${JSON.stringify(row).replace(/":/g, '": ').replace(/,"/g, ', "').replace(/\{"/g, '{ "').replace(/\}/g, ' }')}`).join(',\n')}\n}\n`;
+  writeFileSync(path.join(dir, 'content', 'facilities.json'), lines(plantedFacilities));
+  writeFileSync(path.join(dir, 'content', 'improvements.json'), lines(plantedGrades));
+  git(dir, 'commit', '--quiet', '--allow-empty', '-am', 'the planted Facilities');
 }

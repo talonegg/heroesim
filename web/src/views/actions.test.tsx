@@ -1,7 +1,8 @@
+import { coinWords } from '@heroesim/words';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { changed, holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
-import { historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, wealth } from './page.test-support';
+import { coinsPattern, historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, silverOf, silverOfWords, wealth } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
@@ -45,12 +46,19 @@ function cells(row: HTMLElement): string[] {
     .map((cell) => cell.textContent ?? '');
 }
 
+/** The Silver a row's cell shows in coins (`silverOf`), the cell counted after the row's heading. */
+function silverIn(row: HTMLElement, cell: number): number {
+  const at = within(row).getAllByRole('cell')[cell];
+  if (at === undefined) throw new Error(`no cell ${cell}`);
+  return silverOf(at);
+}
+
 describe('the Market', () => {
   test('buys what it has for sale at its price, and the Guild then holds it', async () => {
     renderGame(started());
     const sword = rowOf(section('Market'), 'Short sword');
     // Kind, Effect, Price, Stock.
-    const price = Number(cells(sword)[2]);
+    const price = silverIn(sword, 2);
     const before = wealth();
 
     fireEvent.change(within(sword).getByLabelText('How many Short sword'), { target: { value: '2' } });
@@ -60,13 +68,13 @@ describe('the Market', () => {
     expect(wealth()).toBe(before - 2 * price);
     // Kind, Effect, Held, Sells for.
     expect(cells(rowOf(section('Sell'), 'Short sword')).slice(0, 3)).toEqual(['Weapon Gear', 'Weaponry +1', '2']);
-    debugSays(new RegExp(`^The Lantern bought 2 × Short sword at the Market for ${2 * price} Wealth\\.$`));
+    debugSays(new RegExp(`^The Lantern bought 2 × Short sword at the Market for ${coinWords(2 * price)}\\.$`));
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {
     renderGame(holding(started(), 'whetstone', 3));
     const sale = rowOf(section('Sell'), 'Whetstone');
-    const each = Number(cells(sale)[3]);
+    const each = silverIn(sale, 3);
     const before = wealth();
 
     fireEvent.change(within(sale).getByLabelText('How many Whetstone'), { target: { value: '2' } });
@@ -84,7 +92,7 @@ describe('the Market', () => {
     // Kind, Effect, Held, Sells for.
     expect(cells(sale)[0]).toBe('Weapon Gear, Unique Item');
     expect(cells(sale)[2]).toBe('1');
-    const each = Number(cells(sale)[3]);
+    const each = silverIn(sale, 3);
     expect(each).toBeGreaterThan(0);
     expect(within(sale).queryByLabelText(`How many ${blade}`)).toBeNull();
     const before = wealth();
@@ -95,7 +103,7 @@ describe('the Market', () => {
     expect(wealth()).toBe(before + each);
     // The Guild holds nothing now: Sell says so, with no table.
     expect(within(section('Sell')).queryByRole('table')).toBeNull();
-    debugSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
+    debugSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${coinWords(each)}\\.$`));
   });
 
   test("says why a purchase is refused, in the engine's terms", async () => {
@@ -104,7 +112,7 @@ describe('the Market', () => {
     fireEvent.click(within(rowOf(section('Market'), 'Plate harness')).getByRole('button', { name: 'Buy Plate harness' }));
     await idle();
 
-    expect(refusal()).toMatch(/^That costs \d+ Wealth; The Lantern has 10\./);
+    expect(refusal()).toMatch(new RegExp(`^That costs ${coinsPattern}; The Lantern has 10 Silver\\.`));
     expect(wealth()).toBe(10);
   });
 });
@@ -116,9 +124,10 @@ describe('the Hall', () => {
       within(section('Hall'))
         .getAllByTestId('facility')
         .find((row) => row.textContent?.startsWith('Infirmary') === true) as HTMLElement;
-    const build = within(infirmary()).getByRole('button', { name: 'Build Sickroom for 200 Wealth' });
-    // The cost on the button (the review's B9).
-    expect(build.textContent).toBe('Build Sickroom · 200');
+    const build = within(infirmary()).getByRole('button', { name: `Build Sickroom for ${coinWords(200)}` });
+    // The cost on the button, in coins (the review's B9).
+    expect(build.textContent).toMatch(/^Build Sickroom · /);
+    expect(silverOf(build)).toBe(200);
     const before = wealth();
 
     fireEvent.click(build);
@@ -126,8 +135,8 @@ describe('the Hall', () => {
 
     expect(wealth()).toBe(before - 200);
     expect(within(infirmary()).getByRole('img', { name: 'Grade 1 of 3' })).toBeDefined();
-    expect(within(infirmary()).getByRole('button', { name: 'Build Infirmary ward for 500 Wealth' })).toBeDefined();
-    logSays(/^The Lantern built Sickroom for 200 Wealth: its infirmary is now grade 1\.$/);
+    expect(within(infirmary()).getByRole('button', { name: `Build Infirmary ward for ${coinWords(500)}` })).toBeDefined();
+    logSays(new RegExp(`^The Lantern built Sickroom for ${coinWords(200)}: its infirmary is now grade 1\\.$`));
   });
 });
 
@@ -138,7 +147,7 @@ describe('the Unattached pool', () => {
     const [row] = within(pool).getAllByTestId('pool-row');
     if (row === undefined) throw new Error('an empty pool');
     const name = within(row).getByRole('rowheader').textContent ?? '';
-    const fee = Number(within(row).getByTestId('fee').textContent);
+    const fee = silverOf(within(row).getByTestId('fee'));
     const heroes = within(rosterList()).getAllByRole('button').length;
     const before = wealth();
 
@@ -149,7 +158,7 @@ describe('the Unattached pool', () => {
     expect(within(rosterList()).getAllByRole('button')).toHaveLength(heroes + 1);
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     expect(within(section('Unattached pool')).queryByRole('button', { name })).toBeNull();
-    logSays(new RegExp(`^The Lantern signed ${name} for ${fee} Wealth\\.$`));
+    logSays(new RegExp(`^The Lantern signed ${name} for ${coinWords(fee)}\\.$`));
   });
 
   test('says why a Hero will not sign, and recruits from their page too', async () => {
@@ -163,11 +172,13 @@ describe('the Unattached pool', () => {
 
     fireEvent.click(within(pool).getByRole('button', { name }));
     const page = within(section('Unattached pool')).getByRole('article');
-    expect(within(page).getByText(/^Signing fee \d+ Wealth\. Signs for your Guild: yes\.$/)).toBeDefined();
+    // The fee is a coins element between the words (`getByText` reads a node's own text).
+    const fee = within(page).getByText(/^Signing fee \. Signs for your Guild: yes\.$/);
+    expect(silverOf(fee)).toBeGreaterThan(0);
     fireEvent.click(within(page).getByRole('button', { name: `Recruit ${name}` }));
     await idle();
 
-    expect(refusal()).toMatch(/^The signing fee is \d+ Wealth; The Lantern has 0\.$/);
+    expect(refusal()).toMatch(new RegExp(`^The signing fee is ${coinsPattern}; The Lantern has 0 Silver\\.$`));
   });
 });
 
@@ -237,10 +248,10 @@ describe("a Hero's page on the player's Roster", () => {
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
     const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
     const option = select.options[0];
-    const [, guildName, fee] = /^(.+), for (\d+) Wealth$/.exec(option?.textContent ?? '') ?? [];
+    const [, guildName, feeWords = ''] = /^(.+), for (.+)$/.exec(option?.textContent ?? '') ?? [];
     expect(
       within(ask).getByText(
-        `${guildName} would pay ${fee} Wealth for ${name}, if it is willing to take them. Their Gear stays with your Guild, and the ` +
+        `${guildName} would pay ${feeWords} for ${name}, if it is willing to take them. Their Gear stays with your Guild, and the ` +
           'Heroes left behind who held them in high Regard lose Morale.',
       ),
     ).toBeDefined();
@@ -249,10 +260,10 @@ describe("a Hero's page on the player's Roster", () => {
     fireEvent.click(within(ask).getByRole('button', { name: `Transfer ${name} to ${guildName}` }));
     await idle();
 
-    expect(wealth()).toBe(before + Number(fee));
+    expect(wealth()).toBe(before + silverOfWords(feeWords));
     fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
     expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
-    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${fee} Wealth\\.$`));
+    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}\\.$`));
   });
 
   test('says why a Guild will not take the Hero', async () => {
@@ -276,7 +287,7 @@ describe("another Guild's Roster", () => {
     const [row] = within(page).getAllByTestId('guild-hero');
     if (row === undefined) throw new Error('an empty Roster');
     const name = within(row).getByRole('rowheader').textContent ?? '';
-    const fee = Number(within(row).getByTestId('fee').textContent);
+    const fee = silverOf(within(row).getByTestId('fee'));
     const before = wealth();
 
     fireEvent.click(within(row).getByRole('button', { name: `Take ${name} in` }));
@@ -284,7 +295,7 @@ describe("another Guild's Roster", () => {
 
     expect(wealth()).toBe(before - fee);
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
-    logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for ${fee} Wealth\\.$`));
+    logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for ${coinWords(fee)}\\.$`));
   });
 
   test("offers the same from a Rival Hero's page, and says why a Guild will not part with them", async () => {
@@ -295,7 +306,11 @@ describe("another Guild's Roster", () => {
     if (heroButton === undefined) throw new Error('an empty Roster');
     fireEvent.click(heroButton);
     const page = within(section('Guilds')).getByRole('article');
-    expect(within(page).getByText(new RegExp(`^Your Guild would pay The Old Weir Guild a Transfer fee of \\d+ Wealth to take ${name} in`))).toBeDefined();
+    // The fee is a coins element between the words (`getByText` reads a node's own text).
+    const sentence = within(page).getByText(new RegExp(`^Your Guild would pay The Old Weir Guild a Transfer fee of to take ${name} in`));
+    expect(silverOf(sentence)).toBeGreaterThan(0);
+    // The page's chip shows the same fee in coins.
+    expect(silverOf(within(page).getByText(/^Transfer fee\s*$/))).toBe(silverOf(sentence));
 
     fireEvent.click(within(page).getByRole('button', { name: `Take ${name} in` }));
     await idle();
@@ -309,27 +324,27 @@ describe('Transfer Offers', () => {
   test('accepts an offer, once asked and confirmed: the Hero goes to the Guild that made it, for its fee', async () => {
     renderGame(withOffer(started()));
     const offers = section('Transfer Offers');
-    const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Year \d+ Day \d+\.$/).textContent ?? '';
-    const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
+    const sentence = within(offers).getByText(new RegExp(` offers ${coinsPattern} for .+, until the night of Year \\d+ Day \\d+\\.$`)).textContent ?? '';
+    const [, guildName = '', feeWords = '', name = ''] = new RegExp(`^(.+) offers (${coinsPattern}) for (.+), until`).exec(sentence) ?? [];
     // Accept asks first, stating the fee and what letting the Hero go costs (the review's E4).
     fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` }));
     const ask = within(offers).getByRole('group', { name: `Accept ${guildName}'s Offer for ${name}?` });
-    expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${fee} Wealth\\. Their Gear stays with your Guild`))).toBeDefined();
+    expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${feeWords}\\. Their Gear stays with your Guild`))).toBeDefined();
     const before = wealth();
 
     fireEvent.click(within(ask).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}` }));
     await idle();
 
-    expect(wealth()).toBe(before + Number(fee));
+    expect(wealth()).toBe(before + silverOfWords(feeWords));
     expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
-    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${fee} Wealth, accepting its Transfer Offer\\.$`));
+    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}, accepting its Transfer Offer\\.$`));
   });
 
   test('declines an offer: the Hero stays', async () => {
     renderGame(withOffer(started()));
     const offers = section('Transfer Offers');
-    const [, guildName = '', name = ''] = /^(.+) offers \d+ Wealth for (.+), until/.exec(within(offers).getAllByRole('listitem')[0]?.textContent ?? '') ?? [];
+    const [, guildName = '', name = ''] = new RegExp(`^(.+) offers ${coinsPattern} for (.+), until`).exec(within(offers).getAllByRole('listitem')[0]?.textContent ?? '') ?? [];
 
     fireEvent.click(within(offers).getByRole('button', { name: `Decline ${guildName}'s Offer for ${name}` }));
     await idle();

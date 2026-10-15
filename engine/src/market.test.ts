@@ -21,7 +21,7 @@ const playTo = playWith(advance);
 // D6), and the Rivals, who buy gear there (DL-58).
 // Config values relied on are pinned.
 
-const pinned = { sellRatio: 0.5, lootOnlyPrice: 600, marketSize: 10, marketStackMin: 1, marketStackMax: 5 };
+const pinned = { sellRatio: 0.5, marketSize: 10, marketStackMin: 1, marketStackMax: 5 };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -30,7 +30,7 @@ afterEach(() => {
 describe('prices', () => {
   const deps = testDeps(pinned);
 
-  test('the Market asks buyPrice, or lootOnlyPrice for an Item found only as Loot, and cannot price what content lacks', () => {
+  test('the Market asks buyPrice, or its value for an Item found only as Loot, and cannot price what content lacks', () => {
     expect(marketPrice('healing-draught', deps)).toBe(30);
     expect(marketPrice('masterwork-blade', deps)).toBe(300);
     expect(marketPrice('barrow-kings-blade', deps)).toBe(600);
@@ -118,7 +118,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     return { document: withValid(document, deps), rivalId: rival.id, uniques, stacks };
   }
 
-  test('its unique Items are sold to the Market at sell price with item.sold, its stacks discarded, and its Heroes leave bare', () => {
+  test('its unique Items are sold to the Market at their value with item.sold, its stacks discarded, and its Heroes leave bare', () => {
     stillRivalControllers();
     const { document, rivalId, uniques, stacks } = arranged('fold', true);
     const { document: bare } = arranged('fold', false);
@@ -136,8 +136,8 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
           guildId: rivalId,
           definitionKey: folded.world.items[itemId]?.definitionKey,
           quantity: 1,
-          unitPrice: 300,
-          proceeds: 300,
+          unitPrice: 600,
+          proceeds: 600,
           itemIds: [itemId],
           cause: 'fold',
         },
@@ -149,7 +149,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     expect(types.lastIndexOf('item.sold')).toBeLessThan(types.indexOf('hero.left-guild'));
     expect(types.indexOf('hero.left-guild')).toBeLessThan(types.indexOf('guild.folded'));
     // Credited to the folded Guild: a record no rule reads again (DL-28).
-    expect(rival.wealth).toBe((foldedBare.world.guilds[rivalId] as Guild).wealth + 600);
+    expect(rival.wealth).toBe((foldedBare.world.guilds[rivalId] as Guild).wealth + 1200);
 
     for (const itemId of uniques) expect(folded.world.items[itemId]?.holder).toEqual({ kind: 'market' });
     for (const stackId of stacks) expect(folded.world.stacks[stackId]).toBeUndefined();
@@ -177,11 +177,12 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
 });
 
 // The Rivals buy gear from the Market, armour first, by their Disposition's `gearThreshold` (DL-58): a
-// Rival buys only what the Market has, sells nothing but by a fold, and with no Market buys nothing.
+// Rival buys only what the Market has, and with no Market buys nothing. A Rival sells only its surplus
+// (DL-301; controllers/rival.test.ts), and a new world's Rivals hold none in their first two Days.
 // controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.harness.test.ts the twenty
 // years. Two Days are played: by the first night two Rivals had bought, so this keeps twice that.
 describe('the Rivals and the Market', () => {
-  test('Rivals buy gear from the Market and sell none; with an empty Market they buy nothing', () => {
+  test('Rivals buy gear from the Market, and sell none while they hold no surplus; with an empty Market they buy nothing', () => {
     const withMarket = testDeps({ ...pinned, rivalCount: 4 });
     const noMarket = testDeps({ ...pinned, rivalCount: 4, marketSize: 0 });
     const play = (deps: EngineDeps): WorldDocument => {

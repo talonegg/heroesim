@@ -1,6 +1,7 @@
 import { timeOfDay } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { kindOf, sections, sweepTotals, type Counter } from './counter.js';
+import { noWealth } from './counters.js';
 import { gameCounters, type SweepTotals } from './game-counters.js';
 import { content, coreDeps, twentyDays } from './harness.test-support.js';
 import { coreCounters } from './module-report.js';
@@ -158,6 +159,45 @@ describe('the Quests by Tier', () => {
     expect(cells("The player's Guild: Tier 4")?.slice(-2)).toEqual(['2', '0.250']);
     expect(cells('The Rivals: Tier 4')?.slice(-2)).toEqual(['1', '0.250']);
     expect(cells("The player's Guild: every Tier")?.slice(-2)).toEqual(['2', '0.071']);
+  });
+});
+
+// DL-302: the Wealth by line, and each side's shares of what it spent and took.
+describe('the Wealth spent and taken', () => {
+  test("give each line, the Hall's charge as its two parts, and the shares of spending across the seven expense lines and of taking across the three income lines", () => {
+    const counter = gameCounters.find((it) => it.key === 'wealth');
+    if (counter?.lines === undefined) throw new Error('No wealth counter');
+    const player = {
+      ...noWealth(),
+      wages: 600,
+      hallUpkeep: 100,
+      improvementUpkeep: 50,
+      items: 100,
+      improvements: 100,
+      signing: 25,
+      transferFeesPaid: 25,
+      questRewards: 700,
+      transferFeesTaken: 100,
+      sales: { sale: 100, fold: 100 },
+    };
+    const totals = { wealth: { player, rival: noWealth() }, guildYears: { player: [1], rival: [2] } };
+
+    const lines = counter.lines(totals as unknown as SweepTotals, {} as never).flatMap((text) => text.split('\n'));
+    const cells = (label: string): string[] | undefined => lines.find((line) => line.startsWith(`| ${label} `))?.split('|').map((cell) => cell.trim()).slice(1, -1);
+
+    expect(cells("Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`, less the Improvements')")?.slice(1, 3)).toEqual(['100', '100.0']);
+    expect(cells("Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid` `facilities` × `traitFactor`, rounded)")?.slice(1, 3)).toEqual(['50', '50.0']);
+    expect(cells('Spent: Upkeep in all')?.slice(1, 3)).toEqual(['750', '750.0']);
+    expect(cells('Spent in all')?.slice(1, 3)).toEqual(['1,000', '1,000.0']);
+    expect(cells('Taken in all')?.slice(1, 3)).toEqual(['1,000', '1,000.0']);
+    expect(lines).toContain(
+      "Shares of the Wealth spent: The player's Guild: wages 60.0%, Hall upkeep 10.0%, Improvements’ upkeep 5.0%, Items 10.0%, " +
+        'Improvements 10.0%, signing 2.5%, Transfers 2.5%; The Rivals: wages —, Hall upkeep —, Improvements’ upkeep —, Items —, ' +
+        'Improvements —, signing —, Transfers —.',
+    );
+    expect(lines).toContain(
+      "Shares of the Wealth taken: The player's Guild: Quest rewards 70.0%, Item sales 20.0%, Transfers 10.0%; The Rivals: Quest rewards —, Item sales —, Transfers —.",
+    );
   });
 });
 

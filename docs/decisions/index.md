@@ -35,7 +35,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-23 | 2026-09-26 | M1 verification corrections |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-24 | 2026-09-26 | `advance`, the Turn pipeline, `emit`, actions and `rebase` (M2-S1, M2-S2) | item 1 in part by DL-206 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-25 | 2026-09-26 | Quest templates, the Board and its first draw, streams for old saves, and dispatch (M2-S3, M2-S4) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-26 | 2026-09-26 | Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7) | item 3 in part by DL-85 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-26 | 2026-09-26 | Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7) | item 3 in part by DL-85; item 1 in part by DL-298; item 3 in part by DL-298 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-27 | 2026-09-26 | Recruitment, the signing fee, and the Unattached pool's lifecycle (M2-S8) | item 3 in part by DL-211 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-28 | 2026-09-26 | Endings: the checks, what a fold does, the replacement Rival, and Rankings pulled forward (M2-S10) | item 1 in part by DL-83; item 3 in part by DL-54; item 10 in part by DL-113 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-29 | 2026-09-26 | The stub Quest Engine, Injury types, Morale bands and the Hero State Engine (M2-S5, M2-S6) | item 4 in part by DL-85 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -52,7 +52,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-40 | 2026-09-26 | M3 close: the M3 counters, what they read, and the M3 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-41 | 2026-09-26 | M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-42 | 2026-09-26 | Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1 … | item 9 in part by DL-44; in part by DL-70; item 7 in part by DL-248 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-43 | 2026-09-26 | Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and … | item 7 in part by DL-85; item 8 in part by DL-87; item 8 in part by DL-298 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-44 | 2026-09-26 | Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-45 | 2026-09-26 | Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-46 | 2026-09-26 | Regard between Heroes: its writer, its decay and the dead; Relationship; the teamwork scalar (M4-S4) | item 9 in part by DL-82 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -60,7 +60,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-48 | 2026-09-26 | Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1) | item 2 in part by DL-49; in part by DL-49 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-49 | 2026-09-26 | Equip and unequip, gear in effective Stats, gear going back to its Guild, and the controllers … | item 7 in part by DL-54 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-50 | 2026-09-26 | Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3) | item 3 in part by DL-285; item 6 by DL-285; item 8 in part by DL-285 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-51 | 2026-09-26 | The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the … | item 6 in part by DL-54; item 8 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-51 | 2026-09-26 | The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the … | item 6 in part by DL-54; item 8 in part by DL-58; item 2 in part by DL-301; item 6 in part by DL-301; item 7 in part by DL-301; item 8 in part by DL-301 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-52 | 2026-09-26 | Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-53 | 2026-09-26 | M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-54 | 2026-09-26 | Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not … | item 3 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -120,20 +120,20 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-108 | 2026-09-29 | M9 verified and closed: the code review's seven findings fixed, the 50 × 20 sweep's every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-109 | 2026-09-29 | The owner's answers to M9's open questions: Guildmaster Traits drawn as a whole legal set, eight … | item 2 in part by DL-111; item 3 in part by DL-111 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-110 | 2026-09-29 | DL-109 items 1 and 2 built: a drawn Guildmaster's Traits as one whole legal set by the same draws … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-111 | 2026-09-29 | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the … | item 10 by DL-113 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-111 | 2026-09-29 | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the … | item 10 by DL-113; item 5 in part by DL-302 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-112 | 2026-09-29 | M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the … | item 4 in part by DL-113; item 7 in part by DL-120; item 11 by DL-113; item 3 in part by DL-298; item 6 in part by DL-302; item 6 in part by DL-303 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-113 | 2026-09-29 | The follow-on's plan approved as amended: DL-112's readings confirmed, every Guildmaster 21 to 50 … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-114 | 2026-09-29 | M9-F1 built: the Quest named on what its return causes, Upkeep's parts and Day exported, every … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-115 | 2026-09-29 | M9-F2 built: seven views in one order at every width, the Guildmaster and the Market as views, the … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-116 | 2026-09-29 | M9-F3 built: the Guild's Stores and Treasury, the ledger read from the History by six categories … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-116 | 2026-09-29 | M9-F3 built: the Guild's Stores and Treasury, the ledger read from the History by six categories … | item 2 in part by DL-302; item 5 in part by DL-302 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-117 | 2026-09-29 | M9-F4 built: the History's scopes, the player's Guild's and a Rival's History filtered, the rail … | item 5 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-118 | 2026-09-29 | M9-F5 built: a Quest's return read from the History by its Party and Quest, one entry in the rail … | item 4 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-119 | 2026-09-30 | M9's follow-on verified and closed: the code review's ten findings and the six carried answered … | item 1.1 in part by DL-121; item 2.2 in part by DL-121 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-120 | 2026-09-30 | The owner's answers on the follow-on's close: "Debug: Whole History", Days before a Retirement … | item 5 in part by DL-206 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-121 | 2026-09-30 | M9-F7 built: "Debug: Whole History", the Days before a Retirement under a year and why none came … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-122 | 2026-09-30 | A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run … | item 2 in part by DL-124; item 5 in part by DL-124; item 3 in part by DL-309 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-123 | 2026-09-30 | v1.1.0 released: `v1.1-release` created and tagged `m9-redesign` and `v1.1.0`, deployed from CI to … |  | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
-| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
+| DL-124 | 2026-09-30 | Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next … | item 2 in part by DL-255; item 3 in part by DL-255; item 10 in part by DL-309 | [DL-099-124-v1.1.0](archive/DL-099-124-v1.1.0.md) |
 | DL-125 | 2026-09-30 | Pictures and words for v1.1.2: a `media/` folder, Portraits of the Guildmaster, Heroes and Patrons … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-126 | 2026-09-30 | DL-125's two open items answered: the owner's pictures set the style, and each picture's Appearance … | item 2 in part by DL-127 | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
 | DL-127 | 2026-09-30 | A picture's Appearance in two parts, keywords for the engine and a narrative for the page, with no … |  | [DL-125-133-v1.1.2](archive/DL-125-133-v1.1.2.md) |
@@ -304,6 +304,22 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-292 | 2026-10-12 | v1.2.1-S11 stopped: the economy broken since S4; an economy release next (Q22 c) | item 2 in part by DL-293 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-293 | 2026-10-12 | v1.2.1: the owner's word to release, as is; the economy pass deferred | item 2 in part by DL-294 | [DL-279-293-v1.2.1](archive/DL-279-293-v1.2.1.md) |
 | DL-294 | 2026-10-12 | The economy redesigned before its pass: Silver, the Hall's upkeep, Contracts; three releases |  | [decision-log](../decision-log.md) |
+| DL-295 | 2026-10-12 | v1.2.2-S1 built: the words, Gold, Silver and Facility, and Wealth, Hall, Upkeep and Treasury … |  | [decision-log](../decision-log.md) |
+| DL-296 | 2026-10-12 | v1.2.2-S2 built: Wealth in whole Silver, and every amount shown as coins |  | [decision-log](../decision-log.md) |
+| DL-297 | 2026-10-12 | v1.2.2-S3 built: Facilities as content, their effects, the Hall keyed by them, and the editor's … |  | [decision-log](../decision-log.md) |
+| DL-298 | 2026-10-12 | v1.2.2-S4 built: the Hall's upkeep and its Improvements', charged every 30 Days apart from the wages |  | [decision-log](../decision-log.md) |
+| DL-299 | 2026-10-12 | The CI minutes: check times out and cancels superseded runs, the watch runs weekly |  | [decision-log](../decision-log.md) |
+| DL-300 | 2026-10-12 | v1.2.2-S5 built: one Upkeep a month of costs, and the thresholds divided by 3 |  | [decision-log](../decision-log.md) |
+| DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [decision-log](../decision-log.md) |
+| DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [decision-log](../decision-log.md) |
+| DL-303 | 2026-10-14 | v1.2.2-S8 built: The page and the CLI |  | [decision-log](../decision-log.md) |
+| DL-304 | 2026-10-16 | v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and … | item 4 by DL-306 | [decision-log](../decision-log.md) |
+| DL-305 | 2026-10-16 | v1.2.2-S9: the release's commits reviewed, and the close's Gate recorded |  | [decision-log](../decision-log.md) |
+| DL-306 | 2026-10-16 | v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense |  | [decision-log](../decision-log.md) |
+| DL-307 | 2026-10-16 | v1.2.2: the owner's playtest: the Treasury tells where the Wealth comes from and goes |  | [decision-log](../decision-log.md) |
+| DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [decision-log](../decision-log.md) |
+| DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [decision-log](../decision-log.md) |
+| DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

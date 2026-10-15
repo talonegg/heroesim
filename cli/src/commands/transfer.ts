@@ -17,7 +17,7 @@ import {
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
-import { rowOf } from '@heroesim/words';
+import { coinLetters, rowOf } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { narrateLine, refusalLine } from '../namer.js';
 import { renderTime, table } from '../render.js';
@@ -39,7 +39,7 @@ function done(document: WorldDocument, events: readonly EngineEvent[], guildId: 
   const guild = rowOf(document.world.guilds, guildId);
   return [
     ...events.map((event) => narrateLine(event, deps.content, deps.config)),
-    `${guild?.name ?? guildId}: Wealth ${guild?.wealth ?? 0}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
+    `${guild?.name ?? guildId}: Wealth ${coinLetters(guild?.wealth ?? 0)}; ${guild?.rosterIds.length ?? 0} Heroes on the Roster.`,
   ];
 }
 
@@ -103,7 +103,7 @@ export function renderOffers(document: WorldDocument, deps: EngineDeps): string[
         offer.id,
         guildCalled(world, offer.toGuildId),
         heroCalled(world, offer.heroId),
-        String(offer.fee),
+        coinLetters(offer.fee),
         renderTime(offer.expiresOnTurn, deps.config),
       ]),
     ),

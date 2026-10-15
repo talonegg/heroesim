@@ -16,7 +16,7 @@ import {
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn, nightOfTurn, rowOf } from '@heroesim/words';
+import { coinLetters, nameIn, nightOfTurn, rowOf } from '@heroesim/words';
 import type { Command } from '../args.js';
 import { refusalLine } from '../namer.js';
 import type { CommandOutcome } from './outcome.js';
@@ -74,7 +74,7 @@ export function dispatchParty(
       `Dispatched ${party.id} from ${guild.name} on ${quest.id}, ${templateName(deps.content, quest.templateKey)}.`,
       `Party: ${party.heroIds.map((heroId) => heroName(result.document, heroId)).join(', ')}.`,
       ...(consumables.length === 0 ? [] : [`Carrying: ${consumableWords(consumables, deps.content)}.`]),
-      `Reward agreed: ${quest.reward} Wealth on a success, ${offered} offered.`,
+      `Reward agreed: ${coinLetters(quest.reward)} on a success, ${offered === undefined ? '?' : coinLetters(offered)} offered.`,
       `${days === 1 ? 'One Day' : `${days} Days`} away: it returns on ${nightOfTurn(party.returnsOnTurn, deps.config)} ` +
         `(Turn ${party.returnsOnTurn}).`,
       rivalsReminder,

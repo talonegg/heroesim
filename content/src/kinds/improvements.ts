@@ -1,36 +1,45 @@
-// The Hall Improvements (`improvements.json`): each raises a Hall facility, costs a whole number
-// of Wealth above 0, and each facility's grades run 1, 2, 3, … once each, with no gap, so that `build`
-// finds the next grade of any facility by its number. A facility no row names cannot be built; none
-// need be.
+// The Hall Improvements (`improvements.json`): each raises one Facility content defines
+// (`facilities.json`) a grade, costs a whole number of Wealth above 0, and holds its Facility's effects'
+// values at its grade, exactly the kinds its Facility has (DL-294 item 3). Each Facility's grades run
+// 1, 2, 3, … once each, with no gap, so that `build` finds the next grade of any Facility by its number;
+// a Facility may have any number, and one with none stays at grade 0.
 
-import type { FacilityKey, Improvement } from '@heroesim/engine/content';
-import { facilityKeys } from '@heroesim/engine/content';
-import { choicesOf, integer, oneOf, table, text } from './read.js';
+import type { Improvement } from '@heroesim/engine/content';
+import { checkFacilityEffects, facilityEffectsField } from './facility-effects.js';
+import { integer, table, text } from './read.js';
 import { checkRowKeys, type KindRules } from './rules.js';
-
-const facilities: Record<FacilityKey, true> = choicesOf(facilityKeys);
 
 export const improvementsKind = table<'improvements', Improvement>(
   'improvements',
   'improvements.json',
-  { name: text, facility: oneOf(facilities), grade: integer, cost: integer }, 'an Improvement',
+  { facility: text, grade: integer, cost: integer, name: text, effects: facilityEffectsField },
+  'an Improvement',
 );
 
 export const improvementsRules: KindRules = {
   key: 'improvements',
   check(set, problems) {
     checkRowKeys('improvements', set.improvements, problems);
+    const facilityKeys = Object.keys(set.facilities);
     const grades = new Map<string, number[]>();
     for (const [key, improvement] of Object.entries(set.improvements)) {
       const where = `improvements.${key}`;
-      const { facility, grade, cost } = improvement;
-      if (!(facilityKeys as readonly string[]).includes(facility)) {
-        problems.push(`${where}.facility: "${facility}" is not a Hall facility (${facilityKeys.join(', ')})`);
+      const { facility, grade, cost, effects } = improvement;
+      const owner = Object.hasOwn(set.facilities, facility) ? set.facilities[facility] : undefined;
+      if (owner === undefined) {
+        problems.push(`${where}.facility: "${facility}" is not a Facility (${facilityKeys.join(', ')})`);
       } else {
         grades.set(facility, [...(grades.get(facility) ?? []), grade]);
+        for (const kind of Object.keys(owner.effects)) {
+          if (!Object.hasOwn(effects, kind)) problems.push(`${where}.effects: ${kind}, an effect of ${facility}, has no value at this grade`);
+        }
+        for (const kind of Object.keys(effects)) {
+          if (!Object.hasOwn(owner.effects, kind)) problems.push(`${where}.effects.${kind}: ${facility} has no ${kind} effect`);
+        }
       }
       if (!(Number.isInteger(grade) && grade >= 1)) problems.push(`${where}.grade is ${grade}; it is a whole number from 1`);
       if (!(Number.isInteger(cost) && cost > 0)) problems.push(`${where}.cost is ${cost}; it is a whole number above 0`);
+      checkFacilityEffects(`${where}.effects`, effects, problems);
     }
     for (const [facility, listed] of grades) {
       const sorted = [...listed].sort((a, b) => a - b);

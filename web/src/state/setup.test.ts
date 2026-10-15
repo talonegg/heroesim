@@ -284,7 +284,7 @@ describe('the Stats "Choose myself" sets, within the Stat points', () => {
       ['Inspiration', each, min, max, 'The Morale baseline of the Heroes'],
       ['Influence', each, min, max, "The Regard a Patron's Quest earns"],
       ['Negotiation', each, min, max, 'The reward agreed and the fees paid'],
-      ['Coaching', each, min, max, 'The XP of the training yard'],
+      ['Coaching', each, min, max, 'The training XP the Hall gives'],
       ['Judgement', each, min, max, 'How sharp the Potential hints read'],
     ]);
     // With every point spent, none can be raised until one is lowered.

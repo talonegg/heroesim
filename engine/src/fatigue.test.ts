@@ -5,24 +5,24 @@ import type { GameConfig } from './config.js';
 import { createWorld } from './create.js';
 import { requireRow, type Guild, type Hero, type Party, type Quest, type World, type WorldDocument } from './document.js';
 import { eventEmitter } from './emit.js';
-import { fatigueBand, fatigueFall, fatigueRise } from './fatigue.js';
+import { hallEffect } from './facilities.js';
+import { fatigueBand, fatigueRise } from './fatigue.js';
 import { heroNight } from './phases/hero-state.js';
 import { questClock } from './quest-engine/clock.js';
 import { playerGuild } from './selectors.js';
 import { durationDaysOf, nightOf, timeOfDay } from './time.js';
-import { buildDocument, harmlessContent, ofType, setup, testDeps, withValid } from './world.test-support.js';
+import { buildDocument, harmlessContent, ofType, setup, testDeps, withFacilityEffect, withValid } from './world.test-support.js';
 
 // Fatigue (DL-280 item 2, DL-282): a State from 0 to `fatigueMax`, rising each night a Hero is away by
-// the Quest's Tier, falling each night at home by the quarters grade, read in bands. The Hero State
+// the Quest's Tier, falling each night at home by the Hall's `fatigueFall`, read in bands. The Hero State
 // Engine's night (`heroNight`) is its one writer.
 
 const config: Partial<GameConfig> = {
   fatigueMax: 100,
   fatigueBands: { fresh: 0, weary: 25, tired: 50, exhausted: 75 },
   fatigueRiseByTier: [4, 5, 6, 7, 8],
-  fatigueFallByQuarters: [5, 6, 7, 8],
 };
-const deps = testDeps(config);
+const deps = testDeps(config, withFacilityEffect('quarters', 'fatigueFall', [5, 6, 7, 8]));
 
 /** The fixture's Hero away in its Party on its taken Quest, and one at home, each at `fatigue`. */
 function scene(fatigue = 0) {
@@ -71,7 +71,7 @@ describe('a night away', () => {
 });
 
 describe('a night at home', () => {
-  test("Fatigue falls by the Guild's quarters grade, grade 0's figure first, a grade past the list reading the last", () => {
+  test("Fatigue falls by the Guild's quarters' fatigueFall at its grade, grade 0's first, a grade past the top reading the top", () => {
     const falls = [0, 1, 2, 3, 4].map((grade) => {
       const { world, home, guild } = scene(50);
       guild.hall.quarters = grade;
@@ -165,7 +165,7 @@ describe('a Quest played, against the Quest clock (the verification of DL-282)',
     const afterReturn = heroIds.map((id) => requireRow(document.world.heroes, id).fatigue);
     const clock = questClock(taken, taken.encounterKeys.length, played.config);
     const rise = fatigueRise(taken.tier, played.config);
-    const fall = fatigueFall(requireRow(document.world.guilds, guild.id).hall.quarters, played.config);
+    const fall = hallEffect(requireRow(document.world.guilds, guild.id).hall, 'fatigueFall', played.content);
     return { days: durationDaysOf(taken), encounters: taken.encounterKeys.length, clock, rise, fall, beforeReturn, afterReturn, heroIds, document };
   }
 

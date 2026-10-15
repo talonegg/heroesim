@@ -30,11 +30,13 @@ name its path, or use `rg -u`.
    Dependabot's `target-branch` (DL-147 item 6) or anything else that leaves this machine. A word
    for one is not a word for the next.
 2. **Traits** change only through `npm run edit` or the trait skills (`docs/agents/traits.md`),
-   and **Quest templates and Encounters** only through its `quests` and `encounters` commands or
-   their skills (`docs/agents/quests.md`). Run `npm run edit -- traits doctor` and
-   `npm run edit -- quests doctor` before the first change and after the last of every story that
-   touches `engine/src/` or the content's checks (`content/src/validate.ts` and the content kinds,
-   `content/src/kinds/`), and record both readings of each.
+   **Quest templates and Encounters** only through its `quests` and `encounters` commands or
+   their skills (`docs/agents/quests.md`), and **Facilities and their grades** only through its
+   `facilities` commands (`docs/agents/facilities.md`). Run `npm run edit -- traits doctor`,
+   `npm run edit -- quests doctor` and `npm run edit -- facilities doctor` before the first change
+   and after the last of every story that touches `engine/src/` or the content's checks
+   (`content/src/validate.ts` and the content kinds, `content/src/kinds/`), and record both
+   readings of each.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:
@@ -59,8 +61,9 @@ name its path, or use `rg -u`.
 8. **No git worktrees.** Work on the release's dev branch, and never switch branches mid-story.
 9. **Tests first** where the epic says so: red, then green.
 10. **The model split:**
-    - Opus builds the medium and large stories and does all verification.
-    - Sonnet or Haiku take the mechanical steps.
+    - Opus builds the high complexity stories and does all verification.
+    - Sonnet builds the medium complexity stories.
+    - Haiku take the mechanical steps.
 11. **A question to the owner** is one item a message:
     - what it is, with checked facts and file references;
     - what doing it involves;
@@ -92,12 +95,12 @@ name its path, or use `rg -u`.
 3. **Check** at the end:
    - `npm run lint`, `npm run typecheck` and `npm test`;
    - `npm run build`, check-bundle and `npm run e2e -w web` where the story names them;
-   - the doctor, by rule 2.
+   - the doctors, by rule 2.
 
    Long commands run in the background, or with a timeout of up to 600,000 ms.
 4. **Record** it in a DL entry, appended at the end of `docs/decision-log.md` with the next
    number:
-   - the heading `## DL-nn — v1.1.N-Sk built: <what>`;
+   - the heading `## DL-nn — v1.M.N-Sk built: <what>`;
    - the line `**Status:** Accepted · **Date:** <from date> · **Decided by:** <who>`;
    - **Context.**;
    - **Decision.**, in numbered items;
@@ -105,7 +108,7 @@ name its path, or use `rg -u`.
    - **Consequences.**;
    - **Evidence.**: a few lines naming the commits, the reports and the epic's boxes.
 
-   An entry is at most 6 KB (the log's header; `npm test` holds it, DL-219). The doctor's readings,
+   An entry is at most 6 KB (the log's header; `npm test` holds it, DL-219). The doctors' readings,
    the checks with their counts, the bundle's bytes, the `e2e` count and the sweeps' fingerprints go
    in the commit message, and the sweeps' in their reports.
 
@@ -120,8 +123,8 @@ name its path, or use `rg -u`.
      `Verified <date> at <sha>: <what it found and fixed, in a sentence>.`
 6. **The epic:** tick the story's boxes as they are met, and set its Status line.
 7. **Commit** to the release's dev branch only:
-   - the message is `v1.1.N-Sk (DL-nn): <what was built>`, then
-     `v1.1.N-Sk (DL-nn): verified: <what was checked; what was fixed>`, ending with the
+   - the message is `v1.M.N-Sk (DL-nn): <what was built>`, then
+     `v1.M.N-Sk (DL-nn): verified: <what was checked; what was fixed>`, ending with the
      attribution lines the session gives;
    - stage only the files changed, never `git add -A`;
    - use `git commit -F -` with a heredoc.
@@ -130,7 +133,7 @@ name its path, or use `rg -u`.
 
 1. **Plan.**
    - Take the owner's answers, by rule 11.
-   - Write the epic, `docs/planning/epics/v1.1.N-release.md`: the objective, the Gate, §0's story
+   - Write the epic, `docs/planning/epics/v1.M.N-release.md`: the objective, the Gate, §0's story
      table, the stories with their acceptance, and §2 to §4.
    - Add its row to the epics README's register, and make it §3's "Now" in `plan.md`.
    - Its DL entry records the answers and the plan.
@@ -150,11 +153,11 @@ name its path, or use `rg -u`.
      saying, the epic naming the sentence it aimed at (DL-256).
    - Bring the epic up to date.
 3. **Release** (DL-124), on the owner's word:
-   - `v1.1-release` is fast-forwarded to the dev branch and pushed;
+   - `v1.M-release` is fast-forwarded to the dev branch and pushed;
    - CI raises the pull request to `main`, naming its tag;
    - the owner merges it with a merge commit;
-   - CI tags the release, deploys it to both addresses, runs `e2e:live` and publishes the GitHub
-     Release.
+   - CI tags the release, deploys it to both addresses and publishes the GitHub Release; no live
+     check runs in CI (DL-309).
 
    `docs/deploy.md` has the detail.
 4. **Record**, and nothing else records a release:

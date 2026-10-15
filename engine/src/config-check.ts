@@ -208,20 +208,9 @@ const successShares: ConfigRule = (value, settings) => {
 };
 
 /**
- * The infirmary's heal factors: at least one, each a finite number above 0 (DL-53). A grade past the
- * list reads its last factor (`healFactor`), so a content release with more grades leaves a save's
- * list sound (DL-193, the owner's answer).
- */
-const healFactors: ConfigRule = (value) =>
-  Array.isArray(value) && value.length >= 1 && value.every((factor) => isNumber(factor) && factor > 0)
-    ? undefined
-    : 'it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0';
-
-/**
- * Fatigue's figures a night by a ladder's rung (DL-282): `fatigueRiseByTier`'s by Tier and
- * `fatigueFallByQuarters`' by quarters grade, at least one, each a finite number of 0 or more, so no
- * night away rests a Hero nor a night at home tires one. One past the list reads the last, so a
- * longer ladder or a content release with more grades leaves the list sound (DL-193).
+ * Fatigue's figures a night by a ladder's rung (DL-282): `fatigueRiseByTier`'s by Tier, at least one,
+ * each a finite number of 0 or more, so no night away rests a Hero. One past the list reads the last,
+ * so a longer ladder leaves the list sound (DL-193).
  */
 function fatigueSteps(each: string, one: string): ConfigRule {
   return (value) =>
@@ -371,7 +360,12 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
 
   upkeepEveryDays: whole({ min: 1 }),
   wagePerLevel: whole({ min: 0 }),
-  hallMaintenancePerGrade: whole({ min: 0 }),
+  hallUpkeepEveryDays: whole({ min: 1 }),
+  hallBaseUpkeep: whole({ min: 0 }),
+  hallUpkeepPerHero: whole({ min: 0 }),
+  hallUpkeepHeroExponent: finite({ min: 0 }),
+  // A grade never costs less to keep than the one below it (DL-294 item 3, DL-298).
+  improvementUpkeepGradeFactor: finite({ min: 1 }),
   bankruptcyFloor: whole(),
   bankruptcyGraceDays: whole({ min: 0 }),
   fameFloor: whole({ min: 0 }),
@@ -427,13 +421,10 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   heroRetirementAge: whole({ min: 0 }),
   heroRetirementChancePerYear: share,
   heroRetirementInjuredMultiplier: finite({ min: 0 }),
-  infirmaryHealFactor: healFactors,
-  quartersMoraleBonus: finite({ min: 0 }),
 
   fatigueMax: whole({ min: 1 }),
   fatigueBands: bands(fatigueBandNames, { min: 0, max: 'fatigueMax' }),
   fatigueRiseByTier: fatigueSteps('Tier from 1', 'Tier'),
-  fatigueFallByQuarters: fatigueSteps('quarters grade from 0', 'grade'),
   // A share, so Fatigue never takes a Stat below nothing (DL-284).
   fatigueScaling: share,
   // A band a Hero can reach, or none (DL-286).
@@ -460,7 +451,6 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   growthPointsPerLevel: whole({ min: 0 }),
   xpPerDifficultyPoint: finite({ min: 0 }),
   xpBandFactor: each(questBands, { min: 0 }),
-  xpPerTrainingDay: finite({ min: 0 }),
 
   // Neutral, 0, is inside the scale, and each side has a reach to divide by.
   regardMin: finite({ below: 0 }),
@@ -506,7 +496,6 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   marketStackMax: drawnMax('marketStackMin'),
   // An Item sells for less than it costs (R31).
   sellRatio: finite({ min: 0, below: 1 }),
-  lootOnlyPrice: whole({ min: 0 }),
 });
 
 /** A value in a problem's words: a number as it reads, anything else as JSON, a setting absent as missing. */

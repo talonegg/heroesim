@@ -889,7 +889,8 @@ describe('the repository holds no deploy credential', () => {
     ]);
   });
 
-  test('no file holds a Cloudflare token or account id', () => {
+  // Reads every file of the repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test('no file holds a Cloudflare token or account id', { timeout: 30_000 }, () => {
     const found: string[] = [];
     for (const file of repositoryFiles()) {
       let bytes: Buffer;
@@ -909,8 +910,8 @@ describe('the repository holds no deploy credential', () => {
 // A release deploys from CI (DL-122, DL-124). `main` is production: CI raises a release branch's
 // pull request to it (release-pr.yml); merging it tags the line's next patch and calls the deploy
 // (release.yml); the deploy refuses a tag not on `main` or older than the newest release, checks,
-// runs the browser specs, reads Pages's production branch, deploys and reads both addresses live,
-// then publishes the record (deploy.yml); and every day the watch reads production (watch.yml).
+// runs the browser specs, reads Pages's production branch and deploys, with no live check (DL-309),
+// then publishes the record (deploy.yml); and every Monday the watch reads production (watch.yml, DL-299).
 // The Cloudflare credentials are the `production` environment's secrets, read only by the steps
 // that talk to Cloudflare.
 function workflowText(name: string): string {
@@ -961,24 +962,23 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
     expect(guard).toMatch(/if \[ "\$ALLOW_OLDER" = "true" \]; then\n[^\n]*rollback[^\n]*\n {10}else\n {12}node web\/scripts\/release\.mjs newest "\$tag"/);
   });
 
-  test('checks, runs the browser specs, reads Pages, deploys, then reads both addresses live, one run at a time', () => {
+  test('checks, runs the browser specs, reads Pages and deploys, one run at a time, with no live check after (DL-309)', () => {
     const guard = stepWith('The tag is the newest release, on main');
     const checks = [stepWith('npm run lint'), stepWith('npm run typecheck'), stepWith('npm test')];
     const specs = stepWith('npm run e2e -w web');
     const pages = stepWith('node web/scripts/cloudflare.mjs pages');
     const deployed = stepWith('run: npm run deploy');
-    const live = stepWith('npm run e2e:live -w web');
 
     expect(checks.every((at) => at > guard && at < specs)).toBe(true);
     expect(specs).toBeLessThan(pages);
     expect(pages).toBeLessThan(deployed);
-    expect(live).toBeGreaterThan(deployed);
+    expect(workflow).not.toContain('e2e:live');
     expect(deployJob).toContain('group: deploy-production');
     expect(deployJob).toContain('cancel-in-progress: false');
   });
 
   // DL-235: the suite and the specs are skipped only on tested.mjs's `run=false`, and the lint, the
-  // typecheck, the build (inside `npm run deploy`) and the live check always run.
+  // typecheck and the build (inside `npm run deploy`) always run.
   test('runs the suite and the specs again unless tested.mjs finds the tree passed check already', () => {
     const decided = stepWith('node web/scripts/tested.mjs "$EVENT"');
     const skippable = "if: steps.tested.outputs.run != 'false'";
@@ -992,8 +992,8 @@ describe('the deploy workflow (DL-122, DL-124)', () => {
       expect(steps[stepWith(text)]).toContain(skippable);
     }
     expect(steps.filter((step) => step.includes(skippable))).toHaveLength(2);
-    // No other step is conditional but the record, written always: the lint, the typecheck, the
-    // build and the live check run whatever tested.mjs said.
+    // No other step is conditional but the record, written always: the lint, the typecheck and
+    // the build run whatever tested.mjs said.
     const conditional = steps.filter((step) => /\n {8}if: /.test(`\n${step}`)).map((step) => step.split('\n')[0]);
     expect(conditional).toEqual(['run: npm test', 'name: The browser specs', 'name: The record']);
     expect(steps[stepWith('name: The record')]).toContain('if: always()');
@@ -1054,19 +1054,19 @@ describe('the release workflows (DL-124)', () => {
     expect(secretsIn(workflow)).toEqual([]);
   });
 
-  test('watch.yml: every day, the live check and the Cloudflare checks, and an issue on a failure', () => {
+  test('watch.yml: every week, the Cloudflare checks and no live check (DL-309), and an issue on a failure', () => {
     const workflow = workflowText('watch.yml');
     const cloudflare = jobOf(workflow, 'cloudflare');
     const report = jobOf(workflow, 'report');
 
     expect(workflow).toMatch(/\non:\n {2}schedule:\n {4}- cron: '[^']+'\n {2}workflow_dispatch:/);
-    expect(jobOf(workflow, 'live')).toContain('npm run e2e:live -w web');
+    expect(workflow).not.toContain('e2e:live');
+    expect(workflow).not.toContain('\n  live:\n');
     expect(cloudflare).toMatch(/environment:\n {6}name: production\n {6}deployment: false/);
     expect(cloudflare).toContain('node web/scripts/cloudflare.mjs token');
     expect(cloudflare).toContain('node web/scripts/cloudflare.mjs pages');
     expect(report).toContain("contains(needs.*.result, 'failure')");
     expect(report).toContain('gh issue create');
-    expect(secretsIn(jobOf(workflow, 'live'))).toEqual([]);
     expect(secretsIn(report)).toEqual([]);
     expect(credentialsIn(workflow)).toEqual([]);
   });
@@ -1079,6 +1079,15 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(check, 'e2e')).toContain('npm run e2e -w web');
     expect(check).not.toContain('npm run deploy');
     expect(check).not.toContain('secrets.');
+  });
+
+  // DL-299: a superseded run is cancelled, but never on a release branch, and a hung run is capped.
+  test('check.yml: a newer run cancels an older one except on a release branch, and a run is capped', () => {
+    const check = workflowText('check.yml');
+
+    expect(check).toContain("cancel-in-progress: ${{ !endsWith(github.ref_name, '-release') }}");
+    expect(jobOf(check, 'check')).toMatch(/timeout-minutes: \d+/);
+    expect(jobOf(check, 'e2e')).toMatch(/timeout-minutes: \d+/);
   });
 
   // DL-235: the floor is the Node of `.node-version`, so one `check` on it tests the floor.

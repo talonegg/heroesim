@@ -27,7 +27,7 @@ describe('the rail keeps to what the Guild’s History shows', () => {
     const sentences = railSentences();
 
     expect(sentences.some((sentence) => /^The Lantern's Party came home from /.test(sentence))).toBe(true);
-    for (const pattern of [/ gained \d+ XP\.$/, /Morale/, /Regard/, / paid \d+ Upkeep/, / bought /, / sold /]) {
+    for (const pattern of [/ gained \d+ XP\.$/, /Morale/, /Regard/, / paid .* in (wages|Hall upkeep), /, / bought /, / sold /]) {
       expect(sentences.filter((sentence) => pattern.test(sentence)), String(pattern)).toEqual([]);
     }
     const count = /(\d+) new$/.exec(navButton('History').textContent ?? '')?.[1];
@@ -64,7 +64,7 @@ describe('a Party’s return in the rail (DL-111 item 2)', () => {
     const entry = items[at] as HTMLElement;
 
     expect(entry.querySelector('strong')?.textContent).toBe('succeeded strongly');
-    expect(entry.textContent).toMatch(/The Lantern's Party came home from .+ and succeeded strongly: Wealth \+150, Fame \+3\./);
+    expect(entry.textContent).toMatch(/The Lantern's Party came home from .+ and succeeded strongly: Wealth \+1 Gold 50 Silver, Fame \+3\./);
     const heroes = within(entry).getByRole('button', { name: /^\d+ Heroes: how each fared on / });
     const lines = document.getElementById(heroes.getAttribute('aria-controls') ?? '') as HTMLElement;
     expect(heroes.getAttribute('aria-expanded')).toBe('false');

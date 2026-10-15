@@ -115,14 +115,14 @@ describe("a Disposition's orders", () => {
       written((it) => {
         it['purchaseOrder'] = ['debt', 'recruit', 'transfer', 'gear', 'build'];
         it['gearSlotOrder'] = ['trinket', 'weapon', 'armour'];
-        it['buildOrder'] = ['quarters', 'infirmary', 'trainingYard'];
+        it['buildOrder'] = ['quarters', 'infirmary', 'training-yard'];
       }),
     );
 
     expect(set.dispositions['steady']).toMatchObject({
       purchaseOrder: ['debt', 'recruit', 'transfer', 'gear', 'build'],
       gearSlotOrder: ['trinket', 'weapon', 'armour'],
-      buildOrder: ['quarters', 'infirmary', 'trainingYard'],
+      buildOrder: ['quarters', 'infirmary', 'training-yard'],
     });
   });
 
@@ -131,8 +131,10 @@ describe("a Disposition's orders", () => {
     ['purchaseOrder', 'a step twice', ['build', 'gear', 'transfer', 'recruit', 'debt', 'gear'], 'dispositions.steady.purchaseOrder: "gear" is listed twice'],
     ['gearSlotOrder', 'a slot missing', ['armour', 'weapon'], 'dispositions.steady.gearSlotOrder: "trinket" is not in the order; list each of weapon, armour, trinket once'],
     ['gearSlotOrder', 'a slot twice', ['armour', 'armour', 'weapon', 'trinket'], 'dispositions.steady.gearSlotOrder: "armour" is listed twice'],
-    ['buildOrder', 'a facility missing', ['infirmary', 'quarters'], 'dispositions.steady.buildOrder: "trainingYard" is not in the order'],
-    ['buildOrder', 'a facility twice', ['infirmary', 'infirmary', 'trainingYard', 'quarters'], 'dispositions.steady.buildOrder: "infirmary" is listed twice'],
+    ['buildOrder', 'a Facility missing', ['infirmary', 'quarters'], 'dispositions.steady.buildOrder: "training-yard" is not in the order; list each of infirmary, training-yard, quarters once'],
+    ['buildOrder', 'a Facility twice', ['infirmary', 'infirmary', 'training-yard', 'quarters'], 'dispositions.steady.buildOrder: "infirmary" is listed twice'],
+    // Content's Facilities, not a list of the engine's, so the rules refuse one content lacks (DL-297).
+    ['buildOrder', 'a Facility content lacks', ['infirmary', 'training-yard', 'quarters', 'library'], 'dispositions.steady.buildOrder: "library" is not one of infirmary, training-yard, quarters'],
   ])('%s with %s is refused, naming it', (field, _what, order, problem) => {
     expect(refusalOf(() => parse(written((it) => void (it[field] = order)))).message).toContain(problem);
   });
@@ -140,7 +142,6 @@ describe("a Disposition's orders", () => {
   test.each([
     ['purchaseOrder', ['build', 'sell', 'gear', 'transfer', 'recruit', 'debt']],
     ['gearSlotOrder', ['weapon', 'armour', 'ring']],
-    ['buildOrder', ['infirmary', 'trainingYard', 'quarters', 'library']],
   ])('%s naming a key it has none of is refused by the parser', (field, order) => {
     expect(refusalOf(() => parse(written((it) => void (it[field] = order)))).message).toContain(`steady.${field} is`);
   });

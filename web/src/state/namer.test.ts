@@ -86,7 +86,17 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
-  'guild.upkeep-paid': event('guild.upkeep-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.hall-upkeep-paid': event('guild.hall-upkeep-paid', [guildId], {
+    guildId,
+    amount: 120,
+    wealthAfter: 340,
+    base: 30,
+    heroCount: 6,
+    heroes: 30,
+    facilities: { infirmary: 60 },
+    traitFactor: 1,
+  }),
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
@@ -175,7 +185,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], {
     guildId,
-    facility: 'trainingYard',
+    facility: 'training-yard',
     grade: 2,
     improvementKey: 'training-yard-2',
     cost: 500,
@@ -380,7 +390,7 @@ describe('a line as segments: its words, and the names in it the page can open',
     // A Hero who shares the Guild's name: the sentence reads the same twice, the ids do not.
     const twin = { ...samples['hero.recruited'], labels: { [guildId]: 'Wren', [heroId]: 'Wren' } };
 
-    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 110 Wealth.');
+    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 1 Gold 10 Silver.');
     expect(namesIn(narrateSegments(twin, narration))).toEqual([
       [guildId, 'Wren'],
       [heroId, 'Wren'],
@@ -390,7 +400,7 @@ describe('a line as segments: its words, and the names in it the page can open',
   test('leaves as words someone the event has no label for, capitalised where the line opens with them', () => {
     const unlabelled = { ...samples['hero.recruited'], labels: {} };
 
-    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 110 Wealth.' }]);
+    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 1 Gold 10 Silver.' }]);
   });
 
   test("marks the names in a module's own event too, from its participants", () => {

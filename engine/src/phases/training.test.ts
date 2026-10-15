@@ -8,7 +8,7 @@ import type { TurnEvent } from '../events.js';
 import { xpForLevel } from '../progression.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { harmlessContent, ofType, playWith, setup, testContent, testDeps, withValid } from '../world.test-support.js';
+import { harmlessContent, ofType, playWith, setup, testDeps, withFacilityEffect, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { training } from './training.js';
 import { applyAction } from '../actions/action.js';
@@ -25,7 +25,7 @@ const playTo = playWith(advance, { validate: 'last' });
  * Retirement, of a Hero or the Guildmaster, to take a Hero off the Roster. The Guildmaster's Coaching
  * still: it is tested with the other Guildmaster Stats (guildmaster.test.ts).
  */
-function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
+function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = withFacilityEffect('training-yard', 'trainingXp', [0, 2, 4, 6])): EngineDeps {
   return testDeps(
     {
       rivalCount: 0,
@@ -33,7 +33,6 @@ function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
       startingWealth: 10_000_000,
       heroRetirementChancePerYear: 0,
       guildmasterRetirementAge: 200,
-      xpPerTrainingDay: 2,
       xpCurveBase: 100,
       xpCurveExponent: 2,
       coachingFactor: 0,
@@ -49,7 +48,7 @@ const player = (world: World): Guild => playerGuild(world) as Guild;
 /** A created world whose player's training yard is at `grade`. */
 function withYard(seed: string, grade: number, deps: EngineDeps): WorldDocument {
   const { document } = createWorld(seed, setup, deps);
-  player(document.world).hall.trainingYard = grade;
+  player(document.world).hall['training-yard'] = grade;
   return withValid(document, deps);
 }
 
@@ -62,7 +61,7 @@ function night(world: World, day: number, deps: EngineDeps): TurnEvent[] {
 const xpOf = (world: World, ids: readonly HeroId[]): number[] => ids.map((id) => hero(world, id).xp);
 
 describe('training', () => {
-  test("a Hero idle at grade 1 for a year has gained a night's xpPerTrainingDay XP for each of the year's nights", () => {
+  test("a Hero idle at grade 1 for a year has gained a night's training XP for each of the year's nights", () => {
     // A year of 90 Turns, 30 nights, and a curve of 10 to Level 2: 60 XP is Level 3 (10, then 50).
     const deps = soloDeps({ turnsPerYear: 90, xpCurveBase: 10 });
     const start = withYard('idle-year', 1, deps);
@@ -82,14 +81,14 @@ describe('training', () => {
     expect(ofType(events, 'hero.levelled')).toHaveLength(2 * roster.length);
   });
 
-  test('gives xpPerTrainingDay × the grade a night, and nothing at grade 0', () => {
+  test("gives the training yard's trainingXp at its grade a night, and nothing at grade 0", () => {
     for (const [grade, perNight] of [
       [0, 0],
       [1, 3],
       [2, 6],
       [3, 9],
     ] as const) {
-      const deps = soloDeps({ xpPerTrainingDay: 3 });
+      const deps = soloDeps({}, withFacilityEffect('training-yard', 'trainingXp', [0, 3, 6, 9]));
       const { world } = withYard(`grade-${grade}`, grade, deps);
       const roster = [...player(world).rosterIds];
 
@@ -151,9 +150,9 @@ describe('training', () => {
   });
 
   test('history.entries grows by zero per night from training', () => {
-    // A curve no Hero climbs, so no Level-up entry follows from the XP either, and no maintenance,
-    // so the yard's grade does not change what Upkeep takes.
-    const deps = soloDeps({ xpCurveBase: 1_000_000, hallMaintenancePerGrade: 0 });
+    // A curve no Hero climbs, so no Level-up entry follows from the XP either, and no Hall upkeep
+    // falls in the span, so the yard's grade does not change what the Guild is charged (DL-298).
+    const deps = soloDeps({ xpCurveBase: 1_000_000, hallUpkeepEveryDays: 360 });
     const idle = withYard('no-entries', 0, deps);
     const trained = withYard('no-entries', 3, deps);
     const roster = [...player(idle.world).rosterIds];
@@ -184,9 +183,9 @@ describe('training', () => {
     const deps = soloDeps({ rivalCount: 2 });
     const { world } = createWorld('who-trains', setup, deps).document;
     const [rival, folded] = Object.values(world.guilds).filter((guild) => guild.controller.kind === 'rival') as [Guild, Guild];
-    player(world).hall.trainingYard = 1;
-    rival.hall.trainingYard = 2;
-    folded.hall.trainingYard = 3;
+    player(world).hall['training-yard'] = 1;
+    rival.hall['training-yard'] = 2;
+    folded.hall['training-yard'] = 3;
     folded.foldedOnTurn = 0;
     const pool = Object.values(world.heroes).filter((row) => row.unattachedSince !== null);
     expect(pool.length).toBeGreaterThan(0);
@@ -199,7 +198,7 @@ describe('training', () => {
     expect(pool.map((row) => row.xp)).toEqual(pool.map(() => 0));
   });
 
-  test('a Hero at levelCap still gains xpPerTrainingDay a night, and no Level (DL-36 item 2)', () => {
+  test("a Hero at levelCap still gains the training yard's XP a night, and no Level (DL-36 item 2)", () => {
     const deps = soloDeps({ levelCap: 3 });
     const start = withYard('capped', 1, deps);
     const [heroId] = player(start.world).rosterIds as [HeroId];

@@ -125,18 +125,21 @@ export function Chip({
 
 /**
  * A number that matters, with its icon and its name: the name is shown where there is room and
- * always read. `value` changing replays a short flash, off under reduced motion.
+ * always read. `value` changing replays a short flash, off under reduced motion; a value that is an
+ * element, as Wealth's coins are (`coins.tsx`), flashes when `flashKey`, its number, changes.
  */
 export function StatPill({
   icon,
   label,
   value,
+  flashKey,
   testId,
   tone = 'brass',
 }: {
   icon: IconName;
   label: string;
   value: ReactNode;
+  flashKey?: string | number;
   testId?: string;
   tone?: Tone;
 }) {
@@ -144,7 +147,7 @@ export function StatPill({
     <span className={`stat stat--${tone}`} title={label}>
       <Icon name={icon} />
       <span className="stat__label">{label}</span>{' '}
-      <span className="stat__value" data-testid={testId} key={typeof value === 'string' || typeof value === 'number' ? value : undefined}>
+      <span className="stat__value" data-testid={testId} key={flashKey ?? (typeof value === 'string' || typeof value === 'number' ? value : undefined)}>
         {value}
       </span>
     </span>

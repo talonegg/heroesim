@@ -46,7 +46,7 @@ Pick each command the question needs:
 | The rules and events that read Traits, and where in the code | `docs/agents/traits-register.md`: "In the engine and the content's checks" |
 
 Each prefixed `npm run --silent edit -- `. An effect is found in its words (`courage`, `-2 perception`,
-`Upkeep ×`) and as JSON (`encounterBonus`). `find` gives each match's `matched` (key, name, effects, uses); follow each
+`Hall upkeep ×`) and as JSON (`encounterBonus`). `find` gives each match's `matched` (key, name, effects, uses); follow each
 with `show`.
 
 Done when: every Trait the question names, or the search finds, has its `show`, and each part of the

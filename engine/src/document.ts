@@ -16,6 +16,7 @@ import type {
   ContentRef,
   DispositionKey,
   EncounterKey,
+  FacilityKey,
   InjuryTypeKey,
   ItemDefinitionKey,
   LootTableKey,
@@ -205,12 +206,11 @@ export type SkillRating = 1 | 2 | 3 | 4 | 5;
 export const lowestSkillRating = 1;
 export const highestSkillRating = 5;
 
-/** The Hall's facilities, each at a grade raised by Improvements (M3-S6). */
-export const facilityKeys = ['infirmary', 'trainingYard', 'quarters'] as const;
-
-export type FacilityKey = (typeof facilityKeys)[number];
-
-/** A grade per facility. */
+/**
+ * A Guild's Hall: the grade of each Facility by its content key (DL-294 item 3), from 0, raised by
+ * Improvements. Founded with every Facility content defines at grade 0 (`foundedHall`); a Facility it
+ * lacks reads grade 0, and a key content does not define is kept and read by no rule (rule 5).
+ */
 export type Hall = Record<FacilityKey, number>;
 
 /** What makes a Guild's choices: the player, or a Rival's Disposition (ADR-0002). */
@@ -278,6 +278,7 @@ export interface Guild {
    * another change (`captainLock`); a vacancy filled sets nothing.
    */
   captainChangedOnTurn: Turn | null;
+  /** In whole Silver, shown as Gold and Silver (DL-294 item 1). */
   wealth: number;
   fame: number;
   /** Set while Wealth is below the Bankruptcy floor. */
@@ -285,6 +286,11 @@ export interface Guild {
   /** Set when the Guild reached an ending; it is then out of the Rankings. */
   foldedOnTurn: Turn | null;
   hall: Hall;
+  /**
+   * The Hall's own sum each time its upkeep falls due, in whole Silver from 0: config's
+   * `hallBaseUpkeep` when the Guild was founded, kept as its own (DL-294 item 2, DL-298).
+   */
+  hallBaseUpkeep: number;
   controller: Controller;
   regard: RegardMap;
 }
@@ -441,6 +447,7 @@ export interface Quest {
   /** Drawn inside its Tier's difficulty band. */
   difficulty: number;
   tags: QuestTagKey[];
+  /** In whole Silver (DL-294 item 1). */
   reward: number;
   fameEffect: number;
   /** Its Days away × 3, at the place in its Tier's days its difficulty has in its band (DL-262). */
@@ -484,6 +491,7 @@ export interface TransferOffer {
   toGuildId: GuildId;
   /** On `fromGuildId`'s Roster. */
   heroId: HeroId;
+  /** In whole Silver (DL-294 item 1). */
   fee: number;
   offeredOnTurn: Turn;
   expiresOnTurn: Turn;
@@ -519,9 +527,11 @@ export interface Stack {
  * `beatLines`, refusing every older save likewise (DL-257, DL-262); 9, `partySizeMax` taken from
  * Quests' requirements, refusing every older save likewise (DL-257 item 6, DL-266); 10, Heroes'
  * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282); 11,
- * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287).
+ * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287);
+ * 12, a Guild's Hall keyed by content's Facilities, refusing every older save likewise (DL-294 item 3,
+ * DL-297); 13, Guilds' `hallBaseUpkeep`, refusing every older save likewise (DL-294 item 2, DL-298).
  */
-export const schemaVersion = 11;
+export const schemaVersion = 13;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

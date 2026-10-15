@@ -25,6 +25,7 @@ import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
+import { Coins } from './coins';
 import { HeroName, Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
@@ -162,9 +163,13 @@ function GuildLine({ row, onOpen }: { row: GuildRow; onOpen: (guildId: GuildId) 
       </th>
       <td>{row.disposition}</td>
       <td className="number">{row.fame}</td>
-      <td className="number">{row.wealth}</td>
+      <td className="number">
+        <Coins silver={row.wealth} />
+      </td>
       <td className="number">{row.heroes}</td>
-      <td className="number">{row.upkeep}</td>
+      <td className="number">
+        <Coins silver={row.upkeep} />
+      </td>
     </tr>
   );
 }
@@ -247,8 +252,8 @@ function GuildPage({
       <ul className="chips" aria-label={`${view.name}'s standing`}>
         <li>
           <Chip tone="brass" icon="wealth">
-            {view.wealth}
-            <VisuallyHidden> Wealth</VisuallyHidden>
+            <VisuallyHidden>Wealth </VisuallyHidden>
+            <Coins silver={view.wealth} />
           </Chip>
         </li>
         <li>
@@ -322,7 +327,7 @@ function GuildPage({
                   {view.mine ? null : (
                     <>
                       <td className="number" data-testid="fee">
-                        {row.fee}
+                        {row.fee === null ? null : <Coins silver={row.fee} />}
                       </td>
                       <td>
                         {row.fee === null ? null : (

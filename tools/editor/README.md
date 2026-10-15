@@ -2,12 +2,13 @@
 
 `tools/editor` is the owner's content editor (DL-150 items 7 to 12, v1.1.4-S12): a local page and
 the commands under it. It edits the Traits; the tuning values, `engine/src/config.json` (DL-186 item
-15, DL-204), as commands alone; and the Quest templates and Encounters (DL-257 item 8, DL-267), as
-commands and their API alone. It is never built into the game or deployed. This README is the one
+15, DL-204), as commands alone; the Quest templates and Encounters (DL-257 item 8, DL-267), as
+commands and their API alone; and the Hall's Facilities and their grades (DL-297), the same. It is never built into the game or deployed. This README is the one
 account of how it works. The Traits' rules are in [`docs/agents/traits.md`](../../docs/agents/traits.md), the
 register of every use of a Trait in [`docs/agents/traits-register.md`](../../docs/agents/traits-register.md),
 the tuning values' rules in [`docs/agents/config.md`](../../docs/agents/config.md), and the Quest
-templates' and Encounters' in [`docs/agents/quests.md`](../../docs/agents/quests.md).
+templates' and Encounters' in [`docs/agents/quests.md`](../../docs/agents/quests.md), and the
+Facilities' in [`docs/agents/facilities.md`](../../docs/agents/facilities.md).
 
 ```sh
 npm run edit                                        # the page, at http://127.0.0.1:4180/
@@ -15,6 +16,7 @@ npm run edit -- traits <command> [--root <dir>] [--json]
 npm run edit -- config <command> [--root <dir>] [--json]
 npm run edit -- quests <command> [--root <dir>] [--json]
 npm run edit -- encounters <command> [--root <dir>] [--json]
+npm run edit -- facilities <command> [--root <dir>] [--json]
 ```
 
 - **`--root <dir>`** works on another copy of the repository; this one by default. It must hold a
@@ -83,7 +85,7 @@ npm run edit -- traits add hero brave --name Brave --excludes scarred \
   | --- | --- | --- | --- |
   | Guildmaster | `classStatBonus` | `classKey`, a Class; `statKey`, a Hero Stat; `delta`, a whole number other than 0 | `{ "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }` |
   | Guildmaster | `guildMoraleShift` | `delta`, a number other than 0, added to the Morale baseline | `{ "kind": "guildMoraleShift", "delta": 5 }` |
-  | Guildmaster | `upkeepFactor` | `factor`, above 0, times Upkeep | `{ "kind": "upkeepFactor", "factor": 0.9 }` |
+  | Guildmaster | `upkeepFactor` | `factor`, above 0, times the Hall's upkeep, not the wages (DL-298) | `{ "kind": "upkeepFactor", "factor": 0.9 }` |
   | Hero | `statModifiers` | `modifiers`, Hero Stats each with a whole number other than 0 | `{ "kind": "statModifiers", "modifiers": { "dexterity": -2, "endurance": -1 } }` |
   | Hero | `encounterBonus` | `flat`, a number other than 0 added to every Check; `kinds`, Encounter kinds, and `tags`, kebab-case Encounter tags, one of them at least | `{ "kind": "encounterBonus", "flat": 2, "kinds": ["combat"] }` |
 
@@ -307,6 +309,78 @@ names: `key`, `at`, `to`, `tier`, `tierMin`, `tierMax`, `encounter`, `line`, `ch
 line does, and an answer that put back a "Finish" cut off names its files (`recovered`), as the
 command line's JSON does. A read sent as a `POST`, or a change as a `GET`, is refused (405).
 
+## Facilities and their grades
+
+`facilities` (DL-297) changes the Hall's Facilities, `content/facilities.json`, and their grades, the
+Improvements, `content/improvements.json`: the content kind of `src/facilities-kind.ts`, two lists
+keyed apart, on the content files' adapter. Their edits are held together in
+`.editor/facilities.json`, one session, since a grade names its Facility and holds exactly its
+Facility's effects: a Facility added and its grades are checked as one, and `finish` writes both files,
+raising the content version once. Each edit is checked with the content's checks as it is made, and a
+refusal names why. The forms are derived from content's description of the effects
+(`content/src/kinds/facility-effects.ts`), so an effect the engine adds and content describes is asked
+for here: `facilities forms` gives them. Money is whole Silver (`upkeep`, `cost`).
+
+| Command | What it does |
+| --- | --- |
+| `facilities list` | Every Facility in content's order (every Hall's, and a Rival's build order), with its grades |
+| `facilities show <key>` | One: its fields, its effects at grade 0 and at each grade, and where a grade or a build order names it |
+| `facilities add <key>` | Adds a Facility, last in the order: `name`, `plural`, `upkeep` and `effects`, as `--row <json or @file>`, `<field>=<value>` words, `--name` and `--effects <json>`; its key, lower case and hyphens, is fixed |
+| `facilities change <key>` | Changes the fields given; `effects` are given whole (a kind added or taken out goes with `effect add` or `remove`) |
+| `facilities remove <key>` | Removes a Facility; refused while a grade or a Disposition's `buildOrder` names it, naming each use |
+| `facilities grade add <key> name=<text> cost=<silver> effects=<json>` | Adds the next grade of a Facility as `<key>-<n>`, after its last; its effects are exactly its Facility's, each with a value |
+| `facilities grade change <key> <grade> [<field>=<value> ...]` | Changes a grade's `name`, `cost` or `effects` (whole); its Facility and number are fixed |
+| `facilities grade remove <key> <grade>` | Removes its top grade; a lower one would leave a gap |
+| `facilities effect add <key> <effect> <value0> <value1> …` | Gives a Facility an effect with its value at grade 0 and at each grade, from grade 0 up, in one hold |
+| `facilities effect set <key> <effect> <grade> <value>` | Changes one value of an effect the Facility has; grade 0 is the Facility's own |
+| `facilities effect remove <key> <effect>` | Takes an effect from the Facility and every grade; a Facility keeps one at least |
+| `facilities forms` | The fields of a Facility and of a grade, and each effect (`healFactor`, `trainingXp`, `moraleBaseline`, `fatigueFall`) with its bounds |
+| `facilities doctor` | See below |
+| `pending`, `discard [<key>]`, `finish`, `recover [--force]` | As the Traits'; `discard <key>` drops a Facility's edits and its grades' |
+
+```sh
+npm run edit -- facilities show quarters
+npm run edit -- facilities grade add quarters name="Great hall" cost=2000 'effects={"moraleBaseline":20,"fatigueFall":9}'
+npm run edit -- facilities effect add infirmary trainingXp 0 1 2 3
+npm run edit -- facilities add chapel --row @chapel.json
+npm run edit -- facilities finish
+```
+
+- **A field's value**, `<field>=<value>`, is read as JSON where it is JSON and as text where not, as the
+  Quest templates' are.
+- **A Facility added** is checked at once against every Disposition that writes a `buildOrder`, which
+  must list it; and an effect added needs a value at every grade, which `effect add` takes in one go.
+- **After a new content file** is added, `web/src/content.test.ts` may read it as missing until
+  `node_modules/.vitest-cache`, Vitest's transform cache, which bakes the page's `import.meta.glob` of
+  `content/*.json`, is deleted once.
+
+### The doctor
+
+`facilities doctor` holds the content to what a Hall reads, beside the content's checks, and the
+pending edits to both, and exits 1 on a problem:
+
+- **every grade names a Facility**, each Facility's grades run 1 to n with no gap, and each holds
+  exactly its Facility's effects;
+- **each grade costs more than the one below**;
+- **every Disposition's `buildOrder`**, where written, lists each Facility once.
+
+A grade that does no more than the one below (a heal factor that does not fall, another effect that
+does not rise, DL-53) is noted (`!`), as is content with no Facility that has `healFactor` (the
+harness's policy builds the first that has it); neither fails the doctor, which notes them on the
+files, not on pending edits, though `npm test` refuses the first on the shipped content (DL-53). Its
+lines read as the traits doctor's, `✓` or `✗` with each problem under it; `--json` gives the report
+whole. A "Finish" cut off is put back first and named, as every command does.
+
+### Its API
+
+Each command answers through the page's API too, the same core (`src/facilities-commands.ts`) giving
+the same JSON, though the page has no control for them: `GET /api/facilities/<command>?key=<key>` for
+`list`, `show`, `forms`, `pending` and `doctor`, and `POST /api/facilities/<command…>` with the input as
+a JSON object for the rest, a part's command its two words as a path (`/api/facilities/grade/add`). The
+input's names: `key`, `grade`, `kind`, `amounts` (those of `effect add`), `value`, `values` (the fields)
+and `force`. Their "Finish" answers once its tests end; a read sent as a `POST`, or a change as a `GET`,
+is refused (405).
+
 ## The page
 
 `npm run edit` serves `page/` from the repository on 127.0.0.1, at desktop widths, through a small
@@ -318,7 +392,7 @@ hold its text; Remove names every use when it is refused; Discard and Doctor do 
 refused because a "Finish" runs elsewhere, from a command line or another page, says so, apart from a
 removal refused by its uses and a "Finish" put back (v1.1.4-S14). `assign` and `unassign` are the
 commands' alone (DL-163 item 6): the page has no control for them, nor for the config kind, nor for
-the Quest templates and Encounters, whose API it serves (see Their API).
+the Quest templates and Encounters or the Facilities, whose APIs it serves (see Their API).
 
 Only its own page may call the API: a request whose Host is not `127.0.0.1:<port>` or
 `localhost:<port>` (a name rebound to this machine) or whose Origin is another page's is refused
@@ -349,7 +423,8 @@ edit session, for both its adapters (`src/session.ts`'s tests, DL-244); the comm
 each kind's commands show. Each Quest template's and Encounter's command is driven through both of
 its own adapters, the command line and the API, on two scratch copies side by side, their JSON,
 answers and pending edits held the same, and their "Finish" undone and cut off through both too
-(`src/quests.test.ts`, DL-267). Each test runs on a scratch copy of the repository made a git
+(`src/quests.test.ts`, DL-267), and each Facility's and grade's likewise (`src/facilities.test.ts`,
+`src/facilities-doctor.test.ts`, DL-297). Each test runs on a scratch copy of the repository made a git
 repository, so that `git status` shows what each command left behind. "Finish" reads the scratch copy's planted
 `npm test` in the test's own process, but in two tests of `cli.test.ts`, which run it through npm
 end to end. The page's passes in Chromium, each of its controls driven (v1.1.4-S14), share one

@@ -265,7 +265,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
   test('finds, adds, changes, removes, discards and runs the doctor through its own controls', async () => {
     const { tab } = await opened(plantedTests);
     expect(await tab.locator('section[data-list=guildmaster] tbody tr').count()).toBe(6);
-    expect(await tab.locator('tr[data-key=thrifty] td').nth(3).innerText()).toBe('Upkeep × 0.9');
+    expect(await tab.locator('tr[data-key=thrifty] td').nth(3).innerText()).toBe('Hall upkeep × 0.9');
 
     // Find hides the rows that do not hold the text, and shows them again when it is cleared.
     await tab.locator('#find').fill('upkeep');
@@ -286,7 +286,7 @@ describe.skipIf(!chromiumInstalled())('the page in Chromium', () => {
     await tab.locator('#effects [data-field=factor] input').fill('0.95');
     await tab.getByRole('button', { name: 'Save as pending' }).click();
     await tab.locator('tr[data-key=frugal]').waitFor();
-    expect(await tab.locator('tr[data-key=frugal]').innerText()).toContain('Upkeep × 0.95');
+    expect(await tab.locator('tr[data-key=frugal]').innerText()).toContain('Hall upkeep × 0.95');
     expect(await tab.locator('tr[data-key=spendthrift] td').nth(4).innerText()).toContain('frugal');
     expect(await tab.locator('#message').innerText()).toBe('Added frugal, pending.');
 

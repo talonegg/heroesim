@@ -64,6 +64,8 @@ const edgePairs: readonly (readonly [string, string])[] = [
   // The gold glow of a Roster tile or row whose Hero carries a Unique Item, a part that is not text.
   ['gold', 'paper'],
   ['gold', 'surface'],
+  // A coin's disc beside its number (DL-294 item 1), a part that is not text, on whatever it sits on.
+  ...['paper', 'surface', 'sunk', 'brass-soft'].flatMap((surface) => [['coin-gold', surface] as const, ['coin-silver', surface] as const]),
 ];
 
 describe('colour contrast, WCAG AA', () => {
@@ -137,6 +139,29 @@ describe("the Roster's Table (DL-169 item 8)", () => {
     expect(css).not.toMatch(/\n\.change--(up|down) \{/);
     expect(/\n\.roster-table \.change--up \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--good);');
     expect(/\n\.roster-table \.change--down \{([^}]*)\}/.exec(css)?.[1]).toContain('color: var(--bad);');
+  });
+});
+
+describe("the coins' discs (DL-294 item 1)", () => {
+  test('are a gold and a silver of their own, defined for the light and the dark scheme, neither the glow nor brass', () => {
+    for (const colours of [light, dark]) {
+      const [gold, silver] = [colours.get('coin-gold'), colours.get('coin-silver')];
+      expect(gold).toMatch(/^#[0-9a-f]{6}$/);
+      expect(silver).toMatch(/^#[0-9a-f]{6}$/);
+      expect(gold).not.toBe(silver);
+      for (const other of ['gold', 'brass']) expect(gold, other).not.toBe(colours.get(other));
+    }
+    for (const name of ['coin-gold', 'coin-silver']) expect(darkOwn.get(name)).not.toBe(light.get(name));
+  });
+
+  test('are drawn by the stylesheet after each number, round, in their own colour: no picture is fetched', () => {
+    const disc = /\n\.coin::after \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(disc).toContain("content: '';");
+    expect(disc).toContain('border-radius: 50%;');
+    expect(/\n\.coin--gold::after \{([^}]*)\}/.exec(css)?.[1]).toContain('background: var(--coin-gold);');
+    expect(/\n\.coin--silver::after \{([^}]*)\}/.exec(css)?.[1]).toContain('background: var(--coin-silver);');
+    // An amount is never broken across lines between its coins.
+    expect(/\n\.coins \{([^}]*)\}/.exec(css)?.[1]).toContain('white-space: nowrap;');
   });
 });
 

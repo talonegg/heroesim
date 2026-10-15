@@ -9,6 +9,7 @@ import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
 import { rowOf, type Guild, type GuildId, type Hero, type QuestId, type World } from './document.js';
 import type { Emit } from './emit.js';
+import { hallEffect } from './facilities.js';
 import { namingTheQuest, questCauses, type HeroMoraleChanged, type MoraleCause } from './events.js';
 import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster.js';
 
@@ -21,13 +22,13 @@ export function moraleBand(morale: number, config: Pick<GameConfig, 'moraleBands
 }
 
 /**
- * The Morale `hero`'s nightly drift returns them to: `moraleBaseline`, plus `quartersMoraleBonus`
- * for each grade of their Guild's quarters (M3-S6, R33), plus their Guildmaster's Inspiration
+ * The Morale `hero`'s nightly drift returns them to: `moraleBaseline`, plus their Guild's Hall's
+ * `moraleBaseline` effect (`hallEffect`, R33, DL-294 item 3), plus their Guildmaster's Inspiration
  * (`inspirationShift`, up to `inspirationMoraleShift`) and `guildMoraleShift` Traits (M4-S5, R8,
  * pre-M0 review B2), plus s·`captainHomeBaselineBonus` while their Guild's Captain is at home, in no
  * Party, s the Captain's captaincy Stat from its least, 0, to its most, 1 (`captainScale`; DL-280
  * item 6, DL-287), rounded to a whole number and held inside `moraleMin` to `moraleMax`. A Hero on no
- * Roster has no quarters, no Guildmaster and no Captain. The one place the baseline is worked out,
+ * Roster reads an empty Hall, every Facility at grade 0, and has no Guildmaster and no Captain. The one place the baseline is worked out,
  * for the Hero State Engine and the front ends alike, and for every Guild alike (ADR-0002).
  *
  * `lifts`, given by a night that works out many Heroes' baselines, keeps each Guild's Captain's lift
@@ -40,13 +41,15 @@ export function moraleBaselineFor(
   world: Pick<World, 'guilds' | 'guildmasters' | 'heroes' | 'items' | 'stacks'>,
   config: Pick<
     GameConfig,
-    'moraleBaseline' | 'quartersMoraleBonus' | 'moraleMin' | 'moraleMax' | 'inspirationMoraleShift' | 'captainHomeBaselineBonus'
+    'moraleBaseline' | 'moraleMin' | 'moraleMax' | 'inspirationMoraleShift' | 'captainHomeBaselineBonus'
   >,
-  content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items'>,
+  content: Pick<ContentSet, 'stats' | 'guildmasterTraits' | 'heroTraits' | 'items' | 'facilities' | 'improvements'>,
   lifts?: Map<GuildId, number>,
 ): number {
   const guild = hero.guildId !== null ? rowOf(world.guilds, hero.guildId) : undefined;
-  if (guild === undefined) return Math.min(config.moraleMax, Math.max(config.moraleMin, config.moraleBaseline));
+  if (guild === undefined) {
+    return Math.min(config.moraleMax, Math.max(config.moraleMin, config.moraleBaseline + hallEffect({}, 'moraleBaseline', content)));
+  }
   const guildmaster = guildmasterOf(guild, world);
   let captainHome = lifts?.get(guild.id);
   if (captainHome === undefined) {
@@ -55,7 +58,7 @@ export function moraleBaselineFor(
   }
   const baseline =
     config.moraleBaseline +
-    config.quartersMoraleBonus * guild.hall.quarters +
+    hallEffect(guild.hall, 'moraleBaseline', content) +
     inspirationShift(guildmaster, content, config) +
     traitMoraleShift(guildmaster, content) +
     captainHome;

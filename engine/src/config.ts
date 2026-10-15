@@ -91,7 +91,7 @@ export interface GameConfig {
   /** Each starting Skill is rated from 1 to this. */
   startingSkillRatingMax: number;
   /**
-   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's quarters and
+   * A Hero's Morale at generation, what nightly drift returns it to before the Guild's Hall and
    * Guildmaster move it (DL-29), and where Morale's factor on their form is 1 (DL-283).
    */
   moraleBaseline: number;
@@ -140,16 +140,37 @@ export interface GameConfig {
   guildmasterTraitBudget: number;
 
   // ── `guilds`: the Guild State Engine (INPUTS 4.6, 4.9, pre-M0 review D10.3, DL-26) ─────────
-  /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
+  /** The wages fall due every this many Days (DL-26 says which Days precisely; DL-298). */
   upkeepEveryDays: number;
   /**
-   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep: a wage that weighs
-   * against the Quest rewards, so that a Guild must keep succeeding, and that a Roster gaining Levels
-   * can still bear (DL-35, DL-36).
+   * Wealth deducted per Level of each living Hero on the Roster, each time the wages fall due: a wage
+   * that weighs against the Quest rewards, so that a Guild must keep succeeding, and that a Roster
+   * gaining Levels can still bear (DL-35, DL-36).
    */
   wagePerLevel: number;
-  /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
-  hallMaintenancePerGrade: number;
+  /**
+   * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
+   * are (DL-26), a month by default (DL-294 item 4, DL-298).
+   */
+  hallUpkeepEveryDays: number;
+  /**
+   * The Hall's own sum, in whole Silver, each time its upkeep falls due: each Guild takes it from
+   * config at its founding and keeps it (`Guild.hallBaseUpkeep`), so that a later change of the
+   * default reaches only the Guilds founded after it (DL-294 item 2, DL-298).
+   */
+  hallBaseUpkeep: number;
+  /**
+   * The Hall's share for its Heroes each time its upkeep falls due: this × the living Roster ^
+   * `hallUpkeepHeroExponent`, rounded to whole Silver, those away on Quests counted (DL-294 item 2).
+   */
+  hallUpkeepPerHero: number;
+  /** The curve of the Heroes' share: 1 a straight line, above it each Hero costing more than the last. */
+  hallUpkeepHeroExponent: number;
+  /**
+   * Each grade above a Facility's first multiplies its upkeep by this: its content `upkeep` ×
+   * this ^ (grade − 1), rounded to whole Silver; a Facility at grade 0 costs nothing (DL-294 item 3).
+   */
+  improvementUpkeepGradeFactor: number;
   /** Wealth below this sets `belowFloorSince`; at or above it, `belowFloorSince` is cleared. */
   bankruptcyFloor: number;
   /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */
@@ -335,18 +356,6 @@ export interface GameConfig {
   heroRetirementChancePerYear: number;
   /** The Retirement chance is multiplied by this while the Hero is injured. */
   heroRetirementInjuredMultiplier: number;
-  /**
-   * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
-   * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5, DL-193). A factor for each grade content has, so that
-   * each grade built does something (DL-53).
-   */
-  infirmaryHealFactor: readonly number[];
-  /**
-   * Added to `moraleBaseline` for each grade of the Guild's quarters: what nightly drift returns a
-   * Roster Hero's Morale to (`moraleBaselineFor`; R33, DL-38).
-   */
-  quartersMoraleBonus: number;
 
   // ── `fatigue`: Fatigue (DL-280 item 2, DL-282) ─────────────────────────────────────────────────
   /**
@@ -365,11 +374,6 @@ export interface GameConfig {
    * past the list reads the last, so a longer ladder leaves the list sound (DL-193).
    */
   fatigueRiseByTier: readonly number[];
-  /**
-   * Fatigue's fall each night a Hero is at home, by their Guild's quarters grade, grade 0's first; a
-   * grade past the list reads the last, as `infirmaryHealFactor` does.
-   */
-  fatigueFallByQuarters: readonly number[];
   /**
    * FS, how much Fatigue takes from a Hero on a Quest (DL-280 item 2, Q13; DL-284): with f their
    * Fatigue on an Encounter's Day, their Physical and Magical Stats are times 1 − FS·f ÷ `fatigueMax`
@@ -454,11 +458,6 @@ export interface GameConfig {
    */
   xpPerDifficultyPoint: number;
   xpBandFactor: Readonly<Record<QuestBand, number>>;
-  /**
-   * Training XP: each night, a Hero on a Roster, in no Party and not injured, gains this times the
-   * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
-   */
-  xpPerTrainingDay: number;
 
   // ── `regard`: Regard's scale, and Regard between Heroes (data-model §3.2, rule 10, DL-43) ─────
   /**
@@ -623,12 +622,6 @@ export interface GameConfig {
    * (INPUTS 7.2: half). Below 1, so that an Item sells for less than it costs (R31).
    */
   sellRatio: number;
-  /**
-   * The Market price of an Item whose definition has no `buyPrice`, found only as Loot (DL-48): what
-   * a Guild pays for such an Item listed on the Market, as a folded Guild's unique Items are (pre-M0
-   * review D6), and, × `sellRatio`, what the Market pays for one.
-   */
-  lootOnlyPrice: number;
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; by its Encounters succeeded, DL-42). */

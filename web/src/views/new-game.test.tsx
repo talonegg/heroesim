@@ -438,7 +438,7 @@ describe('the Stats "Choose myself" sets, within the Stat points', () => {
       'Inspiration−10+The Morale baseline of the Heroes',
       "Influence−10+The Regard a Patron's Quest earns",
       'Negotiation−10+The reward agreed and the fees paid',
-      'Coaching−10+The XP of the training yard',
+      'Coaching−10+The training XP the Hall gives',
       'Judgement−10+How sharp the Potential hints read',
     ]);
     // Each stepper is named by its Stat, and says what it does.

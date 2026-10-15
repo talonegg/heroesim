@@ -19,7 +19,10 @@
 //   GET    /api/<family>/<command>[?key=<key>]   a command that changes nothing: list, show, pending, doctor
 //   POST   /api/<family>/<command…>              the rest: add, beat/add, override/set, finish, …
 //
-// where <family> is `quests` or `encounters`. Their "Finish" answers once its tests end.
+// where <family> is `quests` or `encounters`. Their "Finish" answers once its tests end. The
+// Facilities' (DL-297) are the same through `facilities-commands.ts`: GET
+// /api/facilities/<command> for list, show, forms, pending and doctor; POST /api/facilities/<command…>
+// (grade/add, effect/set, finish, …) for the rest.
 //
 // A refusal is `{ ok: false, kind, problems, uses? }`, with 422, or 409 for a removal refused by its
 // uses and for any call while "Finish" runs (`busy`), but the two that report on it, GET /api/finish
@@ -39,6 +42,8 @@ import { fileURLToPath } from 'node:url';
 import { NotUndone, Undone } from '@heroesim/content/write';
 import { doctor } from './doctor.js';
 import { Editor, Refused, type Finished } from './editor.js';
+import { commands as facilityCommands, reads as facilityReads, runCommand as runFacilities } from './facilities-commands.js';
+import { FacilitiesEditor } from './facilities-editor.js';
 import { Busy } from './finish-journal.js';
 import { commands, families, reads, runCommand, type Family } from './quests-commands.js';
 import { QuestsEditor } from './quests-editor.js';
@@ -124,6 +129,16 @@ export async function serve({ root, port = 4180, runTests = npmTest }: { root: s
       const quests = new QuestsEditor(root);
       const result = await runCommand(family, command, input, quests, { runTests, onLine: () => {} });
       const recovered = quests.recovered.length > 0 && command !== 'recover' ? { recovered: quests.recovered } : {};
+      return send(response, 200, { ...(result.json as object), ...recovered });
+    }
+    if (what === 'facilities' && key !== undefined) {
+      const command = parts.slice(1).join(' ');
+      const read = facilityReads.includes(command);
+      if (facilityCommands.includes(command) && read !== (method === 'GET')) return send(response, 405, { ok: false, kind: 'usage', problems: [`facilities ${command} is a ${read ? 'GET' : 'POST'}`] });
+      const input = method === 'GET' ? Object.fromEntries(url.searchParams) : await body(request);
+      const facilities = new FacilitiesEditor(root);
+      const result = await runFacilities(command, input, facilities, { runTests, onLine: () => {} });
+      const recovered = facilities.recovered.length > 0 && command !== 'recover' ? { recovered: facilities.recovered } : {};
       return send(response, 200, { ...(result.json as object), ...recovered });
     }
     if (what === 'traits' && key === undefined && method === 'GET') return send(response, 200, everything());

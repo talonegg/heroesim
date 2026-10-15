@@ -162,7 +162,7 @@ interface Piece {
 }
 
 /** The sum of a piece of gear's Stat modifiers: how a controller ranks gear (DL-49). */
-function worthOf(definition: GearDefinition): number {
+export function worthOf(definition: GearDefinition): number {
   return Object.values(definition.statModifiers).reduce((sum, delta) => sum + delta, 0);
 }
 

@@ -31,11 +31,12 @@ describe('generateGuild', () => {
       foundedTurn: 5,
       wealth: 450,
       fame: deps.config.foundingFame,
+      hallBaseUpkeep: deps.config.hallBaseUpkeep,
       captainId: null,
       captainChangedOnTurn: null,
       belowFloorSince: null,
       foldedOnTurn: null,
-      hall: { infirmary: 0, trainingYard: 0, quarters: 0 },
+      hall: { infirmary: 0, 'training-yard': 0, quarters: 0 },
       controller: rival,
       regard: {},
     });
@@ -61,6 +62,20 @@ describe('generateGuild', () => {
     generateGuild(plain, testDeps(), { controller: player, rosterSize: 4, wealth: 500 });
     generateGuild(plain, testDeps(), { controller: rival, rosterSize: 4, wealth: 500 });
     generateRival(plain, testDeps(), { controller: rival });
+    expect(world.rng).toEqual(plain.rng);
+  });
+
+  test("founds every Guild, the player's, a Rival's and a replacement's, with hallBaseUpkeep from the config it is given, drawing nothing for it (DL-298)", () => {
+    const deps = testDeps({ hallBaseUpkeep: 45 });
+    const world = testWorld('based', deps);
+    const plain = testWorld('based', testDeps({ hallBaseUpkeep: 0 }));
+
+    expect(generateGuild(world, deps, { controller: player, rosterSize: 4, wealth: 500 }).guild.hallBaseUpkeep).toBe(45);
+    expect(generateGuild(world, deps, { controller: rival, rosterSize: 4, wealth: 500 }).guild.hallBaseUpkeep).toBe(45);
+    expect(generateRival(world, deps, { controller: rival }).guild.hallBaseUpkeep).toBe(45);
+    expect(generateGuild(plain, testDeps({ hallBaseUpkeep: 0 }), { controller: player, rosterSize: 4, wealth: 500 }).guild.hallBaseUpkeep).toBe(0);
+    generateGuild(plain, testDeps({ hallBaseUpkeep: 0 }), { controller: rival, rosterSize: 4, wealth: 500 });
+    generateRival(plain, testDeps({ hallBaseUpkeep: 0 }), { controller: rival });
     expect(world.rng).toEqual(plain.rng);
   });
 

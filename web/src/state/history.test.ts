@@ -81,13 +81,14 @@ const leftOutOfYours = [
   'patron.regard-changed',
   'guildmaster.regard-changed',
   'hero.regard-changed',
-  'guild.upkeep-paid',
+  'guild.wages-paid',
+  'guild.hall-upkeep-paid',
   'item.bought',
   'item.sold',
 ];
 
 /** What a Rival's History leaves out (DL-111 item 4). */
-const leftOutOfARival = ['guild.upkeep-paid', 'item.bought', 'item.sold'];
+const leftOutOfARival = ['guild.wages-paid', 'guild.hall-upkeep-paid', 'item.bought', 'item.sold'];
 
 /** What the World History takes (DL-112 item 7, DL-113 item 1). */
 const worldTypes = [
@@ -170,9 +171,9 @@ describe("the Guilds' filters (DL-111 item 4)", () => {
     expect(bought.rejection).toBeNull();
     expect(sold.rejection).toBeNull();
     const yours = new Set(entriesFor(document.history, guild.id).map((entry) => entry.type));
-    for (const type of ['hero.xp-gained', 'hero.morale-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold']) expect(yours, type).toContain(type);
+    for (const type of ['hero.xp-gained', 'hero.morale-changed', 'guild.wages-paid', 'guild.hall-upkeep-paid', 'item.bought', 'item.sold']) expect(yours, type).toContain(type);
     const theirs = new Set(rivals.flatMap((rival) => entriesFor(document.history, rival.id).map((entry) => entry.type)));
-    for (const type of ['guild.upkeep-paid', 'item.bought']) expect(theirs, type).toContain(type);
+    for (const type of ['guild.wages-paid', 'guild.hall-upkeep-paid', 'item.bought']) expect(theirs, type).toContain(type);
   });
 
   test("a return's line carries its entry in the player's Guild's History, and in no other History", () => {
@@ -708,7 +709,8 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
  * its Heroes' drift and small changes of State, its Items, its Upkeep, and Regard crossing a band.
  */
 const routineWords: Readonly<Record<string, string>> = {
-  'guild.upkeep-paid': 'Upkeep',
+  'guild.wages-paid': 'Upkeep',
+  'guild.hall-upkeep-paid': 'Upkeep',
   'quest.loot': 'Loot',
   'hero.injured': 'Injuries',
   'hero.xp-gained': 'XP',

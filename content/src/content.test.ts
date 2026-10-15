@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { tierFigures } from '@heroesim/engine';
-import { encounterKinds, facilityKeys, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
+import { encounterKinds, gearSlotKeys, tierLadder, type GuildmasterTraitEffect, type StatArea } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { contentSources, parseContent } from './index.js';
 import { contentDir, loadContent, readContentDir, readSource } from './node.js';
@@ -167,15 +167,34 @@ describe('loadContent()', () => {
     }
   });
 
-  test('costs more for each grade of a Hall facility (INPUTS 7.3)', () => {
+  test('costs more for each grade of a Facility (INPUTS 7.3)', () => {
     const improvements = Object.values(content.improvements);
-    for (const facility of facilityKeys) {
+    for (const facility of Object.keys(content.facilities)) {
       const costs = improvements
         .filter((it) => it.facility === facility)
         .sort((a, b) => a.grade - b.grade)
         .map((it) => it.cost);
       expect(costs.length, facility).toBeGreaterThan(1);
       costs.slice(1).forEach((cost, index) => expect(cost, facility).toBeGreaterThan(costs[index] ?? Infinity));
+    }
+  });
+
+  // DL-53: each grade a Guild pays for does something of its own, from the Facility's values at grade 0:
+  // a heal factor lower than the grade below's, every other effect higher.
+  test('does more at each grade of a Facility than at the grade below (DL-53)', () => {
+    for (const facility of Object.values(content.facilities)) {
+      const grades = Object.values(content.improvements)
+        .filter((it) => it.facility === facility.key)
+        .sort((a, b) => a.grade - b.grade);
+      [facility.effects, ...grades.map((it) => it.effects)].reduce((below, effects, grade) => {
+        for (const [kind, value] of Object.entries(effects)) {
+          const was = below[kind as keyof typeof below] as number;
+          const at = `${facility.key} grade ${grade}: ${kind}`;
+          if (kind === 'healFactor') expect(value, at).toBeLessThan(was);
+          else expect(value, at).toBeGreaterThan(was);
+        }
+        return effects;
+      });
     }
   });
 
@@ -425,7 +444,10 @@ describe('loadContent()', () => {
 
     test('make the unique gear Loot only, among them one of each slot', () => {
       const unique = gear.filter((it) => it.unique);
-      for (const it of unique) expect(it.buyPrice, it.key).toBeNull();
+      for (const it of unique) {
+        expect(it.value, it.key).toBe(600);
+        expect(it.buyPrice, it.key).toBeUndefined();
+      }
       expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(gearSlotKeys));
     });
 
@@ -452,7 +474,11 @@ describe('loadContent()', () => {
       const worth = (table: (typeof tables)[number]): number => {
         const total = table.entries.reduce((sum, entry) => sum + entry.weight, 0);
         const value = table.entries.reduce(
-          (sum, entry) => sum + entry.weight * ((entry.quantityMin + entry.quantityMax) / 2) * (content.items[entry.definitionKey]?.buyPrice ?? 0),
+          (sum, entry) =>
+            sum +
+            entry.weight *
+              ((entry.quantityMin + entry.quantityMax) / 2) *
+              (content.items[entry.definitionKey]?.buyPrice ?? content.items[entry.definitionKey]?.value ?? 0),
           0,
         );
         return value / total;

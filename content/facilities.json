@@ -1,0 +1,5 @@
+{
+  "infirmary": { "name": "infirmary", "plural": false, "upkeep": 10, "effects": { "healFactor": 1 } },
+  "training-yard": { "name": "training yard", "plural": false, "upkeep": 10, "effects": { "trainingXp": 0 } },
+  "quarters": { "name": "quarters", "plural": true, "upkeep": 10, "effects": { "moraleBaseline": 0, "fatigueFall": 5 } }
+}

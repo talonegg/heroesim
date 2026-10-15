@@ -7,7 +7,7 @@ export const breakpoints = { small: 420, phone: 600, wide: 900, rail: 1100 } as 
 
 /**
  * The widths, in rem, at which a part laid out by its own width (`@container`) changes: the Hero's
- * page's Stats two by two, and the Hall's facilities and the Guildmaster's grid set out wide. A
+ * page's Stats two by two, and the Hall's Facilities and the Guildmaster's grid set out wide. A
  * part's width, not the page's, and in rem as the part's content follows the type.
  */
 export const containerBreakpoints = { pairs: 34, wide: 46 } as const;

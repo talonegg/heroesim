@@ -8,10 +8,8 @@ import {
   compareByCodeUnit,
   descriptiveAttributeMaxLength,
   encounterKinds,
-  facilityKeys,
   regardBandNames,
   type EngineDeps,
-  type FacilityKey,
   type RegardBand,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -280,9 +278,16 @@ const heroRow = (totals: SweepTotals, label: string, counts: ByController): stri
 /** The sweep's years as the report writes them: whole, or to two places. */
 const yearsTextOf = ({ sweep }: ReportContext): string => (Number.isInteger(sweep.years) ? whole(sweep.years) : fixed(sweep.years, 2));
 
-/** The top grade content gives any facility: the report's grade columns run from 0 to it. */
+/** The top grade content gives any Facility: the report's grade columns run from 0 to it. */
 function topGrade(deps: EngineDeps): number {
   return Object.values(deps.content.improvements).reduce((top, row) => Math.max(top, row.grade), 0);
+}
+
+/** The Facilities a grade table lists: content's, in its order, then any other a count names (DL-297). */
+function facilitiesOf(deps: EngineDeps, ...counts: readonly Record<string, unknown>[]): string[] {
+  const known = Object.keys(deps.content.facilities);
+  const extra = counts.flatMap((count) => Object.keys(count)).filter((key) => !known.includes(key));
+  return [...new Set([...known, ...extra.sort(compareByCodeUnit)])];
 }
 
 /** Keys a table lists: content's, in key order, then any other a count names. */
@@ -722,9 +727,9 @@ const wealthMonths: Declared<GameObservations['playerWealthMonths'], SweepTotals
   zero: () => [],
   total: ({ observations }) => observations.playerWealthMonths.map((months) => (months === null ? null : { games: 1, months })),
   section: 'progression',
-  // What DL-83 item 7's band reads after year 2: a month a twelfth of a year's Upkeeps (DL-259).
+  // What DL-83 item 7's band reads after year 2: one Upkeep a month of costs (DL-259, DL-300).
   lines: (totals: SweepTotals) => [
-    "The player's Wealth in months of its Upkeep as each year began, a month a twelfth of a year's Upkeeps, by the years played before it " +
+    "The player's Wealth in months of its Upkeep as each year began, by the years played before it " +
       `(0 is the new world), the mean over the games in play then: ${Array.from(totals.playerWealthMonths, (taken, year) => `${year}: ${ratio(taken?.months ?? 0, taken?.games ?? 0, 1)}`).join(', ')}.`,
     '',
   ],
@@ -864,13 +869,14 @@ const grades: Declared<GameCounters['improvementGrades'], SweepTotals['improveme
       const graded = counts.reduce((total, n, grade) => total + n * grade, 0);
       return [label, whole(guilds), ratio(graded, guilds), ...numbered.map((grade) => whole(counts[grade] ?? 0))];
     };
+    const facilities = facilitiesOf(deps, ...controllerKinds.map((kind) => totals.improvementGrades[kind]), ...Object.values(totals.improvementGradesByDisposition));
     const gradeRows = [
       ...controllerKinds.flatMap((kind) =>
-        facilityKeys.map((facility: FacilityKey) => gradeRow(`${kindLabel(kind)}: ${facility}`, totals.improvementGrades[kind][facility])),
+        facilities.map((facility) => gradeRow(`${kindLabel(kind)}: ${facility}`, totals.improvementGrades[kind][facility] ?? [])),
       ),
       // The Rivals' rows again, by Disposition (DL-69).
       ...dispositionKeys(totals, deps).flatMap((disposition) =>
-        facilityKeys.map((facility: FacilityKey) =>
+        facilities.map((facility) =>
           gradeRow(`The Rivals, \`${disposition}\`: ${facility}`, totals.improvementGradesByDisposition[disposition]?.[facility] ?? []),
         ),
       ),
@@ -1243,14 +1249,25 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
       label,
       ...controllerKinds.flatMap((kind) => perYear(kind, read(totals.wealth[kind]))),
     ];
-    const spent = (flows: WealthFlows): number => flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.upkeep;
-    const taken = (flows: WealthFlows): number => flows.questRewards + flows.transferFeesTaken + sum(saleCauses.map((cause) => flows.sales[cause]));
-    const shareRow = controllerKinds.flatMap((kind) => {
+    const totalSales = (flows: WealthFlows): number => sum(saleCauses.map((cause) => flows.sales[cause]));
+    const spent = (flows: WealthFlows): number =>
+      flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.wages + flows.hallUpkeep + flows.improvementUpkeep;
+    const taken = (flows: WealthFlows): number => flows.questRewards + flows.transferFeesTaken + totalSales(flows);
+    const spentShares = controllerKinds.flatMap((kind) => {
       const flows = totals.wealth[kind];
       const all = spent(flows);
       return [
-        `${kindLabel(kind)}: signing ${percent(flows.signing, all)}, Transfers ${percent(flows.transferFeesPaid, all)}, ` +
-          `Items ${percent(flows.items, all)}, Improvements ${percent(flows.improvements, all)}, Upkeep ${percent(flows.upkeep, all)}`,
+        `${kindLabel(kind)}: wages ${percent(flows.wages, all)}, Hall upkeep ${percent(flows.hallUpkeep, all)}, ` +
+          `Improvements’ upkeep ${percent(flows.improvementUpkeep, all)}, Items ${percent(flows.items, all)}, ` +
+          `Improvements ${percent(flows.improvements, all)}, signing ${percent(flows.signing, all)}, ` +
+          `Transfers ${percent(flows.transferFeesPaid, all)}`,
+      ];
+    });
+    const takenShares = controllerKinds.flatMap((kind) => {
+      const flows = totals.wealth[kind];
+      const all = taken(flows);
+      return [
+        `${kindLabel(kind)}: Quest rewards ${percent(flows.questRewards, all)}, Item sales ${percent(totalSales(flows), all)}, Transfers ${percent(flows.transferFeesTaken, all)}`,
       ];
     });
     const kindHeaders = controllerKinds.flatMap((kind) => [kind === 'player' ? "Player's" : "Rivals'", 'a Guild-year']);
@@ -1265,7 +1282,10 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
           flowRow('Spent: Transfers (`hero.transferred` `fee`, the buying Guild)', (flows) => flows.transferFeesPaid),
           flowRow('Spent: Items (`item.bought` `cost`)', (flows) => flows.items),
           flowRow('Spent: Improvements (`guild.improved` `cost`)', (flows) => flows.improvements),
-          flowRow('Spent: Upkeep (`guild.upkeep-paid` `amount`)', (flows) => flows.upkeep),
+          flowRow('Spent: Upkeep, the wages (`guild.wages-paid` `amount`)', (flows) => flows.wages),
+          flowRow("Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`, less the Improvements')", (flows) => flows.hallUpkeep),
+          flowRow("Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid` `facilities` × `traitFactor`, rounded)", (flows) => flows.improvementUpkeep),
+          flowRow('Spent: Upkeep in all', (flows) => flows.wages + flows.hallUpkeep + flows.improvementUpkeep),
           flowRow('Spent in all', spent),
           flowRow('Taken: Quest rewards (`quest.resolved` `wealthDelta`)', (flows) => flows.questRewards),
           flowRow('Taken: Transfers (`hero.transferred` `fee`, the selling Guild)', (flows) => flows.transferFeesTaken),
@@ -1277,7 +1297,8 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
         ['left', 'right', 'right', 'right', 'right'],
       ),
       '',
-      `Shares of the Wealth spent: ${shareRow.join('; ')}.`,
+      `Shares of the Wealth spent: ${spentShares.join('; ')}.`,
+      `Shares of the Wealth taken: ${takenShares.join('; ')}.`,
       '',
     ];
   },

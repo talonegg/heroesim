@@ -14,6 +14,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { makeId } from '@heroesim/engine/testing';
+import { coinLetters, coinWords } from '@heroesim/words';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
 import { exitCodes, playground, rowOf } from '../play.test-support.js';
@@ -50,7 +51,7 @@ describe('recruit', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain(`${hero.name} (${hero.id})`);
-    expect(run.out).toContain(`signing fee of ${fee} Wealth`);
+    expect(run.out).toContain(`signing fee of ${coinLetters(fee)}`);
     expect(run.out).toContain(`Roster now holds ${guild.rosterIds.length + 1} Heroes`);
     const { world } = document();
     expect(world.guilds[guild.id]?.wealth).toBe(guild.wealth - fee);
@@ -75,7 +76,7 @@ describe('recruit', () => {
     const edited = saved();
     const dear = play(['recruit', '--hero', hero.id]);
     expect(dear.code).toBe(exitCodes.refused);
-    expect(dear.err).toContain(`signing fee is ${fee} Wealth`);
+    expect(dear.err).toContain(`signing fee is ${coinWords(fee)}`);
     expect(saved()).toBe(edited);
     expect(before).not.toBe(edited);
   });
@@ -138,7 +139,7 @@ describe('the views', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/\sFee\s+Signs\n/);
     for (const hero of unattachedHeroes(created.world)) {
-      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps, buyer)}\\s+Yes$`));
+      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${coinLetters(signingFee(hero, deps, buyer))}\\s+Yes$`));
     }
   });
 
@@ -184,7 +185,7 @@ describe('the views', () => {
       expect(order.every((index) => index > 0)).toBe(true);
       expect(order).toEqual([...order].sort((a, b) => a - b));
       for (const ranking of ranked) {
-        expect(lines[order[ranking.rank - 1] ?? 0]).toMatch(new RegExp(`^\\s*${ranking.rank}\\s+${ranking.guildId}\\s.*\\s${ranking.value}$`));
+        expect(lines[order[ranking.rank - 1] ?? 0]).toMatch(new RegExp(`^\\s*${ranking.rank}\\s+${ranking.guildId}\\s.*\\s${by === 'wealth' ? coinLetters(ranking.value) : ranking.value}$`));
       }
     }
     // The two orders differ on this save: the player's Guild, first created, is last by Fame and first by Wealth.

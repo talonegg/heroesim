@@ -14,11 +14,13 @@ import {
   estimateQuest,
   fastForward,
   guildmasterOf,
+  hallUpkeepParts,
   isModuleEvent,
   probe,
   schemaVersion,
   serialise,
   upkeep,
+  wages,
   type EntityId,
   type Guild,
   type Hero,
@@ -30,9 +32,9 @@ import {
 } from '@heroesim/engine';
 import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
-import { chanceWords, shownPercent, traitEffectWords } from '@heroesim/words';
+import { chanceWords, coinLetters, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, openToTwo, playground, rowOf, type Run } from './play.test-support.js';
+import { exitCodes, openToTwo, playground, rowOf, thePlayer, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
@@ -305,6 +307,85 @@ describe('show', () => {
     expect(run.out).toContain(`${defaultConfig.patronCount} Patrons`);
   });
 
+  // DL-304: the CLI has no Treasury, so the summary gives the Upkeep's two charges, each with its next night (DL-298).
+  test("with no view gives the player's wages and the Hall's upkeep, each with its Days and its next night, from the save's config", () => {
+    const charges = (): string[] => {
+      const { world, meta } = document();
+      const guild = thePlayer(world);
+      const config = { ...defaultConfig, ...meta.config };
+      return [
+        `Wages ${coinLetters(wages(guild, world, config))} every ${config.upkeepEveryDays} Days`,
+        `Hall upkeep ${coinLetters(hallUpkeepParts(guild, world, config, content).total)} every ${config.hallUpkeepEveryDays} Days`,
+      ];
+    };
+    const lines = (): string[] => play(['show']).out.split('\n').filter((line) => /^(Wages|Hall upkeep) /.test(line));
+    const [wagesLine, hallLine] = charges();
+
+    expect(lines()).toEqual([`${wagesLine}, next paid on the night of Year 1 Day 10.`, `${hallLine}, next paid on the night of Year 1 Day 30.`]);
+
+    // Once the wages' night has been played the next is ten Days on; the Hall's stays.
+    edit((edited) => {
+      edited.world.turn = nightOf(9) + 1;
+    });
+    expect(lines()).toEqual([`${wagesLine}, next paid on the night of Year 1 Day 20.`, `${hallLine}, next paid on the night of Year 1 Day 30.`]);
+
+    // The Days are the save's config's, never fixed.
+    edit((edited) => {
+      edited.world.turn = 0;
+      edited.meta.config = { ...edited.meta.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 14 };
+    });
+    const [weekly, fortnightly] = charges();
+    expect(weekly).toContain('every 7 Days');
+    expect(lines()).toEqual([`${weekly}, next paid on the night of Year 1 Day 7.`, `${fortnightly}, next paid on the night of Year 1 Day 14.`]);
+
+    // None are due once the game has ended.
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'bankruptcy' };
+    });
+    expect(lines()).toEqual([]);
+  });
+
+  // DL-304: the engine charges on a charge's night (`nextWagesDay`, `nextHallUpkeepDay`); the summary names that night until it is played.
+  test("names a charge's night as next until it is played, then the one after, the two lines last", () => {
+    const shown = (turn: number): string[] => {
+      edit((edited) => {
+        edited.world.turn = turn;
+      });
+      return play(['show']).out.trimEnd().split('\n').slice(-2).map((line) => line.replace(/^.*next paid on /, ''));
+    };
+
+    expect(shown(nightOf(9) - 1)).toEqual(['the night of Year 1 Day 10.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(9))).toEqual(['the night of Year 1 Day 20.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(29) - 1)).toEqual(['the night of Year 1 Day 30.', 'the night of Year 1 Day 30.']);
+    expect(shown(nightOf(29))).toEqual(['the night of Year 1 Day 40.', 'the night of Year 1 Day 60.']);
+  });
+
+  test("gives the Hall's upkeep with the Guildmaster's factor, and no charge once the player's Guild has folded", () => {
+    edit((edited) => {
+      const guild = thePlayer(edited.world);
+      Object.assign(edited.world.guildmasters[guild.guildmasterId] ?? {}, { traits: ['spendthrift'] });
+    });
+    const { world } = document();
+    const parts = hallUpkeepParts(thePlayer(world), world, defaultConfig, content);
+    expect(parts.traitFactor).not.toBe(1);
+    expect(parts.total).not.toBe(parts.base + parts.heroes);
+
+    expect(play(['show']).out).toContain(`Hall upkeep ${coinLetters(parts.total)} every ${defaultConfig.hallUpkeepEveryDays} Days, next paid`);
+
+    // Folded as a fold leaves a Guild: its Heroes released to the pool, its Roster empty.
+    edit((edited) => {
+      const guild = thePlayer(edited.world);
+      for (const heroId of guild.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+      }
+      guild.rosterIds = [];
+      guild.foldedOnTurn = 0;
+    });
+    const folded = play(['show']);
+    expect(folded.out).toContain("The Test's Hall:");
+    expect(folded.out).not.toMatch(/^(Wages|Hall upkeep) /m);
+  });
+
   test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
     const { world } = document();
 
@@ -317,7 +398,7 @@ describe('show', () => {
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
       const due = upkeep(guild, world, defaultConfig, content);
-      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
+      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${coinLetters(guild.wealth)}\\s+${guild.fame}\\s+${coinLetters(due)}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
   });
@@ -563,7 +644,7 @@ describe('advance', () => {
   test("prints the Bankruptcy countdown after the Turns while the player's Guild is below the floor, under the save's grace (DL-95)", () => {
     const countdown = (dueDay: number) =>
       `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day ${dueDay + 1} ` +
-      'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+      'unless Wealth is back to 0 Silver or more on a night by then, after any Upkeep due.';
     edit((edited) => {
       edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
       (edited.world.guilds[playerId] as Guild).wealth = -1;
@@ -593,7 +674,7 @@ describe('advance', () => {
     expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
     // That night's check is heard: the event says so, and the countdown is gone.
     expect(cleared.out).toContain(
-      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
+      "The Test's Wealth, 10 Gold, is back to the Bankruptcy floor of 0 Silver or more, after falling below it on Year 1 Day 1: no Bankruptcy is due.",
     );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
@@ -712,11 +793,11 @@ describe('advance --until: fast forward', () => {
     expect(run.out.split('\n').slice(0, 3)).toEqual([
       'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
       'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Year 1 Day 11 unless its Wealth recovers by then.',
-      'The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 11 unless Wealth is back to 0 or ' +
+      'The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on the night of Year 1 Day 11 unless Wealth is back to 0 Silver or ' +
         'more on a night by then, after any Upkeep due.',
     ]);
     expect(run.out).toContain(
-      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 11 unless it is back to 0 or more on a night by then.",
+      "The Test's Wealth, -1 Silver, fell below the Bankruptcy floor of 0 Silver: Bankruptcy on the night of Year 1 Day 11 unless it recovers by then.",
     );
   });
 
@@ -991,10 +1072,10 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     expect(stopped.out.split('\n').slice(0, 3)).toEqual([
       'Played 2 Turns. Now Turn 2 (Year 1 Day 1, night).',
       `Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on ${due} unless its Wealth recovers by then.`,
-      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 or ` +
+      `The Test has been below the Bankruptcy floor since Year 1 Day 1: Bankruptcy on ${due} unless Wealth is back to 0 Silver or ` +
         'more on a night by then, after any Upkeep due.',
     ]);
-    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0: Bankruptcy on ${due} unless it is back to 0 or more on a night by then.`);
+    expect(stopped.out).toContain(`fell below the Bankruptcy floor of 0 Silver: Bankruptcy on ${due} unless it recovers by then.`);
 
     const played = play(['advance', '--turns', '5']);
 
@@ -1202,7 +1283,7 @@ describe('--modules: the test-only probe on new, advance and load', () => {
     expect(lines[at]).toMatch(/^\s*11 {2}/);
     // Its effects' events follow it, in the CLI's own words for the core's events.
     expect(lines[at + 1]).toMatch(/'s Morale went from \d+ to \d+, \w+\.$/);
-    expect(lines[at + 2]).toMatch(/'s Wealth went from \d+ to \d+\.$/);
+    expect(lines[at + 2]).toMatch(/'s Wealth went from (\d+ Gold( \d+ Silver)?|\d+ Silver) to (\d+ Gold( \d+ Silver)?|\d+ Silver)\.$/);
     expect(document().history.byType['probe.fired']).toHaveLength(1);
   });
 
@@ -1448,7 +1529,7 @@ describe('show guildmaster, show patrons and preview', () => {
 
     expect(withHealer.code).toBe(exitCodes.ok);
     expect(withHealer.out).toMatch(/^ {2}A Healer: met$/m);
-    expect(withHealer.out).toMatch(/^Reward agreed on a success: \d+ Wealth, \d+ offered\.$/m);
+    expect(withHealer.out).toMatch(/^Reward agreed on a success: (\d+g( \d+s)?|\d+s), (\d+g( \d+s)?|\d+s) offered\.$/m);
     expect(withHealer.out).toContain('Dispatch would send this Party.');
     expect(saved()).toBe(original);
   });
@@ -1543,7 +1624,7 @@ describe('show guildmaster, show patrons and preview', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     const agreed = document().world.quests[questId]?.reward;
-    expect(run.out).toContain(`Reward agreed: ${agreed} Wealth on a success, ${quest.reward} offered.`);
+    expect(run.out).toContain(`Reward agreed: ${coinLetters(agreed ?? 0)} on a success, ${coinLetters(quest.reward)} offered.`);
   });
 });
 

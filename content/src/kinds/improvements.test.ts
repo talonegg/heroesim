@@ -7,19 +7,16 @@ import { shipped, realFiles, parse, refusalOf } from './content.test-support.js'
 // can find it.
 
 describe('validateContent on a set built in memory', () => {
-  // The Hall's facilities named in the refusal's words, which are read from the engine (DL-191).
-  test('refuses an Improvement of a facility that is not one, naming the facilities, in the file and in memory', () => {
+  // The Facilities named in the refusal's words, which are read from content's own (DL-297).
+  test('refuses an Improvement of a Facility content does not define, naming the Facilities, in the file and in memory', () => {
     const files = realFiles();
     files['improvements.json'] = (files['improvements.json'] ?? '').replace('"facility": "infirmary"', '"facility": "kitchen"');
     const content = structuredClone(shipped);
     Object.assign(content.improvements['infirmary-1'] ?? {}, { facility: 'kitchen' });
 
-    expect(refusalOf(() => parse(files)).message).toMatch(
-      /improvements\.json: infirmary-1\.facility is "kitchen"; expected one of infirmary, trainingYard, quarters/,
-    );
-    expect(refusalOf(() => validateContent(content)).message).toMatch(
-      /improvements\.infirmary-1\.facility: "kitchen" is not a Hall facility \(infirmary, trainingYard, quarters\)/,
-    );
+    const refusal = 'improvements.infirmary-1.facility: "kitchen" is not a Facility (infirmary, training-yard, quarters)';
+    expect(refusalOf(() => parse(files)).message).toContain(refusal);
+    expect(refusalOf(() => validateContent(content)).message).toContain(refusal);
   });
 
   test('refuses a grade that is not a whole number from 1 and a cost that is not a whole number above 0, each named', () => {

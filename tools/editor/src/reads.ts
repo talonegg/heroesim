@@ -54,9 +54,10 @@ function isTest(file: string): boolean {
 }
 
 /**
- * Whether a file is one of `engine/src/boundary.test.ts`'s probes, which it writes as
- * `<package>/src/boundary-probe-<uuid>.<extension>` and deletes while other tests run. A file of
- * that name anywhere else is read as any other.
+ * Whether a file is a boundary probe, which a test writes as `<package>/src/boundary-probe-<uuid>.<extension>`
+ * and deletes while other tests run: `content/src/imports.test.ts` in content/src, `words/src/imports.test.ts`
+ * in web/src and `harness/src/settings.test.ts` in harness/src (DL-236). A file of that name anywhere else is
+ * read as any other.
  */
 export function isBoundaryProbe(file: string): boolean {
   return /^[a-z]+\/src\/boundary-probe-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(test\.)?tsx?$/.test(file);

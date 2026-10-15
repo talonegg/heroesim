@@ -25,10 +25,12 @@
 // Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
+import { coinWords } from '@heroesim/words';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type Captaincy, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
+import { Coins } from './coins';
 import { HeroName, Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
 import { Terms } from './section';
@@ -276,8 +278,7 @@ function State({ view }: { view: HeroPageView }) {
       {view.fee === null ? null : (
         <li>
           <Chip tone="brass" icon="wealth">
-            Transfer fee {view.fee}
-            <VisuallyHidden> Wealth</VisuallyHidden>
+            Transfer fee <Coins silver={view.fee} />
           </Chip>
         </li>
       )}
@@ -341,7 +342,7 @@ function HeroActionsView({
       return (
         <div className="hero-page__act">
           <p>
-            Signing fee {actions.fee} Wealth. Signs for your Guild: {actions.signs}.
+            Signing fee <Coins silver={actions.fee} />. Signs for your Guild: {actions.signs}.
           </p>
           <div className="actions">
             {/* Disabled for one who will not sign, the sentence above saying why (DL-109 item 2, Q17). */}
@@ -361,7 +362,7 @@ function HeroActionsView({
       return (
         <div className="hero-page__act">
           <p>
-            Your Guild would pay {actions.guildName} a Transfer fee of {actions.fee} Wealth to take {name} in, if{' '}
+            Your Guild would pay {actions.guildName} a Transfer fee of <Coins silver={actions.fee} /> to take {name} in, if{' '}
             {actions.guildName} is willing to part with them.
           </p>
           <div className="actions">
@@ -476,7 +477,7 @@ function Transfer({
             <select value={target.guildId} onChange={(event) => setTo(event.target.value as GuildId)}>
               {actions.transferTo.map((guild) => (
                 <option key={guild.guildId} value={guild.guildId}>
-                  {guild.name}, for {guild.fee} Wealth
+                  {guild.name}, for {coinWords(guild.fee)}
                 </option>
               ))}
             </select>

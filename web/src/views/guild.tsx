@@ -22,6 +22,7 @@ import type { GameAction, GameState } from '../state/reducer';
 import type { HeaderView, StopView } from '../state/selectors';
 import { offersView } from '../state/trade-views';
 import { Hall } from './hall';
+import { Coins } from './coins';
 import { Icon } from './icons';
 import { QuestReport } from './quest-report';
 import { guildParts, titles, View, type GuildPartId, type SectionId } from './section';
@@ -190,7 +191,7 @@ function Home(props: HomeProps) {
                   <strong className="quest-name">{quest.name}</strong>
                   <span className="subtle">
                     {' '}
-                    · {quest.patron} · {quest.reward} Wealth
+                    · {quest.patron} · <Coins silver={quest.reward} />
                   </span>
                 </span>
                 <button type="button" aria-label={`Choose a Party for ${quest.name}`} onClick={() => onOpenQuest(quest.questId)}>

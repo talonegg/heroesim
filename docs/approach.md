@@ -72,10 +72,11 @@ the first ([`plan.md`](./plan.md) §3); whether a later feature is a Module is d
 morning    Board refresh (drawing from Patrons) · Market refresh · [modules: onMorning]
 afternoon  Rival Controllers act on what the player left · Quests in flight advance
            · [modules: onAfternoon]
-night      Training yard XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
+night      Training XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
            Hero State Engine (heal, Morale, Fatigue, Regard decay, Retirement checks) · ageing (Decline
            on those nights) · Gear of the dead and retired back to their Guilds
-           Guild State Engine (Upkeep on its Day, the Bankruptcy floor, the Fame floor)
+           Guild State Engine (the wages and the Hall's upkeep on their Days, the Bankruptcy floor,
+           the Fame floor)
            Transfer Generator (on its Days: Rivals bid for one another's Heroes)
            Patron State Engine (Patron Regard recovering toward neutral)
            Unattached pool refresh · [modules: onNight]

@@ -87,10 +87,12 @@ test("each card leads with its Quest's Tier, Deadly where it can kill, its Days 
     await expect(card.getByRole('heading', { level: 3 })).toHaveText(name);
     const terms = card.getByRole('list', { name: `The terms of ${name}` }).getByRole('listitem');
     const deadly = isDeadly(quest, content, defaultConfig);
-    const lead = [`Tier ${quest.tier}`, ...(deadly ? ['Deadly'] : []), daysWords(quest), `${quest.reward} Wealth`];
+    const lead = [`Tier ${quest.tier}`, ...(deadly ? ['Deadly'] : []), daysWords(quest)];
     expect((await terms.allTextContents()).slice(0, lead.length)).toEqual(lead);
+    // Then the reward, in coins (DL-294 item 1): its Silver on the element.
+    await expect(terms.nth(lead.length).locator('[data-silver]')).toHaveAttribute('data-silver', String(quest.reward));
     // Shown at this width, not merely in the page.
-    for (const [place] of lead.entries()) await expect(terms.nth(place)).toBeVisible();
+    for (const [place] of [...lead, 'the reward'].entries()) await expect(terms.nth(place)).toBeVisible();
     if (deadly) {
       // A mark, its title what it means, and no figure.
       const mark = card.locator('.chip', { hasText: /^Deadly$/ });

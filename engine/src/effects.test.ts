@@ -12,7 +12,7 @@ import { streamNames } from './rng.js';
 import { healFactor } from './selectors.js';
 import { serialise } from './serialise.js';
 import { dayOf, nightOf } from './time.js';
-import { buildDocument, testDeps, withValid, type FixtureIds } from './world.test-support.js';
+import { buildDocument, testDeps, withFacilityEffect, withValid, type FixtureIds } from './world.test-support.js';
 
 // The effects API (ADR-0005 as amended 2026-09-25, DL-77), the only way a module changes a
 // core table. Each effect runs the core's own rule and emits the core's own event, naming the module.
@@ -49,11 +49,12 @@ interface Played {
 
 /**
  * Turn 1, the first afternoon, of a new world of `seed` in which the module applies `apply`'s
- * effects at its afternoon hook; the document after it validated.
+ * effects at its afternoon hook, under `under` (the test deps by default); the document after it
+ * validated.
  */
-function onFirstAfternoon(seed: string, apply: Apply, prepare: (document: WorldDocument) => void = () => {}): Played {
+function onFirstAfternoon(seed: string, apply: Apply, prepare: (document: WorldDocument) => void = () => {}, under: EngineDeps = testDeps()): Played {
   const results: EffectResult[] = [];
-  const deps: EngineDeps = { ...testDeps(), modules: [effectModule(apply, results)] };
+  const deps: EngineDeps = { ...under, modules: [effectModule(apply, results)] };
   const created = createWorld(seed, setup, deps).document;
   prepare(created);
   const before = withValid(created, deps);
@@ -382,7 +383,7 @@ describe('injure', () => {
 
     const hero = after.world.heroes[heroId] as Hero;
     const guild = after.world.guilds[hero.guildId as GuildId] as Guild;
-    const healsOnTurn = nightOf(dayOf(1) + healDays(6, healFactor(guild, deps.config)));
+    const healsOnTurn = nightOf(dayOf(1) + healDays(6, healFactor(guild.hall, deps.content)));
     expect(hero.injury).toEqual({ typeKey: 'deep-cut', healsOnTurn });
     expect(ofType(events, 'hero.injured')).toEqual([
       expect.objectContaining({ participants: [heroId, guild.id], payload: { heroId, questId: null, typeKey: 'deep-cut', healsOnTurn, moduleId: 'fx' } }),
@@ -404,11 +405,28 @@ describe('injure', () => {
     );
 
     const guild = after.world.guilds[after.world.heroes[heroId]?.guildId as GuildId] as Guild;
-    const days = healDays(6, healFactor(guild, deps.config));
+    const days = healDays(6, healFactor(guild.hall, deps.content));
     // The test sees the infirmary only if it changes the Days.
     expect(guild.hall.infirmary).toBe(grade);
     expect(days).toBeLessThan(6);
     expect(after.world.heroes[heroId]?.injury).toEqual({ typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(1) + days) });
+  });
+
+  // DL-297: a Hero on no Roster reads an empty Hall, every Facility at grade 0, as a Quest's Injury does.
+  test('a Hero on no Roster has the Days shortened by the heal factor content gives grade 0', () => {
+    let heroId = '' as HeroId;
+    const { after } = onFirstAfternoon(
+      'injure-pool',
+      (world, ctx) => {
+        heroId = (Object.values(world.heroes).find((row) => row.guildId === null && row.diedOnTurn === null) as Hero).id;
+        return [ctx.effects.injure({ heroId, typeKey: 'deep-cut', days: 6 })];
+      },
+      undefined,
+      testDeps({}, withFacilityEffect('infirmary', 'healFactor', [0.5, 0.25])),
+    );
+
+    expect(after.world.heroes[heroId]?.guildId).toBeNull();
+    expect(after.world.heroes[heroId]?.injury).toEqual({ typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(1) + 3) });
   });
 
   test("the Hero State Engine heals it on its night, as it heals any Injury", () => {

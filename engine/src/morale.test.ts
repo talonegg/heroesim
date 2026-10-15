@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { Guild, Hero, World } from './document.js';
 import { eventEmitter } from './emit.js';
 import { changeMorale, moraleBaselineFor } from './morale.js';
-import { buildDocument, testDeps, withCaptaincy } from './world.test-support.js';
+import { buildDocument, testDeps, withCaptaincy, withFacilityEffect } from './world.test-support.js';
 
 // `changeMorale`, the writer of a discrete change of Morale (DL-29). DL-112 item 2:
 // a change a Quest's return causes names the Quest; any other names none.
@@ -50,7 +50,7 @@ describe('changeMorale', () => {
 // Hero of its Roster, the Captain's own included, is captainHomeBaselineBonus higher at their captaincy
 // Stat's most, nothing at its least, a share in a line between, rounded with the rest of the baseline.
 describe("moraleBaselineFor and the Captain at home", () => {
-  const deps = testDeps({ captainHomeBaselineBonus: 5, moraleBaseline: 50, quartersMoraleBonus: 0, inspirationMoraleShift: 0 }, withCaptaincy());
+  const deps = testDeps({ captainHomeBaselineBonus: 5, moraleBaseline: 50, inspirationMoraleShift: 0 }, withFacilityEffect('quarters', 'moraleBaseline', [0], withCaptaincy()));
 
   function scene(leadership: number) {
     const { document, ids } = buildDocument({ rosterSize: 3 });

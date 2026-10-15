@@ -5,8 +5,8 @@
 //
 // Every Guild meets the same prices (ADR-0002). The player's Guild buys and sells by choice; a
 // Rival buys gear for its Heroes, armour first, by its Disposition's `gearThreshold`
-// (`gearPurchase`, DL-58), and sells nothing, though a folding Rival's unique Items are sold to it
-// as any Guild's would be.
+// (`gearPurchase`, DL-58), and sells its surplus outside its one purchase (`surplusChoices`,
+// DL-301); a folding Guild's unique Items are sold to it at their value.
 
 import type { EngineDeps } from './config.js';
 import type { ContentSet, ItemDefinition, ItemDefinitionKey } from './content-types.js';
@@ -20,16 +20,16 @@ export const marketHolder: Holder = Object.freeze({ kind: 'market' });
 
 /**
  * What the Market asks for one Item of `definitionKey`: its definition's `buyPrice`, or
- * `lootOnlyPrice` for a definition with none (Loot only, DL-48); `null` for a definition content
- * does not define, which the Market cannot price and rules ignore (data-model rule 5).
+ * its `value` for a loot-only Item (DL-48, DL-301); `null` for a definition content does not define,
+ * which the Market cannot price and rules ignore (data-model rule 5).
  */
 export function marketPrice(
   definitionKey: ItemDefinitionKey,
-  { config, content }: Pick<EngineDeps, 'config' | 'content'>,
+  { content }: Pick<EngineDeps, 'content'>,
 ): number | null {
   const definition = itemDefinition(content, definitionKey);
   if (definition === undefined) return null;
-  return definition.buyPrice ?? config.lootOnlyPrice;
+  return definition.buyPrice ?? definition.value ?? null;
 }
 
 /**
@@ -47,12 +47,12 @@ export function sellPrice(
 
 /**
  * The definitions a morning's refresh draws its stacks from, in key order: every common one with a
- * `buyPrice`. A unique Item is an individual, never a stack, and one with no price is Loot only
- * (DL-48).
+ * `buyPrice`. A unique Item is an individual, never a stack, and one with a `value` is Loot only
+ * (DL-48, DL-301).
  */
 export function stockedDefinitions(content: Pick<ContentSet, 'items'>): ItemDefinition[] {
   return Object.values(content.items)
-    .filter((definition) => !definition.unique && definition.buyPrice !== null)
+    .filter((definition) => !definition.unique && definition.buyPrice !== undefined)
     .sort((a, b) => compareByCodeUnit(a.key, b.key));
 }
 
@@ -93,11 +93,11 @@ export function marketStock(
 }
 
 /**
- * A folding Guild's Items (pre-M0 review D6, DL-51, DL-54), steps 3 and 4 of the fold
+ * A folding Guild's Items (pre-M0 review D6, DL-51, DL-54, DL-301), steps 3 and 4 of the fold
  * (`phases/endings.ts`), which has by then sent its disbanded Parties' stacks home and taken its
  * Roster's gear back, as the night's `gearReturn` took its dead and retired Heroes': so everything
- * the Guild had is in its own holding. Every unique Item there is sold to the Market at
- * `sellPrice`, one `item.sold` (`cause: 'fold'`) each in id order, the proceeds credited to the
+ * the Guild had is in its own holding. Every unique Item there is sold to the Market at its
+ * `value` (DL-301), one `item.sold` (`cause: 'fold'`) each in id order, the proceeds credited to the
  * Guild's Wealth, a record no rule reads again (DL-28); then every stack there is discarded, which
  * `guild.folded` explains. A unique Item content does not define sells for nothing. Returns the
  * events, in order.
@@ -111,7 +111,8 @@ export function sellFoldedGuildItems(
   const { items, stacks } = holdings(world, { kind: 'guild', id: guild.id });
   const events: ItemSold[] = [];
   for (const item of items) {
-    const unitPrice = sellPrice(item.definitionKey, deps) ?? 0;
+    const definition = itemDefinition(deps.content, item.definitionKey);
+    const unitPrice = definition?.value ?? (sellPrice(item.definitionKey, deps) ?? 0);
     events.push(
       emit({
         type: 'item.sold',

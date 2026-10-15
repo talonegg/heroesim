@@ -45,9 +45,11 @@ import {
   type TurnEvent,
   type World,
 } from '@heroesim/engine';
-import { type ContentSet, type Degree, type FacilityKey } from '@heroesim/engine/content';
+import { type ContentSet, type Degree } from '@heroesim/engine/content';
 import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
-import { listed, nameIn, signed } from './names.js';
+import { coinWords } from './coins.js';
+import { facilityIs, facilityName } from './facilities.js';
+import { listed, nameIn, signed, signedCoins } from './names.js';
 
 // ── Sentences ────────────────────────────────────────────────────────────────────────────────
 
@@ -252,20 +254,6 @@ export const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze
   'roster-wiped': 'had its Roster wiped out',
 });
 
-/** A facility of the Hall as a sentence names it: the infirmary, the training yard, the quarters. */
-export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'infirmary',
-  trainingYard: 'training yard',
-  quarters: 'quarters',
-});
-
-/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
-export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'is',
-  trainingYard: 'is',
-  quarters: 'are',
-});
-
 /** What moved a Patron's Regard, after the band it reached. */
 const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-success': 'after a Quest of theirs succeeded',
@@ -330,18 +318,21 @@ const sentences: Sentences = {
   'patron.generated': (event, content) =>
     say`${called(event, event.payload.patronId)} of the ${nameIn(content.spheres, event.payload.sphereKey)} became a Patron.`,
   'world.rules-adopted': (event) => say`The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`,
-  'guild.upkeep-paid': (event) =>
-    say`${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`,
+  // The two charges of the Upkeep (DL-298); the Hall's parts are the Treasury's to show, not the sentence's.
+  'guild.wages-paid': (event) =>
+    say`${called(event, event.payload.guildId)} paid ${coinWords(event.payload.amount)} in wages, leaving ${coinWords(event.payload.wealthAfter)}.`,
+  'guild.hall-upkeep-paid': (event) =>
+    say`${called(event, event.payload.guildId)} paid ${coinWords(event.payload.amount)} in Hall upkeep, leaving ${coinWords(event.payload.wealthAfter)}.`,
   // M9-S1: the night Bankruptcy falls on, as the countdown gives it (DL-95), from the event alone.
   'guild.below-floor': (event, _content, calendar) => {
     const { guildId, wealth, floor, dueDay } = event.payload;
-    return say`${called(event, guildId)}'s Wealth, ${wealth}, fell below the Bankruptcy floor of ${floor}: Bankruptcy on ${nightOfDay(dueDay, calendar)} unless it is back to ${floor} or more on a night by then.`;
+    return say`${called(event, guildId)}'s Wealth, ${coinWords(wealth)}, fell below the Bankruptcy floor of ${coinWords(floor)}: Bankruptcy on ${nightOfDay(dueDay, calendar)} unless it recovers by then.`;
   },
   'guild.floor-recovered': (event, _content, calendar) => {
     const { guildId, wealth, floor, belowFloorSince } = event.payload;
-    return say`${called(event, guildId)}'s Wealth, ${wealth}, is back to the Bankruptcy floor of ${floor} or more, after falling below it on ${dateOfTurn(belowFloorSince, calendar)}: no Bankruptcy is due.`;
+    return say`${called(event, guildId)}'s Wealth, ${coinWords(wealth)}, is back to the Bankruptcy floor of ${coinWords(floor)} or more, after falling below it on ${dateOfTurn(belowFloorSince, calendar)}: no Bankruptcy is due.`;
   },
-  'hero.recruited': (event) => say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`,
+  'hero.recruited': (event) => say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}.`,
   'hero.left-pool': (event) => say`${hero(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, content) => {
     const { patronId, templateKey, questId } = event.payload;
@@ -431,7 +422,7 @@ const sentences: Sentences = {
   'hero.left-guild': (event) => say`${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`,
   'guild.improved': (event, content) => {
     const { guildId, facility, grade, improvementKey, cost } = event.payload;
-    return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`;
+    return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${coinWords(cost)}: its ${facilityName(content, facility)} ${facilityIs(content, facility)} now grade ${grade}.`;
   },
   // DL-287: a Captain named to an empty post, or in another's place, the post then locked until a date.
   'guild.captain-named': (event, _content, calendar) => {
@@ -477,24 +468,24 @@ const sentences: Sentences = {
   },
   'item.bought': (event, content) => {
     const { guildId, definitionKey, quantity, cost, itemIds } = event.payload;
-    return say`${called(event, guildId)} bought ${itemsWords(content, definitionKey, quantity)}${ids(...itemIds)} at the Market for ${cost} Wealth.`;
+    return say`${called(event, guildId)} bought ${itemsWords(content, definitionKey, quantity)}${ids(...itemIds)} at the Market for ${coinWords(cost)}.`;
   },
   'item.sold': (event, content) => {
     const { guildId, definitionKey, quantity, proceeds, itemIds, cause } = event.payload;
     const what = say`${itemsWords(content, definitionKey, quantity)}${ids(...itemIds)}`;
     return cause === 'fold'
-      ? say`${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
-      : say`${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
+      ? say`${called(event, guildId)}'s ${what} went to the Market for ${coinWords(proceeds)} as the Guild folded.`
+      : say`${called(event, guildId)} sold ${what} at the Market for ${coinWords(proceeds)}.`;
   },
   'hero.transferred': (event) => {
     // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was.
     const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
     const accepted = offerId === null ? '' : say`, accepting ${{ kind: 'offer', id: offerId }}`;
-    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${fee} Wealth${accepted}.`;
+    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${coinWords(fee)}${accepted}.`;
   },
   'guild.transfer-offered': (event, _content, calendar) => {
     const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
-    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${fee} Wealth for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
+    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${coinWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
   },
   'guild.transfer-offer-declined': (event) => {
     const { offerId, fromGuildId, toGuildId, heroId } = event.payload;
@@ -505,7 +496,7 @@ const sentences: Sentences = {
     return say`${called(event, toGuildId)}'s Offer for ${hero(event, heroId)}${ids(offerId)} ${offerEndWords[cause]}.`;
   },
   // M8-S2: a module's `adjustWealth` effect.
-  'guild.wealth-changed': (event) => say`${called(event, event.payload.guildId)}'s Wealth went from ${event.payload.before} to ${event.payload.after}.`,
+  'guild.wealth-changed': (event) => say`${called(event, event.payload.guildId)}'s Wealth went from ${coinWords(event.payload.before)} to ${coinWords(event.payload.after)}.`,
   'item.expended': (event, content) => {
     // The roll is the engine's; the sentence says which Encounter, counted from 1, and what it did (M5-S3).
     const { payload } = event;
@@ -540,8 +531,20 @@ export function resolvedParts(event: EngineEventOf<'quest.resolved'>, content: C
   return {
     lead: say`${called(event, guildId)}'s ${party} came home from ${quest(questId, nameIn(content.questTemplates, templateKey))} and `,
     band: bandWords[band],
-    rest: say`: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`,
+    rest: say`: Wealth ${signedCoins(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`,
   };
+}
+
+/** What each part of a Hall upkeep charge (`hallUpkeepSplit`) is paid in. */
+const hallUpkeepPartWords = { hall: 'Hall upkeep', improvements: "its Improvements' upkeep" } as const;
+
+/**
+ * One part of a Hall upkeep charge, as the Treasury's ledger words each of the two rows the charge
+ * splits into (`hallUpkeepSplit`, DL-302, DL-304): `The Kestrel Guild paid 90 Silver in Hall upkeep.`
+ * Without the Wealth left, which the whole charge left; the History keeps the whole charge's sentence.
+ */
+export function hallUpkeepPartSentence(event: EngineEventOf<'guild.hall-upkeep-paid'>, part: keyof typeof hallUpkeepPartWords, amount: number): Sentence {
+  return say`${called(event, event.payload.guildId)} paid ${coinWords(amount)} in ${hallUpkeepPartWords[part]}.`;
 }
 
 /**
@@ -609,7 +612,7 @@ export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'her
       const offers = stop.offerIds.map((offerId): Sentence => {
         const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
         if (offer === undefined) return [{ kind: 'offer', id: offerId, withdrawn: true }];
-        return say`${guild(offer.toGuildId)} offers ${offer.fee} Wealth for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
+        return say`${guild(offer.toGuildId)} offers ${coinWords(offer.fee)} for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
       });
       return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next('answer-offer')}`;
     }

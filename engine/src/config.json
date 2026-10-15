@@ -1,5 +1,5 @@
 {
-  "version": 30,
+  "version": 34,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -30,7 +30,11 @@
     "27 from v1.2.1-S5, which adds `healerHurtRelief`, 0.5, the share of a hurt Hero's gap a Healer in the Party relieves, and `healItemHurtRelief`, 0.5, the share a heal Item spent at their Injury relieves for the rest of the Quest, the two multiplying on the gap (DL-280 item 4, DL-285).",
     "28 from v1.2.1-S6, which adds `playerRestBand`, tired, the Fatigue band at or past which the player's Best Party and the automatic policy leave a free Hero home, as a Disposition's `restBand` does a Rival's (DL-280 item 5, DL-286).",
     "29 from v1.2.1-S7, which adds the Captain's settings, each effect scaled by the Captain's captaincy Stat: `captainFormFactor` 1.05, `captainHomecomingMorale` 5, `captainHomeBaselineBonus` 5, `captainChangeMoraleCost` -10 and `captainChangeLockDays` 30 (DL-280 item 6, Q12 a; DL-287).",
-    "30 from v1.2.1-S8, which adds `rivalHealItemStock`, 2, the heal Items of each definition a Rival keeps, at home and carried together, bought in its gear step after any wearable by its Disposition's `gearThreshold` and carried one of each on each dispatch (DL-280 item 7, Q16 b; DL-288)."
+    "30 from v1.2.1-S8, which adds `rivalHealItemStock`, 2, the heal Items of each definition a Rival keeps, at home and carried together, bought in its gear step after any wearable by its Disposition's `gearThreshold` and carried one of each on each dispatch (DL-280 item 7, Q16 b; DL-288).",
+    "31 from v1.2.2-S3, which moves the Hall's four effects to content, each Facility's and Improvement's rows (`facilities.json`, `improvements.json`) holding today's values: `infirmaryHealFactor`, `quartersMoraleBonus`, `fatigueFallByQuarters` and `xpPerTrainingDay` leave config (DL-294 item 3, DL-297).",
+    "32 from v1.2.2-S4, which charges the Hall's upkeep with its Improvements' every 30 Days, apart from the wages: it adds `hallUpkeepEveryDays`, 30, `hallBaseUpkeep`, 30, `hallUpkeepPerHero`, 5, `hallUpkeepHeroExponent`, 1, and `improvementUpkeepGradeFactor`, 1.73, and removes `hallMaintenancePerGrade` (DL-294 items 2 to 4, DL-298).",
+    "33 from one Upkeep a month of costs (DL-300): rivalHireReserveUpkeeps 3 to 1.",
+    "34 from v1.2.2-S6 (DL-301): lootOnlyPrice removed, each loot-only Item carries its own value."
   ],
   "sections": {
     "world": {
@@ -40,7 +44,7 @@
       "rivalCount": 4,
       "rivalRosterMin": 4,
       "rivalRosterMax": 8,
-      "rivalHireReserveUpkeeps": 3,
+      "rivalHireReserveUpkeeps": 1,
       "rivalHealItemStock": 2,
       "rivalStartingWealthMin": 300,
       "rivalStartingWealthMax": 700,
@@ -76,7 +80,11 @@
     "guilds": {
       "upkeepEveryDays": 10,
       "wagePerLevel": 20,
-      "hallMaintenancePerGrade": 10,
+      "hallUpkeepEveryDays": 30,
+      "hallBaseUpkeep": 30,
+      "hallUpkeepPerHero": 5,
+      "hallUpkeepHeroExponent": 1,
+      "improvementUpkeepGradeFactor": 1.73,
       "bankruptcyFloor": 0,
       "bankruptcyGraceDays": 30,
       "fameFloor": 0,
@@ -133,15 +141,12 @@
       "moraleOnStrongSuccess": 5,
       "heroRetirementAge": 45,
       "heroRetirementChancePerYear": 0.02,
-      "heroRetirementInjuredMultiplier": 2,
-      "infirmaryHealFactor": [1, 0.5, 0.3333333333333333, 0.25],
-      "quartersMoraleBonus": 5
+      "heroRetirementInjuredMultiplier": 2
     },
     "fatigue": {
       "fatigueMax": 100,
       "fatigueBands": { "fresh": 0, "weary": 25, "tired": 50, "exhausted": 75 },
       "fatigueRiseByTier": [4, 5, 6, 7, 8],
-      "fatigueFallByQuarters": [5, 6, 7, 8],
       "fatigueScaling": 0.4,
       "playerRestBand": "tired"
     },
@@ -165,8 +170,7 @@
       "levelCap": 20,
       "growthPointsPerLevel": 3,
       "xpPerDifficultyPoint": 1,
-      "xpBandFactor": { "fail": 0.5, "success": 1, "strong": 1 },
-      "xpPerTrainingDay": 2
+      "xpBandFactor": { "fail": 0.5, "success": 1, "strong": 1 }
     },
     "regard": {
       "regardMin": -20,
@@ -215,8 +219,7 @@
       "marketSize": 10,
       "marketStackMin": 1,
       "marketStackMax": 5,
-      "sellRatio": 0.5,
-      "lootOnlyPrice": 600
+      "sellRatio": 0.5
     }
   }
 }

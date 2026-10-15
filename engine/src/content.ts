@@ -12,7 +12,7 @@ export * from './content-types.js';
 export { fatigueBandNames, tierFields, tierOverrideFields, type FatigueBand, type TierOverride, type TierRow } from './config.js';
 export { tierRowProblems } from './config-check.js';
 export { biographyTraitSentences, heroBiographyTraitSentences } from './descriptions.js';
-export { descriptiveAttributeMaxLength, facilityKeys, type FacilityKey, type Sex } from './document.js';
+export { descriptiveAttributeMaxLength, type Sex } from './document.js';
 export { sexes } from './generators/draw.js';
 export { queryProblems, type QueryKeys, type QueryPlace } from './quest-engine/query/problems.js';
 export { beatsDrawn, inBeatPool, shortBeats } from './tiers.js';

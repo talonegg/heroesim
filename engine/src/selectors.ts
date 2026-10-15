@@ -6,11 +6,10 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, DispositionKey, Improvement, Stat, StatKey } from './content-types.js';
+import type { ContentSet, DispositionKey, FacilityKey, Improvement, Stat, StatKey } from './content-types.js';
 import {
   compareByCodeUnit,
   rowOf,
-  type FacilityKey,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -21,6 +20,7 @@ import {
   type Turn,
   type World,
 } from './document.js';
+import { facilityGrade, facilityUpkeep, hallEffect } from './facilities.js';
 import { gearModifiers } from './gear.js';
 import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
 import { dayOf, nightOf } from './time.js';
@@ -291,81 +291,134 @@ export function baseStat(values: StatValues, stat: Pick<Stat, 'key' | 'default'>
 }
 
 /**
- * A Guild's Upkeep (M2-S7, INPUTS 4.6): `wagePerLevel` for each Level of each living Hero on the
- * Roster — a Hero away on a Quest still draws wages, since leaving is what takes a Hero off the
- * Roster (`CONTEXT.md`, Roster) — plus `hallMaintenancePerGrade` for each grade summed over every
- * Hall facility; the sum multiplied by the Guildmaster's `upkeepFactor` Traits (M4-S5, pre-M0
- * review B2) and rounded to a whole Wealth. Computed from the Roster, the Hall and the Guildmaster,
- * never stored (data-model §3.2, rule 1). Filters the Roster to Heroes with neither `diedOnTurn`
- * nor `retiredOnTurn` set: belt and braces over the invariant that a dead or retired Hero already
- * left the Roster (`CONTEXT.md`, Roster; data-model rule 8).
- *
- * The Guild State Engine charges it, and every controller and front end reads it, with `content`,
- * whose Trait rows it needs. Without `content`, or given a Guild or world that lacks its
- * Guildmaster, no Trait applies: the Upkeep without the Guildmaster's Traits, which some tests
- * still ask for (DL-43).
+ * The Heroes a Guild pays for: each living Hero on the Roster, those away on a Quest among them, since
+ * leaving is what takes a Hero off the Roster (`CONTEXT.md`, Roster). Filters out a Hero with
+ * `diedOnTurn` or `retiredOnTurn` set: belt and braces over the invariant that a dead or retired Hero
+ * already left the Roster (data-model rule 8).
  */
-export function upkeep(
-  guild: Pick<Guild, 'rosterIds' | 'hall'> & Partial<Pick<Guild, 'guildmasterId'>>,
-  world: Pick<World, 'heroes'> & Partial<Pick<World, 'guildmasters'>>,
-  config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
-  content?: Pick<ContentSet, 'guildmasterTraits'>,
-): number {
-  return upkeepParts(guild, world, config, content).total;
+function livingRoster(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>): Hero[] {
+  return guild.rosterIds.flatMap((heroId) => {
+    const hero = rowOf(world.heroes, heroId);
+    return hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null ? [] : [hero];
+  });
 }
 
-/** Upkeep in its parts (`upkeepParts`): what the Treasury shows of the next payment. */
-export interface UpkeepParts {
-  /** `wagePerLevel` for each Level of each living Hero on the Roster. */
-  wages: number;
-  /** `hallMaintenancePerGrade` for each grade summed over every Hall facility. */
-  hallMaintenance: number;
-  /** The Guildmaster's `upkeepFactor` Traits multiplied together: 1 with none, or without `content`. */
+/**
+ * A Guild's wages each time they fall due (M2-S7, INPUTS 4.6, DL-298): `wagePerLevel` for each Level of
+ * each living Hero on the Roster (`livingRoster`), whole Silver as both are. No Guildmaster Trait
+ * scales them (DL-294 item 3, Q17). Computed from the Roster, never stored (data-model §3.2, rule 1).
+ */
+export function wages(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>, config: Pick<GameConfig, 'wagePerLevel'>): number {
+  return livingRoster(guild, world).reduce((total, hero) => total + config.wagePerLevel * hero.level, 0);
+}
+
+/** The Hall's upkeep in its parts (`hallUpkeepParts`): what `guild.hall-upkeep-paid` carries and the Treasury shows. */
+export interface HallUpkeepParts {
+  /** The Guild's own `hallBaseUpkeep`. */
+  base: number;
+  /** The living Roster, those away included. */
+  heroCount: number;
+  /** `hallUpkeepPerHero` × `heroCount` ^ `hallUpkeepHeroExponent`, rounded to whole Silver. */
+  heroes: number;
+  /** Each Facility built, at grade 1 or more, in content's order: its charge (`facilityUpkeep`). */
+  facilities: Record<FacilityKey, number>;
+  /** The Guildmaster's `upkeepFactor` Traits multiplied together: 1 with none. */
   traitFactor: number;
-  /** The wages and the maintenance times the factor, rounded once: what `upkeep` gives. */
+  /** The parts summed, times the factor, rounded once: what the Guild is charged. */
   total: number;
 }
 
 /**
- * A Guild's Upkeep in its parts (M9-F1, DL-112 item 3): the wages, the Hall's maintenance, the
- * Guildmaster Trait's factor, and the total, which is `upkeep`'s, since `upkeep` reads it. The rule
- * is `upkeep`'s, above; the Treasury shows the parts, so the page computes none (ADR-0007).
+ * A Guild's Hall upkeep with its Improvements', each time it falls due (DL-294 items 2 and 3, DL-298):
+ * the Guild's own base; its Heroes' share, `hallUpkeepPerHero` × the living Roster ^
+ * `hallUpkeepHeroExponent`, rounded; and each Facility content defines that the Hall has built, its
+ * `facilityUpkeep` at its grade, a Facility at grade 0 costing nothing and a Hall key content lacks read
+ * by no rule (data-model rule 5). The parts are summed and multiplied by the Guildmaster's `upkeepFactor`
+ * Traits, Thrifty and Spendthrift, which scale this alone (Q17), and rounded once to whole Silver, so
+ * every part and the total are whole. Computed, never stored; the Guild State Engine charges `total`
+ * and the Treasury shows the parts (ADR-0007).
  */
-export function upkeepParts(
-  guild: Pick<Guild, 'rosterIds' | 'hall'> & Partial<Pick<Guild, 'guildmasterId'>>,
-  world: Pick<World, 'heroes'> & Partial<Pick<World, 'guildmasters'>>,
-  config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
-  content?: Pick<ContentSet, 'guildmasterTraits'>,
-): UpkeepParts {
-  const wages = guild.rosterIds.reduce((total, heroId) => {
-    const hero = rowOf(world.heroes, heroId);
-    if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) return total;
-    return total + config.wagePerLevel * hero.level;
-  }, 0);
-  const hallGrades = Object.values(guild.hall).reduce((total, grade) => total + grade, 0);
-  const hallMaintenance = config.hallMaintenancePerGrade * hallGrades;
-  const listed = wages + hallMaintenance;
-  const { guildmasterId } = guild;
-  const { guildmasters } = world;
-  if (content === undefined || guildmasters === undefined || guildmasterId === undefined) {
-    return { wages, hallMaintenance, traitFactor: 1, total: listed };
+export function hallUpkeepParts(
+  guild: Pick<Guild, 'rosterIds' | 'hall' | 'hallBaseUpkeep' | 'guildmasterId'>,
+  world: Pick<World, 'heroes' | 'guildmasters'>,
+  config: Pick<GameConfig, 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'>,
+  content: Pick<ContentSet, 'facilities' | 'guildmasterTraits'>,
+): HallUpkeepParts {
+  const base = guild.hallBaseUpkeep;
+  const heroCount = livingRoster(guild, world).length;
+  const heroes = Math.round(config.hallUpkeepPerHero * heroCount ** config.hallUpkeepHeroExponent);
+  const facilities: Record<FacilityKey, number> = {};
+  for (const facility of Object.values(content.facilities)) {
+    const grade = facilityGrade(guild.hall, facility.key);
+    if (grade >= 1) facilities[facility.key] = facilityUpkeep(facility, grade, config);
   }
-  const traitFactor = traitUpkeepFactor(guildmasterOf({ guildmasterId }, { guildmasters }), content);
-  return { wages, hallMaintenance, traitFactor, total: Math.round(listed * traitFactor) };
+  const listed = base + heroes + Object.values(facilities).reduce((total, charge) => total + charge, 0);
+  const traitFactor = traitUpkeepFactor(guildmasterOf(guild, world), content);
+  return { base, heroCount, heroes, facilities, traitFactor, total: Math.round(listed * traitFactor) };
 }
 
 /**
- * The Day on whose night Upkeep is next charged, once Turn `turn` has been played (M9-F1, DL-112
- * item 3): the first Day from `turn`'s whose night is after `turn` and which ends a run of
- * `upkeepEveryDays` Days counted from Day 0, so Days 9, 19, 29 and so on by default (DL-26). On an
- * Upkeep night itself, once played, it is the next one. The Guild State Engine charges Upkeep by
- * this rule, and the Treasury shows it.
+ * A Hall upkeep charge, as `guild.hall-upkeep-paid` carries it, split into its two lines of expenses
+ * (DL-302, DL-304): the Improvements', the Facilities' charges summed, times the factor, rounded to whole
+ * Silver; and the Hall's, the rest of `amount`, so the two sum to the charge exactly. The one split the
+ * Treasury's ledger and the harness's wealth counters both read.
  */
-export function nextUpkeepDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryDays'>): number {
-  const every = config.upkeepEveryDays;
+export function hallUpkeepSplit({
+  amount,
+  facilities,
+  traitFactor,
+}: Pick<HallUpkeepParts, 'facilities' | 'traitFactor'> & { amount: number }): { hall: number; improvements: number } {
+  const improvements = Math.round(Object.values(facilities).reduce((total, charge) => total + charge, 0) * traitFactor);
+  return { hall: amount - improvements, improvements };
+}
+
+/**
+ * One Upkeep as every reader of "Upkeeps" counts it (a Rival's hiring budget and reserve, the policy's
+ * reserves, the consumables' reserve, the harness's hoarding and months, the Guilds table): a month's
+ * costs, three wage charges and one of the Hall's (`hallUpkeepEveryDays` ÷ `upkeepEveryDays` wage charges
+ * and one Hall charge), rounded to whole Silver (Q16, DL-294 item 4, DL-300). A measure, not a charge:
+ * the Guild State Engine charges `wages` and `hallUpkeepParts`' total, each on its own Day.
+ */
+export function upkeep(
+  guild: Pick<Guild, 'rosterIds' | 'hall' | 'hallBaseUpkeep' | 'guildmasterId'>,
+  world: Pick<World, 'heroes' | 'guildmasters'>,
+  config: Pick<
+    GameConfig,
+    'wagePerLevel' | 'upkeepEveryDays' | 'hallUpkeepEveryDays' | 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'
+  >,
+  content: Pick<ContentSet, 'facilities' | 'guildmasterTraits'>,
+): number {
+  const hall = hallUpkeepParts(guild, world, config, content).total;
+  return Math.round((wages(guild, world, config) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
+}
+
+/**
+ * The Day on whose night a charge falling every `every` Days next falls, once Turn `turn` has been
+ * played: the first Day from `turn`'s whose night is after `turn` and which ends a run of `every` Days
+ * counted from Day 0 (DL-26). On a charge's night itself, once played, it is the next one.
+ */
+function nextDayOfEvery(turn: Turn, every: number): number {
   const day = dayOf(turn);
-  const upkeepDay = day + ((every - 1 - (day % every)) % every);
-  return nightOf(upkeepDay) > turn ? upkeepDay : upkeepDay + every;
+  const due = day + ((every - 1 - (day % every)) % every);
+  return nightOf(due) > turn ? due : due + every;
+}
+
+/**
+ * The Day on whose night the wages next fall due, once Turn `turn` has been played (M9-F1, DL-112
+ * item 3, DL-298): Days 9, 19, 29 and so on by default (DL-26). The Guild State Engine charges them
+ * by this rule, and the Treasury shows it.
+ */
+export function nextWagesDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryDays'>): number {
+  return nextDayOfEvery(turn, config.upkeepEveryDays);
+}
+
+/**
+ * The Day on whose night the Hall's upkeep with its Improvements' next falls due, once Turn `turn` has
+ * been played (DL-298): Days 29, 59, 89 and so on by default, counted as the wages' are (DL-26), so that
+ * Day 29 charges both. The Guild State Engine charges it by this rule, and the Treasury shows it.
+ */
+export function nextHallUpkeepDay(turn: Turn, config: Pick<GameConfig, 'hallUpkeepEveryDays'>): number {
+  return nextDayOfEvery(turn, config.hallUpkeepEveryDays);
 }
 
 /** What moves a Hero's Stat from its base (v1.1.6-S13), in the order `statBreakdown` adds them. */
@@ -462,29 +515,28 @@ export function effectiveStats(
 }
 
 /**
- * The Improvement that would raise `guild`'s `facility` one grade (M3-S6): content's row for that
- * facility whose grade is the facility's grade now plus one, or `null` when content has none, the
- * facility being at its top grade. `build` builds it and charges its cost; a controller reads its
- * cost before choosing to build.
+ * The Improvement that would raise `guild`'s `facility` one grade: content's row for that Facility
+ * whose grade is the Facility's grade now plus one, or `null` when content has none, the Facility
+ * being at its top grade. `build` builds it and charges its cost; a controller reads its cost before
+ * choosing to build.
  */
 export function nextImprovement(
   guild: Pick<Guild, 'hall'>,
   facility: FacilityKey,
   content: Pick<ContentSet, 'improvements'>,
 ): Improvement | null {
-  const grade = guild.hall[facility] + 1;
+  const grade = facilityGrade(guild.hall, facility) + 1;
   return Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade) ?? null;
 }
 
 /**
- * What an Injury's Days to heal are multiplied by when it is inflicted on a Hero of `guild`
- * (INPUTS 4.5): `infirmaryHealFactor` at the Guild's infirmary grade now, index 0 being no
- * infirmary, and a grade past the list reading its last factor (DL-29 item 8). The Quest Engine
- * reads it; the defaults give every grade content defines a factor of its own (DL-53).
+ * What an Injury's Days to heal are multiplied by when it is inflicted on a Hero of a Guild with
+ * `hall` (INPUTS 4.5): the Hall's `healFactor` effect (`hallEffect`, DL-294 item 3), 1 where no
+ * Facility has it. A Hero on no Roster reads an empty Hall. The Quest Engine and the modules' `injure`
+ * read it.
  */
-export function healFactor(guild: { hall: Pick<Hall, 'infirmary'> }, config: Pick<GameConfig, 'infirmaryHealFactor'>): number {
-  const factors = config.infirmaryHealFactor;
-  return factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
+export function healFactor(hall: Readonly<Hall>, content: Pick<ContentSet, 'facilities' | 'improvements'>): number {
+  return hallEffect(hall, 'healFactor', content);
 }
 
 /**

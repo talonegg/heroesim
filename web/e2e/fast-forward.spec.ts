@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { turnsPerDay } from '@heroesim/engine';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
+import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, expectWealth, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
 
 // Fast forward in steps (DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
@@ -186,7 +186,7 @@ test("falling below the Bankruptcy floor stops a fast forward unasked; the home 
   const time = statusBar(page).getByRole('group', { name: 'Time' });
   const save = await withWealth(page, testInfo, -50);
   await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
-  await expect(page.getByTestId('wealth')).toHaveText('-50');
+  await expectWealth(page, -50);
   await closeGameMenu(page);
 
   // The first night's check finds it below the floor: the fast forward stops that night, unasked,

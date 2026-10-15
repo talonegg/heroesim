@@ -419,7 +419,7 @@ describe('sweepPlay', () => {
     }
 
     const [first, second] = sweep.games as [GameRecord, GameRecord];
-    const grades = { infirmary: [1, 1], trainingYard: [1], quarters: [1, 1, 1] };
+    const grades = { infirmary: [1, 1], 'training-yard': [1], quarters: [1, 1, 1] };
     /** The takings of the first Tier the first game took a Quest of, whichever Tiers its Board offered (DL-273). */
     const taken = Object.values(first.counters.questTiers).find((tier) => Object.keys(tier.byController).length > 0)?.byController;
     if (taken === undefined) throw new Error('The first game took no Quest');
@@ -610,8 +610,8 @@ describe('sweepPlay', () => {
       const none = sweepTotals({ ...sweep, games: [] }, deps.config.turnsPerYear);
       expect(none.games).toBe(0);
       expect([...leaves({ ...none, yearsSurvived: undefined }, '').values()].every((n) => n === 0)).toBe(true);
-      const noGrades = { infirmary: [], trainingYard: [], quarters: [] };
-      expect(none.improvementGrades).toEqual({ player: noGrades, rival: noGrades });
+      // No Facility until a game names its content's (DL-297).
+      expect(none.improvementGrades).toEqual({ player: {}, rival: {} });
       expect(none.endedInYear).toEqual([0]);
       expect(none.rivalFolds).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0 });
     });
@@ -662,6 +662,30 @@ describe('sweepPlay', () => {
       expect(report).toContain(targetsSection(targetsOf(sweep, deps.config.turnsPerYear, null)).join('\n'));
       expect(report.indexOf('## Targets')).toBeGreaterThan(report.indexOf('## Summary'));
       expect(report.indexOf('## Targets')).toBeLessThan(report.indexOf('## Counters'));
+    });
+
+    test("states the policy's Upkeeps as a reader counts them: a whole number as it is, a fraction to two places (DL-62, DL-300)", () => {
+      const policyLine = (recruitWealthMultiple: number, consumableReserveUpkeeps: number): string =>
+        playReport({ ...sweep, policy: { ...sweep.policy, recruitWealthMultiple, consumableReserveUpkeeps } }, context)
+          .split('\n')
+          .find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      const thirds = policyLine(1, 20 / 3);
+      expect(thirds).toContain(' while Wealth exceeds 1 Upkeep and the Roster is below ');
+      expect(thirds).toContain(' once paid, 6.67 Upkeeps (DL-62)');
+      const whole = policyLine(3, 20);
+      expect(whole).toContain(' while Wealth exceeds 3 Upkeeps and the Roster is below ');
+      expect(whole).toContain(' once paid, 20 Upkeeps (DL-62)');
+    });
+
+    test('says the policy sells its surplus outside its one purchase, and its whole Holding in debt (DL-301)', () => {
+      const policyLine = report.split('\n').find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      expect(policyLine).not.toContain('never sell');
+      expect(policyLine).toContain(
+        `; outside that purchase, it sells its surplus (DL-301): Gear in its Holding beyond what its Heroes with the slot ` +
+          `empty would put on, Consumables above ${sweep.policy.consumableStock} of each, what its Parties carry counted, ` +
+          `and Loot-only Items; in debt, its whole Holding but what the Turn's equips and dispatches take; never transfer ` +
+          `a Hero in or out.`,
+      );
     });
 
     test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
@@ -774,7 +798,7 @@ describe('sweepPlay', () => {
       expect(report).toContain('`signing-refused` rejections returned to the automatic policy: 0.');
       expect(report).toContain('No game was in play after 10 years.');
       expect(report).toContain('over the 0 games that played them');
-      expect(report).toContain('| The Rivals: trainingYard | 0 | — | 0 | 0 | 0 | 0 |');
+      expect(report).toContain('| The Rivals: training-yard | 0 | — | 0 | 0 | 0 | 0 |');
     });
 
     test("gives M4's counters: the Encounters by kind, the Synergies, the Injuries, the silent Patrons and the Regard", () => {
@@ -925,18 +949,30 @@ describe('sweepPlay', () => {
           dispositions: Object.fromEntries(Object.keys(content.dispositions).map((key) => [key, disposition(k)])),
           marketPurchases: { player: { purchases: 4 * k, items: 6 * k, cost: 400 * k }, ambitious: { purchases: k, items: k, cost: 100 * k } },
           improvementGradesByDisposition: {
-            ambitious: { infirmary: [0, k, 1], trainingYard: [k], quarters: [0, 0, k] },
-            miserly: { infirmary: [2 * k], trainingYard: [0, k], quarters: [k] },
+            ambitious: { infirmary: [0, k, 1], 'training-yard': [k], quarters: [0, 0, k] },
+            miserly: { infirmary: [2 * k], 'training-yard': [0, k], quarters: [k] },
           },
           wealth: {
-            player: { ...noWealth(), signing: 100 * k, transferFeesPaid: 100 * k, items: 200 * k, upkeep: 600 * k, questRewards: 1000 * k, transferFeesTaken: 310 * k },
+            player: {
+              ...noWealth(),
+              signing: 100 * k,
+              transferFeesPaid: 100 * k,
+              items: 200 * k,
+              wages: 500 * k,
+              hallUpkeep: 100 * k,
+              improvementUpkeep: 40 * k,
+              questRewards: 1000 * k,
+              transferFeesTaken: 310 * k,
+            },
             rival: {
               ...noWealth(),
               signing: 50 * k,
               transferFeesPaid: 1280 * k,
               items: 150 * k,
               improvements: 500 * k,
-              upkeep: 2000 * k,
+              wages: 1500 * k,
+              hallUpkeep: 500 * k,
+              improvementUpkeep: 200 * k,
               questRewards: 4000 * k,
               transferFeesTaken: 1070 * k,
             },
@@ -976,17 +1012,23 @@ describe('sweepPlay', () => {
         });
       }
       expect(summed.improvementGradesByDisposition).toEqual({
-        ambitious: { infirmary: [0, 3, 2], trainingYard: [3], quarters: [0, 0, 3] },
-        miserly: { infirmary: [6], trainingYard: [0, 3], quarters: [3] },
+        ambitious: { infirmary: [0, 3, 2], 'training-yard': [3], quarters: [0, 0, 3] },
+        miserly: { infirmary: [6], 'training-yard': [0, 3], quarters: [3] },
       });
 
       const text = playReport(made, context);
       // Wealth (M5's table): the player's 0.5 + 0.5 Guild-years, the Rivals' 2 + 2.
       expect(text).toContain('| Spent: Transfers (`hero.transferred` `fee`, the buying Guild) | 300 | 300.0 | 3,840 | 960.0 |');
-      expect(text).toContain('| Spent in all | 3,000 | 3,000.0 | 11,940 | 2,985.0 |');
+      expect(text).toContain('| Spent in all | 3,120 | 3,120.0 | 12,540 | 3,135.0 |');
       expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
-      expect(text).toContain("The player's Guild: signing 10.0%, Transfers 10.0%, Items 20.0%, Improvements 0.0%, Upkeep 60.0%;");
+      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%;");
+      expect(text).toContain("Shares of the Wealth taken: The player's Guild: Quest rewards 76.3%, Item sales 0.0%, Transfers 23.7%;");
+      // The Upkeep's two charges by line, the Hall's as its own part and the Improvements', each of the whole (DL-298, DL-302).
+      expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');
+      expect(text).toContain("| Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`, less the Improvements') | 300 | 300.0 | 1,500 | 375.0 |");
+      expect(text).toContain("| Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid` `facilities` × `traitFactor`, rounded) | 120 | 120.0 | 600 | 150.0 |");
+      expect(text).toContain('| Spent: Upkeep in all | 1,920 | 1,920.0 | 6,600 | 1,650.0 |');
       // The Transfers by direction and by way, over two games.
       expect(text).toContain("| Into the player's Guild | 3 | 1.50 | 300 | 100 |");
       expect(text).toContain("| Out of the player's Guild | 6 | 3.00 | 930 | 155 |");
@@ -1018,7 +1060,7 @@ describe('sweepPlay', () => {
       }
       // The Improvement grades by Disposition (M3's table): Guilds, mean grade, then Guilds at each grade.
       expect(text).toContain('| The Rivals, `ambitious`: infirmary | 5 | 1.40 | 0 | 3 | 2 | 0 |');
-      expect(text).toContain('| The Rivals, `miserly`: trainingYard | 3 | 1.00 | 0 | 3 | 0 | 0 |');
+      expect(text).toContain('| The Rivals, `miserly`: training-yard | 3 | 1.00 | 0 | 3 | 0 | 0 |');
     });
 
     test('sums the Patron-years and the Regard after 10 years over the games that reached them', () => {

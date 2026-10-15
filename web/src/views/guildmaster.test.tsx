@@ -61,7 +61,7 @@ describe('the Guildmaster view', () => {
     const guildmaster = section('Guildmaster');
 
     const traits = within(guildmaster).getByRole('list', { name: "Ada Vell's Traits" });
-    expect(within(traits).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Thrifty Upkeep ×0.9', 'Mistrusts magic -1 Arcana to Mages']);
+    expect(within(traits).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Thrifty Hall upkeep ×0.9', 'Mistrusts magic -1 Arcana to Mages']);
     expect(within(guildmaster).getByText('Harrowgate')).toBeDefined();
     expect(within(guildmaster).getByText('Once a quartermaster of the river levies.')).toBeDefined();
     expect(within(guildmaster).getAllByRole('term').map((term) => term.textContent)).toEqual(['Sex', 'Age', 'Birthplace', 'Biography']);

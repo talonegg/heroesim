@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { debugHistory, groupOf, historyText, playTurns, startGame } from './support';
+import { amountPattern, debugHistory, groupOf, historyText, playTurns, startGame } from './support';
 
 // The test-only switch for modules (DL-79), in the built page: opened at `?modules=probe`, the
 // page says the probe is installed, and a game from seed `modules`, on which the probe's stream first
@@ -27,7 +27,7 @@ test('?modules=probe installs the probe, and its probe.fired is in the log on a 
   const fired = historyText(whole, /^The probe Module recorded probe\.fired for .+\.$/);
   await expect(fired).toHaveCount(1);
   await expect(groupOf(fired)).toHaveText('Year 1 Day 4, night');
-  const wealth = historyText(whole, /^.+'s Wealth went from \d+ to \d+\.$/);
+  const wealth = historyText(whole, new RegExp(`^.+'s Wealth went from ${amountPattern} to ${amountPattern}\\.$`));
   await expect(wealth).toHaveCount(1);
   await expect(groupOf(wealth)).toHaveText('Year 1 Day 4, night');
 });

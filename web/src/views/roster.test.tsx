@@ -4,7 +4,7 @@ import { content } from '../content';
 import { mediaFiles } from '../media';
 import { carrying, carryingUnique, changed, documentOf, holding, started, withOffer, withPartyOut, withRichRivals, withTraitNews } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { idle, openFirstHero, renderGame, rosterList, section, wealth } from './page.test-support';
+import { coinsPattern, idle, openFirstHero, renderGame, rosterList, section, silverOf, wealth } from './page.test-support';
 import { help } from './section';
 
 // The Roster redesigned (DL-106; the review's B7, B8 and E4): compact Hero cards, a Hero's
@@ -175,14 +175,14 @@ describe("a Hero's page (the review's B7)", () => {
 
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
     expect(document.activeElement).toBe(ask);
-    expect(within(ask).getByText(/ would pay \d+ Wealth for .+, if it is willing to take them\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
+    expect(within(ask).getByText(new RegExp(` would pay ${coinsPattern} for .+, if it is willing to take them\\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\\.$`))).toBeDefined();
     // Another Guild chosen: the sentence says its fee.
     const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
     const second = select.options[1];
     if (second === undefined) throw new Error('one Guild to transfer to');
     fireEvent.change(select, { target: { value: second.value } });
-    const [, guildName, fee] = /^(.+), for (\d+) Wealth$/.exec(second.textContent ?? '') ?? [];
-    expect(within(ask).getByText(new RegExp(`^${guildName} would pay ${fee} Wealth for ${name},`))).toBeDefined();
+    const [, guildName, feeWords] = /^(.+), for (.+)$/.exec(second.textContent ?? '') ?? [];
+    expect(within(ask).getByText(new RegExp(`^${guildName} would pay ${feeWords} for ${name},`))).toBeDefined();
 
     fireEvent.click(within(ask).getByRole('button', { name: 'Keep them' }));
 
@@ -208,7 +208,7 @@ describe('Transfer Offers (the review’s E4)', () => {
 
     const ask = within(offers).getByRole('group', { name: `Accept ${whose}?` });
     expect(document.activeElement).toBe(ask);
-    expect(within(ask).getByText(/^Accepting sends .+ to .+ for \d+ Wealth\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
+    expect(within(ask).getByText(new RegExp(`^Accepting sends .+ to .+ for ${coinsPattern}\\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\\.$`))).toBeDefined();
     expect(within(ask).getByRole('button', { name: `Accept ${whose}` }).textContent).toBe('Accept the Offer');
 
     fireEvent.click(within(ask).getByRole('button', { name: 'Keep them' }));
@@ -246,9 +246,11 @@ describe("the Unattached pool as rows (the review's B8)", () => {
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', 'Signs', 'Recruit']);
     const all = rows();
     expect(all.length).toBeGreaterThan(3);
-    for (const { name, cells: [kind, level, age, , fee, signs], row } of all) {
+    for (const { name, cells: [kind, level, age, , , signs], row } of all) {
       expect(classNames).toContain(kind);
-      expect([level, age, fee].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
+      expect([level, age].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
+      // The fee is coins (DL-294 item 1), whole Silver.
+      expect(Number.isSafeInteger(silverOf(within(row).getByTestId('fee')))).toBe(true);
       expect(signs).toMatch(/^(Yes|Needs Fame \d+)$/);
       expect(row.className).toBe(signs === 'Yes' ? '' : 'is-set-back');
       const recruit = within(row).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement;
@@ -275,7 +277,8 @@ describe("the Unattached pool as rows (the review's B8)", () => {
 
     fireEvent.click(within(section('Unattached pool')).getByRole('button', { name }));
     const page = within(section('Unattached pool')).getByRole('article');
-    expect(within(page).getByText(/^Signing fee \d+ Wealth\. Signs for your Guild: needs Fame \d+\.$/)).toBeDefined();
+    // The fee is a coins element between the words (`getByText` reads a node's own text).
+    expect(silverOf(within(page).getByText(/^Signing fee \. Signs for your Guild: needs Fame \d+\.$/))).toBeGreaterThan(0);
     expect((within(page).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -316,7 +319,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
 
     const page = within(section('Unattached pool')).getByRole('article');
     expect(document.activeElement).toBe(within(page).getByRole('heading', { level: 4, name: first.name }));
-    expect(within(page).getByText(/^Signing fee \d+ Wealth\. Signs for your Guild: (yes|needs Fame \d+)\.$/)).toBeDefined();
+    expect(silverOf(within(page).getByText(/^Signing fee \. Signs for your Guild: (yes|needs Fame \d+)\.$/))).toBeGreaterThan(0);
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the pool' }));
     expect(document.activeElement).toBe(within(section('Unattached pool')).getByRole('button', { name: first.name }));
   });

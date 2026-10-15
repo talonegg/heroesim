@@ -167,14 +167,19 @@ export function sentenceWords(sentence: Sentence): string {
 }
 
 /**
- * `event`'s sentence as segments (M9-S5, DL-105): its words, and each name in it of a Guild, a Hero,
- * a Guildmaster or a Patron marked with the id the sentence read it from, capitalised where it opens
- * with `a Hero` or the like.
+ * A sentence of the words' as segments (M9-S5, DL-105): its words, and each name in it of a Guild, a
+ * Hero, a Guildmaster or a Patron marked with the id the sentence read it from, capitalised where it
+ * opens with `a Hero` or the like.
  */
-export function narrateSegments(event: TurnEvent, narration: Narration): Segment[] {
-  const [first, ...rest] = segmentsOf(narrate(event, narration.content, narration.calendar), pageNamer(narration.questName));
+export function sentenceSegments(sentence: Sentence, narration: Narration): Segment[] {
+  const [first, ...rest] = segmentsOf(sentence, pageNamer(narration.questName));
   if (first === undefined) return [];
   return [{ ...first, text: capitalised(first.text) }, ...rest];
+}
+
+/** `event`'s sentence as segments (`sentenceSegments`). */
+export function narrateSegments(event: TurnEvent, narration: Narration): Segment[] {
+  return sentenceSegments(narrate(event, narration.content, narration.calendar), narration);
 }
 
 /** `event` as one sentence, the words of its segments. */

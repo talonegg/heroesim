@@ -5,6 +5,11 @@ name: check
 # one this repository is developed on, and nothing is released on an older one (DL-235, ADR-0007),
 # so one job tests the floor rather than assuming it.
 #
+# DL-299: a pull request's `check` is kept for Dependabot's pull requests, whose branches the push
+# trigger does not name; a run on a dev branch or a pull request supersedes an earlier one still
+# going, and a timeout caps a hung run. A release branch's runs are never cancelled, since the
+# deploy reads their result (DL-235).
+#
 # DL-124: every line's branches by pattern, `v#.#-dev` and `v#.#-release`, so that a new line edits
 # no workflow; and the browser specs, `npm run e2e -w web`, in Chromium at the three widths,
 # superseding INPUTS 7.10's "no Playwright in CI". `main` is not here: only a release branch's
@@ -24,9 +29,16 @@ on:
 permissions:
   contents: read
 
+# DL-299: one run per branch or pull request at a time; a newer push cancels the older run, except on
+# a release branch, whose every run is read by the deploy.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: ${{ !endsWith(github.ref_name, '-release') }}
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

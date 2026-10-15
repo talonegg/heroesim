@@ -53,9 +53,10 @@ vi.mock('../actions/buy.js', async (importOriginal) => {
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
- * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
- * recruit on its first afternoon: the tests that watch a recruit pin them on every Disposition, since
- * the balance passes raised both (DL-35, DL-41) and the threshold is in the rows (DL-56).
+ * INPUTS 4.6's wage and 4.12's threshold, one Upkeep, a month of costs (DL-300), under which every
+ * starting Rival has the Wealth to recruit on its first afternoon: the tests that watch a recruit pin
+ * them on every Disposition, since the balance passes raised both (DL-35, DL-41) and the threshold is
+ * in the rows (DL-56).
  * Building is put out of reach unless a test asks for it, at three times the cost, since a Rival
  * builds its infirmary in place of a recruit once its Wealth is above its `buildThreshold` times the
  * cost (DL-38), which a starting Rival's may be. Transfers are stilled (`transferAppetite` 0):
@@ -68,7 +69,7 @@ const recruitingDeps = (building = false, buying = false): EngineDeps =>
   testDeps(
     { wagePerLevel: 5 },
     withDispositions({
-      recruitThreshold: 3,
+      recruitThreshold: 1,
       buildThreshold: building ? 3 : 1_000_000,
       gearThreshold: buying ? 3 : 1_000_000,
       transferAppetite: 0,

@@ -130,7 +130,7 @@ describe('each night phase walks the Roster in the order it walked before', () =
   test("training: the Day's XP for each Hero in the walk, and no other (it draws nothing, so its order moves no draw)", () => {
     const world = awkwardWorld(deps);
     world.guilds = Object.fromEntries(
-      Object.entries(world.guilds).map(([id, guild]) => [id, { ...guild, hall: { ...guild.hall, trainingYard: 1 } }]),
+      Object.entries(world.guilds).map(([id, guild]) => [id, { ...guild, hall: { ...guild.hall, 'training-yard': 1 } }]),
     );
     const before = new Map(Object.values(world.heroes).map((hero) => [hero.id, hero.xp]));
     const walked = new Set(walkBefore(world));

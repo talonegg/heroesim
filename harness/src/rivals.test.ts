@@ -4,7 +4,6 @@ import {
   createWorld,
   defaultConfig,
   dispositionOf,
-  facilityKeys,
   upkeep,
   validate,
   type EngineDeps,
@@ -23,7 +22,7 @@ const content = loadContent();
  * The config the test relies on, pinned against a balance pass: the need's floor and reserve, and an
  * empty Market, so that no Rival outfits its Heroes before it hires (DL-58's order).
  */
-const deps: EngineDeps = { config: { ...defaultConfig, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3, marketSize: 0 }, content };
+const deps: EngineDeps = { config: { ...defaultConfig, rivalRosterMin: 4, rivalHireReserveUpkeeps: 1, marketSize: 0 }, content };
 
 const rivalsOf = (world: World): Guild[] => Object.values(world.guilds).filter((guild) => dispositionOf(guild) !== null);
 
@@ -40,7 +39,7 @@ describe("the core's Rivals hire back to rivalRosterMin by need (DL-60)", () => 
         const hero = document.world.heroes[heroId];
         if (hero !== undefined) hero.diedOnTurn = document.world.turn;
       }
-      for (const facility of facilityKeys) rival.hall[facility] = topGrade(facility);
+      for (const facility of Object.keys(content.facilities)) rival.hall[facility] = topGrade(facility);
       rival.wealth = 1_000;
       const threshold = (content.dispositions[dispositionOf(rival) ?? '']?.recruitThreshold ?? 0) * upkeep(rival, document.world, deps.config, content);
       expect(rival.wealth, dispositionOf(rival) ?? '').toBeLessThan(threshold);

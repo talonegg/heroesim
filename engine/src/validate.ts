@@ -103,6 +103,7 @@ export const warningChecks = [
   'unknown-template',
   'unknown-injury',
   'unknown-disposition',
+  'unknown-facility',
   'unknown-encounter',
   'unknown-slot',
   'misplaced-item',
@@ -223,6 +224,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownTemplate,
   unknownInjury,
   unknownDisposition,
+  unknownFacility,
   unknownEncounter,
   unknownSlot,
   misplacedItem,
@@ -347,12 +349,14 @@ type FieldKind =
   | 'number'
   | 'integer'
   | 'integer-from-one'
+  | 'integer-from-zero'
   | 'boolean'
   | 'list'
   | 'list-of-one-or-more'
   | 'list-of-strings'
   | 'map'
   | 'number-map'
+  | 'grade-map'
   | 'string-or-null'
   | 'sex'
   | 'sex-or-null'
@@ -379,6 +383,8 @@ const kindTests: Record<FieldKind, (value: unknown) => boolean> = {
   integer: isInteger,
   // A Quest's Tier: the ladder's first is 1 (DL-262).
   'integer-from-one': (value) => isInteger(value) && (value as number) >= 1,
+  // A Guild's Hall upkeep base, whole Silver from 0 (DL-298).
+  'integer-from-zero': (value) => isInteger(value) && (value as number) >= 0,
   boolean: (value) => typeof value === 'boolean',
   list: (value) => Array.isArray(value),
   // A Quest's Encounters: every Quest is drawn with one or more (DL-248).
@@ -388,6 +394,8 @@ const kindTests: Record<FieldKind, (value: unknown) => boolean> = {
   map: isMap,
   // A Party's Fatigue at dispatch by Hero (DL-282): finiteness is json-safe's to report.
   'number-map': (value) => isMap(value) && Object.values(value).every((item) => typeof item === 'number'),
+  // A Hall: each Facility's grade, a whole number from 0 (DL-297).
+  'grade-map': (value) => isMap(value) && Object.values(value).every((item) => isInteger(item) && (item as number) >= 0),
   'string-or-null': (value) => value === null || typeof value === 'string',
   // One of the engine's `sexes` (v1.1.2-S6): a front end finds a Portrait's folder by it.
   sex: (value) => (sexes as readonly unknown[]).includes(value),
@@ -448,11 +456,13 @@ const guildFields: Shape<Guild> = {
   rosterIds: 'list',
   captainId: 'string-or-null',
   captainChangedOnTurn: 'integer-or-null',
-  wealth: 'number',
+  // Whole Silver, as every stored amount is (DL-294 item 1).
+  wealth: 'integer',
   fame: 'number',
   belowFloorSince: 'integer-or-null',
   foldedOnTurn: 'integer-or-null',
-  hall: 'map',
+  hall: 'grade-map',
+  hallBaseUpkeep: 'integer-from-zero',
   controller: 'map',
   regard: 'map',
 };
@@ -513,7 +523,7 @@ const questFields: Shape<Quest> = {
   tier: 'integer-from-one',
   difficulty: 'number',
   tags: 'list',
-  reward: 'number',
+  reward: 'integer',
   fameEffect: 'number',
   durationTurns: 'integer',
   skillKeys: 'list',
@@ -543,7 +553,7 @@ const offerFields: Shape<TransferOffer> = {
   fromGuildId: 'string',
   toGuildId: 'string',
   heroId: 'string',
-  fee: 'number',
+  fee: 'integer',
   offeredOnTurn: 'integer',
   expiresOnTurn: 'integer',
 };
@@ -1369,11 +1379,44 @@ function historyTurnOrder({ world, history }: WorldDocument, from: number): Vali
 }
 
 /**
+ * The amounts each type of entry carries, each whole Silver as every stored amount is (DL-294 item 1):
+ * a save edited by hand to a fraction is refused at load, never met by the words' formatter, which
+ * throws on one (DL-296, DL-297).
+ */
+const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
+  'guild.wages-paid': ['amount', 'wealthAfter'],
+  'guild.hall-upkeep-paid': ['amount', 'wealthAfter', 'base', 'heroes'],
+  'guild.below-floor': ['wealth', 'floor'],
+  'guild.floor-recovered': ['wealth', 'floor'],
+  'hero.recruited': ['fee'],
+  'guild.improved': ['cost'],
+  'item.bought': ['unitPrice', 'cost'],
+  'item.sold': ['unitPrice', 'proceeds'],
+  'hero.transferred': ['fee'],
+  'guild.transfer-offered': ['fee'],
+  'guild.transfer-offer-declined': ['fee'],
+  'guild.transfer-offer-expired': ['fee'],
+  'guild.wealth-changed': ['before', 'after'],
+  'quest.resolved': ['wealthDelta'],
+};
+
+/** The maps of amounts an entry carries, each value whole Silver: the Hall's upkeep, each Facility's charge (DL-298). */
+const moneyMaps: Readonly<Partial<Record<EventType, readonly string[]>>> = {
+  'guild.hall-upkeep-paid': ['facilities'],
+};
+
+/** The amounts an entry may leave out, as one made before its field was (the reward agreed, DL-43): whole Silver where written. */
+const moneyFieldsIfWritten: Readonly<Partial<Record<EventType, readonly string[]>>> = {
+  'quest.taken': ['reward'],
+};
+
+/**
  * An entry holds what its type requires where the shape, which reads any payload, cannot say it
- * (DL-246): a Guild's founding names its founding Wealth (DL-120 item 4), an entry of a cause a
- * Quest's return makes names the Quest (`questCauses`, DL-112 item 2), an Encounter's names its
- * Degree, the Check that decided it and its Checks rolled (DL-152, DL-247), and a Quest's offer and its
- * taking name its Tier, a whole number from 1 (DL-262).
+ * (DL-246): a Guild's founding names its founding Wealth in whole Silver (DL-120 item 4, DL-294
+ * item 1), every amount of an entry is whole Silver (`moneyFields`, `moneyFieldsIfWritten`, `moneyMaps`), the Hall's upkeep's
+ * `traitFactor`, which splits it into its ledger lines, a number above 0 where written (DL-304), an entry of a cause a Quest's return makes names the Quest (`questCauses`, DL-112 item
+ * 2), an Encounter's names its Degree, the Check that decided it and its Checks rolled (DL-152,
+ * DL-247), and a Quest's offer and its taking name its Tier, a whole number from 1 (DL-262).
  */
 function entryFieldMissing({ history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1381,8 +1424,19 @@ function entryFieldMissing({ history }: WorldDocument, from: number): Validation
     const payload: unknown = entry.payload;
     if (!isMap(payload)) continue;
     const id = formatPath(['history', 'entries', index]);
-    if (entry.type === 'guild.founded' && typeof payload.wealth !== 'number') {
-      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth` });
+    if (entry.type === 'guild.founded' && !isInteger(payload.wealth)) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} founds a Guild and names no founding Wealth in whole Silver` });
+    }
+    const fraction =
+      (rowOf(moneyFields, entry.type) ?? []).find((field) => !isInteger(payload[field])) ??
+      (rowOf(moneyFieldsIfWritten, entry.type) ?? []).find((field) => payload[field] !== undefined && !isInteger(payload[field])) ??
+      (rowOf(moneyMaps, entry.type) ?? []).find((field) => !(isMap(payload[field]) && Object.values(payload[field]).every(isInteger)));
+    if (fraction !== undefined) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} is a ${entry.type} whose ${fraction} is not whole Silver` });
+    }
+    const { traitFactor } = payload;
+    if (entry.type === 'guild.hall-upkeep-paid' && traitFactor !== undefined && !(typeof traitFactor === 'number' && traitFactor > 0)) {
+      failures.push({ check: 'entry-field-missing', id, detail: `${id} is a guild.hall-upkeep-paid whose traitFactor is not a number above 0` });
     }
     const causes: readonly string[] | undefined = rowOf(questCauses, entry.type);
     if (causes?.includes(payload.cause as string) === true && typeof payload.questId !== 'string') {
@@ -1552,6 +1606,20 @@ function unknownEncounter({ world }: WorldDocument, content: ContentSet): Valida
   const encounters = isMap(table) ? table : {};
   for (const [id, quest] of Object.entries(world.quests)) {
     for (const key of quest.encounterKeys) known(id, 'encounterKeys', encounters, key);
+  }
+  return warnings;
+}
+
+/**
+ * A Facility a Guild's Hall holds a grade of (DL-294 item 3, DL-297): one content does not define is
+ * kept, and no rule reads its grade (`hallEffect`), as content may drop a Facility under a live save.
+ */
+function unknownFacility({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-facility', 'a Facility');
+  const table: unknown = Reflect.get(content, 'facilities');
+  const facilities = isMap(table) ? table : {};
+  for (const [id, guild] of Object.entries(world.guilds)) {
+    for (const key of Object.keys(guild.hall)) known(id, 'hall', facilities, key);
   }
   return warnings;
 }

@@ -24,7 +24,9 @@ export interface KindList {
 export interface FieldForm {
   name: string;
   label: string;
-  type: 'text' | 'integer' | 'keys' | 'effects';
+  type: 'text' | 'integer' | 'boolean' | 'keys' | 'effects';
+  /** The values it may take where they are few: the Facilities' keys, say. */
+  choices?: readonly string[];
   required: boolean;
 }
 

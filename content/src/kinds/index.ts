@@ -11,6 +11,7 @@ import { classesKind, classesRules, classOrderKind, classOrderRules } from './cl
 import { descriptionsKind, descriptionsRules } from './descriptions.js';
 import { dispositionsKind, dispositionsRules } from './dispositions.js';
 import { encountersKind, encountersRules } from './encounters.js';
+import { facilitiesKind, facilitiesRules } from './facilities.js';
 import { improvementsKind, improvementsRules } from './improvements.js';
 import { injuriesKind, injuriesRules } from './injuries.js';
 import { itemsKind, itemsRules } from './items.js';
@@ -49,6 +50,7 @@ const readers: { [Place in ContentPlace]: KindReader<Place, ContentSet[Place]> }
   questTemplates: questTemplatesKind,
   dispositions: dispositionsKind,
   injuries: injuriesKind,
+  facilities: facilitiesKind,
   improvements: improvementsKind,
   encounters: encountersKind,
   synergies: synergiesKind,
@@ -86,6 +88,7 @@ export const contentRules: readonly KindRules[] = [
   questTemplatesRules,
   dispositionsRules,
   injuriesRules,
+  facilitiesRules,
   improvementsRules,
   encountersRules,
   synergiesRules,

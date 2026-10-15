@@ -17,6 +17,7 @@ describe('an Item definition', () => {
   const sword = (json: Files['items/']) => rowOf(json, 'short-sword');
   const draught = (json: Files['items/']) => rowOf(json, 'healing-draught');
   const whetstone = (json: Files['items/']) => rowOf(json, 'whetstone');
+  const blade = (json: Files['items/']) => rowOf(json, 'barrow-kings-blade');
 
   test('of gear without a slot is refused, naming the Item and the slots', () => {
     const files = withJson('items/', (json) => void Reflect.deleteProperty(sword(json), 'slot'));
@@ -42,9 +43,15 @@ describe('an Item definition', () => {
     ['no modifiers', (json) => void Object.assign(sword(json), { statModifiers: {} }), /items\.short-sword\.statModifiers is empty: gear modifies at least one Stat/],
     ['a slot that is not one of the three', (json) => void Object.assign(sword(json), { slot: 'belt' }), /items\/short-sword\.json: slot is "belt"; expected one of weapon, armour, trinket/],
     ['an effect', (json) => void Object.assign(sword(json), { effect: { kind: 'heal', days: 1 } }), /items\/short-sword\.json: effect is not a field of gear/],
-    ['a negative price', (json) => void Object.assign(sword(json), { buyPrice: -5 }), /items\.short-sword\.buyPrice is -5; it is a whole number above 0, or null/],
+    ['a negative price', (json) => void Object.assign(sword(json), { buyPrice: -5 }), /items\.short-sword\.buyPrice is -5; it is a whole number above 0/],
     ['a price of 0', (json) => void Object.assign(sword(json), { buyPrice: 0 }), /items\.short-sword\.buyPrice is 0/],
-    ['a price that is not whole', (json) => void Object.assign(sword(json), { buyPrice: 39.5 }), /items\/short-sword\.json: buyPrice is 39\.5; expected a whole number or null/],
+    ['a price that is not whole', (json) => void Object.assign(sword(json), { buyPrice: 39.5 }), /items\/short-sword\.json: buyPrice is 39\.5; expected a whole number/],
+    ['a negative value', (json) => void Object.assign(blade(json), { value: -5 }), /items\.barrow-kings-blade\.value is -5; it is a whole number above 0/],
+    ['a value of 0', (json) => void Object.assign(blade(json), { value: 0 }), /items\.barrow-kings-blade\.value is 0/],
+    ['a value that is not whole', (json) => void Object.assign(blade(json), { value: 39.5 }), /items\/barrow-kings-blade\.json: value is 39\.5; expected a whole number/],
+    ['both buyPrice and value', (json) => void Object.assign(blade(json), { buyPrice: 100 }), /items\.barrow-kings-blade has both buyPrice and value: an Item has exactly one/],
+    ['neither buyPrice nor value', (json) => void Reflect.deleteProperty(blade(json), 'value'), /items\.barrow-kings-blade has neither buyPrice nor value: an Item has exactly one/],
+    ['a consumable with value', (json) => void Object.assign(draught(json), { value: 100 }), /items\.healing-draught\.value: a consumable has a buyPrice, never a value/],
     ['a tag that is not kebab-case', (json) => void Object.assign(sword(json), { tags: ['Plain Steel'] }), /items\.short-sword\.tags: "Plain Steel" is not kebab-case/],
     ['a tag listed twice', (json) => void Object.assign(sword(json), { tags: ['plain', 'plain'] }), /items\.short-sword\.tags: "plain" is listed twice/],
     ['a kind that is neither', (json) => void Object.assign(sword(json), { kind: 'trade-good' }), /items\/short-sword\.json: kind is "trade-good"; expected one of gear, consumable/],
@@ -97,5 +104,16 @@ describe('validateContent on a set built in memory', () => {
     expect(refusalOf(() => validateContent(content)).message).toContain(
       'items.short-sword.effect: gear has no effect; only a consumable has one',
     );
+  });
+
+  test('refuses a buyPrice or a value that is not whole, which the parser cannot see in memory (DL-301)', () => {
+    const content = structuredClone(shipped);
+    Object.assign(content.items['short-sword'] ?? {}, { buyPrice: 39.5 });
+    Object.assign(content.items['barrow-kings-blade'] ?? {}, { value: 599.5 });
+
+    const { message } = refusalOf(() => validateContent(content));
+
+    expect(message).toContain('items.short-sword.buyPrice is 39.5; it is a whole number above 0');
+    expect(message).toContain('items.barrow-kings-blade.value is 599.5; it is a whole number above 0');
   });
 });

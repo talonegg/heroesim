@@ -7,6 +7,7 @@ import type { FatigueBand, MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
   EncounterKey,
+  FacilityKey,
   ImprovementKey,
   InjuryTypeKey,
   ItemDefinitionKey,
@@ -22,7 +23,6 @@ import type {
   EndingReason,
   EntityId,
   Entry,
-  FacilityKey,
   GuildId,
   EventType,
   GuildmasterId,
@@ -96,10 +96,32 @@ export type WorldRulesAdopted = Entry<
 // ── The Guild State Engine (M2-S7, INPUTS 4.6, DL-26) ────────────────────────────────────────
 
 /**
- * Upkeep was deducted from a Guild's Wealth on its Day (`upkeep`, selectors.ts): `amount` taken
- * and Wealth after paying it, which may be negative.
+ * A Guild's wages were deducted from its Wealth on their Day (`wages`, `nextWagesDay`, selectors.ts;
+ * DL-298): `amount` taken and Wealth after paying it, which may be negative. Names the Guild.
  */
-export type GuildUpkeepPaid = Entry<'guild.upkeep-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+export type GuildWagesPaid = Entry<'guild.wages-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+
+/**
+ * A Guild's Hall upkeep with its Improvements' was deducted from its Wealth on its Day
+ * (`hallUpkeepParts`, `nextHallUpkeepDay`, selectors.ts; DL-298): `amount` taken, Wealth after paying
+ * it, which may be negative, and the parts it was reckoned from: the Guild's own `base`, its Heroes'
+ * share `heroes` for `heroCount` Heroes, each built Facility's charge by its key, and the Guildmaster's
+ * `traitFactor`, so that `amount` is the parts summed, times the factor, rounded once. Every amount
+ * whole Silver. Names the Guild.
+ */
+export type GuildHallUpkeepPaid = Entry<
+  'guild.hall-upkeep-paid',
+  {
+    guildId: GuildId;
+    amount: number;
+    wealthAfter: number;
+    base: number;
+    heroCount: number;
+    heroes: number;
+    facilities: Record<FacilityKey, number>;
+    traitFactor: number;
+  }
+>;
 
 /**
  * A Guild's Wealth was below the Bankruptcy floor at the night's check, and was not the night before:
@@ -718,7 +740,8 @@ export type EngineEvent =
   | HeroGenerated
   | PatronGenerated
   | WorldRulesAdopted
-  | GuildUpkeepPaid
+  | GuildWagesPaid
+  | GuildHallUpkeepPaid
   | GuildBelowFloor
   | GuildFloorRecovered
   | HeroRecruited
@@ -781,7 +804,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.generated': false,
   'patron.generated': false,
   'world.rules-adopted': true,
-  'guild.upkeep-paid': false,
+  'guild.wages-paid': false,
+  'guild.hall-upkeep-paid': false,
   'guild.below-floor': false,
   'guild.floor-recovered': false,
   'hero.recruited': true,

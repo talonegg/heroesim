@@ -124,7 +124,7 @@ export function effectWords(effect: unknown): string {
     case 'guildMoraleShift':
       return `${signed(effect.delta)} Morale`;
     case 'upkeepFactor':
-      return `Upkeep × ${String(effect.factor)}`;
+      return `Hall upkeep × ${String(effect.factor)}`;
     case 'statModifiers':
       return isObject(effect.modifiers)
         ? Object.entries(effect.modifiers)

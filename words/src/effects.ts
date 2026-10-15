@@ -12,7 +12,7 @@ export type EffectNames = Pick<ContentSet, 'stats' | 'classes'>;
 
 /**
  * A Trait's effects in words, each in the Trait's order and joined by commas (v1.1.4-S7): `+1
- * Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`, a Hero Trait's `-2 Dexterity, -1
+ * Weaponry to Warriors`, `Morale baseline -5`, `Hall upkeep ×0.9`, a Hero Trait's `-2 Dexterity, -1
  * Endurance` and `+2 to every Check of combat or travel Encounters`; `No effect` for none.
  */
 export function traitEffectWords(effects: readonly TraitEffect[], names: EffectNames): string {
@@ -27,8 +27,9 @@ function traitEffectPart(effect: TraitEffect, names: EffectNames): string {
       return `${signed(effect.delta)} ${nameIn(names.stats, effect.statKey)} to ${nameIn(names.classes, effect.classKey)}s`;
     case 'guildMoraleShift':
       return `Morale baseline ${signed(effect.delta)}`;
+    // The Hall's upkeep with its Improvements' alone, not the wages (DL-294 item 3, Q17; DL-298).
     case 'upkeepFactor':
-      return `Upkeep ×${effect.factor}`;
+      return `Hall upkeep ×${effect.factor}`;
     case 'statModifiers':
       return Object.entries(effect.modifiers)
         .map(([statKey, delta]) => `${signed(delta)} ${nameIn(names.stats, statKey)}`)

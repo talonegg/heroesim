@@ -15,3 +15,4 @@ export { longestDescriptions, type LongestDescriptions } from './kinds/descripti
 export { contentWarnings, hookMaxLength, hooksMax, narrativeMaxLength, picturesWanted } from './kinds/portrait-appearances.js';
 export { guildmasterTraitEffects, heroTraitEffects, type EffectField } from './kinds/trait-effects.js';
 export { contentFieldNames, rowFields } from './kinds/index.js';
+export { allowsEffect, boundsWords, facilityEffects, type FacilityEffectField } from './kinds/facility-effects.js';

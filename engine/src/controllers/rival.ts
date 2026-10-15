@@ -21,6 +21,7 @@ import { bestParties, partyPool, requiredParty } from '../best-party.js';
 import { captainChoice } from '../captain.js';
 import type { EngineDeps } from '../config.js';
 import { consumablePurchase, consumablesToCarry } from '../consumable-choices.js';
+import { surplusChoices } from '../surplus.js';
 import {
   gearSlotKeys,
   purchaseSteps,
@@ -31,7 +32,6 @@ import {
 } from '../content-types.js';
 import {
   compareByCodeUnit,
-  facilityKeys,
   rowOf,
   type Guild,
   type Hero,
@@ -58,18 +58,21 @@ import {
  * Disposition shares, reading the weights of its row (M6-S1, DL-56):
  *
  * 1. name to its post, when it is empty, its Hero highest in the captaincy Stat (`captainChoice`,
- *    DL-287), and put the gear its Guild holds on its Heroes with the slot empty (`gearChoices`,
- *    DL-49), each of which moves no Wealth and sends no one;
+ *    DL-287), and, while it is not in debt, put the gear its Guild holds on its Heroes with the slot
+ *    empty (`gearChoices`, DL-49), each of which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it may take, by its Fame,
  *    and can staff (`preferredQuest`), drawing from `rivals` to choose among Quests of the same
- *    difficulty, its Party carrying one of each heal Item the Guild holds (`consumablesToCarry`,
- *    DL-288);
- * 3. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
+ *    difficulty, its Party carrying, while it is not in debt, one of each heal Item the Guild holds
+ *    (`consumablesToCarry`, DL-288);
+ * 3. sell its surplus to the Market, outside its one purchase (`surplusChoices`, DL-301): the gear
+ *    in its holding beyond what its Heroes with the slot empty would put on, heal Items above
+ *    `rivalHealItemStock` of each and every other consumable, and Loot-only Items; in debt, its whole
+ *    holding; never what the equips and the dispatch above take;
+ * 4. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
- *    - build the next grade of the first facility of its Hall, in its `buildOrder` (the Hall's order
- *      when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its
- *      Wealth is above `buildThreshold` times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4
- *      every facility);
+ *    - build the next grade of the first Facility of its Hall, in its `buildOrder` (content's order
+ *      when it has none), whose next grade's cost its Wealth is above `buildThreshold` times
+ *      (`hallBuild`: every Facility, DL-58);
  *    - buy one piece of gear at the Market for its Heroes who lack it, in its `gearSlotOrder` (when it
  *      has none, armour first, then the other slots in `gearSlotKeys`' order): the dearest whose price
  *      its Wealth is above `gearThreshold` times (`gearBuy`, the engine's `gearPurchase`, M6-S4); and
@@ -83,14 +86,17 @@ import {
  *      itself;
  *    - recruit the cheapest Unattached Hero who would sign while it would hire, for no more than it
  *      would spend (`cheapestHire`);
- *    - while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
- *      pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
+ *    - while it is in debt (`belowFloorSince`) and has nothing left in its holding to sell, transfer
+ *      its dearest Hero at home to the Guild that pays most for them and consents (`debtTransfer`,
+ *      `transferOut`, M6-S2): the holding is sold before the debt sale (DL-301).
  *
  * At most one dispatch and one purchase an afternoon. The dispatch and the purchase do not depend on
  * each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen on the same
  * world (a Hero is transferred out only if the dispatch leaves them at home); one purchase, so that the second
- * never finds the Wealth the first spent. The gear bought waits in the Guild's holding for the next
- * afternoon's first choice, the equip, as the policy's does (DL-54).
+ * never finds the Wealth the first spent. The sales only add Wealth, and take nothing the equips or
+ * the dispatch take, so the purchase chosen beside them stays one the rules accept. The gear bought
+ * waits in the Guild's holding for the next afternoon's first choice, the equip, as the policy's
+ * does (DL-54).
  *
  * None for the player's Guild, whose choices are the player's; none for a folded Guild, which has
  * left play (M2-S10); and none for a Disposition content does not define (data-model rule 5: the
@@ -104,16 +110,25 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
 
   // DL-287: a post left empty is filled first, free; it moves no Wealth and sends no one.
   const captain = captainChoice(world, guild, deps);
-  const choices: GuildAction[] = [...(captain === null ? [] : [captain]), ...gearChoices(world, guild, deps)];
+  const choices: GuildAction[] = [
+    ...(captain === null ? [] : [captain]),
+    ...(guild.belowFloorSince === null ? gearChoices(world, guild, deps) : []),
+  ];
   const quest = preferredQuest(world, guild, disposition, deps);
   if (quest !== null) choices.push(quest);
   const dispatched = new Set(quest?.heroIds ?? []);
+
+  // DL-301: sell surplus outside the afternoon's one purchase; in debt, the Holding is sold first.
+  const keeping = { effects: healItems, stock: deps.config.rivalHealItemStock };
+  const surplus = surplusChoices(world, guild, keeping, deps, choices);
+  choices.push(...surplus);
+
   const attempts: Record<PurchaseStep, () => GuildAction | null> = {
     build: () => hallBuild(guild, disposition, deps),
     gear: () => gearBuy(world, guild, disposition, deps) ?? healBuy(world, guild, disposition, deps),
     transfer: () => transferChoice(world, guild, disposition, deps),
     recruit: () => cheapestHire(world, guild, deps),
-    debt: () => debtTransfer(world, guild, dispatched, deps),
+    debt: () => (surplus.length > 0 ? null : debtTransfer(world, guild, dispatched, deps)),
   };
   // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
   // taken only then.
@@ -196,7 +211,7 @@ export function transferAnswer(
  * Reads, never writes, and draws nothing.
  */
 function hiringBudget(
-  world: Pick<World, 'heroes'>,
+  world: Pick<World, 'heroes' | 'guildmasters'>,
   guild: Guild,
   disposition: Disposition,
   deps: Pick<EngineDeps, 'config' | 'content'>,
@@ -209,7 +224,7 @@ function hiringBudget(
 }
 
 /** `hiringBudget` for a Guild whatever its controller: `null` for one with no Disposition content defines. */
-function budgetOf(world: Pick<World, 'heroes'>, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number | null {
+function budgetOf(world: Pick<World, 'heroes' | 'guildmasters'>, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number | null {
   const disposition = chooser(guild, deps.content);
   return disposition === 'own' || disposition === null ? null : hiringBudget(world, guild, disposition, deps);
 }
@@ -423,21 +438,21 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, de
   const candidates = staffable.filter((quest) => quest.difficulty === wanted);
   const quest = pick(streamOf(world, 'rivals'), candidates);
   const heroIds = bestParties(world, guild, deps).party(quest, available)?.heroIds ?? [];
-  const consumables = consumablesToCarry(world, guild, healItems, deps)(quest, heroIds);
+  const consumables =
+    guild.belowFloorSince === null ? consumablesToCarry(world, guild, healItems, deps)(quest, heroIds) : [];
   return { kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) };
 }
 
 /**
- * A build of the next grade of the first facility of `guild`'s Hall, in its Disposition's `buildOrder`
- * (`facilityKeys`' order when it has none: the infirmary, the training yard, the quarters), whose next grade's cost its Wealth
+ * A build of the next grade of the first Facility of `guild`'s Hall, in its Disposition's `buildOrder`
+ * (content's order of `facilities` when it has none, DL-294 item 3), whose next grade's cost its Wealth
  * is above its Disposition's `buildThreshold` times (`affordableImprovement`); `null` when there is
- * none, every facility being at its top grade or dearer than its Wealth allows (M6-S4, DL-58). The
- * infirmary comes first, as it came alone in M3-S6 (DL-38); a dearer grade of it that is out of reach
- * does not stop a cheaper grade of another facility, so a Rival saving for the Physicians' wing builds
- * its practice yard meanwhile. Draws nothing.
+ * none, every Facility being at its top grade or dearer than its Wealth allows (DL-58). A dearer grade
+ * of one that is out of reach does not stop a cheaper grade of another, so a Rival saving for a costly
+ * grade builds a cheap one meanwhile. Draws nothing.
  */
 function hallBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  const facility = (disposition.buildOrder ?? facilityKeys).find(
+  const facility = (disposition.buildOrder ?? Object.keys(deps.content.facilities)).find(
     (key) => affordableImprovement(guild, key, disposition.buildThreshold, deps.content) !== null,
   );
   return facility === undefined ? null : { kind: 'build', guildId: guild.id, facility };

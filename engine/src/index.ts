@@ -166,6 +166,7 @@ export {
   type Encounter,
   type EncounterCheck,
   type EncounterKind,
+  type FacilityKey,
   type GuildmasterTrait,
   type InjuryTypeKey,
   type ItemDefinition,
@@ -191,6 +192,7 @@ export {
 export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
+export { surplusChoices, type SurplusKeeping } from './surplus.js';
 export * from './create.js';
 export {
   describeGuildmaster,
@@ -205,7 +207,6 @@ export {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
-  facilityKeys,
   isId,
   parseId,
   schemaVersion,
@@ -216,7 +217,6 @@ export {
   type EntityId,
   type Entry,
   type EventType,
-  type FacilityKey,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -340,6 +340,7 @@ export {
   type RegardContext,
   type ResolvedForRegard,
 } from './regard.js';
+export { facilityGrade, facilityUpkeep, topGrade } from './facilities.js';
 export { fatigueBand } from './fatigue.js';
 export { moraleBand } from './morale.js';
 export { potentialHint } from './potential.js';
@@ -380,8 +381,11 @@ export {
   cheapestUnattached,
   dispositionOf,
   effectiveStats,
+  hallUpkeepParts,
+  hallUpkeepSplit,
+  nextHallUpkeepDay,
   nextImprovement,
-  nextUpkeepDay,
+  nextWagesDay,
   offeredQuests,
   playerGuild,
   rankingPlaces,
@@ -393,8 +397,9 @@ export {
   unattachedHeroes,
   unsignableHeroes,
   upkeep,
-  upkeepParts,
+  wages,
   type BankruptcyCountdown,
+  type HallUpkeepParts,
   type Hire,
   type Ranking,
   type RankingMeasure,
@@ -403,7 +408,6 @@ export {
   type StatBreakdown,
   type StatParts,
   type StatSource,
-  type UpkeepParts,
 } from './selectors.js';
 export { deserialise, serialise, type LoadRefusal, type LoadResult, type Migration, type SavedDocument } from './serialise.js';
 export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReasonKind } from './stops.js';

@@ -12,9 +12,9 @@ import { phaseContext } from './phases/phase.js';
 import { training } from './phases/training.js';
 import { potentialHint } from './potential.js';
 import { regardOnQuestResolved, regardValue } from './regard.js';
-import { cheapestUnattached, effectiveStats, signingFee, upkeep } from './selectors.js';
+import { cheapestUnattached, effectiveStats, hallUpkeepParts, signingFee, wages } from './selectors.js';
 import { nightOf } from './time.js';
-import { buildDocument, testContent, testDeps } from './world.test-support.js';
+import { buildDocument, testContent, testDeps, withFacilityEffect } from './world.test-support.js';
 
 // The Guildmaster's five Stat rules and the closed union of Trait effects (R8, pre-M0 review
 // B2, B6, D9, INPUTS 6.5, DL-43). Every value these tests rely on is pinned here.
@@ -27,19 +27,22 @@ const pinned: Partial<GameConfig> = {
   judgementHintSharpening: 0.25,
   potentialHintBands: { modest: 0, promising: 6, exceptional: 10 },
   moraleBaseline: 60,
-  quartersMoraleBonus: 5,
   moraleMin: 0,
   moraleMax: 100,
-  xpPerTrainingDay: 2,
   patronRegardOnSuccess: 2,
   wagePerLevel: 20,
-  hallMaintenancePerGrade: 10,
+  upkeepEveryDays: 10,
+  hallUpkeepEveryDays: 30,
+  hallBaseUpkeep: 30,
+  hallUpkeepPerHero: 5,
+  hallUpkeepHeroExponent: 1,
   signingFeeBase: 50,
   signingFeePerLevel: 25,
   signingFeeStatDivisor: 4,
   fameRequiredPerLevel: 10,
 };
-const deps = testDeps(pinned);
+/** The quarters' Morale and the training yard's XP, 5 and 2 a grade, pinned in content. */
+const deps = testDeps(pinned, withFacilityEffect('quarters', 'moraleBaseline', [0, 5, 10, 15], withFacilityEffect('training-yard', 'trainingXp', [0, 2, 4, 6])));
 
 /** Content's Guildmaster Stats range 1 to 20 (DL-17 item 6). */
 const bottom = 1;
@@ -51,7 +54,7 @@ function scene(): { world: World; ids: ReturnType<typeof buildDocument>['ids']; 
   const { document, ids } = buildDocument({ rosterSize: 3, unattached: 2 });
   const { world } = document;
   const guild = world.guilds[ids.playerGuild] as Guild;
-  guild.hall.trainingYard = 2;
+  guild.hall['training-yard'] = 2;
   const guildmaster = world.guildmasters[guild.guildmasterId] as Guildmaster;
   guildmaster.traits = [];
   for (const key of Object.values(guildmasterStatKeys)) guildmaster.stats[key] = middle;
@@ -209,7 +212,8 @@ function traitFootprint(world: World, guild: Guild, content: ContentSet = testCo
     mageStats: effectiveStats(mage, world, content),
     warriorBase: { ...warrior.stats },
     baseline: moraleBaselineFor(warrior, world, deps.config, content),
-    upkeep: upkeep(guild, world, deps.config, content),
+    wages: wages(guild, world, deps.config),
+    hallUpkeep: hallUpkeepParts(guild, world, deps.config, content).total,
     fee: signingFee(warrior, { config: deps.config, content }),
   };
 }
@@ -223,10 +227,10 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
 
     expect(after.warriorStats['weaponry']).toBe((before.warriorStats['weaponry'] ?? 0) + 1);
     expect({ ...after.warriorStats, weaponry: before.warriorStats['weaponry'] }).toEqual(before.warriorStats);
-    // Not the Mage, not the stored base, not the baseline, the Upkeep or a fee.
+    // Not the Mage, not the stored base, not the baseline, the wages, the Hall's upkeep or a fee.
     expect(after.mageStats).toEqual(before.mageStats);
     expect(after.warriorBase).toEqual(before.warriorBase);
-    expect([after.baseline, after.upkeep, after.fee]).toEqual([before.baseline, before.upkeep, before.fee]);
+    expect([after.baseline, after.wages, after.hallUpkeep, after.fee]).toEqual([before.baseline, before.wages, before.hallUpkeep, before.fee]);
     // Nor another Guild's Warriors.
     const rival = trained.world.guilds[trained.ids.rivalGuild] as Guild;
     const rivalWarrior = heroOfClass(trained.world, rival, 'warrior');
@@ -252,16 +256,17 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
       const shifted = withTraits([trait]);
       const after = traitFootprint(shifted.world, shifted.guild);
       expect(after.baseline, trait).toBe(before.baseline + shift);
-      expect([after.warriorStats, after.mageStats, after.upkeep, after.fee]).toEqual([
+      expect([after.warriorStats, after.mageStats, after.wages, after.hallUpkeep, after.fee]).toEqual([
         before.warriorStats,
         before.mageStats,
-        before.upkeep,
+        before.wages,
+        before.hallUpkeep,
         before.fee,
       ]);
     }
   });
 
-  test('upkeepFactor: Thrifty and Spendthrift scale the Upkeep in upkeep, which the Guild State Engine charges, and nothing else', () => {
+  test("upkeepFactor: Thrifty and Spendthrift scale the Hall's upkeep in hallUpkeepParts, which the Guild State Engine charges, and nothing else, the wages not (DL-298)", () => {
     const plain = withTraits([]);
     const before = traitFootprint(plain.world, plain.guild);
     for (const [trait, factor] of [
@@ -270,19 +275,21 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
     ] as const) {
       const scaled = withTraits([trait]);
       const after = traitFootprint(scaled.world, scaled.guild);
-      expect(after.upkeep, trait).toBe(Math.round(before.upkeep * factor));
-      expect([after.warriorStats, after.mageStats, after.baseline, after.fee]).toEqual([
+      expect(after.hallUpkeep, trait).toBe(Math.round(before.hallUpkeep * factor));
+      expect([after.warriorStats, after.mageStats, after.baseline, after.wages, after.fee]).toEqual([
         before.warriorStats,
         before.mageStats,
         before.baseline,
+        before.wages,
         before.fee,
       ]);
-      // The Upkeep Day charges what the selector says.
+      // The Hall's Day charges what the selectors say: the wages unscaled, the Hall scaled.
       const { world } = scaled;
-      world.turn = nightOf(deps.config.upkeepEveryDays - 1);
+      world.turn = nightOf(deps.config.hallUpkeepEveryDays - 1);
       const events: EngineEvent[] = guildState(world, phaseContext(world, deps));
-      const paid = events.find((event) => event.type === 'guild.upkeep-paid' && event.payload.guildId === scaled.guild.id);
-      expect(paid?.type === 'guild.upkeep-paid' && paid.payload.amount).toBe(after.upkeep);
+      const mine = events.filter((event) => event.participants.includes(scaled.guild.id));
+      const amounts = mine.map((event) => (event.type === 'guild.wages-paid' || event.type === 'guild.hall-upkeep-paid' ? event.payload.amount : null));
+      expect(amounts).toEqual([after.wages, after.hallUpkeep]);
     }
   });
 
@@ -294,7 +301,8 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
 
     expect(after.warriorStats['weaponry']).toBe((before.warriorStats['weaponry'] ?? 0) + 1);
     expect(after.baseline).toBe(before.baseline + 5);
-    expect(after.upkeep).toBe(Math.round(before.upkeep * 0.9));
+    expect(after.hallUpkeep).toBe(Math.round(before.hallUpkeep * 0.9));
+    expect(after.wages).toBe(before.wages);
     // And the player's Guild is untouched by the Rival's Guildmaster.
     const player = traited.world.guilds[traited.ids.playerGuild] as Guild;
     const playerBefore = traitFootprint(plain.world, plain.world.guilds[plain.ids.playerGuild] as Guild);

@@ -9,7 +9,7 @@ import { sections, sweepTotals, type ReportContext, type Section } from './count
 import { harnessSetup } from './creation.js';
 import { copyTimes, gateSection, readGateSpec, type GateResult, type GateSpec } from './gate.js';
 import { defaultYears } from './play.js';
-import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
+import { fixed, localTimestamp, markdownTable, upkeepsWords, whole, type Machine } from './report.js';
 import { summarise, type Summary } from './stats.js';
 import { sweepFingerprint, type PlaySweep } from './sweep.js';
 import { targetsOf, targetsSection, type TargetsReport } from './targets.js';
@@ -155,13 +155,16 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       `chance of success by the estimate, ties to the higher reward, then the Quest id, and again from the Heroes ` +
       `left (v1.1.5-S2), each Party the engine's Best Party by the chance estimate at a margin of ` +
       `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
-      `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
+      `serves the Quest (DL-62); one purchase a Turn: the next grade of the first Facility that heals while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
-      `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +
+      `Wealth exceeds ${upkeepsWords(sweep.policy.recruitWealthMultiple)} and the Roster is below ${sweep.policy.rosterLimit}, ` +
       `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
-      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${sweep.policy.consumableReserveUpkeeps} ` +
-      `Upkeeps (DL-62); never sell; never transfer a Hero in or out.`,
+      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${upkeepsWords(sweep.policy.consumableReserveUpkeeps)} ` +
+      `(DL-62); outside that purchase, it sells its surplus (DL-301): Gear in its Holding beyond what its Heroes ` +
+      `with the slot empty would put on, Consumables above ${sweep.policy.consumableStock} of each, what its Parties ` +
+      `carry counted, and Loot-only Items; in debt, its whole Holding but what the Turn's equips and dispatches take; ` +
+      `never transfer a Hero in or out.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,

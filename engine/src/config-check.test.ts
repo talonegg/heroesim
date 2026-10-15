@@ -156,7 +156,13 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   guildmasterTraitBudget: anyFinite,
   upkeepEveryDays: wholeFrom(1),
   wagePerLevel: wholeFrom(0),
-  hallMaintenancePerGrade: wholeFrom(0),
+  // DL-298: the Hall's upkeep, its Days, its base, its Heroes' curve and its grades' factor.
+  hallUpkeepEveryDays: wholeFrom(1),
+  hallBaseUpkeep: wholeFrom(0),
+  hallUpkeepPerHero: wholeFrom(0),
+  hallUpkeepHeroExponent: finiteFrom(0),
+  // A grade never costs less to keep than the one below it (DL-294 item 3).
+  improvementUpkeepGradeFactor: finiteFrom(1),
   bankruptcyFloor: anyWhole,
   bankruptcyGraceDays: wholeFrom(0),
   // No higher than `foundingFame`, whose rule reads it (DL-261): its edges above 0 are 'the Board's size and the founding Fame'.
@@ -248,8 +254,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   heroRetirementAge: wholeFrom(0),
   heroRetirementChancePerYear: share,
   heroRetirementInjuredMultiplier: finiteFrom(0),
-  infirmaryHealFactor: { refused: [[], [1, 0.5, 0, 0.25], [1, 0.5, Number.NaN, 0.25], [1, Number.POSITIVE_INFINITY], [1, '0.5'], 1], allowed: [[1], [1, 0.5, 0.3], [1, 1, 1, 1], [1, 0.5, 0.3, 0.2, 0.1], [2, 1, 0.5, 0.01]] },
-  quartersMoraleBonus: finiteFrom(0),
   fatigueMax: { refused: [0, 75.5, Number.NaN, Number.POSITIVE_INFINITY], allowed: [75, 200] },
   fatigueBands: {
     refused: [
@@ -262,7 +266,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     allowed: [{ fresh: 0, weary: 1, tired: 2, exhausted: 100 }],
   },
   fatigueRiseByTier: { refused: [[], [4, -1], [4, Number.NaN], [4, Number.POSITIVE_INFINITY], [4, '5'], 4], allowed: [[0], [4, 5, 6, 7, 8], [8, 4], [0.5, 1, 1.5]] },
-  fatigueFallByQuarters: { refused: [[], [5, -1], [5, Number.NaN], [5, Number.POSITIVE_INFINITY], [5, '6'], 5], allowed: [[0], [5, 6, 7, 8], [8, 5], [0.5, 1, 1.5, 2, 2.5]] },
   fatigueScaling: share,
   playerRestBand: { refused: ['sleepy', '', 'none', 3], allowed: ['fresh', 'tired', 'exhausted', null] },
   // DL-287: a Captain adds to their Party's form and Morale, never takes; a change only costs.
@@ -289,7 +292,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
     refused: [{ fail: -0.5, success: 1, strong: 1 }, { fail: 0.5, success: 1 }, { fail: 0.5, success: Number.NaN, strong: 1 }, { fail: 0.5, success: 1, strong: 1, great: 2 }],
     allowed: [{ fail: 0, success: 0, strong: 0 }, { fail: 2, success: 1, strong: 0.5 }],
   },
-  xpPerTrainingDay: finiteFrom(0),
   regardMin: { refused: [0, 1, Number.NaN], allowed: [-20, -25.5] },
   regardMax: { refused: [0, -1, Number.NaN], allowed: [20, 25.5] },
   regardBands: {
@@ -333,7 +335,6 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   marketStackMin: { refused: [0, 1.5], allowed: [1, defaultConfig.marketStackMax] },
   marketStackMax: maxOf('marketStackMin', 'marketStackMax'),
   sellRatio: { refused: [-0.01, 1, Number.NaN], allowed: [0, 0.99] },
-  lootOnlyPrice: wholeFrom(0),
 };
 
 describe('each setting', () => {
@@ -541,25 +542,11 @@ describe('the bands, in their order', () => {
 });
 
 describe('the lists a content release may outgrow: no rule reads the content (DL-193)', () => {
-  test('a heal factor list of at least one is sound, whatever grades content has, a grade past it reading the last', () => {
-    expect(broken({ infirmaryHealFactor: [1] })).toEqual([]);
-    expect(broken({ infirmaryHealFactor: [1, 0.5, 0.25, 0.2, 0.1, 0.05, 0.01] })).toEqual([]);
-    expect(broken({ infirmaryHealFactor: [] })).toEqual(['infirmaryHealFactor']);
-    expect(checkConfig({ ...defaultConfig, infirmaryHealFactor: [] })[0]?.message).toBe(
-      'infirmaryHealFactor is []; it is a list of at least one factor, one for each infirmary grade from 0, a grade past the list reading the last, each a finite number above 0',
-    );
-  });
-
-  test("Fatigue's rise by Tier and fall by quarters grade are lists of at least one, whatever the ladder or the grades, one past the list reading the last (DL-282)", () => {
+  test("Fatigue's rise by Tier is a list of at least one, whatever the ladder, one past the list reading the last (DL-282)", () => {
     expect(broken({ fatigueRiseByTier: [4] })).toEqual([]);
     expect(broken({ fatigueRiseByTier: [4, 5, 6, 7, 8, 9, 10] })).toEqual([]);
-    expect(broken({ fatigueFallByQuarters: [5] })).toEqual([]);
-    expect(broken({ fatigueFallByQuarters: [5, 6, 7, 8, 9, 10] })).toEqual([]);
     expect(checkConfig({ ...defaultConfig, fatigueRiseByTier: [] })[0]?.message).toBe(
       "fatigueRiseByTier is []; it is a list of at least one figure, one for each Tier from 1, a Tier past the list reading the last, each a finite number of 0 or more",
-    );
-    expect(checkConfig({ ...defaultConfig, fatigueFallByQuarters: [] })[0]?.message).toBe(
-      "fatigueFallByQuarters is []; it is a list of at least one figure, one for each quarters grade from 0, a grade past the list reading the last, each a finite number of 0 or more",
     );
   });
 

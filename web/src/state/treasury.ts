@@ -1,20 +1,26 @@
 // The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): a Guild's accounts, a part of the Guild
-// view. Its Wealth; Upkeep's next payment, with its Day and its parts; the Bankruptcy floor, and the
+// view. Its Wealth; the Upkeep's two charges, the wages and the Hall's, each with its next Day and the
+// Hall's with its parts (DL-298); the Bankruptcy floor, and the
 // countdown while the Guild is below it; and the ledger, every change to its Wealth read from the
-// History, by six categories, newest first and a page at a time, with the totals of what is shown.
+// History, each change on its line of income or expenses or on Other (DL-302), newest first and a page
+// at a time, with the totals of what is shown.
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every amount is an event's payload, as the
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
 // event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
-// its `guild.founded` carries (DL-120 item 4, DL-121); and Upkeep's figures are the engine's `upkeepParts` and
-// `nextUpkeepDay` (DL-114 item 3). The ledger reads a Guild's Wealth through the page's History
+// its `guild.founded` carries (DL-120 item 4, DL-121); and the Upkeep's two charges are the engine's `wages`
+// and `hallUpkeepParts`, each with its Day, `nextWagesDay` and `nextHallUpkeepDay` (DL-114 item 3, DL-298). The ledger reads a Guild's Wealth through the page's History
 // reader (`wealthChanges`, DL-242), never the History view's scopes or filters, since every
 // Wealth event names its Guild.
 
 import {
+  facilityGrade,
+  hallUpkeepParts,
+  hallUpkeepSplit,
   isEngineEvent,
-  nextUpkeepDay,
-  upkeepParts,
+  nextHallUpkeepDay,
+  nextWagesDay,
+  wages,
   type EngineEventOf,
   type EngineEventType,
   type Entry,
@@ -22,43 +28,81 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nightOfDay, signed, whenOfTurn } from '@heroesim/words';
+import { capitalised, coinWords, facilityName, hallUpkeepPartSentence, nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
 import { foundingOf, historyPageSize, wealthChanges } from './history-reader';
-import { narrateSegments, textOf, type Narration, type Segment } from './namer';
+import { narrateSegments, sentenceSegments, textOf, type Narration, type Segment } from './namer';
 import { readingOf } from './reading';
 
 import { countdownView } from './selectors';
 
 // ── What an entry did to a Guild's Wealth ────────────────────────────────────────────────────
 
-/** The ledger's categories, the owner's (DL-111 item 5), mapped to events by DL-112 item 6. */
-export type LedgerCategory = 'upkeep' | 'quest' | 'market' | 'hall' | 'heroes' | 'other';
+/** The ledger's income lines (Q19). */
+export type IncomeLine = 'quest-rewards' | 'item-sales' | 'transfers-out';
 
-/** The categories in the order the Treasury names them. */
-export const ledgerCategories: readonly LedgerCategory[] = ['upkeep', 'quest', 'market', 'hall', 'heroes', 'other'];
+/** The ledger's expense lines (Q19). */
+export type ExpenseLine =
+  | 'wages'
+  | 'hall-upkeep'
+  | 'improvement-upkeep'
+  | 'item-purchases'
+  | 'improvements'
+  | 'signing-fees'
+  | 'transfers-in';
 
-/** Each category's name on the page. */
-export const categoryWords: Readonly<Record<LedgerCategory, string>> = Object.freeze({
-  upkeep: 'Upkeep',
-  quest: 'Quest rewards',
-  market: 'Market',
-  hall: 'Hall',
-  heroes: 'Heroes',
+/**
+ * The ledger's lines (DL-302, Q19, superseding DL-111 item 5's and DL-112 item 6's categories): income and
+ * expense lines, and 'other' for module events. The page's Category column and chips name them.
+ */
+export type LedgerLine = IncomeLine | ExpenseLine | 'other';
+
+/** The income lines in the order the Treasury names them. */
+export const incomeLines: readonly IncomeLine[] = ['quest-rewards', 'item-sales', 'transfers-out'];
+
+/** The expense lines in the order the Treasury names them. */
+export const expenseLines: readonly ExpenseLine[] = [
+  'wages',
+  'hall-upkeep',
+  'improvement-upkeep',
+  'item-purchases',
+  'improvements',
+  'signing-fees',
+  'transfers-in',
+];
+
+/** All ledger lines in the order the Treasury names them. */
+export const ledgerLines: readonly LedgerLine[] = [...incomeLines, ...expenseLines, 'other'];
+
+/** Each line's name on the page. */
+export const lineWords: Readonly<Record<LedgerLine, string>> = Object.freeze({
+  'quest-rewards': 'Quest rewards',
+  'item-sales': 'Item sales',
+  'transfers-out': 'Transfers out',
+  wages: 'Wages',
+  'hall-upkeep': 'Hall upkeep',
+  'improvement-upkeep': 'Improvements’ upkeep',
+  'item-purchases': 'Item purchases',
+  improvements: 'Improvements',
+  'signing-fees': 'Signing fees',
+  'transfers-in': 'Transfers in',
   other: 'Other',
 });
 
 /** What an entry did to one Guild's Wealth: its category, and the amount, positive for income. */
 export interface WealthChange {
-  category: LedgerCategory;
+  category: LedgerLine;
   amount: number;
 }
 
-type Reader<Type extends EngineEventType> = (payload: EngineEventOf<Type>['payload'], guildId: GuildId) => WealthChange | null;
+type Reader<Type extends EngineEventType> = (
+  payload: EngineEventOf<Type>['payload'],
+  guildId: GuildId,
+) => WealthChange | readonly WealthChange[] | null;
 
 /** `amount` in `category` when `mine`; none otherwise. */
-function when(mine: boolean, category: LedgerCategory, amount: number): WealthChange | null {
+function when(mine: boolean, category: LedgerLine, amount: number): WealthChange | null {
   return mine ? { category, amount } : null;
 }
 
@@ -74,16 +118,24 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'hero.generated': null,
   'patron.generated': null,
   'world.rules-adopted': null,
-  'guild.upkeep-paid': (payload, guildId) => when(payload.guildId === guildId, 'upkeep', -payload.amount),
+  'guild.wages-paid': (payload, guildId) => when(payload.guildId === guildId, 'wages', -payload.amount),
+  'guild.hall-upkeep-paid': (payload, guildId) => {
+    if (payload.guildId !== guildId) return null;
+    const { hall, improvements } = hallUpkeepSplit({ amount: payload.amount, facilities: payload.facilities ?? {}, traitFactor: payload.traitFactor ?? 1 });
+    return [
+      { category: 'hall-upkeep', amount: -hall },
+      { category: 'improvement-upkeep', amount: -improvements },
+    ];
+  },
   'guild.below-floor': null,
   'guild.floor-recovered': null,
-  'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'heroes', -payload.fee),
+  'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'signing-fees', -payload.fee),
   'hero.left-pool': null,
   'quest.offered': null,
   'quest.expired': null,
   'quest.taken': null,
   'quest.encounter': null,
-  'quest.resolved': (payload, guildId) => when(payload.guildId === guildId, 'quest', payload.wealthDelta),
+  'quest.resolved': (payload, guildId) => when(payload.guildId === guildId, 'quest-rewards', payload.wealthDelta),
   'quest.loot': null,
   'hero.injured': null,
   'hero.died': null,
@@ -99,7 +151,7 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'guild.folded': null,
   'guildmaster.succeeded': null,
   'hero.left-guild': null,
-  'guild.improved': (payload, guildId) => when(payload.guildId === guildId, 'hall', -payload.cost),
+  'guild.improved': (payload, guildId) => when(payload.guildId === guildId, 'improvements', -payload.cost),
   'guild.captain-named': null,
   'hero.levelled': null,
   'patron.regard-changed': null,
@@ -109,12 +161,14 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'item.equipped': null,
   'item.unequipped': null,
   'item.returned': null,
-  'item.bought': (payload, guildId) => when(payload.guildId === guildId, 'market', -payload.cost),
+  'item.bought': (payload, guildId) => when(payload.guildId === guildId, 'item-purchases', -payload.cost),
   // A folding Guild's unique Items go to the Market for it (`cause: 'fold'`): a sale all the same.
-  'item.sold': (payload, guildId) => when(payload.guildId === guildId, 'market', payload.proceeds),
-  // The fee is paid by the Guild the Hero goes to, to the one they leave.
+  'item.sold': (payload, guildId) => when(payload.guildId === guildId, 'item-sales', payload.proceeds),
+  // The fee is paid by the Guild the Hero goes to (Transfers in), to the one they leave (Transfers out).
   'hero.transferred': (payload, guildId) =>
-    payload.toGuildId === guildId ? { category: 'heroes', amount: -payload.fee } : when(payload.fromGuildId === guildId, 'heroes', payload.fee),
+    payload.toGuildId === guildId
+      ? { category: 'transfers-in', amount: -payload.fee }
+      : when(payload.fromGuildId === guildId, 'transfers-out', payload.fee),
   'guild.transfer-offered': null,
   'guild.transfer-offer-declined': null,
   'guild.transfer-offer-expired': null,
@@ -126,11 +180,17 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
  * none of it, a module's own event among them. An amount of nothing gives no row, as a failed
  * Quest's nil reward does not (DL-116).
  */
-export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): WealthChange | null {
+export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): WealthChange | readonly WealthChange[] | null {
   if (!isEngineEvent(entry)) return null;
   const read = readers[entry.type] as Reader<EngineEventType> | null;
   const change = read === null ? null : read(entry.payload as never, guildId);
-  return change === null || change.amount === 0 ? null : change;
+  if (change === null) return null;
+  if (Array.isArray(change)) {
+    const nonZero = change.filter((c) => c.amount !== 0);
+    return nonZero.length === 0 ? null : nonZero.length === 1 ? nonZero[0]! : nonZero;
+  }
+  const single = change as WealthChange;
+  return single.amount === 0 ? null : single;
 }
 
 // ── The ledger ───────────────────────────────────────────────────────────────────────────────
@@ -144,17 +204,15 @@ export interface LedgerRow {
   key: string;
   /** `Year 1 Day 20, night`. */
   when: string;
-  /** What happened, in the History's words, each name opening whom it names; `Founded with 500 Wealth` for the opening row. */
+  /** What happened, in the History's words, a split Hall upkeep charge's part in its own (DL-304), each name opening whom it names; `Founded with 5 Gold` for the opening row. */
   segments: Segment[];
   sentence: string;
   /** `null` for the opening row. */
-  category: LedgerCategory | null;
+  category: LedgerLine | null;
   /** `Quest rewards`; `Opening balance` for the opening row. */
   categoryWords: string;
-  /** Positive for income, negative for an expense; the founding Wealth for the opening row. */
+  /** In Silver (DL-294 item 1): positive for income, negative for an expense; the founding Wealth for the opening row, a balance and not a change. */
   amount: number;
-  /** `+300`, `-120`; `500` for the opening row, a balance and not a change. */
-  amountWords: string;
 }
 
 /** A change to a Guild's Wealth where the History holds it, before it is put in words. */
@@ -168,18 +226,30 @@ function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
   return wealthChanges(document.history, guildId, (entry) => wealthChangeOf(entry, guildId));
 }
 
-/** A change as the ledger shows it, in the History's words. */
-function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: Narration): LedgerRow {
-  const segments = narrateSegments(entry as TurnEvent, narration);
+/**
+ * What a change's row says: the History's words, but for a Hall upkeep charge that splits between the
+ * Hall and its Improvements, whose rows each say their own part (DL-304); the Hall's row of the whole
+ * charge keeps the History's sentence.
+ */
+function rowSegments({ entry, category, amount }: LedgerChange, narration: Narration): Segment[] {
+  if (isEngineEvent(entry) && entry.type === 'guild.hall-upkeep-paid' && (category === 'improvement-upkeep' || -amount !== entry.payload.amount)) {
+    return sentenceSegments(hallUpkeepPartSentence(entry, category === 'improvement-upkeep' ? 'improvements' : 'hall', -amount), narration);
+  }
+  return narrateSegments(entry as TurnEvent, narration);
+}
+
+/** A change as the ledger shows it, in the History's words (`rowSegments`). */
+function ledgerRow(change: LedgerChange, narration: Narration): LedgerRow {
+  const { position, entry, category, amount } = change;
+  const segments = rowSegments(change, narration);
   return {
-    key: `ledger-${position}`,
+    key: `ledger-${position}-${category}`,
     when: whenOfTurn(entry.turn, narration.calendar),
     segments,
     sentence: textOf(segments),
     category,
-    categoryWords: categoryWords[category],
+    categoryWords: lineWords[category],
     amount,
-    amountWords: signed(amount),
   };
 }
 
@@ -193,7 +263,7 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
   const position = found?.position;
   const wealth = founded?.payload.guildId === guildId ? founded.payload.wealth : undefined;
   if (founded === undefined || wealth === undefined) return null;
-  const sentence = `Founded with ${wealth} Wealth`;
+  const sentence = `Founded with ${coinWords(wealth)}`;
   return {
     key: `ledger-${position}`,
     when: whenOfTurn(founded.turn, readingOf(document).calendar),
@@ -202,7 +272,6 @@ function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null 
     category: null,
     categoryWords: 'Opening balance',
     amount: wealth,
-    amountWords: String(wealth),
   };
 }
 
@@ -223,15 +292,25 @@ const flowLabels: readonly { key: LedgerFlow; label: string }[] = [
   { key: 'expense', label: 'Expense' },
 ];
 
-/** The sums of what the ledger shows: income positive, expense negative, and the two together. */
+/** A section of the ledger totals: its total for the period, and each line's part. */
+export interface LedgerSection<Line extends string = string> {
+  total: number;
+  lines: Record<Line, number>;
+}
+
+/**
+ * The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together,
+ * each section with its lines, Other's changes on the line `other` of the section their sign gives them,
+ * so each section's total is the income or expense (DL-302, DL-304 item 4, DL-306).
+ */
 export interface LedgerTotals {
   income: number;
   expense: number;
   net: number;
-  /** `+300`, `-420`, `-120`. */
-  incomeWords: string;
-  expenseWords: string;
-  netWords: string;
+  sections: {
+    income: LedgerSection<IncomeLine | 'other'>;
+    expense: LedgerSection<ExpenseLine | 'other'>;
+  };
 }
 
 /** The ledger shown: a page of it and what the filters let through. */
@@ -262,21 +341,34 @@ export interface LedgerSource {
   narration: Narration;
 }
 
+/** One charge of the Upkeep as the Treasury shows it: the wages, or the Hall's upkeep with its Improvements' (DL-298). */
+export interface UpkeepCharge {
+  /** `Wages of The Lantern: 1 Gold 20 Silver every 10 Days`: the charge in a sentence (DL-116). */
+  sentence: string;
+  /** What its next payment takes, in Silver, at the Roster and Hall of now. */
+  total: number;
+  /** `the night of Year 1 Day 20`; `null` once the game has ended or the Guild folded. */
+  next: string | null;
+  /**
+   * What it is reckoned from, in Silver, and the Guildmaster's Traits' factor when one bears on it.
+   * `value` is the part in words; `silver` is set for an amount, which the page shows as coins, and
+   * not for a factor. The wages have none.
+   */
+  parts: { label: string; value: string; silver?: number }[];
+}
+
 /** The Treasury as it stands for a document, its ledger read and not yet filtered or paged. */
 export interface TreasuryAccounts {
   guildName: string;
   wealth: number;
+  /** The Upkeep's two charges, each on its own Days (DL-294 item 4, DL-298). */
   upkeep: {
-    /** `Upkeep of The Lantern: 120 Wealth every 10 Days`: the Upkeep in a sentence (DL-116). */
-    sentence: string;
-    /** What the next payment takes (`upkeepParts`' total), at the Roster and Hall of now. */
-    total: number;
-    /** `the night of Year 1 Day 20` (`nextUpkeepDay`); `null` once the game has ended or the Guild folded. */
-    next: string | null;
-    /** Wages and the Hall's maintenance, and the Guildmaster's Traits' factor when one bears on it. */
-    parts: { label: string; value: string }[];
+    /** The wages (`wages`, `nextWagesDay`). */
+    wages: UpkeepCharge;
+    /** The Hall's upkeep with its Improvements' (`hallUpkeepParts`, `nextHallUpkeepDay`): the Hall's own sum, its Heroes' share and each Facility built. */
+    hall: UpkeepCharge;
   };
-  /** The Bankruptcy floor. */
+  /** The Bankruptcy floor, in Silver. */
   floor: number;
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
@@ -284,18 +376,58 @@ export interface TreasuryAccounts {
 }
 
 /** The ledger's filters, of the categories `held`. A change is never of nothing (`wealthChangeOf`). */
-function ledgerFacets(held: readonly LedgerCategory[]): Facets<LedgerChange, 'flow' | 'category'> {
+function ledgerFacets(held: readonly LedgerLine[]): Facets<LedgerChange, 'flow' | 'category'> {
   return {
     flow: { label: 'Show income or expense', options: flowLabels, of: (row) => (row.amount > 0 ? 'income' : 'expense') },
-    category: { label: 'Show of category', options: held.map((key) => ({ key, label: categoryWords[key] })), of: (row) => row.category },
+    category: { label: 'Show of category', options: held.map((key) => ({ key, label: lineWords[key] })), of: (row) => row.category },
   };
 }
 
-function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
-  const income = rows.reduce((sum, row) => (row.amount > 0 ? sum + row.amount : sum), 0);
-  const expense = rows.reduce((sum, row) => (row.amount < 0 ? sum + row.amount : sum), 0);
+function zeroLines<Line extends string>(keys: readonly Line[]): Record<Line, number> {
+  const result = {} as Record<Line, number>;
+  for (const key of keys) {
+    result[key] = 0;
+  }
+  return result;
+}
+
+/**
+ * The sums of `rows`: income and expense, each change by its sign, and net; and each section, its lines
+ * and its total their sum. Other, a module's change, is on the `other` line of the section its sign gives
+ * it (DL-302 item 1, DL-306).
+ */
+export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
+  const incomeLinesMap = zeroLines([...incomeLines, 'other'] as const);
+  const expenseLinesMap = zeroLines([...expenseLines, 'other'] as const);
+  let income = 0;
+  let expense = 0;
+
+  for (const row of rows) {
+    if (row.amount > 0) {
+      income += row.amount;
+      if (row.category in incomeLinesMap) {
+        incomeLinesMap[row.category as IncomeLine | 'other'] += row.amount;
+      }
+    } else if (row.amount < 0) {
+      expense += row.amount;
+      if (row.category in expenseLinesMap) {
+        expenseLinesMap[row.category as ExpenseLine | 'other'] += row.amount;
+      }
+    }
+  }
+
   const net = income + expense;
-  return { income, expense, net, incomeWords: signed(income), expenseWords: signed(expense), netWords: signed(net) };
+  const sumOf = (lines: Record<string, number>): number => Object.values(lines).reduce((total, part) => total + part, 0);
+
+  return {
+    income,
+    expense,
+    net,
+    sections: {
+      income: { total: sumOf(incomeLinesMap), lines: incomeLinesMap },
+      expense: { total: sumOf(expenseLinesMap), lines: expenseLinesMap },
+    },
+  };
 }
 
 /**
@@ -309,29 +441,42 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
   if (guild === undefined) return null;
   const { config } = deps;
 
-  const parts = upkeepParts(guild, world, config, content);
+  const owed = wages(guild, world, config);
+  const hall = hallUpkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
   const changes = changesOf(document, guild.id);
+  const amount = (label: string, silver: number) => ({ label, value: coinWords(silver), silver });
 
   return {
     guildName: guild.name,
     wealth: guild.wealth,
     upkeep: {
-      sentence: `Upkeep of ${guild.name}: ${parts.total} Wealth every ${config.upkeepEveryDays} Days`,
-      total: parts.total,
-      next: playing ? nightOfDay(nextUpkeepDay(world.turn, config), config) : null,
-      parts: [
-        { label: 'Wages', value: String(parts.wages) },
-        { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
-        // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
-        ...(parts.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(parts.traitFactor.toFixed(2))}` }]),
-      ],
+      wages: {
+        sentence: `Wages of ${guild.name}: ${coinWords(owed)} every ${config.upkeepEveryDays} Days`,
+        total: owed,
+        next: playing ? nightOfDay(nextWagesDay(world.turn, config), config) : null,
+        parts: [],
+      },
+      hall: {
+        sentence: `Hall upkeep of ${guild.name}: ${coinWords(hall.total)} every ${config.hallUpkeepEveryDays} Days`,
+        total: hall.total,
+        next: playing ? nightOfDay(nextHallUpkeepDay(world.turn, config), config) : null,
+        parts: [
+          amount('The Hall', hall.base),
+          amount(`${hall.heroCount} ${hall.heroCount === 1 ? 'Hero' : 'Heroes'}`, hall.heroes),
+          ...Object.entries(hall.facilities).map(([key, charge]) =>
+            amount(`${capitalised(facilityName(content, key))}, grade ${facilityGrade(guild.hall, key)}`, charge),
+          ),
+          // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
+          ...(hall.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(hall.traitFactor.toFixed(2))}` }]),
+        ],
+      },
     },
     floor: config.bankruptcyFloor,
     countdown: countdownView(document),
     ledger: {
       changes,
-      facets: ledgerFacets(ledgerCategories.filter((key) => changes.some((row) => row.category === key))),
+      facets: ledgerFacets(ledgerLines.filter((key) => changes.some((row) => row.category === key))),
       opening: openingOf(document, guild.id),
       narration: readingOf(document).narration,
     },

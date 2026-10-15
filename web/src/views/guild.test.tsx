@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { started, withPartyOut, withWealth } from '../state/game.test-support';
-import { idle, navButton, openView } from './page.test-support';
+import { changed, documentOf, started, withPartyOut, withWealth } from '../state/game.test-support';
+import { boardView } from '../state/selectors';
+import { idle, navButton, openView, silverOf } from './page.test-support';
 
 // The home view's report of a Party home is `quest-report.test.tsx`'s, which took the place
 // of the outcome cards' tests.
@@ -45,7 +46,7 @@ describe("the Guild's parts", () => {
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
     expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Treasury' }));
-    expect(within(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).getByText(/^Upkeep of The Lantern:/)).toBeDefined();
+    expect(within(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).getByText(/^Wages of The Lantern:/)).toBeDefined();
   });
 
   test('the arrow keys, Home and End move between the tabs and open each; only the open one is in the Tab order', () => {
@@ -149,6 +150,20 @@ describe("the Guild's parts", () => {
     expect(within(home).getByText(/^Your Guild is below the Bankruptcy floor: see the steps above\. Choose a Party on the Board/)).toBeDefined();
     // The way to the Board stays: a Quest's reward is a way back above the floor.
     expect(within(home).getByRole('button', { name: 'Open the Board' })).toBeDefined();
+  });
+
+  test("Home names each Quest on its last Day on the Board, with its Patron and its reward in coins (DL-294 item 1)", () => {
+    const state = started();
+    const [first] = boardView(documentOf(state));
+    if (first === undefined) throw new Error('expected a Quest on the Board');
+    // On offer through tonight, the first Day's night (Turn 2).
+    render(<App initial={changed(state, (document) => void Object.assign(document.world.quests[first.questId] ?? {}, { expiresOnTurn: 2 }))} />);
+    const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
+
+    const row = within(home).getByText(first.name).closest('li');
+    if (row === null) throw new Error('no row for the Quest');
+    expect(row.textContent).toContain(first.patron);
+    expect(silverOf(row)).toBe(first.reward);
   });
 
   test('the end of a fast forward, and a way to the home view, open the Guild at its Home: at the report of a Party home', async () => {

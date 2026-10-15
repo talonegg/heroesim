@@ -4,6 +4,6 @@
   "unique": true,
   "slot": "weapon",
   "statModifiers": {"weaponry":4,"strength":2,"courage":1},
-  "buyPrice": null,
+  "value": 600,
   "tags": ["relic"]
 }

@@ -20,7 +20,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import type { Calendar } from './calendar.js';
-import { crossed, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
+import { crossed, hallUpkeepPartSentence, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
 // DL-186 item 1: the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
@@ -73,7 +73,17 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
-  'guild.upkeep-paid': event('guild.upkeep-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.hall-upkeep-paid': event('guild.hall-upkeep-paid', [guildId], {
+    guildId,
+    amount: 120,
+    wealthAfter: 340,
+    base: 30,
+    heroCount: 6,
+    heroes: 30,
+    facilities: { infirmary: 60 },
+    traitFactor: 1,
+  }),
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
@@ -271,16 +281,17 @@ const sentences: { [Type in EngineEventType]: string } = {
   'hero.generated': `${brenna}, ${named(content.classes, 'rogue')}, joined the Unattached pool.`,
   'patron.generated': `${maud} of the ${named(content.spheres, 'crown')} became a Patron.`,
   'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
-  'guild.upkeep-paid': `${kestrel} paid 40 Upkeep, leaving 460 Wealth.`,
-  'guild.below-floor': `${kestrel}'s Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Year 1 Day 35 unless it is back to 0 or more on a night by then.`,
-  'guild.floor-recovered': `${kestrel}'s Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.`,
-  'hero.recruited': `${kestrel} signed ${brenna} for 110 Wealth.`,
+  'guild.wages-paid': `${kestrel} paid 40 Silver in wages, leaving 4 Gold 60 Silver.`,
+  'guild.hall-upkeep-paid': `${kestrel} paid 1 Gold 20 Silver in Hall upkeep, leaving 3 Gold 40 Silver.`,
+  'guild.below-floor': `${kestrel}'s Wealth, -35 Silver, fell below the Bankruptcy floor of 0 Silver: Bankruptcy on the night of Year 1 Day 35 unless it recovers by then.`,
+  'guild.floor-recovered': `${kestrel}'s Wealth, 12 Silver, is back to the Bankruptcy floor of 0 Silver or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.`,
+  'hero.recruited': `${kestrel} signed ${brenna} for 1 Gold 10 Silver.`,
   'hero.left-pool': `${brenna} left the Unattached pool.`,
   'quest.offered': `${maud} offered ${barrow}.`,
   'quest.expired': `${maud}'s ${barrow} expired untaken.`,
   'quest.taken': `${kestrel} sent <party:${partyId} with ${brenna}, ${aldred}> on <quest:${questId}>, back on the night of Year 1 Day 8, carrying ${named(content.items, 'whetstone')} ×2.`,
   'quest.encounter': `<party:${partyId} of ${kestrel}> failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2), a Failure, decided by ${content.encounters['ambush-on-the-road']?.checks[0]?.name}: ${brenna} was injured and ${aldred} was killed.`,
-  'quest.resolved': `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${named(content.questTemplates, 'guard-the-caravan')}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}.`,
+  'quest.resolved': `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${named(content.questTemplates, 'guard-the-caravan')}> and succeeded strongly: Wealth +1 Gold 50 Silver, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}.`,
   'quest.loot': `${kestrel} found Loot on <quest:${questId}>: ${named(content.items, 'barrow-kings-blade')}<ids:item-000006>.`,
   'hero.injured': `${brenna} was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Year 1 Day 14.`,
   'hero.died': `${brenna} died on <quest:${questId}>.`,
@@ -296,7 +307,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guild.folded': `${kestrel} had its Roster wiped out and folded.`,
   'guildmaster.succeeded': `${osric} retired at 65 as Guildmaster of ${kestrel}, and <name:${successorId}|Wenna Tolley> succeeded them.`,
   'hero.left-guild': `${brenna} left ${kestrel} for the Unattached pool.`,
-  'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 500 Wealth: its quarters are now grade 2.`,
+  'guild.improved': `${kestrel} built ${named(content.improvements, 'quarters-2')} for 5 Gold: its quarters are now grade 2.`,
   'guild.captain-named': `${kestrel} named ${brenna} its Captain in place of ${aldred}; the post cannot change again before Year 1 Day 101.`,
   'hero.levelled': `${brenna} reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
   'patron.regard-changed': `${maud}'s Regard for ${kestrel} fell from neutral to cool when an Offer of theirs went untaken.`,
@@ -307,13 +318,13 @@ const sentences: { [Type in EngineEventType]: string } = {
   'item.equipped': `${kestrel} put ${named(content.items, 'arming-sword')}<ids:${stackId}> in ${brenna}'s weapon slot.`,
   'item.unequipped': `${kestrel} took ${named(content.items, 'lantern-of-stannary')}<ids:${itemId}> from ${brenna}'s trinket slot.`,
   'item.returned': `${named(content.items, 'mail-shirt')}<ids:${stackId}> went back to ${kestrel} from ${brenna} as the Guild folded.`,
-  'item.bought': `${kestrel} bought 3 × ${named(content.items, 'whetstone')}<ids:> at the Market for 75 Wealth.`,
-  'item.sold': `${kestrel}'s ${named(content.items, 'barrow-kings-blade')}<ids:item-000002> went to the Market for 300 Wealth as the Guild folded.`,
-  'hero.transferred': `${wardens} took ${brenna} from ${kestrel} for 420 Wealth, accepting <offer:${offerId}>.`,
-  'guild.transfer-offered': `${wardens} offered ${kestrel} 420 Wealth for ${brenna}<ids:${offerId}>, until the night of Year 1 Day 8.`,
+  'item.bought': `${kestrel} bought 3 × ${named(content.items, 'whetstone')}<ids:> at the Market for 75 Silver.`,
+  'item.sold': `${kestrel}'s ${named(content.items, 'barrow-kings-blade')}<ids:item-000002> went to the Market for 3 Gold as the Guild folded.`,
+  'hero.transferred': `${wardens} took ${brenna} from ${kestrel} for 4 Gold 20 Silver, accepting <offer:${offerId}>.`,
+  'guild.transfer-offered': `${wardens} offered ${kestrel} 4 Gold 20 Silver for ${brenna}<ids:${offerId}>, until the night of Year 1 Day 8.`,
   'guild.transfer-offer-declined': `${kestrel} declined ${wardens}'s Offer for ${brenna}<ids:${offerId}>.`,
   'guild.transfer-offer-expired': `${wardens}'s Offer for ${brenna}<ids:${offerId}> lapsed: the Hero left that Roster.`,
-  'guild.wealth-changed': `${kestrel}'s Wealth went from 500 to 750.`,
+  'guild.wealth-changed': `${kestrel}'s Wealth went from 5 Gold to 7 Gold 50 Silver.`,
 };
 
 /** Every event type in the engine's union, enumerated by a record the engine keys by each. */
@@ -364,15 +375,15 @@ describe('the variations of a sentence', () => {
     ['a common Item found, by its stack', varied('quest.loot', { definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId }), /: 3 × .+<ids:stack-000008>\.$/],
     ['a Hero healed who kept no Trait', varied('hero.healed', { traitKey: null }), new RegExp(`^${brenna} recovered from [^,]+\\.$`)],
     ['a Level with no Stat risen', varied('hero.levelled', { statDeltas: {} }), new RegExp(`^${brenna} reached Level 3\\.$`)],
-    ['a sale of the player\'s own', varied('item.sold', { cause: 'sale' }), new RegExp(`^${kestrel} sold .+<ids:item-000002> at the Market for 300 Wealth\\.$`)],
-    ['a Transfer with no Offer', varied('hero.transferred', { offerId: null }), /for 420 Wealth\.$/],
+    ['a sale of the player\'s own', varied('item.sold', { cause: 'sale' }), new RegExp(`^${kestrel} sold .+<ids:item-000002> at the Market for 3 Gold\\.$`)],
+    ['a Transfer with no Offer', varied('hero.transferred', { offerId: null }), /for 4 Gold 20 Silver\.$/],
     ['a consumable that bonused a Check', varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
     ['a consumable that tried an Encounter again', varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never), /used one .+ to try Encounter 1 again\.$/],
     ['gear with neither id', varied('item.equipped', { stackId: null }), /<ids:> in /],
     // Each branch of a word table the samples leave out, word for word (DL-231 item 4: `words` holds
     // the narration's sentences; the front ends hold one sentence end to end each).
-    ['a Quest that failed', varied('quest.resolved', { band: 'fail', wealthDelta: 0, fameDelta: -2, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and failed: Wealth 0, Fame -2.`],
-    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded: Wealth +120, Fame +3.`],
+    ['a Quest that failed', varied('quest.resolved', { band: 'fail', wealthDelta: 0, fameDelta: -2, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and failed: Wealth 0 Silver, Fame -2.`],
+    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3, synergyKeys: [] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded: Wealth +1 Gold 20 Silver, Fame +3.`],
     ['an Injury healed 5 Days sooner', varied('item.expended', { days: 5 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna} at Encounter 2, easing their Injury: it heals 5 Days sooner.`],
     ['an Injury at 1 Day eased, healed no sooner', varied('item.expended', { days: 0, encounterIndex: 0 } as never), `${kestrel}'s <party:${partyId}> used one ${draught} on ${brenna} at Encounter 1, easing their Injury.`],
     ["a Patron's Regard after a Quest of theirs failed", varied('patron.regard-changed', { cause: 'quest-failure', questId } as never), `${maud}'s Regard for ${kestrel} fell from neutral to cool after a Quest of theirs failed.`],
@@ -389,11 +400,11 @@ describe('the variations of a sentence', () => {
     ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), `The game ended: ${kestrel} lost its Guildmaster to Retirement.`],
     ['a Captain named to an empty post', varied('guild.captain-named', { replacedId: null, lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain.`],
     ['a Captain changed with no lock', varied('guild.captain-named', { lockedUntilTurn: null }), `${kestrel} named ${brenna} its Captain in place of ${aldred}.`],
-    ['the training yard built, which is', varied('guild.improved', { facility: 'trainingYard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`],
-    ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +150, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
+    ['the training yard built, which is', varied('guild.improved', { facility: 'training-yard', improvementKey: 'training-yard-2' }), `${kestrel} built ${named(content.improvements, 'training-yard-2')} for 5 Gold: its training yard is now grade 2.`],
+    ['a Quest with two Synergies, each by name', varied('quest.resolved', { synergyKeys: ['shield-wall', 'sword-and-salve'] }), `${kestrel}'s <party:${partyId}> came home from <quest:${questId}|${caravan}> and succeeded strongly: Wealth +1 Gold 50 Silver, Fame +5. Synergies: ${named(content.synergies, 'shield-wall')}, ${named(content.synergies, 'sword-and-salve')}.`],
     // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
-    ['a Bankruptcy floor of 50', varied('guild.below-floor', { wealth: 40, floor: 50, dueDay: 13 }), `${kestrel}'s Wealth, 40, fell below the Bankruptcy floor of 50: Bankruptcy on the night of Year 1 Day 14 unless it is back to 50 or more on a night by then.`],
-    ['one common Item sold, by its name alone', varied('item.sold', { cause: 'sale', definitionKey: 'healing-draught', quantity: 1, unitPrice: 15, proceeds: 15, itemIds: [] }), `${kestrel} sold ${draught}<ids:> at the Market for 15 Wealth.`],
+    ['a Bankruptcy floor of 50', varied('guild.below-floor', { wealth: 40, floor: 50, dueDay: 13 }), `${kestrel}'s Wealth, 40 Silver, fell below the Bankruptcy floor of 50 Silver: Bankruptcy on the night of Year 1 Day 14 unless it recovers by then.`],
+    ['one common Item sold, by its name alone', varied('item.sold', { cause: 'sale', definitionKey: 'healing-draught', quantity: 1, unitPrice: 15, proceeds: 15, itemIds: [] }), `${kestrel} sold ${draught}<ids:> at the Market for 15 Silver.`],
     // Data-model rule 9: a Level gained says never the points Potential took, even when it took them all.
     ['a Level gained whose every point Potential took', varied('hero.levelled', { level: 20, statDeltas: {}, pointsLost: 3 }), `${brenna} reached Level 20.`],
   ] as const)('%s', (_name, event, sentence) => {
@@ -468,6 +479,14 @@ describe("a Party's outcome cut at its band", () => {
   });
 });
 
+describe("a Hall upkeep charge's two ledger rows, each worded by its own part (DL-304)", () => {
+  test("the Hall's part and the Improvements', each without the Wealth the whole charge left", () => {
+    const paid = samples['guild.hall-upkeep-paid'];
+    expect(sentenceText(hallUpkeepPartSentence(paid, 'hall', 90), shown)).toBe(`${kestrel} paid 90 Silver in Hall upkeep.`);
+    expect(sentenceText(hallUpkeepPartSentence(paid, 'improvements', 130), shown)).toBe(`${kestrel} paid 1 Gold 30 Silver in its Improvements' upkeep.`);
+  });
+});
+
 describe('the words beside the sentences', () => {
   test.each([
     ['neutral', 'warm', 'rose from neutral to warm'],
@@ -530,11 +549,11 @@ describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', (
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
-      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
+      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers 4 Gold 20 Silver for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
     ],
     [
       { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
-      `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 420 Wealth for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
+      `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 4 Gold 20 Silver for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
     ],
     [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe Module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],

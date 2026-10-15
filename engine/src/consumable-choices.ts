@@ -93,7 +93,7 @@ export function consumablesToCarry(
  */
 export function consumablePurchase(
   world: Pick<World, 'heroes' | 'guildmasters' | 'items' | 'stacks' | 'parties'>,
-  guild: Pick<Guild, 'id' | 'wealth' | 'rosterIds' | 'hall' | 'guildmasterId' | 'foldedOnTurn'>,
+  guild: Pick<Guild, 'id' | 'wealth' | 'rosterIds' | 'hall' | 'hallBaseUpkeep' | 'guildmasterId' | 'foldedOnTurn'>,
   keeping: Readonly<ConsumableKeeping>,
   deps: Pick<EngineDeps, 'config' | 'content'>,
 ): BuyAction | null {

@@ -2,7 +2,7 @@ import { cleanup, fireEvent, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { changed, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { openView, renderGame, section } from './page.test-support';
+import { openView, renderGame, section, silverOf } from './page.test-support';
 
 // The Rankings redesigned (DL-106; the review's B4, B5 and B10): the Rankings and the Guilds
 // as one table whose headings order it, By Fame and By Wealth keeping their shared places; a
@@ -19,8 +19,8 @@ function table(): HTMLElement {
   return within(section('Guilds')).getByRole('table', { name: 'Every Guild, and the Rankings' });
 }
 
-/** Each Guild's row: its name, then Place, Disposition, Fame, Wealth, Heroes, Upkeep. */
-function rows(): { name: string; cells: string[]; row: HTMLElement }[] {
+/** Each Guild's row: its name, then Place, Disposition, Fame, Wealth, Heroes, Upkeep; Wealth and Upkeep also as their Silver (`wealth`, `upkeep`). */
+function rows(): { name: string; cells: string[]; wealth: number; upkeep: number; row: HTMLElement }[] {
   return within(table())
     .getAllByTestId('guild-row')
     .map((row) => ({
@@ -28,6 +28,8 @@ function rows(): { name: string; cells: string[]; row: HTMLElement }[] {
       cells: within(row)
         .getAllByRole('cell')
         .map((cell) => cell.textContent ?? ''),
+      wealth: silverOf(within(row).getAllByRole('cell')[3] as HTMLElement),
+      upkeep: silverOf(within(row).getAllByRole('cell')[5] as HTMLElement),
       row,
     }));
 }
@@ -83,14 +85,14 @@ describe("the Guilds and the Rankings as one table (the review's B4)", () => {
       expect(rival.row.className).toBe('');
       expect(rival.cells[1]).toMatch(/^[A-Z][a-z]+$/);
     }
-    expect(rows().map(({ cells }) => [cells[2], cells[3], cells[4]])).toEqual([
-      ['9', '100', '1'],
-      ['4', '300', '3'],
-      ['4', '300', '1'],
-      ['1', '50', '2'],
-      ['0', '200', '3'],
+    expect(rows().map(({ cells, wealth }) => [cells[2], wealth, cells[4]])).toEqual([
+      ['9', 100, '1'],
+      ['4', 300, '3'],
+      ['4', 300, '1'],
+      ['1', 50, '2'],
+      ['0', 200, '3'],
     ]);
-    for (const { cells } of rows()) expect(cells[5]).toMatch(/^\d+$/);
+    for (const { upkeep } of rows()) expect(Number.isSafeInteger(upkeep)).toBe(true);
   });
 
   test('by Wealth, orders and places the Guilds by Wealth, the level ones sharing a place (DL-95, DL-91)', () => {
@@ -190,7 +192,7 @@ describe("a Guild's page (the review's B10)", () => {
       const thumb = within(hero).getByTestId('portrait-thumb');
       expect(thumb.getAttribute('aria-hidden')).toBe('true');
       expect(thumb.compareDocumentPosition(within(hero).getByRole('button', { name })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(within(hero).getByTestId('fee').textContent).toMatch(/^\d+$/);
+      expect(Number.isSafeInteger(silverOf(within(hero).getByTestId('fee')))).toBe(true);
       expect(within(hero).getByRole('button', { name: `Take ${name} in` })).toBeDefined();
     }
     // Folded: a disclosure each, closed.

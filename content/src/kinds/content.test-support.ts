@@ -10,8 +10,10 @@ import type {
   Descriptions,
   Disposition,
   Encounter,
+  Facility,
   GuildmasterTrait,
   HeroTrait,
+  Improvement,
   InjuryType,
   LootTable,
   Names,
@@ -45,6 +47,8 @@ export interface Files {
   'quest-templates/': Rows<QuestTemplate>;
   'injuries.json': Rows<InjuryType>;
   'dispositions.json': Rows<Disposition>;
+  'facilities.json': Rows<Facility>;
+  'improvements.json': Rows<Improvement>;
   'encounters/': Record<string, EncounterRow>;
   'synergies.json': Record<string, SynergyRow>;
   /** Written loosely: a row is gear or a consumable, and the tests give one the other's fields. */

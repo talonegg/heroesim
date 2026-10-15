@@ -456,7 +456,8 @@ describe("rng.ts's state type", () => {
     const pattern = new RegExp(`\\b${typeName}\\b`);
     const owners = new Set(['rng.ts', 'document.ts']);
     const src = fileURLToPath(new URL('./', import.meta.url));
-    // boundary.test.ts writes and deletes probe files here while other tests run.
+    // A boundary-probe file, which content's, the words' and the harness's imports and settings tests write in
+    // their own trees while other tests run, is never a source (DL-236); none is written here.
     const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(
       (file) => file.endsWith('.ts') && !/(^|[\\/])boundary-probe-/.test(file),
     );

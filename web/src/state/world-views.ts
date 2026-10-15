@@ -6,7 +6,7 @@
 // and `show patrons`, in its words (`cli/src/render.ts`), less the ids a command line takes.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every number is a document field or an
-// engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
+// engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `facilityUpkeep`, `transferFee`, `ageOf`,
 // `retirementTurn`, `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`).
 // Regard is shown as its band, never its number (M4-S5); Potential not at all.
 
@@ -17,7 +17,8 @@ import {
   dayOf,
   descriptiveAttributeLabels,
   descriptiveAttributes,
-  facilityKeys,
+  facilityGrade,
+  facilityUpkeep,
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
@@ -27,6 +28,7 @@ import {
   regardValue,
   retirementTurn,
   retiresOn,
+  topGrade,
   upkeep,
   yearOf,
   type FacilityKey,
@@ -40,7 +42,7 @@ import {
   type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, dateOfTurn, endingWords, facilityNames, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
+import { capitalised, dateOfTurn, endingWords, facilityDoes, facilityName, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
 import { classMarkOf, type ClassMarked, controllerWords, placeWords } from './names';
 import { readingOf } from './reading';
@@ -154,13 +156,6 @@ function foldedWords(guild: Pick<Guild, 'foldedOnTurn'>, calendar: Calendar): st
 
 // ── A Hall ───────────────────────────────────────────────────────────────────────────────────
 
-/** What each facility does, in the CLI's words (`show hall`), after its name. */
-const facilityDoes: Readonly<Record<FacilityKey, string>> = Object.freeze({
-  infirmary: 'shortens the Days an Injury takes to heal',
-  trainingYard: 'gives every Hero on the Roster who is home and unhurt XP each night',
-  quarters: 'raise the Morale the Roster settles toward',
-});
-
 export interface HallRow {
   facility: FacilityKey;
   /** `Training yard`. */
@@ -170,10 +165,16 @@ export interface HallRow {
   top: number;
   /** The Improvement built at its grade, or `none`. */
   built: string;
+  /**
+   * What the Facility costs to keep at its grade each time the Hall's upkeep falls due (`facilityUpkeep`,
+   * DL-298): its part of the Hall's upkeep before the Guildmaster's Traits, as the Treasury's parts give it
+   * (DL-303).
+   */
+  upkeep: number;
   /** `The training yard gives …`. */
   does: string;
-  /** The next grade's Improvement and cost (`nextImprovement`), or `null` at the top grade. */
-  next: { name: string; cost: number } | null;
+  /** The next grade's Improvement, cost (`nextImprovement`) and upkeep at that grade, or `null` at the top grade (DL-303). */
+  next: { name: string; cost: number; upkeep: number } | null;
 }
 
 export interface HallView {
@@ -188,25 +189,26 @@ export interface HallView {
 export function hallView(document: WorldDocument, guildId?: GuildId): HallView | null {
   const guild = guildOf(document, guildId);
   if (guild === undefined) return null;
+  const { config } = readingOf(document).deps;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? 'none';
-  const topOf = (facility: FacilityKey): number =>
-    Math.max(0, ...Object.values(content.improvements).flatMap((row) => (row.facility === facility ? [row.grade] : [])));
   return {
     guildId: guild.id,
     guildName: guild.name,
     mine: guild.controller.kind === 'player',
-    facilities: facilityKeys.map((facility) => {
-      const grade = guild.hall[facility];
+    facilities: Object.values(content.facilities).map((def) => {
+      const facility = def.key;
+      const grade = facilityGrade(guild.hall, facility);
       const next = nextImprovement(guild, facility, content);
       return {
         facility,
-        name: capitalised(facilityNames[facility]),
+        name: capitalised(facilityName(content, facility)),
         grade,
-        top: topOf(facility),
+        top: topGrade(facility, content),
         built: grade === 0 ? 'none' : builtAt(facility, grade),
-        does: `The ${facilityNames[facility]} ${facilityDoes[facility]}.`,
-        next: next === null ? null : { name: next.name, cost: next.cost },
+        upkeep: facilityUpkeep(def, grade, config),
+        does: `The ${facilityName(content, facility)} ${facilityDoes(content, facility)}.`,
+        next: next === null ? null : { name: next.name, cost: next.cost, upkeep: facilityUpkeep(def, next.grade, config) },
       };
     }),
   };
@@ -222,7 +224,7 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
 export const guildmasterStatBearsOn: Readonly<Record<string, string>> = Object.freeze({
   negotiation: 'The reward agreed and the fees paid',
   inspiration: 'The Morale baseline of the Heroes',
-  coaching: 'The XP of the training yard',
+  coaching: 'The training XP the Hall gives',
   influence: "The Regard a Patron's Quest earns",
   judgement: 'How sharp the Potential hints read',
 });

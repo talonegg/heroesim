@@ -81,7 +81,8 @@ function engineSources(): string[] {
   return readdirSync(src, { recursive: true, encoding: 'utf8' })
     .map((path) => path.replaceAll('\\', '/'))
     .filter((path) => path.endsWith('.ts') && !/\.test(?:-support)?\.ts$/.test(path))
-    // boundary.test.ts writes and deletes probe files here while other tests run.
+    // A boundary-probe file, which content's, the words' and the harness's imports and settings tests write in
+    // their own trees while other tests run, is never a source (DL-236); none is written here.
     .filter((path) => !/(^|\/)boundary-probe-/.test(path))
     .sort();
 }

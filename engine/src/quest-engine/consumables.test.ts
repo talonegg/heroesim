@@ -5,7 +5,7 @@ import type { Hero, Party, Quest, World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
-import { demandsCheck, encounterCapability as capability, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { demandsCheck, encounterCapability as capability, testContent, testDeps, withFacilityEffect, withFactor } from '../world.test-support.js';
 import { resolveQuest, type QuestInjury } from './resolve.js';
 import { scene as sharedScene } from './resolve.test-support.js';
 
@@ -23,7 +23,6 @@ const pinned: Partial<GameConfig> = {
   strongTriumphShare: 0.5,
   xpPerDifficultyPoint: 1,
   xpBandFactor: { fail: 0.5, success: 1, strong: 1 },
-  infirmaryHealFactor: [1, 1 / 2, 1 / 3],
   // Every Tier's Death at a scale of 1, as these Quests' Deaths were written before Tiers (DL-265).
   tiers: defaultConfig.tiers.map((tier) => ({ ...tier, deathScale: 1 })),
   // No Fatigue on form or harm, as these Quests' capabilities were worked out before it acted (DL-284).
@@ -73,7 +72,7 @@ function scene(
   { size = 3, overrides = {} }: { size?: number; overrides?: Partial<GameConfig> } = {},
 ): Scene {
   const shared = sharedScene(seed, content, keys, { size });
-  const deps = testDeps({ ...pinned, ...overrides }, content);
+  const deps = testDeps({ ...pinned, ...overrides }, withFacilityEffect('infirmary', 'healFactor', [1, 1 / 2, 1 / 3], content));
   const { world, heroes, quest, party } = shared;
   quest.lootTableKey = null;
   for (const [definitionKey, quantity] of carried) addStack(world, definitionKey, quantity, { kind: 'party', id: party.id });

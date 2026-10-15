@@ -14,6 +14,7 @@ import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { poolView, type PoolOrder } from '../state/trade-views';
+import { Coins } from './coins';
 import { HeroPage } from './hero-page';
 import { PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
@@ -116,7 +117,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                   <td className="number">{row.age}</td>
                   <td>{row.background}</td>
                   <td className="number" data-testid="fee">
-                    {row.fee}
+                    <Coins silver={row.fee} />
                   </td>
                   <td data-testid="signs" id={signsId(row.heroId)}>
                     {row.signs}

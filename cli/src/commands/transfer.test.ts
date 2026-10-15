@@ -19,6 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
+import { coinLetters, coinWords } from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
 import { exitCodes, playground, thePlayer } from '../play.test-support.js';
 
@@ -71,8 +72,8 @@ describe('transfer', () => {
     const moved = guildOf(after.world, ambitious);
     const fee = 1_000_000 - moved.wealth;
     expect(fee).toBeGreaterThan(0);
-    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${fee} Wealth.`);
-    expect(run.out).toContain(`The Test: Wealth ${player.wealth + fee}; ${player.rosterIds.length - 1} Heroes on the Roster.`);
+    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${coinWords(fee)}.`);
+    expect(run.out).toContain(`The Test: Wealth ${coinLetters(player.wealth + fee)}; ${player.rosterIds.length - 1} Heroes on the Roster.`);
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).rosterIds).not.toContain(heroId);
   });
@@ -93,16 +94,18 @@ describe('transfer', () => {
     const listPrice = transferFee(heroOf(edited.world, heroId), undefined, { config: { ...defaultConfig, ...edited.meta.config }, content });
 
     const roster = play(['show', 'roster', reckless]).out.split(/\r?\n/);
-    const shown = Number(roster.find((line) => line.startsWith(heroId))?.trim().split(/\s+/).at(-1));
+    // The Transfer fee column, in letters (`5g 20s`), back to Silver.
+    const [, shownGold = '0', shownSilver = '0'] = /(?:(\d+)g)?(?: ?(\d+)s)?$/.exec(roster.find((line) => line.startsWith(heroId))?.trim() ?? '') ?? [];
+    const shown = Number(shownGold) * 100 + Number(shownSilver);
 
     expect(roster.some((line) => line.endsWith('Transfer fee'))).toBe(true);
     expect(shown).toBeGreaterThan(0);
     expect(shown).not.toBe(listPrice);
-    expect(play(['show', 'hero', heroId]).out).toMatch(new RegExp(`^Transfer fee +${shown}$`, 'm'));
+    expect(play(['show', 'hero', heroId]).out).toMatch(new RegExp(`^Transfer fee +${coinLetters(shown)}$`, 'm'));
     // The player's own Heroes have no one fee: each Rival pays at its own Guildmaster's Negotiation.
     expect(play(['show', 'roster']).out).not.toContain('Transfer fee');
     expect(play(['show', 'hero', ownId]).out).not.toContain('Transfer fee');
-    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${shown} Wealth.`);
+    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}.`);
   });
 
   test('a Rival that will not take the Hero, or a Guild the save lacks, is refused and nothing is written', () => {
@@ -132,7 +135,7 @@ describe('transfer', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     const after = document();
     const fee = 10_000 - thePlayer(after.world).wealth;
-    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${fee} Wealth.`);
+    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${coinWords(fee)}.`);
     expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
     expect(guildOf(after.world, reckless).wealth).toBe(guildOf(before.world, reckless).wealth + fee);
   });
@@ -199,7 +202,7 @@ describe('Transfer Offers', () => {
     const shown = play(['show', 'offers']);
     expect(shown.code).toBe(exitCodes.ok);
     expect(shown.out).toContain("Transfer Offers for The Test's Heroes: 1. Answer with accept --offer <id> or decline --offer <id>.");
-    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${fee}\\s+Turn 8 \\(Year 1 Day 3, night\\)`));
+    expect(shown.out).toMatch(new RegExp(`${offerId}\\s+${rivalName}\\s+${name} \\(${heroId}\\)\\s+${coinLetters(fee)}\\s+Turn 8 \\(Year 1 Day 3, night\\)`));
 
     const declined = play(['decline', '--offer', offerId]);
     expect(declined).toMatchObject({ code: exitCodes.ok, err: '' });
@@ -219,7 +222,7 @@ describe('Transfer Offers', () => {
     const accepted = play(['accept', '--offer', offerId]);
 
     expect(accepted).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(accepted.out).toContain(`from The Test for ${fee} Wealth, accepting ${offerId}.`);
+    expect(accepted.out).toContain(`from The Test for ${coinWords(fee)}, accepting ${offerId}.`);
     const after = document();
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).wealth).toBe(wealth + fee);
@@ -227,7 +230,8 @@ describe('Transfer Offers', () => {
   });
 
   // The story's fourth box.
-  test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', () => {
+  // Fast forwards up to twenty runs of thirty Turns: a long play beside the whole suite's other workers (DL-304).
+  test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', { timeout: 30_000 }, () => {
     newWorld((world) => {
       // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
@@ -235,7 +239,7 @@ describe('Transfer Offers', () => {
       // builds and buys gear before it weighs a Transfer (DL-58).
       const rival = guildOf(world, ambitious);
       rival.wealth = 1_000_000;
-      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+      rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
       for (const heroId of rival.rosterIds) {
         for (const [slot, key] of [['weapon', 'short-sword'], ['armour', 'padded-jack'], ['trinket', 'lucky-charm']] as const) {
           addStack(world, key, 1, { kind: 'hero', id: heroId, slot });
@@ -255,7 +259,7 @@ describe('Transfer Offers', () => {
 
     const [offer] = Object.values(document().world.offers);
     if (offer === undefined) throw new Error('No offer was made');
-    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${offer.fee} Wealth for .+ \\(${offer.heroId}\\) until the night of Year 1 Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
+    expect(stop).toMatch(new RegExp(`^Stopped: a Transfer Offer: .+ offers ${coinWords(offer.fee)} for .+ \\(${offer.heroId}\\) until the night of Year 1 Day \\d+ \\(${offer.id}\\)\\. Answer with accept --offer <id> or decline --offer <id> \\(show offers\\)\\.$`));
     expect(play(['show', 'offers']).out).toContain(offer.id);
   });
 });

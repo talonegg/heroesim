@@ -22,7 +22,7 @@ function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceF
   const dir = join(root, pkg, 'src');
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('.ts') && (withTests || !/\.test(-support)?\.ts$/.test(file)))
-    // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
+    // This file's own test writes and deletes a boundary-probe file in content/src/ while other tests run.
     .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
     .map((file) => ({
       file,
@@ -71,9 +71,9 @@ function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
 }
 
 describe('the sources these tests read', () => {
-  test("leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run", () => {
-    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below would
-    // count among the files that take the engine's values.
+  test('leave out the boundary-probe files this test writes, which come and go while other tests run', () => {
+    // A probe that imports a value from the engine, which the tests below would count among the files that
+    // take the engine's values.
     const file = `boundary-probe-${randomUUID()}.ts`;
     const path = join(root, 'content', 'src', file);
     writeFileSync(path, "import { x } from '@heroesim/engine/content';\nexport { x };\n");
@@ -83,7 +83,8 @@ describe('the sources these tests read', () => {
       expect(files).toContain('node.ts');
       expect(files).not.toContain(file);
     } finally {
-      rmSync(path, { force: true });
+      // Windows may refuse to delete (EPERM) a file just written while another process holds it, so the removal retries (DL-304).
+      rmSync(path, { force: true, maxRetries: 10, retryDelay: 100 });
     }
   });
 });
@@ -137,7 +138,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
       'kinds/descriptions.ts',
       'kinds/dispositions.ts',
       'kinds/encounters.ts',
-      'kinds/improvements.ts',
+      'kinds/facility-effects.ts',
       'kinds/items.ts',
       'kinds/names.ts',
       'kinds/portraits.ts',
@@ -165,7 +166,7 @@ describe("content's types come from the engine's content entry, @heroesim/engine
 describe("content repeats none of the engine's values", () => {
   const lists: Record<string, readonly string[]> = {
     encounterKinds: engine.encounterKinds,
-    facilityKeys: engine.facilityKeys,
+    facilityEffectKinds: engine.facilityEffectKinds,
     gearSlotKeys: engine.gearSlotKeys,
     descriptiveAttributes: engineMain.descriptiveAttributes,
     sexes: engine.sexes,

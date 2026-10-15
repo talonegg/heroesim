@@ -142,9 +142,9 @@ The Trait helpers, whose call is a read of a Trait to the drift test: `engine/sr
 
 ### `guildmaster-effects`: The Guildmaster's Trait readers
 
-- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in Upkeep (DL-43, DL-150 item 8).
+- **Reads:** Each effect of the Guildmaster's Traits: a Class Stat bonus in `statBreakdown`, whose total is `effectiveStats`, a Morale shift in the Morale baseline, an Upkeep factor in the Hall's upkeep alone, not the wages (DL-43, DL-150 item 8, DL-298).
 - **Traits:** Guildmaster; effects `classStatBonus`, `guildMoraleShift`, `upkeepFactor`.
-- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `upkeepParts`, `statBreakdown`.
+- **Where it reads them:** `engine/src/guildmaster.ts`: `traitEffects`, `traitMoraleShift`, `traitUpkeepFactor`, `traitStatBonuses`; `engine/src/morale.ts`: `moraleBaselineFor`; `engine/src/selectors.ts`: `hallUpkeepParts`, `statBreakdown`.
 
 ### `guildmaster-setup`: Setup's Trait budget, and the drawn Guildmaster's Traits
 

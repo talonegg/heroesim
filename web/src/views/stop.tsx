@@ -12,8 +12,10 @@
 // Guild › Home at its Quest report, under the card. A module's stop keeps "Read what happened".
 
 import type { QuestId } from '@heroesim/engine';
+import { coinWords } from '@heroesim/words';
 import type { GameAction } from '../state/reducer';
 import type { StopView } from '../state/selectors';
+import { Coins } from './coins';
 import { Icon, type IconName } from './icons';
 import type { SectionId } from './section';
 
@@ -110,12 +112,12 @@ export function StopCard({
                   <button
                     type="button"
                     className="quest-button"
-                    aria-label={`Choose a Party for ${quest.name}, offered by ${quest.patron}, for ${quest.reward} Wealth`}
+                    aria-label={`Choose a Party for ${quest.name}, offered by ${quest.patron}, for ${coinWords(quest.reward)}`}
                     onClick={() => onOpenQuest(quest.questId)}
                   >
                     <span className="quest-button__name">{quest.name}</span>
                     <span className="quest-button__patron">
-                      {quest.patron} · {quest.reward} Wealth
+                      {quest.patron} · <Coins silver={quest.reward} />
                     </span>
                     <Icon name="go" className="quest-button__go" />
                   </button>

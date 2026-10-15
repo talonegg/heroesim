@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
-import { facilityKeys, type Guild, type World } from '../document.js';
+import type { Guild, World } from '../document.js';
 import { addStack, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { dispositionOf } from '../selectors.js';
@@ -60,10 +60,10 @@ describe("a Rival's purchase order", () => {
 });
 
 describe("a Rival's build order", () => {
-  test("is the Hall's order when the row has none, and the row's when it has", () => {
-    expect(purchase(scene({}))).toBe(`build ${facilityKeys[0]}`);
-    expect(purchase(scene({ buildOrder: ['quarters', 'trainingYard', 'infirmary'] }))).toBe('build quarters');
-    expect(purchase(scene({ buildOrder: ['trainingYard', 'quarters', 'infirmary'] }))).toBe('build trainingYard');
+  test("is content's order when the row has none, and the row's when it has", () => {
+    expect(purchase(scene({}))).toBe('build infirmary');
+    expect(purchase(scene({ buildOrder: ['quarters', 'training-yard', 'infirmary'] }))).toBe('build quarters');
+    expect(purchase(scene({ buildOrder: ['training-yard', 'quarters', 'infirmary'] }))).toBe('build training-yard');
   });
 });
 
@@ -71,7 +71,7 @@ describe("a Rival's gear slot order", () => {
   /** A Rival whose Hall is built, so that gear is what it buys. */
   function outfitting(orders: Orders): ReturnType<typeof scene> {
     const found = scene(orders);
-    found.rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+    found.rival.hall = { infirmary: 3, 'training-yard': 3, quarters: 3 };
     return found;
   }
 

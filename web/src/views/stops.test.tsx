@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
-import { described, idle, navButton, openView, section, time } from './page.test-support';
+import { coinsPattern, described, idle, navButton, openView, section, time } from './page.test-support';
 
 // The page's side of #32: the split button's opt-in stops, "until a Quest your rested Heroes can staff
 // appears" (`quest-staffable`) beside "until new Heroes join the pool"; the words that say
@@ -67,7 +67,7 @@ describe('the ways to fast forward (#32)', () => {
     const sentence = within(stop).getByText(/^Stopped: a Quest to staff: The Lantern's Heroes at home could go on .+\.$/).textContent ?? '';
     // The Party is still out.
     expect(within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' })).toBeDefined();
-    const [first] = within(screen.getByTestId('stop')).getAllByRole('button', { name: /^Choose a Party for .+, offered by .+, for \d+ Wealth$/ });
+    const [first] = within(screen.getByTestId('stop')).getAllByRole('button', { name: new RegExp(`^Choose a Party for .+, offered by .+, for ${coinsPattern}$`) });
     const questName = first?.querySelector('.quest-button__name')?.textContent ?? '';
     expect(sentence).toContain(questName);
   });

@@ -47,6 +47,9 @@
      enough for 3:1 on the paper, distinct from brass, a warning and focus; and its soft glow. */
   --gold: #a57800;
   --gold-glow: rgb(165 120 0 / 40%);
+  /* The coins' discs beside an amount (DL-294 item 1): 3:1 on every surface an amount sits on. */
+  --coin-gold: #a87a0c;
+  --coin-silver: #7a7f87;
   --shadow: 0 1px 2px rgb(42 34 27 / 8%), 0 8px 24px rgb(42 34 27 / 10%);
   --backdrop: rgb(42 34 27 / 40%);
 
@@ -91,6 +94,8 @@
     --focus: #e6a896;
     --gold: #f0b90b;
     --gold-glow: rgb(240 185 11 / 35%);
+    --coin-gold: #e0ad2e;
+    --coin-silver: #a9b0b9;
     --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
     --backdrop: rgb(0 0 0 / 60%);
   }
@@ -683,6 +688,35 @@ details > summary::-webkit-details-marker {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0.4rem 0;
+}
+
+/* An amount of Wealth (DL-294 item 1, `views/coins.tsx`): each number, then its coin's disc, drawn
+   here, so that nothing is fetched; the amount kept on one line. */
+.coins {
+  white-space: nowrap;
+}
+
+.coin + .coin {
+  margin-left: 0.2em;
+}
+
+.coin::after {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: 0.1em;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 20%);
+  vertical-align: -0.05em;
+}
+
+.coin--gold::after {
+  background: var(--coin-gold);
+}
+
+.coin--silver::after {
+  background: var(--coin-silver);
 }
 
 /* A number that matters, with its icon: Wealth and Fame in brass. */
@@ -3206,6 +3240,15 @@ th.number .sort {
   max-width: calc(60cqi - 1.25rem);
 }
 
+/* On a phone an amount beside a sticky name column may stack, its Gold over its Silver, so the column is only as wide as one coin part (DL-310). */
+@media (max-width: 599px) {
+  .table--first-sticky td.number .coins > [aria-hidden] {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
 /* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
 .pool-table tr.is-set-back th,
 .pool-table tr.is-set-back td {
@@ -3284,8 +3327,13 @@ th.number .sort {
   color: var(--ink-soft);
 }
 
+/* The next grade: Build, or what it is, with the upkeep at that grade beneath (DL-303). */
 .facility__next {
   grid-area: next;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
 }
 
 /* The page's filter chips, several choices to a filter, and a choice of one in their look (DL-213). */
@@ -3342,6 +3390,12 @@ th.number .sort {
 .treasury__totals {
   margin: 0 0 0.5rem;
   font-weight: 600;
+}
+
+/* The Treasury's lines (DL-304 item 4): a section's row in full weight, its lines indented under it. */
+.lines-table__line th {
+  padding-inline-start: 1.25rem;
+  font-weight: 400;
 }
 
 .ledger__when {

@@ -5,6 +5,7 @@ import {
   parseId,
   validate,
   type ContentSet,
+  type Entry,
   type Guild,
   type Guildmaster,
   type Hero,
@@ -691,12 +692,121 @@ describe('document-shape', () => {
       (d) => set(party(d, ids.party), 'fatigueAtDispatch', { [ids.partyHero]: null }),
       `$.world.parties["${ids.party}"].fatigueAtDispatch`,
     ],
+    // DL-294 item 1: Wealth and every stored amount are whole Silver.
+    ['a Guild whose Wealth is not whole Silver', (d) => set(guild(d, ids.playerGuild), 'wealth', 120.5), `$.world.guilds["${ids.playerGuild}"].wealth`],
+    ['a Quest whose reward is not whole Silver', (d) => set(quest(d, ids.offeredQuest), 'reward', 40.25), `$.world.quests["${ids.offeredQuest}"].reward`],
+    ['a Transfer Offer whose fee is not whole Silver', (d) => set(offer(d, ids.offer), 'fee', 99.9), `$.world.offers["${ids.offer}"].fee`],
+    // DL-297: a Hall is each Facility's grade, a whole number from 0.
+    ['a Hall whose grade is not whole', (d) => set(guild(d, ids.playerGuild), 'hall', { infirmary: 1.5 }), `$.world.guilds["${ids.playerGuild}"].hall`],
+    ['a Hall whose grade is below 0', (d) => set(guild(d, ids.playerGuild), 'hall', { quarters: -1 }), `$.world.guilds["${ids.playerGuild}"].hall`],
+    // DL-298: a Guild's own base for its Hall's upkeep, whole Silver from 0.
+    ['a Guild whose Hall upkeep base is not whole Silver', (d) => set(guild(d, ids.playerGuild), 'hallBaseUpkeep', 30.5), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
+    ['a Guild whose Hall upkeep base is below 0', (d) => set(guild(d, ids.playerGuild), 'hallBaseUpkeep', -1), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
+    ['a Guild with no Hall upkeep base', (d) => drop(guild(d, ids.playerGuild), 'hallBaseUpkeep'), `$.world.guilds["${ids.playerGuild}"].hallBaseUpkeep`],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
   });
 
   test("a unique Item held by the Market is accepted: a folded Guild's are listed there (D6, DL-48)", () => {
     expect(refusals((d) => set(item(d, ids.item), 'holder', { kind: 'market' }))).toEqual([]);
+  });
+
+  test("a Guild's founding that names a Wealth not whole Silver is refused, naming the entry (DL-294 item 1)", () => {
+    const { document } = buildDocument();
+    const founded = document.history.entries.findIndex((entry) => entry.type === 'guild.founded');
+    expect(founded).toBeGreaterThanOrEqual(0);
+    set((document.history.entries[founded] as { payload: object }).payload, 'wealth', 500.5);
+    expect(validate(document, deps)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${founded}]` }] });
+  });
+
+  // DL-297: every amount an entry carries is whole Silver, so that a hand-edited save is refused at
+  // load rather than met by the formatter, which throws on a fraction (DL-296).
+  test.each([
+    ['guild.wages-paid', ['amount', 'wealthAfter']],
+    ['guild.below-floor', ['wealth', 'floor']],
+    ['guild.floor-recovered', ['wealth', 'floor']],
+    ['hero.recruited', ['fee']],
+    ['guild.improved', ['cost']],
+    ['item.bought', ['unitPrice', 'cost']],
+    ['item.sold', ['unitPrice', 'proceeds']],
+    ['hero.transferred', ['fee']],
+    ['guild.transfer-offered', ['fee']],
+    ['guild.transfer-offer-declined', ['fee']],
+    ['guild.transfer-offer-expired', ['fee']],
+    ['guild.wealth-changed', ['before', 'after']],
+    ['quest.resolved', ['wealthDelta']],
+  ] as const)("a %s entry whose amount is not whole Silver is refused, naming the entry; whole, it is accepted", (type, fields) => {
+    const appended = (fraction: string | null): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const payload = Object.fromEntries(fields.map((field) => [field, field === fraction ? 100.5 : -100]));
+      const at = append(document.history, { turn: fixtureTurn, type, participants: [ids.playerGuild], labels: {}, milestone: false, payload } as Entry);
+      return { document, at };
+    };
+
+    const whole = appended(null);
+    expect(validate(whole.document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const field of fields) {
+      const { document, at } = appended(field);
+      expect(validate(document, deps), field).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
+  });
+
+  // The reward a Quest's taking agreed (DL-43), an amount too: whole Silver where the entry writes it,
+  // which one made before DL-43 does not.
+  test('a quest.taken entry whose reward is not whole Silver is refused, naming the entry; whole or absent, it is accepted', () => {
+    const taking = (reward?: number): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const payload = { tier: 1, ...(reward === undefined ? {} : { reward }) };
+      const at = append(document.history, { turn: fixtureTurn, type: 'quest.taken', participants: [ids.playerGuild], labels: {}, milestone: false, payload } as Entry);
+      return { document, at };
+    };
+
+    expect(validate(taking().document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(validate(taking(120).document, deps)).toEqual({ ok: true, warnings: [] });
+    const fraction = taking(120.5);
+    expect(validate(fraction.document, deps)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${fraction.at}]` }] });
+  });
+
+  // DL-298: the Hall's upkeep names its parts, each an amount, every Facility's charge among them.
+  test('a guild.hall-upkeep-paid entry whose amount, Wealth after, base, Heroes’ share or a Facility’s charge is not whole Silver is refused, naming the entry', () => {
+    const whole = { amount: 65, wealthAfter: -10, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 20, quarters: 10 }, traitFactor: 1 };
+    const paying = (payload: object): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const entry = { turn: fixtureTurn, type: 'guild.hall-upkeep-paid', participants: [ids.playerGuild], labels: {}, milestone: false, payload };
+      const at = append(document.history, entry as Entry);
+      return { document, at };
+    };
+
+    expect(validate(paying(whole).document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const broken of [
+      { ...whole, amount: 65.5 },
+      { ...whole, wealthAfter: -10.5 },
+      { ...whole, base: 30.5 },
+      { ...whole, heroes: 5.5 },
+      { ...whole, facilities: { infirmary: 20, quarters: 10.5 } },
+      { ...whole, facilities: [20, 10] },
+    ]) {
+      const { document, at } = paying(broken);
+      expect(validate(document, deps), JSON.stringify(broken)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
+  });
+
+  // DL-304: the factor splits the charge into its two ledger lines (`hallUpkeepSplit`); one not a number would
+  // carry NaN to the words' formatter, which throws. The reader takes 1 where it is absent.
+  test('a guild.hall-upkeep-paid entry whose traitFactor is written and not a number above 0 is refused; absent, it is accepted', () => {
+    const whole = { amount: 65, wealthAfter: -10, base: 30, heroCount: 1, heroes: 5, facilities: { infirmary: 20, quarters: 10 } };
+    const paying = (payload: object): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const entry = { turn: fixtureTurn, type: 'guild.hall-upkeep-paid', participants: [ids.playerGuild], labels: {}, milestone: false, payload };
+      return { document, at: append(document.history, entry as Entry) };
+    };
+
+    expect(validate(paying(whole).document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(validate(paying({ ...whole, traitFactor: 0.9 }).document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const traitFactor of ['0.9', 0, -1, null]) {
+      const { document, at } = paying({ ...whole, traitFactor });
+      expect(validate(document, deps), String(traitFactor)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
   });
 
   test('a field no interface names is kept and ignored (rule 5)', () => {
@@ -747,7 +857,7 @@ describe('rule 8: a removed Hero named by a non-passive entry', () => {
     expect(refusals(() => undefined)).toEqual([]);
     const named = (d: Doc): void => {
       const participants = [ids.departedHero, ids.playerGuild];
-      const entry = { turn: fixtureTurn, participants, labels: {}, milestone: false, payload: {} };
+      const entry = { turn: fixtureTurn, participants, labels: {}, milestone: false, payload: { fee: 0 } };
       append(d.history, { ...entry, type: 'hero.recruited' });
     };
     expect(refusals(named)).toEqual([failure('removed-hero-in-history', ids.departedHero)]);
@@ -902,6 +1012,13 @@ describe('a key the content does not define warns and never refuses', () => {
       'hero-female-01',
     ],
     [
+      "a Facility in a Guild's Hall",
+      (d) => (guild(d, ids.rivalGuild).hall = { ...guild(d, ids.rivalGuild).hall, stables: 1 }),
+      'unknown-facility',
+      ids.rivalGuild,
+      'stables',
+    ],
+    [
       "an Encounter in a Quest's sequence",
       (d) => setEncounters(quest(d, ids.offeredQuest), ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
@@ -1016,7 +1133,7 @@ describe('validating from historyFrom', () => {
   function grow(d: Doc): number {
     const from = d.history.entries.length;
     const participants = [ids.partyHero, ids.playerGuild];
-    const entry = { turn: fixtureTurn, labels: {}, payload: { at: from } };
+    const entry = { turn: fixtureTurn, labels: {}, payload: { at: from, fee: 0 } };
     append(d.history, { ...entry, participants: [...participants], type: 'hero.morale-changed', milestone: false });
     append(d.history, { ...entry, participants: [...participants], type: 'hero.recruited', milestone: true });
     return from;
@@ -1120,7 +1237,7 @@ describe('validating from historyFrom', () => {
 
   test('finds a removed Hero a new entry names, and a counter that would reuse a new entry’s id', () => {
     const naming = (type: 'hero.recruited' | 'hero.left-pool') => (d: Doc) => {
-      const entry = { turn: fixtureTurn, labels: {}, milestone: false, payload: {} };
+      const entry = { turn: fixtureTurn, labels: {}, milestone: false, payload: { fee: 0 } };
       append(d.history, { ...entry, type, participants: [ids.departedHero] });
     };
     expect(refusalsFrom(naming('hero.recruited')).found).toEqual([failure('removed-hero-in-history', ids.departedHero)]);

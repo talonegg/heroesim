@@ -57,10 +57,11 @@ Commands:
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
-      Print the save: with no view, the Turn, the Guilds and counts; roster shows the
+      Print the save: with no view, the Turn, the Guilds and counts, the player's Hall,
+      and the wages and Hall upkeep with the night each is next paid; roster shows the
       player's Guild unless given another, each Hero's Morale and Fatigue and who its
       Captain is; hall shows the player's Guild unless given another too, each
-      facility's grade and what the next grade costs;
+      Facility's grade and upkeep, and what the next grade costs and its upkeep;
       pool marks the Heroes who will not yet sign for the player's Guild's Fame;
       patrons shows each Patron's Regard for the player's Guild; board shows the Quests
       on offer, each with its Tier and whether it is Deadly, each Encounter's Checks and
@@ -106,9 +107,11 @@ Commands:
       --consumables the Party carries n of each consumable key from the Guild's holding;
       what it does not use comes home with it. Rivals take Quests from the Board each
       afternoon.
-  build --facility <infirmary | training-yard | quarters>
-      Raise a facility of the player's Guild's Hall by one grade, for the next grade's
-      cost, and print what was built, the Wealth left and what the next grade costs.
+  build --facility <key>
+      Raise a Facility of the player's Guild's Hall by one grade, for the next grade's
+      cost, and print what was built, the Wealth left, the wages and the Hall's upkeep
+      after it, each with its Days, and what the next grade costs. The key is the
+      Facility's in content: infirmary, training-yard or quarters in the core.
   captain --hero <heroId>
       Name one of the player's Heroes, at home or away, the Guild's Captain. To an empty
       post it is free; in another Captain's place, the one replaced loses Morale and the
@@ -429,19 +432,12 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
   };
 }
 
-/** The words `--facility` takes, and the Hall facility each names (M3-S6). */
-const facilityWords: Readonly<Record<string, FacilityKey>> = Object.freeze({
-  infirmary: 'infirmary',
-  'training-yard': 'trainingYard',
-  quarters: 'quarters',
-});
-
-/** `--facility`: one of the Hall's facilities, in the CLI's words. */
+/**
+ * `--facility`: a Facility's key, the CLI's word for it (DL-297). The word has a key's form; whether
+ * content has the Facility is `build`'s to say, once the save and its content are open.
+ */
 function facility(value: string): FacilityKey {
-  if (!Object.hasOwn(facilityWords, value)) {
-    refuse(`--facility takes ${Object.keys(facilityWords).join(', ')}; got "${value}"`);
-  }
-  return facilityWords[value] as FacilityKey;
+  return /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(value) ? value : refuse(`--facility needs a Facility's key such as training-yard; got "${value}"`);
 }
 
 /** `--hero` for `equip`, `unequip` and `transfer`: one Hero id (M5-S2). */

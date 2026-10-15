@@ -2,7 +2,9 @@
 // <command>`, the commands under its page and the Trait skills' only way to change a Trait; as
 // `npm run edit -- config <command>`, the only way to change a tuning value (v1.1.6-S18, DL-204); and
 // as `npm run edit -- quests <command>` and `encounters <command>`, the only way to change a Quest
-// template or an Encounter (DL-257 item 8, DL-267), whose commands are `quests-commands.ts`'s.
+// template or an Encounter (DL-257 item 8, DL-267), whose commands are `quests-commands.ts`'s; and as
+// `npm run edit -- facilities <command>`, the only way to change a Facility or its grades (DL-297), whose
+// commands are `facilities-commands.ts`'s.
 // As the portrait tool's, every command takes `--root <dir>`, the repository to work on (this one by
 // default), and `--json`, which prints one JSON object on stdout for a skill to read. The exit code is
 // 0 for success, 1 for a check that failed or a change refused or undone, and 2 for a command line
@@ -14,6 +16,8 @@ import { NotUndone, Undone } from '@heroesim/content/write';
 import { ConfigEditor, shownValue, type SectionView } from './config-kind.js';
 import { repositoryRoot } from './content-files.js';
 import { doctor, doctorText } from './doctor.js';
+import { inputFromLine as facilitiesInput, parts as facilitiesParts, runCommand as runFacilities } from './facilities-commands.js';
+import { FacilitiesEditor } from './facilities-editor.js';
 import { Editor, Refused, type RowView } from './editor.js';
 import { Busy } from './finish-journal.js';
 import type { Use } from './kind.js';
@@ -23,7 +27,7 @@ import { npmTest, type TestRunner } from './tests-run.js';
 import { writeTraitsDoc } from './traits-doc.js';
 import { UsageError } from './usage-error.js';
 
-export const usage = `Usage: npm run edit -- [traits | config | quests | encounters <command>] [--root <dir>] [--json]
+export const usage = `Usage: npm run edit -- [traits | config | quests | encounters | facilities <command>] [--root <dir>] [--json]
 
   (no command)                    Open the editor's page, served from this repository
   traits list                     Every Trait of both lists, with the pending edits made
@@ -107,6 +111,36 @@ export const usage = `Usage: npm run edit -- [traits | config | quests | encount
                                   Add, change or remove a consequence of a Degree: failure, setback,
                                   success or triumph
   encounters pending | discard [<key>] | finish | recover [--force]
+
+  facilities list                 Every Facility in content's order, with its grades and the pending edits made
+  facilities show <key>           One: its fields, its effects at grade 0 and at each grade, where it is used
+  facilities add <key> --row <json or @file> [--name <n>] [--effects <json>]
+                                  Add a Facility, pending, last in the Hall's order; its key is fixed.
+                                  name, plural, upkeep (whole Silver) and effects, a number for each
+                                  of the effects it has (facilities forms): healFactor, trainingXp,
+                                  moraleBaseline, fatigueFall
+  facilities change <key> [<field>=<value> ...] [--row <json or @file>]
+                                  Change its fields, pending; effects are given whole
+  facilities remove <key>         Remove a Facility, pending; refused while a grade or a build order names it
+  facilities grade add <key> name=<text> cost=<silver> effects=<json>
+                                  Add the next grade of a Facility, an Improvement keyed <key>-<n>;
+                                  its effects are exactly its Facility's
+  facilities grade change <key> <grade> [<field>=<value> ...]
+                                  Change a grade's name, cost or effects (given whole)
+  facilities grade remove <key> <grade>
+                                  Remove its top grade
+  facilities effect add <key> <effect> <value0> <value1> …
+                                  Give a Facility an effect, with its value at grade 0 and at each grade
+  facilities effect set <key> <effect> <grade> <value>
+                                  Change one value of an effect a Facility has; grade 0 is its own
+  facilities effect remove <key> <effect>
+                                  Take an effect from a Facility and all its grades
+  facilities forms                The fields of a Facility and a grade, and each effect with its bounds
+  facilities pending | discard [<key>] | finish | recover [--force]
+                                  As the Traits'; finish raises the content version and runs npm test
+  facilities doctor               The grades run 1 to n and hold their Facility's effects, each costs
+                                  more than the one below, the build orders; the content's checks; the
+                                  pending edits (docs/agents/facilities.md)
 
   A part's fields may be given as --row <json or @file> too (tools/editor/README.md).
 
@@ -325,9 +359,19 @@ async function dispatchQuests(options: Parsed, deps: Deps, io: Io, editor: Quest
   return runCommand(family, command, input, editor, { runTests: deps.runTests, onLine: options.json ? () => {} : (line) => io.err(line) });
 }
 
+/** The Facilities' commands (DL-297): the command line's input to their core, `facilities-commands.ts`. */
+async function dispatchFacilities(options: Parsed, deps: Deps, io: Io, editor: FacilitiesEditor): Promise<Result> {
+  const [part, ...rest] = [options.command, ...options.args];
+  const twoWords = facilitiesParts.includes(part ?? '');
+  const command = twoWords ? `${part ?? ''} ${rest[0] ?? ''}`.trim() : options.command;
+  const words = twoWords ? rest.slice(1) : options.args;
+  const input = facilitiesInput(command, words, { fields: options.fields, force: options.force });
+  return runFacilities(command, input, editor, { runTests: deps.runTests, onLine: options.json ? () => {} : (line) => io.err(line) });
+}
+
 async function dispatch(options: Parsed, deps: Deps, io: Io, editor: Editor): Promise<Result> {
   if (options.kind !== 'traits') {
-    const kinds = 'traits, config, quests or encounters';
+    const kinds = 'traits, config, quests, encounters or facilities';
     throw new UsageError(options.kind === '' ? `a kind is wanted: ${kinds}` : `${options.kind} is not a kind the editor knows: ${kinds}`);
   }
   switch (options.command) {
@@ -471,13 +515,22 @@ export async function run(argv: readonly string[], io: Io, deps: Deps = { runTes
       io.out(usage);
       return 0;
     }
-    const editor = options.kind === 'config' ? new ConfigEditor(options.root) : (families as readonly string[]).includes(options.kind) ? new QuestsEditor(options.root) : new Editor(options.root);
+    const editor =
+      options.kind === 'config'
+        ? new ConfigEditor(options.root)
+        : options.kind === 'facilities'
+          ? new FacilitiesEditor(options.root)
+          : (families as readonly string[]).includes(options.kind)
+            ? new QuestsEditor(options.root)
+            : new Editor(options.root);
     const result =
       editor instanceof ConfigEditor
         ? await dispatchConfig(options, deps, io, editor)
-        : editor instanceof QuestsEditor
-          ? await dispatchQuests(options, deps, io, editor)
-          : await dispatch(options, deps, io, editor);
+        : editor instanceof FacilitiesEditor
+          ? await dispatchFacilities(options, deps, io, editor)
+          : editor instanceof QuestsEditor
+            ? await dispatchQuests(options, deps, io, editor)
+            : await dispatch(options, deps, io, editor);
     // A "Finish" cut off is put back by whatever command came next, which says so.
     if (editor.recovered.length > 0 && options.command !== 'recover') {
       if (typeof result.json === 'object' && result.json !== null) result.json = { ...result.json, recovered: editor.recovered };

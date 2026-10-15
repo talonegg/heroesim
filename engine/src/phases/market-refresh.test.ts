@@ -144,6 +144,23 @@ describe('marketRefresh', () => {
     expect(holdings(world, marketHolder).stacks.map((stack) => stack.definitionKey).sort()).toEqual(['padded-jack', 'whetstone']);
   });
 
+  test('never stocks a common definition with a value rather than a buyPrice: it is found only as Loot (DL-301)', () => {
+    const sword = testContent.items['short-sword'];
+    if (sword === undefined || sword.kind !== 'gear') throw new Error('No short-sword in the test content');
+    const lost = { ...sword, value: 40 };
+    delete lost.buyPrice;
+    const valued: ContentSet = deepFreeze({
+      ...testContent,
+      items: Object.fromEntries(
+        Object.entries({ ...testContent.items, 'short-sword': lost }).filter(([key]) =>
+          ['whetstone', 'padded-jack', 'short-sword'].includes(key),
+        ),
+      ),
+    });
+
+    expect(stockedDefinitions(valued).map((definition) => definition.key)).toEqual(['padded-jack', 'whetstone']);
+  });
+
   test('stocks every definition once when content stocks fewer than marketSize', () => {
     const few: ContentSet = deepFreeze({
       ...testContent,

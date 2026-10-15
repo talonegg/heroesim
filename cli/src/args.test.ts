@@ -163,7 +163,11 @@ describe('parseArgs', () => {
     expect(said).toContain("each Hero's Morale and Fatigue and who its Captain is");
     // DL-291: hall's clause says what hall shows, not the roster's Morale, Fatigue and Captain.
     expect(said).not.toContain('Captain is, and so does hall');
-    expect(said).toContain("hall shows the player's Guild unless given another too, each facility's grade");
+    expect(said).toContain("hall shows the player's Guild unless given another too, each Facility's grade");
+    // Facility is a glossary term, so the usage writes it with its capital everywhere but the flag --facility.
+    expect(said.match(/(?<!-)\bfacilit(y|ies)\b/g)).toBeNull();
+    // DL-304: the summary's two charges, as show words them.
+    expect(said).toContain("the player's Hall, and the wages and Hall upkeep with the night each is next paid");
     expect(said).toContain("each Hero's Fatigue and the Captain among them, what would relieve the hurt");
   });
 
@@ -210,12 +214,12 @@ describe('parseArgs', () => {
     }
   });
 
-  test('reads build: a facility in the CLI’s words', () => {
+  test('reads build: a Facility in the CLI’s words', () => {
     expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
       name: 'build',
       save: 'demo',
-      facility: 'trainingYard',
+      facility: 'training-yard',
     });
     expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
   });
@@ -335,8 +339,8 @@ describe('parseArgs', () => {
     [['preview', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:0'], '--consumables whetstone needs a whole number from 1; got "0"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:1,whetstone:2'], '--consumables names whetstone twice'],
     [['build'], 'build needs --facility'],
-    [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
-    [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
+    [['build', '--facility', 'trainingYard'], `--facility needs a Facility's key such as training-yard; got "trainingYard"`],
+    [['build', '--facility', 'Stables'], 'got "Stables"'],
     [['build', 'infirmary'], 'does not take "infirmary"'],
     [['recruit'], 'recruit needs --hero'],
     [['equip', '--hero', 'hero-000001'], 'equip needs --item or --stack, and one of them only'],

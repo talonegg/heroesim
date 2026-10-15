@@ -197,7 +197,7 @@ export function traitMoraleShift(guildmaster: Pick<Guildmaster, 'traits'> | unde
   return shift;
 }
 
-/** The product of `upkeepFactor` effects among `guildmaster`'s Traits: what Upkeep is multiplied by. */
+/** The product of `upkeepFactor` effects among `guildmaster`'s Traits: what the Hall's upkeep is multiplied by, the wages not (DL-298). */
 export function traitUpkeepFactor(guildmaster: Pick<Guildmaster, 'traits'> | undefined, content: Pick<ContentSet, 'guildmasterTraits'>): number {
   let factor = 1;
   for (const effect of traitEffects(guildmaster, content)) if (effect.kind === 'upkeepFactor') factor *= effect.factor;

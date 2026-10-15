@@ -61,7 +61,8 @@ describe('the index on disk', () => {
     expect(writeIndex(dir).ok).toBe(false);
   });
 
-  test("this repository's index is the one its log makes", () => {
+  // Reads the whole decision log and its archives, which takes seconds beside the whole suite's other workers (DL-304).
+  test("this repository's index is the one its log makes", { timeout: 30_000 }, () => {
     expect(indexFreshness(repositoryRoot)).toEqual({ ok: true, problems: [] });
   });
 });

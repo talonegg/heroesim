@@ -1,8 +1,9 @@
 // The status bar (M9-S3, DL-103; the review's A2): it stays in view on every view. It holds the
-// player's Guild, its Wealth and Fame, the date and time of day with a sun or a moon, the Year shown at
-// every width (DL-206 item 32, DL-210), its place in the Rankings and, while the Guild is below the
-// Bankruptcy floor, the countdown as a warning pill, each read from `headerView` (the engine's
-// `rankingPlaces`, `timeOfDay`, `bankruptcyCountdown`, and the calendar of `@heroesim/words`).
+// player's Guild, its Wealth in coins (DL-294 item 1) and Fame, the date and time of day with a sun
+// or a moon, the Year shown at every width (DL-206 item 32, DL-210), its place in the Rankings and,
+// while the Guild is below the Bankruptcy floor, the countdown as a warning pill, each read from
+// `headerView` (the engine's `rankingPlaces`, `timeOfDay`, `bankruptcyCountdown`, and the calendar
+// of `@heroesim/words`).
 // It also holds time: Advance a Turn, Fast forward and the other ways to fast forward, and while a
 // fast forward is between its steps, how far it has come and its Stop (v1.0.1-S5, DL-96). The game
 // menu opens from it, and a refusal is docked under it.
@@ -18,6 +19,7 @@ import type { StopCondition } from '@heroesim/engine';
 import { useCallback, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GameAction } from '../state/reducer';
 import type { HeaderView, ProgressView } from '../state/selectors';
+import { Coins } from './coins';
 import { Icon, type IconName } from './icons';
 import { GuildBanner } from './pictures';
 import { StatPill, useDismiss, VisuallyHidden } from './ui';
@@ -83,7 +85,8 @@ export function StatusBar({
           </h1>
         </div>
         <div className="status__facts">
-          <StatPill icon="wealth" label="Wealth" value={view.wealth} testId="wealth" />
+          {/* The Wealth in coins, flashing when the Silver changes (DL-294 item 1). */}
+          <StatPill icon="wealth" label="Wealth" value={<Coins silver={view.wealth} />} flashKey={view.wealth} testId="wealth" />
           <StatPill icon="fame" label="Fame" value={view.fame} testId="fame" />
           <span className="stat stat--plain">
             <Icon name={glyphs[view.timeOfDay]} />

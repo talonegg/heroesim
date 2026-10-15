@@ -339,6 +339,11 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
     const treasury = await guildPart(page, 'Treasury');
     await expect(treasury.getByRole('table', { name: /^The ledger of / })).toBeVisible();
+    // Its lines, each with its total (DL-304 item 4): the purchase's line under the Expense section, in a box that does not scroll.
+    const lines = treasury.getByRole('table', { name: /^The lines of / });
+    await expect(lines.getByRole('rowheader', { name: 'Expense', exact: true })).toBeVisible();
+    await expect(lines.getByRole('rowheader', { name: 'Item purchases', exact: true })).toBeVisible();
+    expect(await lines.locator('xpath=..').evaluate((box) => box.scrollWidth - box.clientWidth), `the Treasury's lines at ${width}px`).toBeLessThanOrEqual(0);
     await check("the Guild's Treasury");
     // A name in the ledger's sentence reads as a name in the History's lines do: a link's look, in the
     // sentence, not a bordered button (from the close's screenshots).
@@ -566,6 +571,13 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     const feeHeading = await rival.getByRole('columnheader', { name: 'Transfer fee' }).boundingBox();
     if (nameHeading === null || feeHeading === null) throw new Error(`a Rival's Roster, ${scheme}: no headings drawn`);
     expect(feeHeading.x, `a Rival's Roster, ${scheme}: the Transfer fee's heading clear of the name cell`).toBeGreaterThanOrEqual(nameHeading.x + nameHeading.width - 1);
+    // On a phone a fee stacks, its Silver under its Gold, so that the Fee column is only one coin part wide
+    // whatever the fonts' widths (DL-310); wider, it keeps one line.
+    const fee = rival.getByTestId('fee').filter({ has: page.locator('.coin--silver') }).first();
+    const gold = await fee.locator('.coin--gold').boundingBox();
+    const silver = await fee.locator('.coin--silver').boundingBox();
+    if (gold === null || silver === null) throw new Error(`a Rival's Roster, ${scheme}: no fee in Gold and Silver drawn`);
+    expect(silver.y > gold.y, `a Rival's Roster, ${scheme}: a fee's Silver under its Gold on a phone only`).toBe((page.viewportSize()?.width ?? 0) < 600);
     await page.screenshot({ path: test.info().outputPath(`rival-roster-${scheme}.png`), fullPage: true });
     await guilds.getByRole('button', { name: 'Back to the Guilds' }).click();
   }

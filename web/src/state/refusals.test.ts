@@ -96,9 +96,9 @@ const samples: Samples = {
   'load unsupported-version': {
     action: 'load',
     reason: 'unsupported-version',
-    documentVersion: 11,
+    documentVersion: schemaVersion + 1,
     schemaVersion,
-    message: 'The save is schema version 11',
+    message: `The save is schema version ${schemaVersion + 1}`,
   },
   'load invalid': {
     action: 'load',
@@ -148,7 +148,7 @@ const samples: Samples = {
 
   'build guild-folded': { action: 'build', reason: 'guild-folded', guildId },
   'build max-grade': { action: 'build', reason: 'max-grade', facility: 'quarters', grade: 3 },
-  'build insufficient-wealth': { action: 'build', reason: 'insufficient-wealth', facility: 'trainingYard', cost: 800, wealth: 500 },
+  'build insufficient-wealth': { action: 'build', reason: 'insufficient-wealth', facility: 'training-yard', cost: 800, wealth: 500 },
 
   'equip guild-folded': { action: 'equip', reason: 'guild-folded', guildId },
   'equip hero-not-on-roster': { action: 'equip', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
@@ -275,7 +275,7 @@ const exactly: Record<keyof Samples, string> = {
   'newGame portrait-of-another-sex': "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female.",
   'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
-  'load unsupported-version': 'Cannot load the save: The save is schema version 11.',
+  'load unsupported-version': `Cannot load the save: The save is schema version ${schemaVersion + 1}.`,
   'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
   'load unsound-config': "Cannot load the save: The game's config is unsound: boardSizeStart is -1; it is a whole number, at least 0.",
 
@@ -296,11 +296,11 @@ const exactly: Record<keyof Samples, string> = {
   'recruit guild-folded': 'The Lantern has folded and signs no one.',
   'recruit hero-not-unattached': `${hero.name} is not in the Unattached pool.`,
   'recruit signing-refused': `${hero.name} will not sign for a Guild with less than 40 Fame; The Lantern has 10, 30 short.`,
-  'recruit insufficient-wealth': 'The signing fee is 900 Wealth; The Lantern has 500.',
+  'recruit insufficient-wealth': 'The signing fee is 9 Gold; The Lantern has 5 Gold.',
 
   'build guild-folded': 'The Lantern has folded and builds nothing.',
   'build max-grade': "The Lantern's quarters are at grade 3, the highest there is.",
-  'build insufficient-wealth': "The next grade of The Lantern's training yard costs 800 Wealth; The Lantern has 500.",
+  'build insufficient-wealth': "The next grade of The Lantern's training yard costs 8 Gold; The Lantern has 5 Gold.",
 
   'equip guild-folded': 'The Lantern has folded and equips no one.',
   'equip hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
@@ -317,7 +317,7 @@ const exactly: Record<keyof Samples, string> = {
   'buy guild-folded': 'The Lantern has folded and buys nothing.',
   'buy not-in-market': `The Market has no ${named(content.items, 'runed-circlet')} for sale.`,
   'buy insufficient-quantity': `The Market has 1 ${whetstone}; 5 cannot be bought.`,
-  'buy insufficient-wealth': 'That costs 600 Wealth; The Lantern has 500.',
+  'buy insufficient-wealth': 'That costs 6 Gold; The Lantern has 5 Gold.',
   'sell guild-folded': 'The Lantern has folded and sells nothing.',
   'sell not-held-by-guild': `The Lantern holds no ${stackName} to sell.`,
   'sell equipped': `${hero.name} carries ${stackName} as their weapon; unequip it first.`,
@@ -330,14 +330,14 @@ const exactly: Record<keyof Samples, string> = {
   'transferIn hero-in-party': inParty,
   'transferIn recently-transferred': locked,
   'transferIn transfer-refused': `${rival.name} will not part with ${rivalHero.name}: its Roster of ${rival.rosterIds.length} is too small for its appetite for Transfers.`,
-  'transferIn insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
+  'transferIn insufficient-wealth': 'The fee is 1 Gold 80 Silver; The Lantern has 40 Silver.',
   'transferOut guild-folded': `${rival.name} has folded and deals no more.`,
   'transferOut same-guild': 'The Lantern cannot transfer a Hero to itself.',
   'transferOut hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
   'transferOut transfer-refused': `${rival.name} will not take ${hero.name}: it is not rich enough to hire now.`,
-  'transferOut insufficient-wealth': `The fee is 180 Wealth; ${rival.name} has 40.`,
+  'transferOut insufficient-wealth': `The fee is 1 Gold 80 Silver; ${rival.name} has 40 Silver.`,
   'offerTransfer guild-folded': `${rival.name} has folded and deals no more.`,
   'offerTransfer hero-not-on-roster': `${hero.name} is on no other Guild's Roster.`,
   'offerTransfer same-guild': "That Hero is already on The Lantern's Roster.",
@@ -345,11 +345,11 @@ const exactly: Record<keyof Samples, string> = {
   'offerTransfer recently-transferred': locked,
   'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
   'offerTransfer offer-pending': "The Lantern's Offer for that Hero already waits for an answer.",
-  'offerTransfer insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
+  'offerTransfer insufficient-wealth': 'The fee is 1 Gold 80 Silver; The Lantern has 40 Silver.',
   'acceptTransfer guild-folded': `${rival.name} has folded and deals no more.`,
   'acceptTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
   'acceptTransfer hero-in-party': inParty,
-  'acceptTransfer insufficient-wealth': `The fee is 180 Wealth; ${rival.name} has 40.`,
+  'acceptTransfer insufficient-wealth': `The fee is 1 Gold 80 Silver; ${rival.name} has 40 Silver.`,
   'declineTransfer guild-folded': `${rival.name} has folded and deals no more.`,
   'declineTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
   'nameCaptain guild-folded': 'The Lantern has folded and names no Captain.',
@@ -391,7 +391,7 @@ describe('with no world to name from', () => {
     expect(words('dispatch quest-not-offered')).toBe('That Quest is not on the Board: it has been taken or has expired, or was never offered.');
     expect(words('dispatch fame-below-minimum')).toBe('That Quest is a Tier 3 Quest, open to a Guild of 20 Fame or more; that Guild has 12, 8 short.');
     expect(words('equip slot-occupied')).toBe("That Hero's weapon slot holds that Item: unequip it first.");
-    expect(words('recruit insufficient-wealth')).toBe('The signing fee is 900 Wealth; your Guild has 500.');
+    expect(words('recruit insufficient-wealth')).toBe('The signing fee is 9 Gold; your Guild has 5 Gold.');
   });
 });
 

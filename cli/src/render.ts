@@ -23,14 +23,19 @@ import {
   holdings,
   itemDefinition,
   patronRegardFor,
-  facilityKeys,
+  facilityGrade,
+  facilityUpkeep,
+  hallUpkeepParts,
+  nextHallUpkeepDay,
   nextImprovement,
+  nextWagesDay,
   playerGuild,
   regardBand,
   regardValue,
   rankingPlaces,
   unattachedHeroes,
   upkeep,
+  wages,
   type EngineDeps,
   type Entry,
   type FacilityKey,
@@ -45,10 +50,13 @@ import {
   boardReading,
   capitalised,
   chanceWords,
+  coinLetters,
+  coinWords,
   dateOfDay,
   dateOfTurn,
   deadlyWords,
-  facilityNames,
+  facilityDoes,
+  facilityName,
   kindWords,
   listed,
   modifierWords,
@@ -181,9 +189,9 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       portraitWords(rowOf(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
-      String(guild.wealth),
+      coinLetters(guild.wealth),
       String(guild.fame),
-      String(upkeep(guild, world, config, content)),
+      coinLetters(upkeep(guild, world, config, content)),
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on ${dateOfTurn(guild.foldedOnTurn, config)}`] : []),
     ]),
   );
@@ -212,13 +220,14 @@ export function renderCountdown(document: WorldDocument, deps: EngineDeps): stri
   if (countdown === null) return [];
   return [
     `${guild.name} has been below the Bankruptcy floor since ${dateOfDay(countdown.sinceDay, deps.config)}: Bankruptcy on ` +
-      `${nightOfDay(countdown.dueDay, deps.config)} unless Wealth is back to ${deps.config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`,
+      `${nightOfDay(countdown.dueDay, deps.config)} unless Wealth is back to ${coinWords(deps.config.bankruptcyFloor)} or more on a night by then, after any Upkeep due.`,
   ];
 }
 
 /**
  * `show`: the seed, the Turn, the Bankruptcy countdown while the player's Guild is below the floor,
- * the Guilds in play, and how many of everything there are. A folded Guild is counted, and listed
+ * the Guilds in play, how many of everything there are, the player's Hall, and the Upkeep's two charges
+ * with the night each is next paid (DL-298, DL-304). A folded Guild is counted, and listed
  * by `show guilds` (DL-33).
  */
 export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
@@ -239,8 +248,21 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
       ? []
       : [
           `${player.name}'s Hall: ` +
-            facilityKeys.map((facility) => `${facilityNames[facility]} grade ${player.hall[facility]}`).join(', ') +
+            Object.keys(deps.content.facilities)
+              .map((facility) => `${facilityName(deps.content, facility)} grade ${facilityGrade(player.hall, facility)}`)
+              .join(', ') +
             ' (show hall gives each grade and what the next costs).',
+        ];
+  // The wages and the Hall's upkeep, as `build` words them, none once the Guild has folded or the game has ended (DL-304).
+  const { config } = deps;
+  const charges =
+    player === undefined || !inPlay(player) || world.ended !== null
+      ? []
+      : [
+          `Wages ${coinLetters(wages(player, world, config))} every ${config.upkeepEveryDays} Days, ` +
+            `next paid on ${nightOfDay(nextWagesDay(world.turn, config), config)}.`,
+          `Hall upkeep ${coinLetters(hallUpkeepParts(player, world, config, deps.content).total)} every ${config.hallUpkeepEveryDays} Days, ` +
+            `next paid on ${nightOfDay(nextHallUpkeepDay(world.turn, config), config)}.`,
         ];
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
@@ -250,6 +272,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     '',
     counts.join(', '),
     ...hall,
+    ...charges,
   ];
 }
 
@@ -261,25 +284,32 @@ export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[
 // ── The Hall ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `show hall [guildId]`: each facility of the Guild's Hall, its grade and the Improvement built at
- * it, and the next grade's Improvement and cost (`nextImprovement`), or that it is at the top; then
- * what the facilities do, in words. The player's Guild unless given another.
+ * `show hall [guildId]`: each Facility of the Guild's Hall, its grade, the Improvement built at it and
+ * its upkeep there (`facilityUpkeep`), and the next grade's Improvement, cost (`nextImprovement`) and
+ * upkeep, or that it is at the top; then what the Facilities do, in words read from their effects
+ * (`facilityDoes`). Each upkeep is the Facility's part of the Hall's before the Guildmaster's Traits, as
+ * the page's Hall gives it (DL-303). The player's Guild unless given another.
  */
 export function renderHall(guild: Guild, deps: EngineDeps): string[] {
-  const { content } = deps;
+  const { content, config } = deps;
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? '';
-  const rows = facilityKeys.map((facility) => {
-    const grade = guild.hall[facility];
+  const facilities = Object.keys(content.facilities);
+  const rows = Object.values(content.facilities).map((def) => {
+    const facility = def.key;
+    const grade = facilityGrade(guild.hall, facility);
     const next = nextImprovement(guild, facility, content);
     return [
-      capitalised(facilityNames[facility]),
+      capitalised(facilityName(content, facility)),
       String(grade),
       grade === 0 ? 'None' : builtAt(facility, grade),
+      coinLetters(facilityUpkeep(def, grade, config)),
       next === null ? 'None: the top grade' : next.name,
-      next === null ? '' : String(next.cost),
+      next === null ? '' : coinLetters(next.cost),
+      next === null ? '' : coinLetters(facilityUpkeep(def, next.grade, config)),
     ];
   });
+  const does = facilities.map((facility) => `the ${facilityName(content, facility)} ${facilityDoes(content, facility)}`).join('; ');
   return [
     `Hall of ${guild.name} (${guild.id})`,
     '',
@@ -288,16 +318,32 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
         { heading: 'Facility' },
         { heading: 'Grade', align: 'right' },
         { heading: 'Built' },
+        { heading: 'Upkeep', align: 'right' },
         { heading: 'Next grade' },
         { heading: 'Cost', align: 'right' },
+        { heading: 'Next upkeep', align: 'right' },
       ],
       rows,
     ),
     '',
-    'The infirmary shortens the Days an Injury takes to heal; the training yard gives every Hero on',
-    'the Roster who is home and unhurt XP each night; the quarters raise the Morale the Roster settles',
-    'toward. Each grade does more than the one below it, and each adds to the Upkeep.',
+    ...wrapped(`${capitalised(does)}.`),
+    ...wrapped(`Each grade does more and costs more to keep, its upkeep paid with the Hall's every ${config.hallUpkeepEveryDays} Days.`),
   ];
+}
+
+/** `text` in lines of at most `width` characters, broken between words. */
+function wrapped(text: string, width = 100): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (line !== '' && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line === '' ? word : `${line} ${word}`;
+    }
+  }
+  return line === '' ? lines : [...lines, line];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
@@ -349,7 +395,7 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
     { heading: 'Captain', cell: (row) => (row.captain ? 'Yes' : '') },
     ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => String(row.transferFee ?? '') }]),
+      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => (row.transferFee === null ? '' : coinLetters(row.transferFee)) }]),
   ];
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
@@ -383,7 +429,7 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
  * Level will not sign for a Guild whose Fame is below what their Level asks (`poolReading`).
  */
 export function renderPool(reading: PlayerReading): string[] {
-  const columns: HeroColumn<PoolRowReading>[] = [{ heading: 'Fee', align: 'right', cell: (row) => String(row.fee) }];
+  const columns: HeroColumn<PoolRowReading>[] = [{ heading: 'Fee', align: 'right', cell: (row) => coinLetters(row.fee) }];
   if (reading.guild !== undefined) {
     columns.push({ heading: 'Signs', cell: (row) => (row.signs === null ? '' : capitalised(signsWords(row.signs))) });
   }
@@ -424,7 +470,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['Traits', none(hero.traits.map((trait) => `${trait.name} (${trait.effect})`))],
     ...hero.texts.map(({ label, words }): [string, string] => [label, words]),
   ];
-  if (hero.transferFee !== null) attributes.push(['Transfer fee', String(hero.transferFee)]);
+  if (hero.transferFee !== null) attributes.push(['Transfer fee', coinLetters(hero.transferFee)]);
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.died !== null) attributes.push(['Died', renderDate(hero.died, calendar)]);
   if (hero.retired !== null) attributes.push(['Retired', renderDate(hero.retired, calendar)]);
@@ -494,7 +540,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
       ranking.guildId,
       guild?.name ?? ranking.guildId,
       guild === undefined ? '' : controllerOf(guild, deps.content),
-      String(ranking.value),
+      by === 'wealth' ? coinLetters(ranking.value) : String(ranking.value),
     ];
   });
   return [
@@ -550,7 +596,7 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
 const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   negotiation: 'The reward agreed and the fees paid',
   inspiration: 'The Morale baseline of the Heroes',
-  coaching: 'The XP of the training yard',
+  coaching: 'The training XP the Hall gives',
   influence: "The Regard a Patron's Quest earns",
   judgement: 'How sharp the Potential hints read',
 });
@@ -675,7 +721,7 @@ export function renderBoard(reading: PlayerReading): string[] {
         String(quest.tier),
         quest.deadly ? 'Yes' : 'No',
         String(quest.days),
-        String(quest.reward),
+        coinLetters(quest.reward),
         String(quest.difficulty),
         String(quest.fame),
         `${quest.partySizeMin} or more`,

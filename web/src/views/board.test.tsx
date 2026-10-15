@@ -8,7 +8,7 @@ import { changed, documentOf, estimateOf, holding, started } from '../state/game
 import type { GameState } from '../state/reducer';
 import { defaultHeroOrder } from '../state/selectors';
 import { Icon } from './icons';
-import { idle, inHistory, navButton, openView, section, startNewGame } from './page.test-support';
+import { idle, inHistory, navButton, openView, section, silverOf, startNewGame } from './page.test-support';
 
 // The Board's Quest cards and the Party builder (DL-104), through the page as a player uses
 // them: a card of two lines that unfolds to its details, the Board ordered, each Hero's row in the
@@ -130,10 +130,11 @@ describe('a Quest card', () => {
     expect(within(card).getByText(patron?.name ?? '')).toBeDefined();
     const terms = within(card).getByRole('list', { name: `The terms of ${name}` });
     // Its Tier, the Days and the reward first (DL-257, DL-269); not Deadly, so no mark.
-    expect(within(terms).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    // The reward is coins (DL-294 item 1), read here by its Silver.
+    expect(within(terms).getAllByRole('listitem').map((item) => (item.querySelector('[data-silver]') === null ? item.textContent : `${silverOf(item)} Silver`))).toEqual([
       'Tier 2',
       '5 Days away',
-      '243 Wealth',
+      '243 Silver',
       'Difficulty 54',
       'Fame ±2',
       '1 or more Heroes',
@@ -287,7 +288,7 @@ describe('the Board', () => {
     const rewards = () =>
       within(section('Board'))
         .getAllByRole('article')
-        .map((card) => Number(/^(\d+) Wealth$/.exec(within(card).getAllByRole('listitem')[2]?.textContent ?? '')?.[1]));
+        .map((card) => silverOf(within(card).getAllByRole('listitem')[2] as HTMLElement));
     const order = within(section('Board')).getByRole('combobox', { name: 'Order' });
 
     expect(rewards()).toEqual([96, 188, 207, 216, 92, 378]);

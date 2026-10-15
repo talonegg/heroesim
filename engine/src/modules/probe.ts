@@ -53,7 +53,7 @@ export interface ProbeTunables {
   probeWealthDelta: number;
   /** The Regard it adds to what the Patron it fires on holds for that Guild: a finite number. */
   probeRegardDelta: number;
-  /** The Days of the Injury it gives the Hero, before their Guild's infirmary: a whole number from 1. */
+  /** The Days of the Injury it gives the Hero, before their Guild's Hall shortens them: a whole number from 1. */
   probeInjuryDays: number;
 }
 

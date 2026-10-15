@@ -16,6 +16,7 @@ import {
   signingRefusal,
   unattachedHeroes,
   upkeep,
+  wages,
   type EngineDeps,
   type Guild,
   type GuildAction,
@@ -24,7 +25,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { makeId, marketHolder } from '@heroesim/engine/testing';
+import { createItem, makeId, marketHolder } from '@heroesim/engine/testing';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -53,13 +54,14 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
 });
 
 // The harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
-// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
+// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults: the Hall's
+// base and its Heroes' share at 0, so that a new Guild's Upkeep is its wages (DL-298). The
 // Market is empty (`marketSize: 0`) unless a test stocks it, so that the armour and consumables it
 // would buy (DL-62) stay out of the tests of building and recruiting.
 
 const content = loadContent();
 const deps: EngineDeps = {
-  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50, marketSize: 0 },
+  config: { ...defaultConfig, wagePerLevel: 5, hallBaseUpkeep: 0, hallUpkeepPerHero: 0, signingFeeBase: 50, marketSize: 0 },
   content,
 };
 
@@ -417,10 +419,10 @@ describe('automaticPolicy', () => {
       const { document, guild } = scene();
       document.world.board = [];
       guild.wealth = wealth;
-      return { document, guild, threshold: defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config) };
+      return { document, guild, threshold: defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content) };
     }
 
-    test('the cheapest Unattached Hero, lowest id among equal fees, when Wealth exceeds three Upkeeps', () => {
+    test('the cheapest Unattached Hero, lowest id among equal fees, when Wealth exceeds recruitWealthMultiple Upkeeps', () => {
       const { document, guild } = recruiting(10_000);
       const pool = unattachedHeroes(document.world);
       const cheapest = Math.min(...pool.map((hero) => signingFee(hero, deps)));
@@ -472,6 +474,18 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 5 })).toHaveLength(1);
       expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 4 })).toEqual([]);
     });
+
+    test("counts the Hall's upkeep among its Upkeeps, with the wages, as every reader of Upkeeps does (DL-298)", () => {
+      const { document, guild } = recruiting(0);
+      guild.hallBaseUpkeep = 3_000;
+      const threshold = defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content);
+      expect(threshold).toBeGreaterThan(defaultPolicyConfig.recruitWealthMultiple * (wages(guild, document.world, deps.config) + 800));
+
+      guild.wealth = threshold;
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([]);
+      guild.wealth = threshold + 1;
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([expect.objectContaining({ kind: 'recruit', guildId: guild.id })]);
+    });
   });
 
   describe('builds', () => {
@@ -495,6 +509,20 @@ describe('automaticPolicy', () => {
       const second = building(multiple * 500 + 1, 1);
       expect(automaticPolicy(second.document, deps)).toEqual([{ kind: 'build', guildId: second.guild.id, facility: 'infirmary' }]);
       expect(automaticPolicy(building(multiple * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
+    });
+
+    // DL-297: the Facility it builds is content's first with the heal effect, the infirmary in the core.
+    test("builds the first Facility in content's order with the heal effect, and nothing where none has it", () => {
+      const { document, guild } = building(1_000_000);
+      const { facilities, improvements } = deps.content;
+      const hospice = { key: 'hospice', name: 'hospice', plural: false, upkeep: 15, effects: { healFactor: 1 } };
+      const hospice1 = { key: 'hospice-1', name: 'Hospice', facility: 'hospice', grade: 1, cost: 200, effects: { healFactor: 0.5 } };
+      const first = { ...deps, content: { ...deps.content, facilities: { hospice, ...facilities }, improvements: { ...improvements, 'hospice-1': hospice1 } } };
+      const unhealing = Object.fromEntries(Object.entries(facilities).map(([key, row]) => [key, { ...row, effects: { moraleBaseline: 0 } }]));
+      const none = { ...deps, content: { ...deps.content, facilities: unhealing } };
+
+      expect(automaticPolicy(document, first)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'hospice' });
+      expect(automaticPolicy(document, none).map((action) => action.kind)).toEqual(['recruit']);
     });
 
     test('nothing past the top grade, and no other facility: then it recruits', () => {
@@ -717,7 +745,7 @@ describe('automaticPolicy', () => {
         { definitionKey: 'whetstone', quantity: 1 },
       ]);
       expect(sent[1]?.consumables).toEqual([{ definitionKey: 'blessed-candle', quantity: 1 }]);
-      // Applied in order, every one is accepted, and what was not carried stays at home.
+      // Applied in order, every one is accepted, and what was not carried or sold as surplus stays at home.
       for (const action of actions) {
         const result = applyAction(document, action, deps);
         expect(result.ok, action.kind).toBe(true);
@@ -726,8 +754,8 @@ describe('automaticPolicy', () => {
       const home = holdings(document.world, vault).stacks.map((stack) => [stack.definitionKey, stack.quantity]);
       expect(home).toEqual(
         expect.arrayContaining([
-          ['whetstone', 2],
-          ['lockpicks', 3],
+          ['whetstone', 1],
+          ['lockpicks', 2],
           ['blessed-candle', 1],
         ]),
       );
@@ -821,5 +849,82 @@ describe('automaticPolicy', () => {
     openBoard(quests);
     document.world.ended = { turn: 0, reason: 'bankruptcy' };
     expect(automaticPolicy(document, deps)).toEqual([]);
+  });
+
+  describe('sells surplus outside its purchase step (DL-301, Q18)', () => {
+    test('sells surplus gear, consumables above stock, and loot-only items in holding', () => {
+      const { document, guild } = scene('policy-surplus');
+      const vault = { kind: 'guild', id: guild.id } as const;
+      for (const heroId of guild.rosterIds) {
+        addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+        addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+        addStack(document.world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+      }
+      const sword = addStack(document.world, 'short-sword', 1, vault);
+      const draughts = addStack(document.world, 'healing-draught', 3, vault);
+      const blade = createItem(document.world, 'barrow-kings-blade', vault);
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      const sells = actions.filter((a) => a.kind === 'sell');
+      expect(sells).toEqual([
+        { kind: 'sell', guildId: guild.id, itemId: blade },
+        { kind: 'sell', guildId: guild.id, stackId: sword, quantity: 1 },
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 1 },
+      ]);
+    });
+
+    test('in debt, sells the entire holding', () => {
+      const { document, guild } = scene('policy-debt');
+      document.world.board = [];
+      for (const heroId of guild.rosterIds) {
+        addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+        addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+        addStack(document.world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+      }
+      guild.belowFloorSince = 0;
+      const vault = { kind: 'guild', id: guild.id } as const;
+      const blade = createItem(document.world, 'barrow-kings-blade', vault);
+      const draughts = addStack(document.world, 'healing-draught', 2, vault);
+      const sword = addStack(document.world, 'short-sword', 1, vault);
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      const sells = actions.filter((a) => a.kind === 'sell');
+      expect(sells).toEqual([
+        { kind: 'sell', guildId: guild.id, itemId: blade },
+        { kind: 'sell', guildId: guild.id, stackId: draughts, quantity: 2 },
+        { kind: 'sell', guildId: guild.id, stackId: sword, quantity: 1 },
+      ]);
+    });
+
+    test('a loot-only Item it puts on a bare Hero is kept, not sold, and every action is accepted in order', () => {
+      const scened = scene('policy-surplus-equip');
+      const { guild } = scened;
+      let { document } = scened;
+      document.world.board = [];
+      const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+      expect(actions).toContainEqual(expect.objectContaining({ kind: 'equip', itemId: blade }));
+      expect(actions.filter((a) => a.kind === 'sell')).toEqual([]);
+      for (const action of actions) {
+        const result = applyAction(document, action, deps);
+        expect(result.ok, action.kind).toBe(true);
+        if (result.ok) document = result.document;
+      }
+    });
+
+    test('sells its surplus and still makes its one purchase the same Turn', () => {
+      const { document, guild } = scene('policy-surplus-purchase');
+      document.world.board = [];
+      guild.wealth = defaultPolicyConfig.buyWealthMultiple * 300 + 1;
+      guild.hall.infirmary = 3;
+      addStack(document.world, 'plate-harness', 2, marketHolder);
+      const whetstones = addStack(document.world, 'whetstone', 5, { kind: 'guild', id: guild.id });
+
+      expect(automaticPolicy(document, deps)).toEqual([
+        { kind: 'sell', guildId: guild.id, stackId: whetstones, quantity: 5 - defaultPolicyConfig.consumableStock },
+        { kind: 'buy', guildId: guild.id, definitionKey: 'plate-harness', quantity: 1 },
+      ]);
+    });
   });
 });

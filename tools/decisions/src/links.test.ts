@@ -62,7 +62,8 @@ describe('links', () => {
     }
   });
 
-  test("this repository's Markdown has no broken relative link", () => {
+  // Reads every file of the repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test("this repository's Markdown has no broken relative link", { timeout: 30_000 }, () => {
     expect(brokenLinksInRepository(repositoryRoot, repositoryTextsOnce())).toEqual([]);
   });
 });

@@ -28,6 +28,7 @@ import {
   offersTo,
   partyPool,
   playerGuild,
+  surplusChoices,
   upkeep,
   type BestParties,
   type ConsumableEffectKind,
@@ -44,13 +45,13 @@ import {
 
 /** The policy's own numbers (INPUTS 4.14). Not game rules: nothing in the engine reads them. */
 export interface PolicyConfig {
-  /** Recruit only while Wealth is above this many times the Guild's Upkeep ("exceeds three Upkeeps"). */
+  /** Recruit only while Wealth is above this many times the Guild's Upkeep ("exceeds one Upkeep", DL-300). */
   recruitWealthMultiple: number;
   /** Recruit only while the Roster holds fewer Heroes than this ("the Roster is below 8"). */
   rosterLimit: number;
   /**
-   * Build the infirmary's next grade only while Wealth is above this many times its cost (M3-S6:
-   * "when Wealth exceeds three times its cost", DL-38).
+   * Build the healing Facility's next grade only while Wealth is above this many times its cost ("when
+   * Wealth exceeds three times its cost", DL-38).
    */
   buildWealthMultiple: number;
   /**
@@ -66,23 +67,23 @@ export interface PolicyConfig {
   consumableStock: number;
   /**
    * Buy consumables only from Wealth the Guild can spare: the purchase leaves more than this many
-   * Upkeeps (DL-62), so that a Guild earning little over its Upkeep keeps its margin for its wages.
+   * Upkeeps (DL-62, DL-300), so that a Guild earning little over its Upkeep keeps its margin for its wages.
    */
   consumableReserveUpkeeps: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
-  recruitWealthMultiple: 3,
+  recruitWealthMultiple: 1,
   rosterLimit: 8,
   buildWealthMultiple: 3,
   buyWealthMultiple: 3,
   consumableStock: 2,
-  consumableReserveUpkeeps: 20,
+  consumableReserveUpkeeps: 20 / 3,
 });
 
 /**
  * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
- * DL-287): decline, name a Captain, equip, dispatch, then one purchase.
+ * DL-287, DL-301): decline, name a Captain, equip, dispatch, sell its surplus, then one purchase.
  *
  * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
  *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
@@ -106,9 +107,14 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   of each consumable** the Guild holds that could serve its Quest (the engine's `consumablesToCarry`, DL-62, DL-288), while
  *   the Guild has one left after the Parties before it; the chance it is chosen by is the Party's
  *   carrying nothing, as the Best Party weighs it.
+ * - **Sell its surplus** to the Market, outside its one purchase (the engine's `surplusChoices`, as a
+ *   Rival sells, DL-301): the gear in its holding beyond what its Heroes with the slot empty would put
+ *   on, consumables above `consumableStock` of each, what its Parties carry counted, and Loot-only
+ *   Items; in debt, its whole holding; never what the equips and dispatches above take.
  * - **One purchase a Turn**, the first of these that applies:
- *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
- *     (M3-S6, DL-38), until the infirmary is at its top grade.
+ *   - **Build** the next grade of the healing Facility, the first in content's order with the
+ *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times
+ *     its cost (DL-38, DL-297), until it is at its top grade.
  *   - **Buy armour** while the Roster has more Heroes with nothing in their armour slot than the
  *     Guild holds armour to give them (M5-S4, DL-51): one piece, the dearest armour the Market has
  *     for sale whose price Wealth is above `buyWealthMultiple` times, lowest key among equal prices.
@@ -127,9 +133,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   describes it, and Rivals' offers are declined above.
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
- * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices
- * do not depend on one another, and every one is an action the rules accept on it when applied in
- * order. None once the game has ended, and none for a world without a player's Guild.
+ * dispatch moves no Wealth and a purchase sends no one, a sale only adds Wealth and takes nothing
+ * the equips and dispatches take, and there is one purchase, so the choices do not depend on one
+ * another, and every one is an action the rules accept on it when applied in order. None once the
+ * game has ended, and none for a world without a player's Guild.
  */
 export function automaticPolicy(
   document: WorldDocument,
@@ -163,8 +170,12 @@ export function automaticPolicy(
     choices = staffed(best, choices.filter((other) => other !== choice).map((other) => other.quest), available);
   }
 
+  // DL-301: sell surplus outside the afternoon's one purchase
+  const surplus = surplusChoices(world, guild, keeping(policy), deps, actions);
+  actions.push(...surplus);
+
   const purchase =
-    infirmaryBuild(guild, deps, policy) ??
+    healingBuild(guild, deps, policy) ??
     armourPurchase(document, guild, deps, policy) ??
     recruitment(world, guild, deps, policy) ??
     consumablePurchase(world, guild, keeping(policy), deps);
@@ -198,13 +209,16 @@ function keeping(policy: Readonly<PolicyConfig>): ConsumableKeeping {
 }
 
 /**
- * A build of the infirmary's next grade when Wealth is above the policy's `buildWealthMultiple`
- * times its cost (the engine's `affordableImprovement`, as `steady` decides with the game's);
- * `null` otherwise, and once the infirmary is at its top grade.
+ * A build of the next grade of the healing Facility, the first of content's Facilities with the
+ * `healFactor` effect (DL-297), when Wealth is above the policy's `buildWealthMultiple` times its cost
+ * (the engine's `affordableImprovement`, as `steady` decides with the game's); `null` otherwise, once
+ * it is at its top grade, and where content has no such Facility.
  */
-function infirmaryBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
-  const next = affordableImprovement(guild, 'infirmary', policy.buildWealthMultiple, deps.content);
-  return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
+function healingBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
+  const facility = Object.values(deps.content.facilities).find((row) => Object.hasOwn(row.effects, 'healFactor'))?.key;
+  if (facility === undefined) return null;
+  const next = affordableImprovement(guild, facility, policy.buildWealthMultiple, deps.content);
+  return next === null ? null : { kind: 'build', guildId: guild.id, facility };
 }
 
 /**

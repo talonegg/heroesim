@@ -10,13 +10,13 @@ import { buildDocument, testDeps, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
 import type { SellRequest } from './sell.js';
 
-// Selling to the Market (R31, DL-51). `sellRatio` and the Loot-only price are pinned; the
-// test content prices a Healing draught at 30, a Whetstone at 25. The built document holds a stack
+// Selling to the Market (R31, DL-51). `sellRatio` is pinned; the test content prices a Healing
+// draught at 30, a Whetstone at 25, and values a Loot-only Item at 600 (DL-301). The built document holds a stack
 // for every kind of holder: 3 Healing draughts in the player's Guild's holding, 12 on the Market, 2
 // with the Party, a Padded jack in a Hero's armour slot, and the Lantern of Stannary in their
 // trinket slot.
 
-const deps = testDeps({ rivalCount: 0, sellRatio: 0.5, lootOnlyPrice: 600 });
+const deps = testDeps({ rivalCount: 0, sellRatio: 0.5 });
 
 function built(wealth = 100) {
   const { document, ids } = buildDocument();
@@ -68,7 +68,7 @@ describe('sell', () => {
     expect(findStack(world, 'whetstone', { kind: 'guild', id: ids.playerGuild })).toBeUndefined();
   });
 
-  test('sells a unique Item at lootOnlyPrice × sellRatio when it has no price, and the Market lists it', () => {
+  test('sells a unique Item at its value × sellRatio, and the Market lists it', () => {
     const { document, ids } = built();
     const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: ids.playerGuild });
 

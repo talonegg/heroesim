@@ -2,6 +2,7 @@ import type { QuestId } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StopView } from '../state/selectors';
+import { silverOf } from './page.test-support';
 import { StopCard } from './stop';
 
 // Why time stopped, in the home view (DL-103). "Fast forward again" (DL-96 item
@@ -46,10 +47,12 @@ describe('a decision needed', () => {
     ];
     const { onOpenQuest } = card({ kind: 'decision-needed', sentence, quests });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a Party for Clear the barrow, offered by Piers Latimer, for 140 Wealth' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a Party for Clear the barrow, offered by Piers Latimer, for 1 Gold 40 Silver' }));
 
     expect(onOpenQuest).toHaveBeenCalledWith('quest-000002');
     expect(screen.queryByRole('button', { name: 'Open the Board' })).toBeNull();
+    // Each button shows its reward in coins (DL-294 item 1).
+    expect(screen.getAllByRole('button', { name: /^Choose a Party for Clear the barrow, / }).map(silverOf)).toEqual([120, 140]);
   });
 
   test('when none of the Quests it named is still on the Board, opens the Board', () => {
@@ -93,7 +96,7 @@ describe('a Quest to staff (#32)', () => {
     const quests = [{ questId: 'quest-000003' as QuestId, name: 'Clear the barrow', patron: 'Orabel Quint', reward: 120 }];
     const { onOpenQuest } = card({ kind: 'quest-staffable', sentence, quests });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a Party for Clear the barrow, offered by Orabel Quint, for 120 Wealth' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a Party for Clear the barrow, offered by Orabel Quint, for 1 Gold 20 Silver' }));
     expect(onOpenQuest).toHaveBeenCalledWith('quest-000003');
     expect(screen.getByTestId('stop').classList.contains('stop--warning')).toBe(false);
   });

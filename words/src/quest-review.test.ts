@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { contentDir, loadContent, loadDrafts } from '@heroesim/content/node';
-import { degrees, encounterKinds, type Encounter, type QuestBeat } from '@heroesim/engine/content';
+import { degrees, encounterKinds, type Encounter, type GearDefinition, type QuestBeat } from '@heroesim/engine/content';
 import { describe, expect, test } from 'vitest';
 import { consequenceWords, passWords, reviewPage, type ReviewCalibration, type ReviewCell } from './quest-review.js';
 
@@ -108,6 +108,21 @@ describe('the review page', () => {
     const escaped = reviewPage({ content: marked, core, calibration, notes: {}, made: '2026-10-03' });
     expect(escaped).toContain(' · Beats Any tagged water, Ambush &lt;b&gt;&amp; run, Combat');
     expect(escaped).not.toContain('<b>&');
+  });
+
+  test("prices a new Item in the coins' sentence form, and a loot-only one with a dash (DL-294 item 1)", () => {
+    const sword = core.items['short-sword'];
+    if (sword === undefined || sword.kind !== 'gear') throw new Error('The content has no short-sword');
+    const lost: GearDefinition = { ...sword, key: 'lost-sword', name: 'Lost sword', value: 600 };
+    delete lost.buyPrice;
+    const items = {
+      ...content.items,
+      'gilded-sword': { ...sword, key: 'gilded-sword', name: 'Gilded sword', buyPrice: 520 },
+      'lost-sword': lost,
+    };
+    const priced = reviewPage({ content: { ...content, items }, core, calibration, notes: {}, made: '2026-10-12' });
+    expect(priced).toMatch(/id="item-gilded-sword">Gilded sword<\/span><\/th>(<td>[^<]*<\/td>){2}<td>5 Gold 20 Silver<\/td>/);
+    expect(priced).toMatch(/id="item-lost-sword">Lost sword<\/span><\/th>(<td>[^<]*<\/td>){2}<td>—<\/td>/);
   });
 
   test('with fragment, is the title, the style and the content alone, in that order, padding only the block ends', () => {

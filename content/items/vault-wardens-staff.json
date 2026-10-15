@@ -4,6 +4,6 @@
   "unique": true,
   "slot": "weapon",
   "statModifiers": { "arcana": 3, "power": 3 },
-  "buyPrice": null,
+  "value": 600,
   "tags": ["relic"]
 }

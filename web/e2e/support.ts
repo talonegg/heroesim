@@ -260,6 +260,41 @@ export function escaped(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** An amount in the sentence form (`coinWords`) as a regular expression's source: `5 Gold 20 Silver`, `5 Gold`, `20 Silver` (DL-294 item 1). */
+export const amountPattern = String.raw`(?:\d+ Gold(?: \d+ Silver)?|\d+ Silver)`;
+
+/**
+ * The Silver a coins element inside `scope` shows (DL-294 item 1), from its `data-silver`: the
+ * amounts are never read from their numbers and discs, which the sentence beside them repeats.
+ */
+export async function silverOf(scope: Locator): Promise<number> {
+  const coins = scope.locator('[data-silver]');
+  await expect(coins).toHaveCount(1);
+  return Number(await coins.getAttribute('data-silver'));
+}
+
+/** The player's Wealth in Silver, as the status bar shows it. */
+export async function wealthOf(page: Page): Promise<number> {
+  return silverOf(page.getByTestId('wealth'));
+}
+
+/** The status bar's Wealth is `silver` Silver. */
+export async function expectWealth(page: Page, silver: number): Promise<void> {
+  await expect(page.getByTestId('wealth').locator('[data-silver]')).toHaveAttribute('data-silver', String(silver));
+}
+
+/**
+ * `locator`'s text as it is spoken: each coins element read as its sentence ("5 Gold 20 Silver"),
+ * not as its numbers and discs and the hidden sentence together. Read once: a caller polls it with `expect.poll`.
+ */
+export async function spokenText(locator: Locator): Promise<string> {
+  return locator.evaluate((element) => {
+    const copy = element.cloneNode(true) as HTMLElement;
+    for (const coins of copy.querySelectorAll('.coins')) coins.replaceWith(coins.querySelector('.visually-hidden')?.textContent ?? '');
+    return copy.textContent ?? '';
+  });
+}
+
 /**
  * Sends a Party on the first Quest on the Board that dispatch would send one to, through the Party
  * builder (DL-104); its name. Each Hero's row says what they bring; the first one chosen has

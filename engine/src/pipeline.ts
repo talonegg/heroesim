@@ -43,7 +43,7 @@ export const phases: readonly Phase[] = [
   { name: 'rivalControllers', timeOfDay: 'afternoon', run: rivalControllers },
   { name: 'questsAdvance', timeOfDay: 'afternoon', run: questsAdvance },
   { name: 'onAfternoon', timeOfDay: 'afternoon', run: hookPhase('onAfternoon') },
-  // Night: the training yard's XP for the Day just spent at the Hall, Quests conclude, Heroes gain
+  // Night: the Hall's training XP for the Day just spent at it, Quests conclude, Heroes gain
   // the Levels their XP has reached (DL-36), the Hero State Engine runs with ageing after its
   // Retirement checks (DL-37), the gear of the dead and the retired goes back to their Guilds
   // (DL-49), the Guild State Engine runs, the Transfer Generator moves Heroes between Rivals on its

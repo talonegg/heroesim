@@ -72,8 +72,9 @@ import {
   dayOf,
   dispositionOf,
   encounterKinds,
-  facilityKeys,
   fatigueBand,
+  hallUpkeepSplit,
+  topGrade,
   isEngineEvent,
   isId,
   partyPool,
@@ -246,7 +247,7 @@ export interface GrowthAgainstDecline {
   pointsDeclinedAfter: number;
 }
 
-/** For each facility, how many Guilds reached each grade: index 0, never built, first. */
+/** For each Facility, by its content key, how many Guilds reached each grade: index 0, never built, first. */
 export type GradeCounts = Record<FacilityKey, number[]>;
 
 /** Everything a harness game's History is counted by (M2-S12's counters, DL-34; M3's, DL-40). */
@@ -470,10 +471,12 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 /**
  * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
  * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
- * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and Upkeep
- * (`guild.upkeep-paid`'s `amount`); taken from Quests (`quest.resolved`'s `wealthDelta`), from
- * Transfer fees (the same `fee`, for the selling Guild, M6) and from the Market (`item.sold`'s
- * `proceeds`, by its `cause`).
+ * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
+ * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), split
+ * between the Hall's and the Improvements' by `hallUpkeepSplit`, as the Treasury splits it (DL-298,
+ * DL-302, DL-304); taken from
+ * Quests (`quest.resolved`'s `wealthDelta`), from Transfer fees (the same `fee`, for the selling Guild,
+ * M6) and from the Market (`item.sold`'s `proceeds`, by its `cause`).
  */
 export interface WealthFlows {
   signing: number;
@@ -482,7 +485,12 @@ export interface WealthFlows {
   /** The Items `item.bought` moved, summed over its `quantity`. */
   itemsBought: number;
   improvements: number;
-  upkeep: number;
+  /** The wages (`guild.wages-paid`). */
+  wages: number;
+  /** The Hall's upkeep alone (`guild.hall-upkeep-paid`), base and Heroes, the Guildmaster's factor applied. */
+  hallUpkeep: number;
+  /** The Improvements' upkeep (`guild.hall-upkeep-paid`), each Facility's charge with the Guildmaster's factor applied. */
+  improvementUpkeep: number;
   questRewards: number;
   transferFeesTaken: number;
   sales: Record<ItemSaleCause, number>;
@@ -540,7 +548,9 @@ export const noWealth = (): WealthFlows => ({
   items: 0,
   itemsBought: 0,
   improvements: 0,
-  upkeep: 0,
+  wages: 0,
+  hallUpkeep: 0,
+  improvementUpkeep: 0,
   questRewards: 0,
   transferFeesTaken: 0,
   sales: { sale: 0, fold: 0 },
@@ -726,8 +736,9 @@ function isBand(value: unknown): value is QuestBand {
   return (questBands as readonly unknown[]).includes(value);
 }
 
+/** A Facility's key as an entry names it: any string, content's or not (DL-297). */
 function isFacility(value: unknown): value is FacilityKey {
-  return (facilityKeys as readonly unknown[]).includes(value);
+  return typeof value === 'string';
 }
 
 const byYear = (): ByYear => ({ player: [], rival: [] });
@@ -834,15 +845,12 @@ export function progressionCounters(
 }
 
 /**
- * A grade count for each facility, as long as `content`'s grades of it go, all zero; without `content`,
- * each empty, as the sweep's totals begin before a game adds its counts (v1.1.6-S1, DL-187).
+ * A grade count for each of `content`'s Facilities, as long as its grades of it go, all zero; without
+ * `content`, none, as the sweep's totals begin before a game adds its counts (DL-187, DL-297).
  */
 export function noGrades(content?: EngineDeps['content']): GradeCounts {
-  const top = (facility: FacilityKey): number =>
-    content === undefined
-      ? -1
-      : Object.values(content.improvements).reduce((most, row) => (row.facility === facility ? Math.max(most, row.grade) : most), 0);
-  return Object.fromEntries(facilityKeys.map((facility) => [facility, Array.from({ length: top(facility) + 1 }, () => 0)])) as GradeCounts;
+  if (content === undefined) return {};
+  return Object.fromEntries(Object.keys(content.facilities).map((facility) => [facility, Array.from({ length: topGrade(facility, content) + 1 }, () => 0)]));
 }
 
 /** A grade count for each Disposition content holds, each as `noGrades`. */
@@ -882,10 +890,10 @@ export function improvementGrades(
     if (founded.has(guild.id)) return;
     founded.add(guild.id);
     const disposition = dispositionOf(guild);
-    for (const facility of facilityKeys) {
+    for (const facility of Object.keys(deps.content.facilities)) {
       const grade = highest.get(`${guild.id} ${facility}`) ?? 0;
-      addAt(grades[guild.controller.kind][facility], grade, 1);
-      if (disposition !== null) addAt((byDisposition[disposition] ??= noGrades(deps.content))[facility], grade, 1);
+      addAt((grades[guild.controller.kind][facility] ??= []), grade, 1);
+      if (disposition !== null) addAt(((byDisposition[disposition] ??= noGrades(deps.content))[facility] ??= []), grade, 1);
     }
   });
   return { byController: grades, byDisposition };
@@ -1061,8 +1069,20 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
   each('guild.improved', (into, entry, what) => {
     into.improvements += numberField(entry, 'cost', what);
   });
-  each('guild.upkeep-paid', (into, entry, what) => {
-    into.upkeep += numberField(entry, 'amount', what);
+  each('guild.wages-paid', (into, entry, what) => {
+    into.wages += numberField(entry, 'amount', what);
+  });
+  each('guild.hall-upkeep-paid', (into, entry, what) => {
+    const amount = numberField(entry, 'amount', what);
+    const facilities = payloadField(entry, 'facilities');
+    if (typeof facilities !== 'object' || facilities === null) throw new Error(`${what} has no facilities`);
+    for (const charge of Object.values(facilities)) {
+      if (typeof charge !== 'number') throw new Error(`${what} has a Facility's charge that is no number`);
+    }
+    const factor = typeof payloadField(entry, 'traitFactor') === 'number' ? (payloadField(entry, 'traitFactor') as number) : 1;
+    const { hall, improvements } = hallUpkeepSplit({ amount, facilities: facilities as Record<string, number>, traitFactor: factor });
+    into.hallUpkeep += hall;
+    into.improvementUpkeep += improvements;
   });
   each('quest.resolved', (into, entry, what) => {
     into.questRewards += numberField(entry, 'wealthDelta', what);
@@ -2136,8 +2156,8 @@ export function carryHighestLevels(highest: HighestLevels, turn: number, turnsPe
   for (const series of Object.values(highest)) carriedTo(series, year);
 }
 
-/** Upkeeps in hand above which a Rival at the Roster floor hoards (DL-69 item 4). */
-export const hoardingUpkeeps = 20;
+/** Upkeeps in hand above which a Rival at the Roster floor hoards (DL-69 item 4, DL-300). */
+export const hoardingUpkeeps = 20 / 3;
 
 /** One Disposition's Rivals as a year begins: how many, and how many at the Roster floor with more than `hoardingUpkeeps` Upkeeps in hand. */
 export interface FloorTally {
@@ -2194,16 +2214,14 @@ export function tierUnlocks(world: World, deps: EngineDeps): TierUnlocks {
 }
 
 /**
- * The player's Wealth in months of its Upkeep (`upkeep`), a month a twelfth of a year's Upkeeps, one
- * falling due every `upkeepEveryDays` (DL-83 item 7); `null` with no player's Guild in play or no
- * Upkeep owed.
+ * The player's Wealth in months of its Upkeep (`upkeep`), one Upkeep a month of costs (DL-83 item 7,
+ * DL-294 item 4, DL-300); `null` with no player's Guild in play or no Upkeep owed.
  */
 export function playerWealthMonths(world: World, deps: EngineDeps): number | null {
   const guild = playerGuild(world);
   if (guild === undefined || guild.foldedOnTurn !== null) return null;
   const owed = upkeep(guild, world, deps.config, deps.content);
-  const upkeepsAYear = deps.config.turnsPerYear / turnsPerDay / deps.config.upkeepEveryDays;
-  return owed <= 0 ? null : guild.wealth / ((owed * upkeepsAYear) / 12);
+  return owed <= 0 ? null : guild.wealth / owed;
 }
 
 /**

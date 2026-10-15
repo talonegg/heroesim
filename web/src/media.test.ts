@@ -15,14 +15,17 @@ import { media, mediaCatalogue, mediaFiles, mediaPathOf, neutralSilhouette } fro
 //   the size the build inlines (vite.config.ts); a picture is WebP;
 // - in `media/items/`, a picture is named by an Item's content key;
 // - a Portrait's picture has its thumbnail beside it, `<key>.thumb.webp` (DL-135 item 9).
-// Two things under `media/` are the portrait tool's and never the page's (DL-135 item 11):
-// its register, `portraits/registry.json`, and its inbox, `inbox/`, which is ignored but for each
-// folder's `.gitkeep`. Neither is shipped (src/media.ts), and neither is held to these rules.
+// Three things under `media/` are the portrait tool's and never the page's (DL-135 item 11):
+// its register, `portraits/registry.json`; its inbox, `inbox/`, which is ignored but for each
+// folder's `.gitkeep`; and any batch of converted Hero pictures kept until it is taken in, a folder
+// under each Hero sex's (`portraits/heroes/<sex>/<class>/`, DL-300). None is shipped (src/media.ts),
+// and none is held to these rules.
 
 const mediaDir = fileURLToPath(new URL('../../media/', import.meta.url));
 
-/** The portrait tool's own files under `media/`: its register and its inbox. */
-const toolsOwn = (entry: string): boolean => entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/');
+/** The portrait tool's own files under `media/`: its register, its inbox, and any converted Hero pictures' folders. */
+const toolsOwn = (entry: string): boolean =>
+  entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/') || /^portraits\/heroes\/(?:female|male)\/[^/.]+(?:\/|$)/.test(entry);
 
 /** Every file under `media/`, by its path under it with `/` separators. */
 const files = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })

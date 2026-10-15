@@ -36,7 +36,7 @@ describe('citations', () => {
     }
   });
 
-  test("leaves out engine/src/boundary.test.ts's probe files, which come and go while other tests run (DL-236)", () => {
+  test('leaves out the boundary-probe files tests write, which come and go while other tests run (DL-236)', () => {
     const { dir, remove } = scratchRepository({
       ...smallLog,
       'engine/src/a.ts': `// ${planted}\n`,
@@ -50,7 +50,8 @@ describe('citations', () => {
     }
   });
 
-  test('every DL-nn this repository cites is an entry', () => {
+  // Reads every file of the repository, which takes seconds beside the whole suite's other workers (DL-304).
+  test('every DL-nn this repository cites is an entry', { timeout: 30_000 }, () => {
     expect(unknownInRepository(repositoryRoot, repositoryTextsOnce())).toEqual([]);
   });
 });

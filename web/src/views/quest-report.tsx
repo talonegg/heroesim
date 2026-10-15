@@ -13,6 +13,7 @@ import { capitalised, signed } from '@heroesim/words';
 import type { Segment } from '../state/namer';
 import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEncounter, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';
+import { Coins } from './coins';
 import { Icon, type IconName } from './icons';
 import { Chip, Disclosure } from './ui';
 
@@ -101,7 +102,7 @@ function Section({ section }: { section: ReportSection }) {
           <h4>Rewards</h4>
           <div className="chips">
             <Chip tone="brass" icon="wealth">
-              Wealth {signed(section.wealth)}
+              Wealth <Coins silver={section.wealth} signed />
             </Chip>
             <Chip tone={section.fame < 0 ? 'bad' : 'brass'} icon="fame">
               Fame {signed(section.fame)}

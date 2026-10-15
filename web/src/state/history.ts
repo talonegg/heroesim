@@ -187,7 +187,8 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'hero.generated': null,
   'patron.generated': null,
   'world.rules-adopted': null,
-  'guild.upkeep-paid': 'Upkeep',
+  'guild.wages-paid': 'Upkeep',
+  'guild.hall-upkeep-paid': 'Upkeep',
   'guild.below-floor': null,
   'guild.floor-recovered': null,
   'hero.recruited': null,
@@ -264,13 +265,14 @@ export const leftOutOfYourGuild: ReadonlySet<string> = new Set<EngineEventType>(
   'patron.regard-changed',
   'guildmaster.regard-changed',
   'hero.regard-changed',
-  'guild.upkeep-paid',
+  'guild.wages-paid',
+  'guild.hall-upkeep-paid',
   'item.bought',
   'item.sold',
 ]);
 
 /** What a Rival's History leaves out (DL-111 item 4): its Upkeep, and its purchases and sales. */
-export const leftOutOfARival: ReadonlySet<string> = new Set<EngineEventType>(['guild.upkeep-paid', 'item.bought', 'item.sold']);
+export const leftOutOfARival: ReadonlySet<string> = new Set<EngineEventType>(['guild.wages-paid', 'guild.hall-upkeep-paid', 'item.bought', 'item.sold']);
 
 /**
  * What the World History takes (DL-112 item 7, DL-113 item 1), keyed by every event type, so that
@@ -287,7 +289,8 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'hero.generated': false,
   'patron.generated': false,
   'world.rules-adopted': true,
-  'guild.upkeep-paid': false,
+  'guild.wages-paid': false,
+  'guild.hall-upkeep-paid': false,
   'guild.below-floor': false,
   'guild.floor-recovered': false,
   'hero.recruited': false,

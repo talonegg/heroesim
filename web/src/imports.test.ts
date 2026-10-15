@@ -22,7 +22,7 @@ function sources(): string[] {
     readdirSync(srcDir, { recursive: true, encoding: 'utf8' })
       .map((file) => file.replace(/\\/g, '/'))
       .filter((file) => /\.tsx?$/.test(file))
-      // engine/src/boundary.test.ts writes and deletes probe files here while other tests run.
+      // words/src/imports.test.ts writes and deletes probe files here while other tests run (DL-236).
       .filter((file) => !/(^|\/)boundary-probe-/.test(file))
   );
 }

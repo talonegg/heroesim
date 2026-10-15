@@ -429,7 +429,7 @@ describe('the return’s entry (DL-111 item 2)', () => {
     expect(entry?.key).toEqual(key);
     expect(entry?.bandSaid).toBe('succeeded strongly');
     expect(`${textOf(entry?.lead ?? [])}${entry?.bandSaid}${textOf(entry?.rest ?? [])}`).toBe(narrateText(outcome as never, readingOf(document).narration));
-    expect(textOf(entry?.rest ?? [])).toBe(': Wealth +180, Fame +4.');
+    expect(textOf(entry?.rest ?? [])).toBe(': Wealth +1 Gold 80 Silver, Fame +4.');
     expect(entry?.heroesWords).toBe(`${written.party.heroIds.length} Heroes`);
     expect(entry?.heroes.map((hero) => hero.sentence)).toEqual([
       `${first}: gained 60 XP; reached Level 2; Morale went from 60 to 65, steady.`,
