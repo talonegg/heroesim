@@ -2,7 +2,8 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { coinWords } from '@heroesim/words';
-import { changed, documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
+import { append } from '@heroesim/engine/testing';
+import { changed, documentOf, holding, played, playerOf, started, withTrades, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { treasuryAccounts } from '../state/treasury';
 import { amountPattern, coinsPattern, section, silverOf, silverOfWords, spokenText } from './page.test-support';
@@ -217,6 +218,44 @@ describe('the Treasury', () => {
     const flow = within(treasury()).getByRole('group', { name: 'Show income or expense' });
     fireEvent.click(within(flow).getByRole('button', { name: /^Income/ }));
     expect(within(treasury()).queryByRole('table', { name: 'The lines of The Lantern' })).toBeNull();
+  });
+
+  test("gives Other last, in neither section and not set under Expense, the Income, Expense and Other rows summing to the Net (DL-304 item 4)", () => {
+    // A module's changes of Wealth, which no shipped play makes: +50 and −20, Other netting +30.
+    const document = structuredClone(documentOf(traded()));
+    const guildId = playerOf(document).id;
+    for (const [before, after] of [
+      [1_000, 1_050],
+      [1_050, 1_030],
+    ] as const) {
+      append(document.history, {
+        turn: document.world.turn,
+        type: 'guild.wealth-changed',
+        participants: [guildId],
+        labels: { [guildId]: 'The Lantern' },
+        milestone: false,
+        payload: { guildId, moduleId: 'probe', before, after },
+      });
+    }
+    render(<Treasury document={document} />);
+    const sales = ledgerSum('Item sales');
+    const expense = ledgerSum('Wages') + ledgerSum('Signing fees');
+    const [, , net] = Array.from(within(treasury()).getByTestId('totals').querySelectorAll('[data-silver]'), (coins) => Number(coins.getAttribute('data-silver')));
+
+    expect(ledgerSum('Other')).toBe(30);
+    expect(lines()).toEqual([
+      ['Income', sales],
+      ['Item sales', sales],
+      ['Expense', expense],
+      ['Wages', ledgerSum('Wages')],
+      ['Signing fees', ledgerSum('Signing fees')],
+      ['Other', 30],
+    ]);
+    expect(sales + expense + 30).toBe(net);
+    const table = within(treasury()).getByRole('table', { name: 'The lines of The Lantern' });
+    expect(within(table).getByRole('rowheader', { name: 'Other' }).closest('tr')?.className).toBe(
+      within(table).getByRole('rowheader', { name: 'Expense' }).closest('tr')?.className,
+    );
   });
 
   test('gives no lines before the Wealth has changed (DL-304 item 4)', () => {

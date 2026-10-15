@@ -852,6 +852,25 @@ describe("M5's counters, from the History", () => {
     expect([wealth.rival.hallUpkeep, wealth.rival.improvementUpkeep]).toEqual([51, 19]);
   });
 
+  test("the Hall's charge with no traitFactor splits at a factor of 1, and one without its facilities, or with a charge that is no number, is refused (DL-304)", () => {
+    const charged = { amount: 52, wealthAfter: 900, base: 30, heroCount: 1, heroes: 5 };
+    const { document, player } = fixture('counters-hall-unscaled');
+    add(document, 9, 'guild.hall-upkeep-paid', [player.id], { guildId: player.id, ...charged, facilities: { infirmary: 17 } });
+    document.world.turn = 20;
+    const { wealth } = countGame(document, shortYears);
+    expect([wealth.player.hallUpkeep, wealth.player.improvementUpkeep]).toEqual([35, 17]);
+
+    const cases: [object, RegExp][] = [
+      [{}, /guild.hall-upkeep-paid entry 0 has no facilities/],
+      [{ facilities: { infirmary: '17' } }, /guild.hall-upkeep-paid entry 0 has a Facility's charge that is no number/],
+    ];
+    for (const [facilities, message] of cases) {
+      const { document: malformed, player: theirs } = fixture('counters-hall-malformed');
+      add(malformed, 9, 'guild.hall-upkeep-paid', [theirs.id], { guildId: theirs.id, ...charged, ...facilities, traitFactor: 1 });
+      expect(() => countGame(malformed, shortYears)).toThrow(message);
+    }
+  });
+
   test('Loot awarded by controller and table: awards, the Items they gave, and the unique counted apart', () => {
     const { document, player, rivals } = fixture('counters-loot');
     const loot = (turn: number, guild: Guild, lootTableKey: string, quantity: number, unique = false): void => {

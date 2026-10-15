@@ -47,8 +47,9 @@ function Charge({ charge, testId }: { charge: UpkeepCharge; testId: string }) {
 
 /**
  * The ledger's lines with their totals over what the filters show (DL-304 item 4): each section, then
- * its lines, the expense lines, then Other. A row of nothing is left out, so the table follows the
- * filters and stays short on a phone, and a section with no change is left out with its lines.
+ * its lines, then Other, a section's row with no lines, since its changes are in neither section and
+ * may be of either sign. A row of nothing is left out, so the table follows the filters and stays
+ * short on a phone, and a section with no change is left out with its lines.
  */
 function LinesTable({ totals, guildName }: { totals: LedgerTotals; guildName: string }) {
   const { income, expense } = totals.sections;
@@ -57,7 +58,7 @@ function LinesTable({ totals, guildName }: { totals: LedgerTotals; guildName: st
     ...incomeLines.map((key) => ({ key, words: lineWords[key], total: income.lines[key], line: true })),
     { key: 'expense', words: 'Expense', total: expense.total, line: false },
     ...expenseLines.map((key) => ({ key, words: lineWords[key], total: expense.lines[key], line: true })),
-    { key: 'other', words: lineWords.other, total: totals.other, line: true },
+    { key: 'other', words: lineWords.other, total: totals.other, line: false },
   ].filter((row) => row.total !== 0);
   if (shown.length === 0) return null;
   return (

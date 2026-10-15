@@ -30,7 +30,18 @@ import { initialGameState, playDeps, type GameState } from './reducer';
 import { countdownView } from './selectors';
 import { faceted, type FacetChoices } from './facets';
 import { narrateText } from './namer';
-import { ledgerCategories, ledgerOf, ledgerPage, lineWords, totalsOf, treasuryAccounts, wealthChangeOf } from './treasury';
+import {
+  expenseLines,
+  incomeLines,
+  ledgerCategories,
+  ledgerOf,
+  ledgerPage,
+  lineWords,
+  totalsOf,
+  treasuryAccounts,
+  wealthChangeOf,
+  type WealthChange,
+} from './treasury';
 
 // The Treasury (DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
 // Wealth read from the History, each on its line (DL-302). Its heart is that it misses nothing: from its opening
@@ -83,6 +94,15 @@ describe('wealthChangeOf: each line takes exactly its events', () => {
       { category: 'improvement-upkeep', amount: -19 },
     ]);
     expect(wealthChangeOf(charge(10, 0, 0, { infirmary: 10 }, 1), lantern)).toEqual({ category: 'improvement-upkeep', amount: -10 });
+  });
+
+  test("a charge whose payload leaves out its Facilities or the Guildmaster's factor reads them as none and 1, which the validator does not require (DL-304)", () => {
+    const bare = { guildId: lantern, amount: 35, wealthAfter: 45, base: 30, heroCount: 1, heroes: 5 };
+    expect(wealthChangeOf(entry('guild.hall-upkeep-paid', bare), lantern)).toEqual({ category: 'hall-upkeep', amount: -35 });
+    expect(wealthChangeOf(entry('guild.hall-upkeep-paid', { ...bare, amount: 52, facilities: { infirmary: 17 } }), lantern)).toEqual([
+      { category: 'hall-upkeep', amount: -35 },
+      { category: 'improvement-upkeep', amount: -17 },
+    ]);
   });
 
   test("a Quest's reward is what it paid the Guild, and a failed Quest's nil reward gives no row", () => {
@@ -313,6 +333,37 @@ describe('the ledger misses nothing', () => {
         const keys = ledgerOf(now, guild.id).map((row) => row.key);
         expect(new Set(keys).size, guild.name).toBe(keys.length);
       }
+    }
+  });
+
+  test("the lines' totals follow every filter: each line the sum of the rows shown on it, each section its lines', and Income, Expense and Other the Net (DL-304 item 4)", () => {
+    const sum = (rows: readonly WealthChange[]) => rows.reduce((total, row) => total + row.amount, 0);
+    for (const { now } of games) {
+      const accounts = treasuryAccounts(now);
+      if (accounts === null) throw new Error('no player’s Guild');
+      const { ledger } = accounts;
+      const choices: FacetChoices<'flow' | 'category'>[] = [
+        both,
+        { flow: ['income'] },
+        { flow: ['expense'] },
+        ...ledgerCategories.map((category) => ({ category: [category] })),
+        { flow: ['expense'], category: ['other', 'wages'] },
+      ];
+      for (const choice of choices) {
+        const shown = faceted(ledger.changes, ledger.facets, choice);
+        const { totals } = ledgerPage(ledger, shown, 0);
+        const on = (line: string) => sum(shown.rows.filter((row) => row.category === line));
+        const what = JSON.stringify(choice);
+        for (const line of incomeLines) expect(totals.sections.income.lines[line], `${what} ${line}`).toBe(on(line));
+        for (const line of expenseLines) expect(totals.sections.expense.lines[line], `${what} ${line}`).toBe(on(line));
+        expect(totals.other, what).toBe(on('other'));
+        expect(totals.sections.income.total, what).toBe(sum(incomeLines.map((line) => ({ category: line, amount: on(line) }))));
+        expect(totals.sections.expense.total, what).toBe(sum(expenseLines.map((line) => ({ category: line, amount: on(line) }))));
+        expect(totals.sections.income.total + totals.sections.expense.total + totals.other, what).toBe(totals.net);
+        expect(totals.net, what).toBe(sum(shown.rows));
+      }
+      // The player's ledger holds Other, the probe's changes, so its total is held too.
+      expect(ledger.changes.filter((row) => row.category === 'other').length).toBeGreaterThan(0);
     }
   });
 
