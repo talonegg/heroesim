@@ -25,13 +25,17 @@ import {
   patronRegardFor,
   facilityGrade,
   facilityUpkeep,
+  hallUpkeepParts,
+  nextHallUpkeepDay,
   nextImprovement,
+  nextWagesDay,
   playerGuild,
   regardBand,
   regardValue,
   rankingPlaces,
   unattachedHeroes,
   upkeep,
+  wages,
   type EngineDeps,
   type Entry,
   type FacilityKey,
@@ -222,7 +226,8 @@ export function renderCountdown(document: WorldDocument, deps: EngineDeps): stri
 
 /**
  * `show`: the seed, the Turn, the Bankruptcy countdown while the player's Guild is below the floor,
- * the Guilds in play, and how many of everything there are. A folded Guild is counted, and listed
+ * the Guilds in play, how many of everything there are, the player's Hall, and the Upkeep's two charges
+ * with the night each is next paid (DL-298, DL-304). A folded Guild is counted, and listed
  * by `show guilds` (DL-33).
  */
 export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
@@ -248,6 +253,17 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
               .join(', ') +
             ' (show hall gives each grade and what the next costs).',
         ];
+  // The wages and the Hall's upkeep, as `build` words them, none once the Guild has folded or the game has ended (DL-304).
+  const { config } = deps;
+  const charges =
+    player === undefined || !inPlay(player) || world.ended !== null
+      ? []
+      : [
+          `Wages ${coinLetters(wages(player, world, config))} every ${config.upkeepEveryDays} Days, ` +
+            `next paid on ${nightOfDay(nextWagesDay(world.turn, config), config)}.`,
+          `Hall upkeep ${coinLetters(hallUpkeepParts(player, world, config, deps.content).total)} every ${config.hallUpkeepEveryDays} Days, ` +
+            `next paid on ${nightOfDay(nextHallUpkeepDay(world.turn, config), config)}.`,
+        ];
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     ...renderCountdown(document, deps),
@@ -256,6 +272,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     '',
     counts.join(', '),
     ...hall,
+    ...charges,
   ];
 }
 

@@ -14,11 +14,13 @@ import {
   estimateQuest,
   fastForward,
   guildmasterOf,
+  hallUpkeepParts,
   isModuleEvent,
   probe,
   schemaVersion,
   serialise,
   upkeep,
+  wages,
   type EntityId,
   type Guild,
   type Hero,
@@ -32,7 +34,7 @@ import { count, makeId, nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import { chanceWords, coinLetters, shownPercent, traitEffectWords } from '@heroesim/words';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { exitCodes, openToTwo, playground, rowOf, type Run } from './play.test-support.js';
+import { exitCodes, openToTwo, playground, rowOf, thePlayer, type Run } from './play.test-support.js';
 import { narrateLine } from './namer.js';
 
 const content = loadContent();
@@ -303,6 +305,44 @@ describe('show', () => {
     expect(run.out).toContain(`${defaultConfig.rivalCount + 1} Guilds`);
     expect(run.out).toContain(`(${defaultConfig.unattachedPoolSize} Unattached)`);
     expect(run.out).toContain(`${defaultConfig.patronCount} Patrons`);
+  });
+
+  // DL-304: the CLI has no Treasury, so the summary gives the Upkeep's two charges, each with its next night (DL-298).
+  test("with no view gives the player's wages and the Hall's upkeep, each with its Days and its next night, from the save's config", () => {
+    const charges = (): string[] => {
+      const { world, meta } = document();
+      const guild = thePlayer(world);
+      const config = { ...defaultConfig, ...meta.config };
+      return [
+        `Wages ${coinLetters(wages(guild, world, config))} every ${config.upkeepEveryDays} Days`,
+        `Hall upkeep ${coinLetters(hallUpkeepParts(guild, world, config, content).total)} every ${config.hallUpkeepEveryDays} Days`,
+      ];
+    };
+    const lines = (): string[] => play(['show']).out.split('\n').filter((line) => /^(Wages|Hall upkeep) /.test(line));
+    const [wagesLine, hallLine] = charges();
+
+    expect(lines()).toEqual([`${wagesLine}, next paid on the night of Year 1 Day 10.`, `${hallLine}, next paid on the night of Year 1 Day 30.`]);
+
+    // Once the wages' night has been played the next is ten Days on; the Hall's stays.
+    edit((edited) => {
+      edited.world.turn = nightOf(9) + 1;
+    });
+    expect(lines()).toEqual([`${wagesLine}, next paid on the night of Year 1 Day 20.`, `${hallLine}, next paid on the night of Year 1 Day 30.`]);
+
+    // The Days are the save's config's, never fixed.
+    edit((edited) => {
+      edited.world.turn = 0;
+      edited.meta.config = { ...edited.meta.config, upkeepEveryDays: 7, hallUpkeepEveryDays: 14 };
+    });
+    const [weekly, fortnightly] = charges();
+    expect(weekly).toContain('every 7 Days');
+    expect(lines()).toEqual([`${weekly}, next paid on the night of Year 1 Day 7.`, `${fortnightly}, next paid on the night of Year 1 Day 14.`]);
+
+    // None are due once the game has ended.
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'bankruptcy' };
+    });
+    expect(lines()).toEqual([]);
   });
 
   test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
