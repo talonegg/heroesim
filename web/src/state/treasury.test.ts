@@ -179,7 +179,7 @@ describe('the lines (DL-302)', () => {
     });
   });
 
-  test('a section totals its own lines; Other, a module’s change, counts in income or expense and in no section', () => {
+  test('a section totals its own lines; Other, a module’s change, is a line of the section its sign gives it (DL-306)', () => {
     const totals = totalsOf([
       { category: 'quest-rewards', amount: 300 },
       { category: 'transfers-out', amount: 80 },
@@ -190,13 +190,12 @@ describe('the lines (DL-302)', () => {
       { category: 'other', amount: -25 },
     ]);
     expect(totals).toMatchObject({ income: 420, expense: -210, net: 210 });
-    expect(totals.sections.income).toEqual({ total: 380, lines: { 'quest-rewards': 300, 'item-sales': 0, 'transfers-out': 80 } });
+    expect(totals.sections.income).toEqual({ total: 420, lines: { 'quest-rewards': 300, 'item-sales': 0, 'transfers-out': 80, other: 40 } });
     expect(totals.sections.expense).toEqual({
-      total: -185,
-      lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0 },
+      total: -210,
+      lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0, other: -25 },
     });
-    // Other's own total, its income and expense together, apart from the sections (DL-304 item 4).
-    expect(totals.other).toBe(15);
+    expect(Object.keys(totals)).toEqual(['income', 'expense', 'net', 'sections']);
     expect(Object.keys(totals.sections)).toEqual(['income', 'expense']);
   });
 });
@@ -336,7 +335,7 @@ describe('the ledger misses nothing', () => {
     }
   });
 
-  test("the lines' totals follow every filter: each line the sum of the rows shown on it, each section its lines', and Income, Expense and Other the Net (DL-304 item 4)", () => {
+  test("the lines' totals follow every filter: each line the sum of the rows shown on it, Other's by sign, each section its lines' and the totals' own, and Income and Expense the Net (DL-304 item 4, DL-306)", () => {
     const sum = (rows: readonly WealthChange[]) => rows.reduce((total, row) => total + row.amount, 0);
     for (const { now } of games) {
       const accounts = treasuryAccounts(now);
@@ -356,10 +355,15 @@ describe('the ledger misses nothing', () => {
         const what = JSON.stringify(choice);
         for (const line of incomeLines) expect(totals.sections.income.lines[line], `${what} ${line}`).toBe(on(line));
         for (const line of expenseLines) expect(totals.sections.expense.lines[line], `${what} ${line}`).toBe(on(line));
-        expect(totals.other, what).toBe(on('other'));
-        expect(totals.sections.income.total, what).toBe(sum(incomeLines.map((line) => ({ category: line, amount: on(line) }))));
-        expect(totals.sections.expense.total, what).toBe(sum(expenseLines.map((line) => ({ category: line, amount: on(line) }))));
-        expect(totals.sections.income.total + totals.sections.expense.total + totals.other, what).toBe(totals.net);
+        const other = shown.rows.filter((row) => row.category === 'other');
+        expect(totals.sections.income.lines.other, what).toBe(sum(other.filter((row) => row.amount > 0)));
+        expect(totals.sections.expense.lines.other, what).toBe(sum(other.filter((row) => row.amount < 0)));
+        expect(totals.sections.income.total, what).toBe(sum(incomeLines.map((line) => ({ category: line, amount: on(line) }))) + totals.sections.income.lines.other);
+        expect(totals.sections.expense.total, what).toBe(sum(expenseLines.map((line) => ({ category: line, amount: on(line) }))) + totals.sections.expense.lines.other);
+        // The sentence's Income and Expense are the table's (DL-306).
+        expect(totals.sections.income.total, what).toBe(totals.income);
+        expect(totals.sections.expense.total, what).toBe(totals.expense);
+        expect(totals.sections.income.total + totals.sections.expense.total, what).toBe(totals.net);
         expect(totals.net, what).toBe(sum(shown.rows));
       }
       // The player's ledger holds Other, the probe's changes, so its total is held too.
@@ -552,7 +556,6 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
       income: proceeds,
       expense,
       net: proceeds + expense,
-      other: 0,
       sections: {
         income: {
           total: proceeds,
@@ -560,6 +563,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
             'quest-rewards': 0,
             'item-sales': proceeds,
             'transfers-out': 0,
+            other: 0,
           },
         },
         expense: {
@@ -572,6 +576,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
             improvements: 0,
             'signing-fees': -fee,
             'transfers-in': 0,
+            other: 0,
           },
         },
       },

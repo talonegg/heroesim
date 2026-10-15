@@ -220,13 +220,13 @@ describe('the Treasury', () => {
     expect(within(treasury()).queryByRole('table', { name: 'The lines of The Lantern' })).toBeNull();
   });
 
-  test("gives Other last, in neither section and not set under Expense, the Income, Expense and Other rows summing to the Net (DL-304 item 4)", () => {
-    // A module's changes of Wealth, which no shipped play makes: +50 and −20, Other netting +30.
+  test("gives Other's income as Other Income, the last of Income's lines, and its expense as Other Expense, the last of Expense's, each shown though they net to nothing, Income and Expense the sentence's (DL-306)", () => {
+    // A module's changes of Wealth, which no shipped play makes: +50 and −50, Other netting 0.
     const document = structuredClone(documentOf(traded()));
     const guildId = playerOf(document).id;
     for (const [before, after] of [
       [1_000, 1_050],
-      [1_050, 1_030],
+      [1_050, 1_000],
     ] as const) {
       append(document.history, {
         turn: document.world.turn,
@@ -240,22 +240,23 @@ describe('the Treasury', () => {
     render(<Treasury document={document} />);
     const sales = ledgerSum('Item sales');
     const expense = ledgerSum('Wages') + ledgerSum('Signing fees');
-    const [, , net] = Array.from(within(treasury()).getByTestId('totals').querySelectorAll('[data-silver]'), (coins) => Number(coins.getAttribute('data-silver')));
+    const [income, spent, net] = Array.from(within(treasury()).getByTestId('totals').querySelectorAll('[data-silver]'), (coins) => Number(coins.getAttribute('data-silver')));
 
-    expect(ledgerSum('Other')).toBe(30);
+    expect(ledgerSum('Other')).toBe(0);
     expect(lines()).toEqual([
-      ['Income', sales],
+      ['Income', sales + 50],
       ['Item sales', sales],
-      ['Expense', expense],
+      ['Other Income', 50],
+      ['Expense', expense - 50],
       ['Wages', ledgerSum('Wages')],
       ['Signing fees', ledgerSum('Signing fees')],
-      ['Other', 30],
+      ['Other Expense', -50],
     ]);
-    expect(sales + expense + 30).toBe(net);
+    expect([income, spent, net]).toEqual([sales + 50, expense - 50, sales + expense]);
     const table = within(treasury()).getByRole('table', { name: 'The lines of The Lantern' });
-    expect(within(table).getByRole('rowheader', { name: 'Other' }).closest('tr')?.className).toBe(
-      within(table).getByRole('rowheader', { name: 'Expense' }).closest('tr')?.className,
-    );
+    for (const name of ['Other Income', 'Other Expense']) {
+      expect(within(table).getByRole('rowheader', { name }).closest('tr')?.className).toBe('lines-table__line');
+    }
   });
 
   test('gives no lines before the Wealth has changed (DL-304 item 4)', () => {

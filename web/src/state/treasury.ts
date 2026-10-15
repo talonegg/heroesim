@@ -300,16 +300,16 @@ export interface LedgerSection<Line extends string = string> {
 
 /**
  * The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together,
- * each section with its lines, and Other's changes together, which are in no section (DL-302, DL-304 item 4).
+ * each section with its lines, Other's changes on the line `other` of the section their sign gives them,
+ * so each section's total is the income or expense (DL-302, DL-304 item 4, DL-306).
  */
 export interface LedgerTotals {
   income: number;
   expense: number;
   net: number;
-  other: number;
   sections: {
-    income: LedgerSection<IncomeLine>;
-    expense: LedgerSection<ExpenseLine>;
+    income: LedgerSection<IncomeLine | 'other'>;
+    expense: LedgerSection<ExpenseLine | 'other'>;
   };
 }
 
@@ -393,27 +393,25 @@ function zeroLines<Line extends string>(keys: readonly Line[]): Record<Line, num
 
 /**
  * The sums of `rows`: income and expense, each change by its sign, and net; and each section, its lines
- * and its total their sum. Other, a module's change, counts in income or expense and in no section
- * (DL-302 item 1).
+ * and its total their sum. Other, a module's change, is on the `other` line of the section its sign gives
+ * it (DL-302 item 1, DL-306).
  */
 export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
-  const incomeLinesMap = zeroLines(incomeLines);
-  const expenseLinesMap = zeroLines(expenseLines);
+  const incomeLinesMap = zeroLines([...incomeLines, 'other'] as const);
+  const expenseLinesMap = zeroLines([...expenseLines, 'other'] as const);
   let income = 0;
   let expense = 0;
-  let other = 0;
 
   for (const row of rows) {
-    if (row.category === 'other') other += row.amount;
     if (row.amount > 0) {
       income += row.amount;
       if (row.category in incomeLinesMap) {
-        incomeLinesMap[row.category as IncomeLine] += row.amount;
+        incomeLinesMap[row.category as IncomeLine | 'other'] += row.amount;
       }
     } else if (row.amount < 0) {
       expense += row.amount;
       if (row.category in expenseLinesMap) {
-        expenseLinesMap[row.category as ExpenseLine] += row.amount;
+        expenseLinesMap[row.category as ExpenseLine | 'other'] += row.amount;
       }
     }
   }
@@ -425,7 +423,6 @@ export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
     income,
     expense,
     net,
-    other,
     sections: {
       income: { total: sumOf(incomeLinesMap), lines: incomeLinesMap },
       expense: { total: sumOf(expenseLinesMap), lines: expenseLinesMap },

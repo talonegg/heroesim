@@ -313,8 +313,9 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-301 | 2026-10-13 | v1.2.2-S6 built: Loot-only values, and the surplus sold |  | [decision-log](../decision-log.md) |
 | DL-302 | 2026-10-13 | v1.2.2-S7 built: The Treasury's income and expenses |  | [decision-log](../decision-log.md) |
 | DL-303 | 2026-10-14 | v1.2.2-S8 built: The page and the CLI |  | [decision-log](../decision-log.md) |
-| DL-304 | 2026-10-16 | v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and … |  | [decision-log](../decision-log.md) |
+| DL-304 | 2026-10-16 | v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and … | item 4 by DL-306 | [decision-log](../decision-log.md) |
 | DL-305 | 2026-10-16 | v1.2.2-S9: the release's commits reviewed, and the close's Gate recorded |  | [decision-log](../decision-log.md) |
+| DL-306 | 2026-10-16 | v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

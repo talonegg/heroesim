@@ -656,7 +656,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 1. *`worthOf`* (DL-49) is exported from `gear.ts`, where controllers rank gear; `surplus.ts` imports it, its copy gone.
 2. *The split* has one home, `hallUpkeepSplit` in `engine/src/selectors.ts` beside `hallUpkeepParts`, exported from `@heroesim/engine`: the Improvements' part is the Facilities' charges summed, times the factor, rounded to whole Silver; the Hall's is the rest, so the two sum to the charge (DL-302's rounding). Both readers call it; the harness keeps its field checks and messages. A charge with no Facilities is one Hall line; a part of nothing gives no row.
 3. *The rows' words* (`hallUpkeepPartSentence`, `words/src/narrate.ts`): each row of a split charge says its own part: "The Lantern paid 90 Silver in Hall upkeep." and "… 30 Silver in its Improvements' upkeep.", the Guild's name a link (`sentenceSegments`, `web/src/state/namer.ts`). A charge with no Facilities keeps the History's sentence in its one row. The History is unchanged.
-4. *The Treasury's lines* (the owner's answer a to Q19; `LinesTable`, `web/src/views/treasury.tsx`; `totalsOf`): a table under the totals sentence, over the rows the filters let through: Income and its lines, Expense and its lines, then Other at a section's level (at verification), each with its total in coins. `LedgerTotals.sections` held one section twice, `expenses` and `expense`; it keeps `expense`, and `totalsOf` gains `other`, Other's changes netted, in no section.
+4. *The Treasury's lines.* *Superseded by DL-306 item 2, 2026-10-16; its text is in [superseded/DL-304.md](decisions/archive/superseded/DL-304.md).*
 5. *The CLI's charges* (the owner's answer b, DL-303 item 6; `renderSummary`, `cli/src/render.ts`): `show` ends with two lines worded as `build`'s, "Wages 80s every 10 Days, next paid on the night of Year 1 Day 10." and "Hall upkeep 50s every 30 Days, next paid …", from `wages`, `hallUpkeepParts`, `nextWagesDay` and `nextHallUpkeepDay`, the Days from config. No `show treasury`.
 6. *The slow tests' timeouts.* Under the full suite's load one to four tests passed vitest's 5 s default, each under 1 s alone; these carry `{ timeout: 30_000 }`, as the slow tests do: the whole-repository scan (`web/src/deploy.test.ts`), the long plays (`build.test.ts`'s climb, `transfer.test.ts`'s fast forward) and `tools/decisions`' repository-reading tests. No assertion changed.
 7. *The probes.* The tests writing a `boundary-probe-*` file in the repository, content's and the words' `imports.test.ts` and the harness's `settings.test.ts` (`boundary.test.ts` none since DL-246), retry its removal (`maxRetries`): Windows may refuse to delete a new file (EPERM). Not reproduced.
@@ -664,6 +664,7 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 *Judgement calls, for the owner to see.*
 - A row whose total is nothing is left out, a section's with its lines, so the table follows the filters as the chips' counts do and stays short at 360 wide (else up to thirteen rows); with no row, no table.
 - Other is the last row, at a section's level: it is in neither section and may be of either sign; the Income, Expense and Other rows sum to Net.
+  *Note, 2026-10-16: Other is now Other Income and Other Expense, a line of each section (DL-306 item 2).*
 - The table's `aria-label` is "The lines of <Guild>", as the ledger's is "The ledger of <Guild>"; its rows are headed by `scope="row"`.
 - `hallUpkeepSplit` lives in the engine, which the web and the harness both read; it takes the payload's three fields and returns `{ hall, improvements }`.
 - The rows' words are the epic's: "in Hall upkeep", the History's own, and "in its Improvements' upkeep". A part's row drops "leaving …", the Wealth the whole charge left, which beside a part would misread.
@@ -697,9 +698,9 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
    - *The estimate's two limits hold:* 1.08 points (within 2) and 2.40 (within 5).
 7. *The costs against v1.2.1's* (Q21) are in [the outcomes](planning/epics/gate-outcomes-monitoring.md), its v1.2.2 column and its cost table:
    - Upkeep in all is +0.3% for the player and +4.1% for the Rivals, and every line of the player's is within 10%.
-   - Four of the Rivals' lines are outside 10%: Items, Improvements, signing fees and Transfers. No v1.2.2 default sets any of them.
+   - Four of the Rivals' lines are outside 10%: Items, Improvements, signing fees and Transfers. No v1.2.2 default sets any of them. The owner accepted them as reported, untuned until `v1.2.4` (2026-10-16).
    - v1.2.1's report holds Upkeep as one figure, so neither the wages nor the Hall's part can be set against it.
-8. *The baseline stays v1.2.0's* in `harness/gate.json`, the harness README and `HEROESIM_BASELINE`, since this Gate does not pass; v1.2.1's close kept it for the same reason (DL-293's note). The Gate's report is committed as the close's record. The estimate's report is not, as at earlier closes.
+8. *The baseline stays v1.2.0's* in `harness/gate.json`, the harness README and `HEROESIM_BASELINE`, since this Gate does not pass; v1.2.1's close kept it for the same reason (DL-293's note). The owner kept it (2026-10-16). The Gate's report is committed as the close's record. The estimate's report is not, as at earlier closes.
 
 *Judgement calls, for the owner to see.*
 - Found sound and left: the engine names no Facility; every new amount is whole (each charge, part and measure rounded once, the sale floored, the fold at `value`); the Hall's charge is `hallUpkeepParts`' total in the engine, the Treasury, `show` and `build`, and the month's `upkeep` in the Guilds table and `show guilds`; the surplus buys and sells by one count of holding and Parties, so nothing a Guild buys is sold back; no reader of Upkeeps left on ten Days; no `guild.upkeep-paid`, `hallMaintenancePerGrade`, `lootOnlyPrice` or engine `facilityKeys` but in the log, the epic and the changelogs.
@@ -710,4 +711,24 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 
 **Evidence.** The commit `v1.2.2-S9 (DL-305)`: the checks with their counts, the bundle's bytes, the e2e and the doctors' readings.
 - The close's record: the sweeps and their timings are in its commit message, and the report `harness/reports/v1.2.2-close-gate-2026-10-16` is committed. The epic's S9 boxes and Status line, and `plan.md` §3, are brought up to date.
+
+## DL-306 — v1.2.2-S9: Other in the Treasury's lines as Other Income and Other Expense
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner ("if other is +, name the line 'Other Income', if it is -, name the line 'Other Expense' fix both cases")
+
+**Context.** DL-304 item 4 set Other in the lines table as one row at a section's level, its changes netted and in neither section. Two cases followed (DL-305's close, put to the owner): changes that net to nothing (+5 and −5) showed no row, since a row of nothing is left out; and while Other held changes, the totals sentence's Income and Expense, which count them, differed from the table's sections, which did not.
+
+**Decision.**
+
+1. *Other by sign* (`totalsOf`, `web/src/state/treasury.ts`): a change on Other is on the `other` line of the section its sign gives it, income or expense. `LedgerTotals` loses `other`; each section's lines gain `other`, so a section's total is the sentence's Income or Expense, and the two sections sum to Net.
+2. *The Treasury's lines* (the owner's answer a to Q19; `LinesTable`, `web/src/views/treasury.tsx`), superseding DL-304 item 4: a table under the totals sentence, over the rows the filters let through: Income and its lines, Other Income last of them, then Expense and its lines, Other Expense last, each with its total in coins, a row of nothing left out. `LedgerTotals.sections` holds `income` and `expense`, as DL-304 left them. +5 and −5 on Other show both lines.
+3. Tests first: `web/src/state/treasury.test.ts` (the sections, and every filter's totals against the sentence's) and `web/src/views/treasury.test.tsx` (+50 and −50 netting to nothing, both lines shown).
+
+*Judgement calls, for the owner to see.*
+- The words are the owner's, "Other Income" and "Other Expense", against ui-text.md's sentence case; its table of settled words records them as the owner's wording.
+- The ledger's rows and its category chips still name the category Other: a row's sign is beside it, and the chips filter by category, not by section.
+
+**Consequences.** The table and the totals sentence agree whatever Other holds. No shipped play writes Other, so the page a player sees does not change. Play does not move.
+
+**Evidence.** The commit `v1.2.2-S9 (DL-306)`: the checks with their counts. The epic's S9 scope names the ruling; DL-304 item 4 is its stub, and [superseded/DL-304.md](decisions/archive/superseded/DL-304.md) the record.
 

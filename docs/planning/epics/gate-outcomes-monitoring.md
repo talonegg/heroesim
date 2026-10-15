@@ -297,7 +297,8 @@ change is v1.2.2's over v1.2.1's.
     v1.2.1. These are its own reckoning from config and v1.2.1's grades, not report figures.
   - *A new Guild's "about 50 more" is not in the report.* No line reads a Guild's first charge. The rule gives the
     player's founding Roster of 4 Heroes 30 + 5 × 4 = 50 a month.
-- Reported, not tuned (Q20).
+- Reported, not tuned (Q20). The owner accepted the four Rival lines outside 10% as they are, for `v1.2.4` to read
+  (2026-10-16).
 
 ## Open for the economy release
 

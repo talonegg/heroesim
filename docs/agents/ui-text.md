@@ -25,6 +25,7 @@ words are terms; this decides how they, and the words around them, are written.
 | Age, Sex, Male, Female | age, sex | Labels and values (DL-111 item 9, DL-112 item 4) |
 | Unattached pool | Unattached Pool | "Pool" is no term; Unattached Hero is |
 | Debug: Whole History | Debug: whole History | The owner's wording (DL-120) |
+| Other Income, Other Expense | Other income, Other expense | The owner's wording (DL-306) |
 | an Offer, a Module, their Gear | an offer, a module, their gear | Terms, in the CLI as on the page (v1.1.6-S11, DL-197; the narration's, one for both, v1.1.6-S12, DL-198) |
 | No effect | no effect | A Trait's effects stand alone (v1.1.6-S11, DL-197) |
 | Year 2 Day 45 | Day 404, Year 1; Year 02 Day 45; Day 45 | A date: the Year from 1, the Day of the Year from 1 to 360, no padding, the Year always with it (2026-10-06, DL-206 items 30 to 33, DL-210) |
