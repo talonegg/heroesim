@@ -678,9 +678,9 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 - Verified 2026-10-16 at 61a0470 (c33d41c, c60ecef): the split, rows and lines re-derived; of 51 mutations, 11 survivors (the payload's defaults, the harness's refusals, Other's row) are killed by new tests, one equivalent; Other set at a section's level.
 - Verified 2026-10-16 at 4381fe0 (d244939, 66851a7, 61a0470): of 33 mutations, 7 survivors (the factor, a charge's night, the fold, the order, a lower-case Facility) killed by new tests; the EPERM is no scan's; every probe's writer retries.
 
-## DL-305 — v1.2.2-S9: the release's commits reviewed
+## DL-305 — v1.2.2-S9: the release's commits reviewed, and the close's Gate recorded
 
-**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the agent
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the agent; the Gate recorded, not blocking, by Q20 (DL-294 item 7)
 
 **Context.** The close's first item (the epic's S9): the release's commits, `a93f208..6ea2494`, S1 to S9 and their verifications (DL-295 to DL-304), read across the stories for what each story's verification would miss: the whole Silver against every new amount, one figure for the Hall's charge, the month's measure and the ledger wherever they are shown, Facilities as content against every place that once named one, the replaced paths, the words a player reads, the comments and the live pages.
 
@@ -691,6 +691,15 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 3. *The probes' writers.* Twelve comments and test titles in ten files still said `engine/src/boundary.test.ts` writes the `boundary-probe-*` files, false since DL-246; each names the real writers (`content/src/imports.test.ts`, `words/src/imports.test.ts` into `web/src`, `harness/src/settings.test.ts`), or, in `engine/src`, that none writes there. Every filter and test is kept.
 4. *The ledger's categories,* S7's lines under the replaced six's names (`LedgerCategory`, `ledgerCategories`, `categoryWords`), aliases beside `LedgerLine`, `ledgerLines` and `lineWords`, are removed (`web/src/state/treasury.ts`). The page still heads the column Category.
 5. *Words and pages.* The Treasury's help names the lines' table; `docs/approach.md`'s night says training XP and the wages and the Hall's upkeep on their Days; R33's quarters bring Fatigue's fall; a test's comment cites DL-297, not the story; the Hall view's and its test's comments and `breakpoints.ts`' say Facility.
+6. *The close's sweeps*, each run alone on `6b5abd6`:
+   - *The full Gate*, `v1.2.2-close-gate-2026-10-16`, fingerprint `67290304…`, the same over two runs. It fails one line, the save after 20 years: no game ran 20 years (50 of 50 bankrupt, at a mean 9.82 years), as at v1.2.1's close (DL-292). Every other line passes.
+   - *The boxes:* the twenty-year boxes, 6 tests passed; the boxes kept apart, 3; the speed run, 2.
+   - *The estimate's two limits hold:* 1.08 points (within 2) and 2.40 (within 5).
+7. *The costs against v1.2.1's* (Q21) are in [the outcomes](planning/epics/gate-outcomes-monitoring.md), its v1.2.2 column and its cost table:
+   - Upkeep in all is +0.3% for the player and +4.1% for the Rivals, and every line of the player's is within 10%.
+   - Four of the Rivals' lines are outside 10%: Items, Improvements, signing fees and Transfers. No v1.2.2 default sets any of them.
+   - v1.2.1's report holds Upkeep as one figure, so neither the wages nor the Hall's part can be set against it.
+8. *The baseline stays v1.2.0's* in `harness/gate.json`, the harness README and `HEROESIM_BASELINE`, since this Gate does not pass; v1.2.1's close kept it for the same reason (DL-293's note). The Gate's report is committed as the close's record. The estimate's report is not, as at earlier closes.
 
 *Judgement calls, for the owner to see.*
 - Found sound and left: the engine names no Facility; every new amount is whole (each charge, part and measure rounded once, the sale floored, the fold at `value`); the Hall's charge is `hallUpkeepParts`' total in the engine, the Treasury, `show` and `build`, and the month's `upkeep` in the Guilds table and `show guilds`; the surplus buys and sells by one count of holding and Parties, so nothing a Guild buys is sold back; no reader of Upkeeps left on ten Days; no `guild.upkeep-paid`, `hallMaintenancePerGrade`, `lootOnlyPrice` or engine `facilityKeys` but in the log, the epic and the changelogs.
@@ -700,4 +709,5 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Consequences.** Play does not move: the validator refuses only what no rule writes. A save whose Hall upkeep charge has a factor that is no number is refused at load.
 
 **Evidence.** The commit `v1.2.2-S9 (DL-305)`: the checks with their counts, the bundle's bytes, the e2e and the doctors' readings.
+- The close's record: the sweeps and their timings are in its commit message, and the report `harness/reports/v1.2.2-close-gate-2026-10-16` is committed. The epic's S9 boxes and Status line, and `plan.md` §3, are brought up to date.
 

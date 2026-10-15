@@ -1,7 +1,8 @@
-# Gate outcomes: v1.2.1 against v1.2.0, v1.1.9 and v1.1.8
+# Gate outcomes: v1.2.2 and v1.2.1 against v1.2.0, v1.1.9 and v1.1.8
 
 A record kept for tracking: the harness's full Gate outcomes of v1.2.1 as built to S10 (config 30, content 45, commit
-`3170082`) beside the closing full Gates of v1.2.0, v1.1.9 and v1.1.8, and of v1.2.1 as released.
+`3170082`) beside the closing full Gates of v1.2.0, v1.1.9 and v1.1.8, and of v1.2.1 as released; and v1.2.2's closing
+full Gate (config 34, content 49, `6b5abd6`, DL-305) beside them, with its costs against v1.2.1's.
 The owner asked for it on 2026-10-12: "document all outcomes from 1.2.1 against 1.2.0 and 1.1.8/9 in a table
 in an md file for tracking later". It stays live in this folder, beside the open release's epic; v1.2.1's epic is archived as [v1.2.1-release.md](../archive/v1.2.1-release.md).
 
@@ -16,7 +17,7 @@ only where its play differs.
 
 ## The runs
 
-Five columns. Every run is a full `gate` profile, 50 seeds (`seed-0001` to `seed-0050`) up to 20 years, 8 worker
+Six columns. Every run is a full `gate` profile, 50 seeds (`seed-0001` to `seed-0050`) up to 20 years, 8 worker
 processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores), no validation after each advance.
 
 | Column | Report | Begun (local, +11:00) | Built at | Config, content, schema | Fingerprint of every seed's last save |
@@ -27,6 +28,7 @@ processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores
 | v1.2.1 baseline | `v1.2.1-s11-baseline-2026-10-12`, untracked | 2026-10-12 04:31 | `3170082`, S1 to S10 built and verified, today's settings | 30, 45, 11 | `027d238a8ca957bfb0326c4e0cd514b5becc49c712ce7a2664fd321ad42e9306` |
 | v1.2.1 trial (fall ×2) | `v1.2.1-s11-trial-fall2x-2026-10-12`, untracked | 2026-10-12 04:37 | `3170082`, with `HEROESIM_CONFIG={"fatigueFallByQuarters":[10,12,14,16]}` (the shipped values are [5,6,7,8]) | 30, 45, 11 | `45da60b775cc6ef52c1fa475ed9d6e21551147f0c5682d1919ca9e54196138b1` |
 | v1.2.1 closing Gate (the release) | `v1.2.1-close-gate-2026-10-12`, in the tree; committed in `95f2b57` | 2026-10-12 08:04 | after S12, the play of `3170082` | 30, 45, 11 | `027d238a…`, the baseline's |
+| v1.2.2 closing Gate | `v1.2.2-close-gate-2026-10-16`, in the tree; committed with DL-305's record of the close | 2026-10-16 02:27 | `6b5abd6`, S1 to S9 built and verified, the review's fixes in (DL-305) | 34, 49, 13 | `6729030490de637566ac5241eb06945a23492057458f6507ffd7f905e6a6bbd4` |
 
 - **v1.1.8 has a full run of its own**: `v1.1.8-gate`, its closing Gate (DL-229), whose report left the tree at
   v1.2.0's close and is read from git at `4220f57`. It was not a `neutral --expect` alone.
@@ -38,6 +40,10 @@ processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores
   baseline's; only the per-Turn copy line differs, in timing. So the outcomes table has no column for it: read the
   baseline's. Its Gate fails the same line, the save after 20 years (see below). The release went ahead on the owner's
   word (DL-293), not blocked by it.
+- **v1.2.2 changed play** (the Hall's upkeep apart from the wages, DL-298; the surplus sold, DL-301), so it has a
+  column, v1.2.2 in the outcomes. Its fingerprint was the same over two runs. Its Gate fails the line v1.2.1's did, the
+  save after 20 years, for the same reason: no game ran 20 years. It is recorded and does not block (Q20, DL-305). Its
+  Targets' baseline column is v1.2.0's (`HEROESIM_BASELINE`'s default).
 - **† marks a Target counted from another report.** Eight of the Targets read counters the harness added with DL-259, so
   the v1.1.8 and v1.1.9 reports hold none for them. `v1.2.0-s2-gate-2026-10-10` (read from git at `240de81`)
   played the same 50 games, with the same fingerprint as v1.1.8, and counted them; their values are its.
@@ -48,98 +54,98 @@ Each cell is the report's figure. "in" and "out" mark a value inside or outside 
 band column is the DL-83 target (with DL-256 item 10 for the player's Deaths and DL-69 item 4 for the Rivals), or,
 for the Fatigue group, the bands DL-290 item 5 proposed, which the owner has not approved. Notes follow the table.
 
-| Measure | v1.1.8 | v1.1.9 | v1.2.0 | v1.2.1 baseline | v1.2.1 trial (fall ×2) | Band |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Games (the player's endings, 50 games of up to 20 years)** | | | | | | |
-| Ended by Retirement | 0 | 0 | 0 | 0 | 0 |  |
-| Ended by Bankruptcy | 0 | 0 | 0 | 50 | 31 |  |
-| Ended by a wiped Roster | 0 | 0 | 0 | 0 | 0 |  |
-| Ran the full 20 years | 50 (100%) | 50 (100%) | 50 (100%) | 0 (0%) | 19 (38%) |  |
-| Mean Years survived (min to max) | 20.00 (20.00 to 20.00) | 20.00 (20.00 to 20.00) | 20.00 (20.00 to 20.00) | 9.45 (4.64 to 14.94) | 17.40 (10.11 to 20.00) |  |
-| **The player's Guild** | | | | | | |
-| Bankruptcy or wiped Roster, a share of games | 0.0% out | 0.0% out | 0.0% out | 100.0% out | 62.0% out | 5.0% to 15.0% |
-| Quests taken a Guild-year | 403.4 | 403.4 | 189.4 | 139.9 | 153.4 |  |
-| Quests failed, a share of those resolved | 6.8% out | 6.8% out | 1.1% out | 3.0% out | 2.0% out | 20.0% to 30.0% |
-| Quests a strong success, a share of those resolved | 72.7% out | 72.7% out | 85.2% out | 68.6% out | 76.4% out | at most 50.0% |
-| Hero Deaths a game | 4.28 in | 4.28 in | 0.24 out | 0.00 out | 0.22 out | 3.00 to 8.00 |
-| Hero Deaths a Guild-year | 0.214 | 0.214 | 0.012 | 0.000 | 0.013 |  |
-| Injuries a game | 72.52 | 72.52 | 17.72 | 18.90 | 31.02 |  |
-| Injuries a Guild-year | 3.63 | 3.63 | 0.89 | 2.00 | 1.78 |  |
-| Wealth in months of Upkeep, the mean of year-starts after 2 years | 36.13 out † | 36.13 out † | 36.57 out | 6.18 in | 14.53 out | 6.00 to 12.00 |
-| Quest rewards a Guild-year | 61,150 | 61,150 | 60,050 | 32,881 | 44,973 |  |
-| Upkeep a Guild-year | 45,664 | 45,664 | 47,253 | 31,348 | 41,693 |  |
-| Everything spent a Guild-year | 50,421 | 50,421 | 50,098 | 33,115 | 44,267 |  |
-| Quest rewards less Upkeep a Guild-year | 15,486 | 15,486 | 12,797 | 1,533 | 3,279 |  |
-| Quest reward a Quest resolved | 152 | 152 | 317 | 235 | 293 |  |
-| Mean Level of its Heroes after 10 years | 8.34 in | 8.34 in | 8.71 in | 7.00 out | 8.00 out | 8.00 to 10.00 |
-| Games in play at the start of year 11 | 50 | 50 | 50 | 16 | 50 |  |
-| Wealth at the start of year 6, a Guild (5 years played) | 88,524 (50 games) | 88,524 (50 games) | 105,584 (50 games) | 18,330 (49 games) | 54,910 (50 games) |  |
-| Wealth at the start of year 11, a Guild (10 years played) | 159,162 (50 games) | 159,162 (50 games) | 168,630 (50 games) | 12,964 (16 games) | 58,229 (50 games) |  |
-| Heroes recruited a game | 9.54 | 9.54 | 5.74 | 4.04 | 4.98 |  |
-| **The Rivals** | | | | | | |
-| Folds a game | 2.74 in | 2.74 in | 2.18 in | 10.94 out | 40.58 out | 1.50 to 3.50 |
-| Folds a Rival Guild-year | 0.034 | 0.034 | 0.027 | 0.297 | 0.612 |  |
-| Rival Guildmasters succeeded a game | 0.90 | 0.90 | 1.02 | 0.00 | 0.30 |  |
-| Quests taken a Guild-year | 220.6 | 220.6 | 211.9 | 90.0 | 95.2 |  |
-| Quests failed, a share of those resolved | 13.3% | 13.3% | 5.6% | 22.3% | 18.6% |  |
-| Quests a strong success, a share of those resolved | 55.0% | 55.0% | 60.3% | 31.7% | 41.1% |  |
-| Heroes recruited a game | 38.06 | 38.06 | 85.62 | 2.56 | 6.90 |  |
-| Heroes recruited a Guild-year | 0.477 | 0.477 | 1.073 | 0.069 | 0.104 |  |
-| Hero Deaths a game | 24.66 | 24.66 | 7.66 | 0.34 | 9.58 |  |
-| Hero Deaths a Guild-year | 0.309 | 0.309 | 0.096 | 0.009 | 0.145 |  |
-| Injuries a game | 411.64 | 411.64 | 249.82 | 190.80 | 382.22 |  |
-| Quest rewards less Upkeep a Guild-year | 1,561 | 1,561 | 5,074 | 1,672 | 764 |  |
-| Wealth a Guild at the start of year 6 (5 years played) | 28,777 | 28,777 | 60,404 | 7,001 | 25,666 |  |
-| Wealth a Guild at the start of year 11 (10 years played) | 41,483 | 41,483 | 104,149 | 9,849 | 29,855 |  |
-| **The other DL-83 and DL-69 Targets (the seven above carry their band in place)** | | | | | | |
-| The player first in the Rankings by Fame, a share of year-starts | 91.2% out | 91.2% out | 31.9% out | 99.1% out | 95.8% out | 40.0% to 60.0% |
-| The player first in the Rankings by Wealth, a share of year-starts | 95.2% out | 95.2% out | 42.2% in | 60.0% in | 75.1% out | 40.0% to 60.0% |
-| The highest Level a Hero of the player's has reached by year 20, the mean over the games in play then | 11.58 out † | 11.58 out † | 11.04 out | — | 10.00 out | 14.00 to 17.00 |
-| `ambitious` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts | 11.3% in † | 11.3% in † | 4.8% in | 0.6% in | 4.6% in | under 50.0% |
-| `miserly` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts | 29.4% in † | 29.4% in † | 7.0% in | 1.2% in | 7.9% in | under 50.0% |
-| `reckless` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts | 3.8% in † | 3.8% in † | 0.8% in | 0.2% in | 1.0% in | under 50.0% |
-| `steady` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts | 26.5% in † | 26.5% in † | 15.2% in | 0.0% in | 13.3% in | under 50.0% |
-| Transfers between Rivals back to the seller, a share of those between Rivals | 9.0% in | 9.0% in | 16.4% out | 0.0% in | 6.3% in | under 15.0% |
-| Transfers back to a seller within 90 Days, a game | 0.00 in † | 0.00 in † | 0.00 in | 0.00 in | 0.00 in | none |
-| Transfers that left the seller below the Roster floor, a game | 0.00 in † | 0.00 in † | 0.00 in | 0.00 in | 0.00 in | none |
-| **The Gate's correctness lines** | | | | | | |
-| Policy actions the rules refused | 0 | 0 | 0 | 0 | 0 |  |
-| Games the validator refused | not validated | not validated | not validated | not validated | not validated |  |
-| Games a harness assertion stopped | 0 | 0 | 0 | 0 | 0 |  |
-| Games neither ended nor played to their last Turn | 0 | 0 | 0 | 0 | 0 |  |
-| Saves that load and serialise back identically | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 |  |
-| One seed replayed alone, its last save identical | seed-0001: identical | seed-0001: identical | seed-0001: identical | seed-0001: identical | seed-0002: identical |  |
-| The save after 20 years, gzipped: mean, max (games) | 17.51 MiB, 20.64 MiB (50) | 17.51 MiB, 20.64 MiB (50) | 16.31 MiB, 22.68 MiB (50) | — (0 games) | 9.76 MiB, 18.99 MiB (19) | mean under 30 MiB |
-| The save after 20 years, uncompressed: mean, max (games read) | 134.44 MiB, 156.90 MiB (50 games) | 134.44 MiB, 156.90 MiB (50 games) | 123.48 MiB, 170.40 MiB (50 games) | 34.19 MiB, 55.85 MiB (last documents, games that ended early) | 81.32 MiB, 149.56 MiB (19 games) |  |
-| The per-Turn copy's share of a Turn | 0.2410 (pass) | 0.3900 (fail) | 0.3882 (pass) | 0.4743 (pass) | 0.4890 (fail) | at most 0.4875 from v1.2.0 |
-| The Gate, line by line | pass | fail | pass | fail | fail |  |
-| **Speed** | | | | | | |
-| Total run time, seconds (the games' share) | 1,423.5 (1,338.8) | 891.9 (841.8) | 1,550.9 (1,456.8) | 281.2 (265.1) | 602.8 (559.1) |  |
-| Each Turn's `advance`: mean, p99, in ms | 5.586, 49.514 | 3.688, 14.184 | 7.897, 32.574 | 2.507, 7.543 | 2.946, 11.950 |  |
-| **Fatigue and the Captain (DL-290; the bands are proposals, awaiting the owner)** | | | | | | |
-| The player: Quests sent with a Hero tired or worse | — | — | — | 0.0% | 0.0% | 0% to 5% |
-| The player: mean Fatigue at dispatch, a Hero | — | — | — | 43.7 | 37.3 |  |
-| The player: free Heroes a rest band kept home | — | — | — | 72.0% | 56.9% | 45% to 70% |
-| The player: Guild-Days a rest band kept a Hero home | — | — | — | 84.9% | 62.0% |  |
-| The player: Days recovering to below the rest band, the mean (recoveries ended) | — | — | — | 3.90 (125,801) | 2.17 (228,755) | 1.5 to 3.0 |
-| The player: Days recovering to fresh, the mean (recoveries ended) | — | — | — | 6.54 (3,583) | 2.61 (25,417) |  |
-| The player: Quests a Captain led | — | — | — | 25.2% | 25.3% | 25% to 45% |
-| The player: Injuries relieved, by Healer, Item, both or neither | — | — | — | 68.8% relieved (Healer 7.3, Item 48.9, both 12.6); 31.2% neither; of 945 | 86.0% relieved (Healer 3.0, Item 66.2, both 16.8); 14.0% neither; of 1,551 | 50% to 85% relieved |
-| The player: Injuries at the last Encounter, none after to ease | — | — | — | 46.6% | 40.8% |  |
-| The Rivals: Quests sent with a Hero tired or worse | — | — | — | 52.3% | 44.1% | 25% to 45% |
-| The Rivals: mean Fatigue at dispatch, a Hero | — | — | — | 58.6 | 45.3 |  |
-| The Rivals: free Heroes a rest band kept home | — | — | — | 56.7% | 33.0% | 35% to 55% |
-| The Rivals: Guild-Days a rest band kept a Hero home | — | — | — | 48.0% | 25.0% |  |
-| The Rivals: Days recovering to below the rest band, the mean (recoveries ended) | — | — | — | 3.88 (216,795) | 1.60 (406,089) | 1.5 to 3.5 |
-| The Rivals: Days recovering to fresh, the mean (recoveries ended) | — | — | — | 6.99 (19,975) | 2.46 (121,976) |  |
-| The Rivals: Quests a Captain led | — | — | — | 33.6% | 32.3% | 30% to 50% |
-| The Rivals: Injuries relieved, by Healer, Item, both or neither | — | — | — | 78.0% relieved (Healer 3.5, Item 63.3, both 11.2); 22.0% neither; of 9,540 | 74.3% relieved (Healer 5.3, Item 57.3, both 11.7); 25.7% neither; of 19,111 | 50% to 85% relieved |
-| The Rivals: Injuries at the last Encounter, none after to ease | — | — | — | 46.0% | 40.9% |  |
+| Measure | v1.1.8 | v1.1.9 | v1.2.0 | v1.2.1 baseline | v1.2.1 trial (fall ×2) | v1.2.2 | Band |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Games (the player's endings, 50 games of up to 20 years)** | | | | | | | |
+| Ended by Retirement | 0 | 0 | 0 | 0 | 0 | 0 |  |
+| Ended by Bankruptcy | 0 | 0 | 0 | 50 | 31 | 50 |  |
+| Ended by a wiped Roster | 0 | 0 | 0 | 0 | 0 | 0 |  |
+| Ran the full 20 years | 50 (100%) | 50 (100%) | 50 (100%) | 0 (0%) | 19 (38%) | 0 (0%) |  |
+| Mean Years survived (min to max) | 20.00 (20.00 to 20.00) | 20.00 (20.00 to 20.00) | 20.00 (20.00 to 20.00) | 9.45 (4.64 to 14.94) | 17.40 (10.11 to 20.00) | 9.82 (4.53 to 15.58) |  |
+| **The player's Guild** | | | | | | | |
+| Bankruptcy or wiped Roster, a share of games | 0.0% out | 0.0% out | 0.0% out | 100.0% out | 62.0% out | 100.0% out | 5.0% to 15.0% |
+| Quests taken a Guild-year | 403.4 | 403.4 | 189.4 | 139.9 | 153.4 | 138.6 |  |
+| Quests failed, a share of those resolved | 6.8% out | 6.8% out | 1.1% out | 3.0% out | 2.0% out | 3.1% out | 20.0% to 30.0% |
+| Quests a strong success, a share of those resolved | 72.7% out | 72.7% out | 85.2% out | 68.6% out | 76.4% out | 68.2% out | at most 50.0% |
+| Hero Deaths a game | 4.28 in | 4.28 in | 0.24 out | 0.00 out | 0.22 out | 0.00 out | 3.00 to 8.00 |
+| Hero Deaths a Guild-year | 0.214 | 0.214 | 0.012 | 0.000 | 0.013 | 0.000 |  |
+| Injuries a game | 72.52 | 72.52 | 17.72 | 18.90 | 31.02 | 20.12 |  |
+| Injuries a Guild-year | 3.63 | 3.63 | 0.89 | 2.00 | 1.78 | 2.05 |  |
+| Wealth in months of Upkeep, the mean of year-starts after 2 years | 36.13 out † | 36.13 out † | 36.57 out | 6.18 in | 14.53 out | 5.80 out | 6.00 to 12.00 |
+| Quest rewards a Guild-year | 61,150 | 61,150 | 60,050 | 32,881 | 44,973 | 32,804 |  |
+| Upkeep a Guild-year | 45,664 | 45,664 | 47,253 | 31,348 | 41,693 | 31,428 ‡ |  |
+| Everything spent a Guild-year | 50,421 | 50,421 | 50,098 | 33,115 | 44,267 | 33,249 |  |
+| Quest rewards less Upkeep a Guild-year | 15,486 | 15,486 | 12,797 | 1,533 | 3,279 | 1,376 |  |
+| Quest reward a Quest resolved | 152 | 152 | 317 | 235 | 293 | 237 |  |
+| Mean Level of its Heroes after 10 years | 8.34 in | 8.34 in | 8.71 in | 7.00 out | 8.00 out | 7.00 out | 8.00 to 10.00 |
+| Games in play at the start of year 11 | 50 | 50 | 50 | 16 | 50 | 20 |  |
+| Wealth at the start of year 6, a Guild (5 years played) | 88,524 (50 games) | 88,524 (50 games) | 105,584 (50 games) | 18,330 (49 games) | 54,910 (50 games) | 18,385 (49 games) |  |
+| Wealth at the start of year 11, a Guild (10 years played) | 159,162 (50 games) | 159,162 (50 games) | 168,630 (50 games) | 12,964 (16 games) | 58,229 (50 games) | 10,100 (20 games) |  |
+| Heroes recruited a game | 9.54 | 9.54 | 5.74 | 4.04 | 4.98 | 4.00 |  |
+| **The Rivals** | | | | | | | |
+| Folds a game | 2.74 in | 2.74 in | 2.18 in | 10.94 out | 40.58 out | 9.14 out | 1.50 to 3.50 |
+| Folds a Rival Guild-year | 0.034 | 0.034 | 0.027 | 0.297 | 0.612 | 0.237 |  |
+| Rival Guildmasters succeeded a game | 0.90 | 0.90 | 1.02 | 0.00 | 0.30 | 0.00 |  |
+| Quests taken a Guild-year | 220.6 | 220.6 | 211.9 | 90.0 | 95.2 | 89.4 |  |
+| Quests failed, a share of those resolved | 13.3% | 13.3% | 5.6% | 22.3% | 18.6% | 21.1% |  |
+| Quests a strong success, a share of those resolved | 55.0% | 55.0% | 60.3% | 31.7% | 41.1% | 32.7% |  |
+| Heroes recruited a game | 38.06 | 38.06 | 85.62 | 2.56 | 6.90 | 3.00 |  |
+| Heroes recruited a Guild-year | 0.477 | 0.477 | 1.073 | 0.069 | 0.104 | 0.078 |  |
+| Hero Deaths a game | 24.66 | 24.66 | 7.66 | 0.34 | 9.58 | 0.16 |  |
+| Hero Deaths a Guild-year | 0.309 | 0.309 | 0.096 | 0.009 | 0.145 | 0.004 |  |
+| Injuries a game | 411.64 | 411.64 | 249.82 | 190.80 | 382.22 | 193.76 |  |
+| Quest rewards less Upkeep a Guild-year | 1,561 | 1,561 | 5,074 | 1,672 | 764 | 1,584 ‡ |  |
+| Wealth a Guild at the start of year 6 (5 years played) | 28,777 | 28,777 | 60,404 | 7,001 | 25,666 | 8,132 |  |
+| Wealth a Guild at the start of year 11 (10 years played) | 41,483 | 41,483 | 104,149 | 9,849 | 29,855 | 8,741 |  |
+| **The other DL-83 and DL-69 Targets (the seven above carry their band in place)** | | | | | | | |
+| The player first in the Rankings by Fame, a share of year-starts | 91.2% out | 91.2% out | 31.9% out | 99.1% out | 95.8% out | 97.9% out | 40.0% to 60.0% |
+| The player first in the Rankings by Wealth, a share of year-starts | 95.2% out | 95.2% out | 42.2% in | 60.0% in | 75.1% out | 55.7% in | 40.0% to 60.0% |
+| The highest Level a Hero of the player's has reached by year 20, the mean over the games in play then | 11.58 out † | 11.58 out † | 11.04 out | — | 10.00 out | — | 14.00 to 17.00 |
+| `ambitious` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts (v1.2.2: 6.67 Upkeeps of a month, §) | 11.3% in † | 11.3% in † | 4.8% in | 0.6% in | 4.6% in | 1.2% in | under 50.0% |
+| `miserly` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts (v1.2.2: 6.67 Upkeeps of a month, §) | 29.4% in † | 29.4% in † | 7.0% in | 1.2% in | 7.9% in | 0.8% in | under 50.0% |
+| `reckless` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts (v1.2.2: 6.67 Upkeeps of a month, §) | 3.8% in † | 3.8% in † | 0.8% in | 0.2% in | 1.0% in | 2.0% in | under 50.0% |
+| `steady` Rivals at the Roster floor with more than 20 Upkeeps in hand, a share of year-starts (v1.2.2: 6.67 Upkeeps of a month, §) | 26.5% in † | 26.5% in † | 15.2% in | 0.0% in | 13.3% in | 0.8% in | under 50.0% |
+| Transfers between Rivals back to the seller, a share of those between Rivals | 9.0% in | 9.0% in | 16.4% out | 0.0% in | 6.3% in | 0.0% in | under 15.0% |
+| Transfers back to a seller within 90 Days, a game | 0.00 in † | 0.00 in † | 0.00 in | 0.00 in | 0.00 in | 0.00 in | none |
+| Transfers that left the seller below the Roster floor, a game | 0.00 in † | 0.00 in † | 0.00 in | 0.00 in | 0.00 in | 0.00 in | none |
+| **The Gate's correctness lines** | | | | | | | |
+| Policy actions the rules refused | 0 | 0 | 0 | 0 | 0 | 0 |  |
+| Games the validator refused | not validated | not validated | not validated | not validated | not validated | not validated |  |
+| Games a harness assertion stopped | 0 | 0 | 0 | 0 | 0 | 0 |  |
+| Games neither ended nor played to their last Turn | 0 | 0 | 0 | 0 | 0 | 0 |  |
+| Saves that load and serialise back identically | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 | 50 of 50 |  |
+| One seed replayed alone, its last save identical | seed-0001: identical | seed-0001: identical | seed-0001: identical | seed-0001: identical | seed-0002: identical | seed-0001: identical |  |
+| The save after 20 years, gzipped: mean, max (games) | 17.51 MiB, 20.64 MiB (50) | 17.51 MiB, 20.64 MiB (50) | 16.31 MiB, 22.68 MiB (50) | — (0 games) | 9.76 MiB, 18.99 MiB (19) | — (0 games) | mean under 30 MiB |
+| The save after 20 years, uncompressed: mean, max (games read) | 134.44 MiB, 156.90 MiB (50 games) | 134.44 MiB, 156.90 MiB (50 games) | 123.48 MiB, 170.40 MiB (50 games) | 34.19 MiB, 55.85 MiB (last documents, games that ended early) | 81.32 MiB, 149.56 MiB (19 games) | 35.47 MiB, 62.72 MiB (last documents, games that ended early) |  |
+| The per-Turn copy's share of a Turn | 0.2410 (pass) | 0.3900 (fail) | 0.3882 (pass) | 0.4743 (pass) | 0.4890 (fail) | 0.4436 (pass) | at most 0.4875 from v1.2.0 |
+| The Gate, line by line | pass | fail | pass | fail | fail | fail |  |
+| **Speed** | | | | | | | |
+| Total run time, seconds (the games' share) | 1,423.5 (1,338.8) | 891.9 (841.8) | 1,550.9 (1,456.8) | 281.2 (265.1) | 602.8 (559.1) | 269.5 (257.4) |  |
+| Each Turn's `advance`: mean, p99, in ms | 5.586, 49.514 | 3.688, 14.184 | 7.897, 32.574 | 2.507, 7.543 | 2.946, 11.950 | 2.372, 7.583 |  |
+| **Fatigue and the Captain (DL-290; the bands are proposals, awaiting the owner)** | | | | | | | |
+| The player: Quests sent with a Hero tired or worse | — | — | — | 0.0% | 0.0% | 0.0% | 0% to 5% |
+| The player: mean Fatigue at dispatch, a Hero | — | — | — | 43.7 | 37.3 | 43.6 |  |
+| The player: free Heroes a rest band kept home | — | — | — | 72.0% | 56.9% | 72.1% | 45% to 70% |
+| The player: Guild-Days a rest band kept a Hero home | — | — | — | 84.9% | 62.0% | 85.2% |  |
+| The player: Days recovering to below the rest band, the mean (recoveries ended) | — | — | — | 3.90 (125,801) | 2.17 (228,755) | 3.95 (129,416) | 1.5 to 3.0 |
+| The player: Days recovering to fresh, the mean (recoveries ended) | — | — | — | 6.54 (3,583) | 2.61 (25,417) | 6.51 (3,878) |  |
+| The player: Quests a Captain led | — | — | — | 25.2% | 25.3% | 25.2% | 25% to 45% |
+| The player: Injuries relieved, by Healer, Item, both or neither | — | — | — | 68.8% relieved (Healer 7.3, Item 48.9, both 12.6); 31.2% neither; of 945 | 86.0% relieved (Healer 3.0, Item 66.2, both 16.8); 14.0% neither; of 1,551 | 57.0% relieved (Healer 10.4, Item 36.5, both 10.0); 43.0% neither; of 1,006 | 50% to 85% relieved |
+| The player: Injuries at the last Encounter, none after to ease | — | — | — | 46.6% | 40.8% | 43.5% |  |
+| The Rivals: Quests sent with a Hero tired or worse | — | — | — | 52.3% | 44.1% | 52.3% | 25% to 45% |
+| The Rivals: mean Fatigue at dispatch, a Hero | — | — | — | 58.6 | 45.3 | 58.2 |  |
+| The Rivals: free Heroes a rest band kept home | — | — | — | 56.7% | 33.0% | 56.0% | 35% to 55% |
+| The Rivals: Guild-Days a rest band kept a Hero home | — | — | — | 48.0% | 25.0% | 48.1% |  |
+| The Rivals: Days recovering to below the rest band, the mean (recoveries ended) | — | — | — | 3.88 (216,795) | 1.60 (406,089) | 3.90 (224,091) | 1.5 to 3.5 |
+| The Rivals: Days recovering to fresh, the mean (recoveries ended) | — | — | — | 6.99 (19,975) | 2.46 (121,976) | 7.04 (22,250) |  |
+| The Rivals: Quests a Captain led | — | — | — | 33.6% | 32.3% | 33.5% | 30% to 50% |
+| The Rivals: Injuries relieved, by Healer, Item, both or neither | — | — | — | 78.0% relieved (Healer 3.5, Item 63.3, both 11.2); 22.0% neither; of 9,540 | 74.3% relieved (Healer 5.3, Item 57.3, both 11.7); 25.7% neither; of 19,111 | 68.5% relieved (Healer 5.6, Item 53.3, both 9.6); 31.5% neither; of 9,688 | 50% to 85% relieved |
+| The Rivals: Injuries at the last Encounter, none after to ease | — | — | — | 46.0% | 40.9% | 46.6% |  |
 
 Notes on the table.
 
-- **A game** is the report's total over its 50 games. The baseline's games stop at a mean 9.45 years, the trial's at
-  17.40, the others' at 20, so a count a game is not like for like across them. **A Guild-year** is a year of one Guild
+- **A game** is the report's total over its 50 games. The baseline's games stop at a mean 9.45 years, v1.2.2's at
+  9.82, the trial's at 17.40, the others' at 20, so a count a game is not like for like across them. **A Guild-year** is a year of one Guild
   in play, from its founding until it folds or the game stops (the report's Progression section); the player's are
   the player's Guild, the Rivals' every Rival Guild and its replacements. The rows by Guild-year divide an event's
   total by those years: Quests taken, Deaths, Injuries, recruits and folds.
@@ -149,17 +155,24 @@ Notes on the table.
 - **Quest rewards, Upkeep and everything spent** are the Items section's per-Guild-year columns. **Rewards less Upkeep**
   is their difference, and **reward a Quest resolved** is the Quest rewards total over the Quests resolved; both are
   derived here. Everything spent adds the signing fees, Transfers, Items, Improvements and Upkeep.
+- **‡ v1.2.2's Upkeep** is the report's "Upkeep in all": the wages, the Hall's upkeep and the Improvements' upkeep,
+  charged apart from DL-298 on. Up to v1.2.1 it was one charge, the wages and `hallMaintenancePerGrade` together. Its
+  lines against v1.2.1's are under "What moved, and when".
+- **§ The hoarding rows.** Up to v1.2.1 one Upkeep was 10 Days of costs, and the Target read more than 20 of them. From
+  v1.2.2 one Upkeep is a month of costs, and the Target reads more than 6.67 of them, the same money (DL-300). The
+  v1.2.2 column's rows count the same thing as the earlier columns' rows.
 - **Wealth at the start of year 6 and year 11** is the report's table of year-starts after 5 and 10 years played,
   the mean over the games in play then. The baseline's year 11 is 16 games, those that had lasted, so it is survivors
   only. The player's is a Guild's Wealth, the Rivals' Wealth a Guild.
-- **The Targets** of v1.2.0, the baseline and the trial are the reports' own. The v1.1.8 and v1.1.9 columns were read by running the harness's `targets()` over each report's totals, which reproduces the printed
+- **The Targets** of v1.2.0, the baseline, the trial and v1.2.2 are the reports' own. The v1.1.8 and v1.1.9 columns were read by running the harness's `targets()` over each report's totals, which reproduces the printed
   Targets of v1.2.0 and the baseline and, for v1.1.9, the baseline column v1.2.0's report printed. The trial's mean
   Level after 10 years is 7.995, printed 8.00 and outside the band, as its report marks it.
 - **The Gate's lines** are the report's own verdicts against `harness/gate.json` as it stood for that run. v1.1.9's fail
   is the copy line against v1.1.8's limit of 0.31625; the owner anchored the limit at that run (DL-252), so v1.2.0 on
   reads at most 0.4875. The baseline's fail is the save line: no game ran 20 years, so there is no save to gzip
   (`—`, 0 games). The trial's fail is the copy line, 0.4890 against at most 0.4875, over 851 copies. The baseline's
-  copy share passes over 447 copies, which is not like for like either.
+  copy share passes over 447 copies, which is not like for like either. v1.2.2's fail is the baseline's: no game ran 20
+  years. Its copy share passes over 467 copies.
 - **Speed.** Mean `advance` fell between v1.1.8 and v1.1.9 by design (the Best Party module, DL-237) and rose at v1.2.0,
   when the Rivals' Rosters grew (15.7 Heroes a Guild at year 5, against 7.2). The baseline's and the trial's are lower
   because their games end sooner and their saves are smaller (the baseline's last documents average 34.19 MiB
@@ -217,6 +230,75 @@ story built on the one above; the full reports are the 4 × 2 `v1.2.1-s*-quick` 
   Death a game (0.34), where the player's Deaths rise from 0.00 to 0.22 a game. Neither run puts the player's
   Bankruptcy inside its band.
 
+Within v1.2.2, the quick runs (4 games of 2 years) show each story's move, in the same form; the full reports are the
+4 × 2 `v1.2.2-s*` ones, not committed.
+
+| After | Config | Fingerprint | The player: Quests | failed | strong | The Rivals: Quests | failed | strong | recruits | Injuries | Folds |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| v1.2.1's play with S1 built (the start) | 30 | `290b6d18…` | 1,733 | 3.6% | 67.1% | 3,787 | 22.0% | 31.9% | 0 | 150 | 1 |
+| S2, Silver (DL-296) | 30 | `290b6d18…` | 1,733 | 3.6% | 67.1% | 3,787 | 22.0% | 31.9% | 0 | 150 | 1 |
+| S3, Facilities as content (DL-297) | 31 | `389f5232…` | 1,733 | 3.6% | 67.1% | 3,787 | 22.0% | 31.9% | 0 | 150 | 1 |
+| S4, the Hall's upkeep apart from the wages (DL-298) | 32 | `ad1bc510…` | 1,717 | 4.1% | 66.9% | 3,789 | 23.1% | 32.3% | 0 | 165 | 1 |
+| S5, one Upkeep a month (DL-300) | 33 | `3a36abef…` | 1,717 | 4.1% | 66.9% | 3,789 | 23.1% | 32.3% | 0 | 165 | 1 |
+| S6, loot-only values and the surplus sold (DL-301) | 34 | `93c75e85…` | 1,721 | 4.3% | 65.3% | 3,805 | 21.1% | 34.0% | 0 | 148 | 1 |
+| S7 and S8, the Treasury and the page: play unchanged (DL-302, DL-303) | 34 | `93c75e85…` | 1,721 | 4.3% | 65.3% | 3,805 | 21.1% | 34.0% | 0 | 148 | 1 |
+
+- **S2 and S3** changed no play. S2's fingerprint is the start's. S3's moved with the schema alone, and its counters
+  are S2's (DL-297).
+- **S4, the Hall's upkeep (DL-298).** Against S3's quick run, the Upkeep a Guild-year moved +3.3% for the player and
+  −1.2% for the Rivals. The Hall's line alone moved +15.2% and −18.0%. These figures are in the commit `c9ebd92`; S3's
+  side comes from a scratch run that split each charge by its parts.
+- **S5, one Upkeep a month (DL-300).** The fingerprint moved with the versions, and the counters are S4's: dividing the
+  thresholds by 3 left every choice as it was.
+- **S6, the surplus sold (DL-301).** The Rivals' failed Quests went from 23.1% to 21.1%, and their Injuries from 165 to 148.
+- **The close (DL-305).** The full Gate, read against v1.2.1's close (the baseline's play):
+  - The player is still bankrupt in 50 of 50 games, at a mean 9.82 years (9.45).
+  - Its Wealth in months of Upkeep is 5.80, now below its band (6.18).
+  - The Rivals fold 9.14 times a game (10.94).
+  - The player's Injuries relieved fell from 68.8% to 57.0%, and those by an Item alone from 48.9% to 36.5%. The
+    report does not say why.
+
+### The costs against v1.2.1's (Q21)
+
+Each side's costs a Guild-year, by line, from the two closing reports' Items sections. Each line is the report's total
+over its Guild-years: the player's 472.4 and the Rivals' 1,844.6 at v1.2.1, and 491.0 and 1,926.4 at v1.2.2. The
+change is v1.2.2's over v1.2.1's.
+
+| A Guild-year | The player: v1.2.1 | v1.2.2 | Change | The Rivals: v1.2.1 | v1.2.2 | Change |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Spent: signing fees | 46.5 | 44.2 | −4.9% | 7.3 | 8.2 | +12.0% |
+| Spent: Transfers | 0.0 | 0.0 | — | 6.0 | 5.3 | −12.7% |
+| Spent: Items | 1,540.8 | 1,604.0 | +4.1% | 687.0 | 799.1 | +16.3% |
+| Spent: Improvements | 179.9 | 173.1 | −3.8% | 646.5 | 534.4 | −17.3% |
+| Upkeep: the wages | in Upkeep in all | 30,211.9 | — | in Upkeep in all | 21,087.8 | — |
+| Upkeep: the Hall's | in Upkeep in all | 853.7 | — | in Upkeep in all | 749.2 | — |
+| Upkeep: the Improvements' | in Upkeep in all | 362.1 | — | in Upkeep in all | 602.2 | — |
+| Upkeep: the Hall's and the Improvements', a month (÷ 12) | not in the report | 101.3 | — | not in the report | 112.6 | — |
+| Upkeep in all | 31,347.8 | 31,427.7 | +0.3% | 21,558.5 | 22,439.1 | +4.1% |
+| Spent in all | 33,115.0 | 33,249.0 | +0.4% | 22,905.3 | 23,786.1 | +3.8% |
+| Taken: Quest rewards | 32,880.6 | 32,804.0 | −0.2% | 23,230.5 | 24,022.8 | +3.4% |
+| Taken: Item sales | 0.0 | 220.1 | — | 2.0, at folds | 295.6 | — |
+
+- **Within 10%:**
+  - every line of the player's;
+  - the Rivals' Upkeep in all, their spending in all and their Quest rewards.
+- **Outside 10%:** four of the Rivals' lines, none set by a v1.2.2 default. They move with the Rivals' play:
+  - Items +16.3%;
+  - Improvements −17.3%;
+  - signing fees +12.0% and Transfers −12.7%, each under 10 a Guild-year.
+- **What cannot be compared.** v1.2.1's report holds Upkeep as one figure, `wealth.*.upkeep` (`guild.upkeep-paid`).
+  Neither its wages nor its `hallMaintenancePerGrade` part can be read from it, so no report sets v1.2.2's wages or
+  its Hall's and Improvements' upkeep against v1.2.1's. The only like-for-like split is S4's quick run against S3's,
+  above.
+- **The epic's §2 reckoning:**
+  - *v1.2.2's side holds.* The Hall's and Improvements' upkeep a month is 101.3 for the player and 112.6 for a Rival.
+    The epic reckoned about 100 for each.
+  - *The "against" figures cannot be checked.* The epic gave about 90 for the player and about 130 for a Rival at
+    v1.2.1. These are its own reckoning from config and v1.2.1's grades, not report figures.
+  - *A new Guild's "about 50 more" is not in the report.* No line reads a Guild's first charge. The rule gives the
+    player's founding Roster of 4 Heroes 30 + 5 × 4 = 50 a month.
+- Reported, not tuned (Q20).
+
 ## Open for the economy release
 
 No tuning value is proposed here; these are the measures and the settings to read.
@@ -235,7 +317,16 @@ No tuning value is proposed here; these are the measures and the settings to rea
 - **The save at 20 years.** The baseline cannot measure it: no game ran 20 years, so the Gate's gzipped-save line
   fails by absence, and its last documents (34.19 MiB uncompressed on average) are of games that ended at a mean 9.45 years. The trial's
   19 full games gzip to a mean 9.76 MiB and a max 18.99 MiB, against v1.2.0's 16.31 and 22.68; the limit is a mean
-  under 30 MiB. Any change that lets games run to 20 years re-measures it.
+  under 30 MiB. v1.2.2's close cannot measure it either: no game ran 20 years. Any change that lets games run to 20
+  years re-measures it.
+- **The surplus in debt (DL-301; S6's verifier, for `v1.2.4`).** In debt a Rival equips nothing, carries no heal Item and
+  sells its whole Holding. The policy still equips first and keeps the pieces it equips, since it has no debt sale. The
+  two sides meet debt by different rules.
+- **The surplus and gear upgrades (for `v1.2.5`).** The surplus counts gear against empty slots alone, because the
+  controllers equip only into an empty slot (`gearChoices`). When `v1.2.5` brings gear upgrades (#25's rest), the rule
+  must stop selling a piece better than one a Hero carries.
+- **The Hall's charge against v1.2.1's.** No report splits v1.2.1's Upkeep, so v1.2.2's Hall and Improvements' lines
+  have no v1.2.1 figure. They are measured against v1.2.2's close from here on (the costs above).
 - **The settings this release added or changed**, with their values in `engine/src/config.json` now (the Fatigue
   section, the Captain's, the reliefs, the Morale values, `hurtCheckFactor`), and the Dispositions' `restBand`:
 
