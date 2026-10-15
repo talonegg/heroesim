@@ -656,14 +656,19 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 1. *`worthOf`* (DL-49) is exported from `gear.ts`, where controllers rank gear, and `surplus.ts` imports it; its copy is gone.
 2. *The split* has one home, `hallUpkeepSplit({ amount, facilities, traitFactor })` in `engine/src/selectors.ts` beside `hallUpkeepParts`, exported from `@heroesim/engine`: the Improvements' part is the Facilities' charges summed, times the factor, rounded to whole Silver, and the Hall's is the rest, so the two sum to the charge exactly (DL-302's rounding). The Treasury's reader and the harness's counter both call it; the harness keeps its field checks and their messages. A charge with no Facilities is one Hall line, and a part of nothing gives no row, as before.
 3. *The rows' words* (`hallUpkeepPartSentence`, `words/src/narrate.ts`): each row of a split charge says its own part, "The Lantern paid 90 Silver in Hall upkeep." and "The Lantern paid 30 Silver in its Improvements' upkeep.", the Guild's name a link as in every row (`sentenceSegments`, `web/src/state/namer.ts`). The Hall's row of a whole charge, a charge with no Facilities, keeps the History's sentence. The History is unchanged: one entry, the whole charge's sentence.
+4. *The Treasury's lines* (the owner's answer a to Q19; `LinesTable` in `web/src/views/treasury.tsx`, `totalsOf` in `web/src/state/treasury.ts`): a table under the ledger's totals sentence, over the same rows the filters let through: Income and its lines, Expense and its lines, then Other, each with its total in coins. `LedgerTotals.sections` kept `expenses` and `expense` as one section twice; it keeps `expense`, and `totalsOf` gains `other`, Other's changes netted, which belong to no section.
 
 *Judgement calls, for the owner to see.*
+- A row whose total is nothing is left out, a section's with its lines. The table follows the filters as the chips' counts do, and stays short at 360 wide, where all eleven lines and both sections would be thirteen rows; with no row to show there is no table.
+- Other is the last row, after the Expense lines, since it is neither section and its changes may be of either sign. The Income, Expense and Other rows sum to Net.
+- The table is named "The lines of <Guild>", as the ledger is "The ledger of <Guild>", by an `aria-label`; its rows are headed by `scope="row"`.
 - `hallUpkeepSplit` lives in the engine beside the charge it splits, since the web and the harness both read the engine; it takes the payload's three fields and returns `{ hall, improvements }`.
 - The rows' words are the epic's: "in Hall upkeep", the History's own, and "in its Improvements' upkeep". "Leaving …" is dropped from a part's row: the Wealth left is the whole charge's, and beside a part it would misread.
 - A charge of Improvements alone (a Hall part of nothing, which the defaults never make) is one row worded as the Improvements', since it stands on their line; a Hall row is worded by its part only where it is not the whole charge.
+- `lineWords` spells "Improvements’ upkeep" with a curly apostrophe and the narration (`words/src/narrate.ts`) "its Improvements' upkeep" with a straight one. `ui-text.md` has no rule on it and the page's other words mix both, so both stay, for the verifier to see.
 - The Treasury's reader keeps its defaults for a payload without `facilities` or `traitFactor`, which the validator does not hold, so its behaviour is unchanged.
 
 **Consequences.** The split cannot drift between the page and the harness's reports, and a split charge's rows each read as the amount beside them. Play does not move.
 
-**Evidence.** The commit `v1.2.2-S9 (DL-304)`: the checks with their counts, the doctors' readings and the bundle's bytes.
+**Evidence.** The commit `v1.2.2-S9 (DL-304)`: the checks with their counts, the doctors' readings and the bundle's bytes. The Treasury's lines: `web/src/views/treasury.test.tsx` (each line with its total, the filters followed, no table before a change), `web/src/state/treasury.test.ts` (`other`, the one expense section), `web/e2e/layout.spec.ts` (the table at 360, 390, 820 and 1280).
 

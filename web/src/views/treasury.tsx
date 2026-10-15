@@ -9,7 +9,7 @@
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { ledgerPage, treasuryAccounts, type TreasuryAccounts, type UpkeepCharge } from '../state/treasury';
+import { expenseLines, incomeLines, ledgerPage, lineWords, treasuryAccounts, type LedgerTotals, type TreasuryAccounts, type UpkeepCharge } from '../state/treasury';
 import { Names } from './history-entries';
 import { Coins } from './coins';
 import { Icon } from './icons';
@@ -42,6 +42,47 @@ function Charge({ charge, testId }: { charge: UpkeepCharge; testId: string }) {
         <Terms pairs={charge.parts.map(({ label, value, silver }) => [label, silver === undefined ? value : <Coins silver={silver} />] as const)} />
       )}
     </>
+  );
+}
+
+/**
+ * The ledger's lines with their totals over what the filters show (DL-304 item 4): each section, then
+ * its lines, the expense lines, then Other. A row of nothing is left out, so the table follows the
+ * filters and stays short on a phone, and a section with no change is left out with its lines.
+ */
+function LinesTable({ totals, guildName }: { totals: LedgerTotals; guildName: string }) {
+  const { income, expense } = totals.sections;
+  const shown = [
+    { key: 'income', words: 'Income', total: income.total, line: false },
+    ...incomeLines.map((key) => ({ key, words: lineWords[key], total: income.lines[key], line: true })),
+    { key: 'expense', words: 'Expense', total: expense.total, line: false },
+    ...expenseLines.map((key) => ({ key, words: lineWords[key], total: expense.lines[key], line: true })),
+    { key: 'other', words: lineWords.other, total: totals.other, line: true },
+  ].filter((row) => row.total !== 0);
+  if (shown.length === 0) return null;
+  return (
+    <div className="table-wrap">
+      <table className="table lines-table" aria-label={`The lines of ${guildName}`}>
+        <thead>
+          <tr>
+            <th scope="col">Line</th>
+            <th scope="col" className="number">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((row) => (
+            <tr key={row.key} className={row.line ? 'lines-table__line' : 'lines-table__section'}>
+              <th scope="row">{row.words}</th>
+              <td className={`number ledger__amount ${row.total > 0 ? 'is-income' : 'is-expense'}`}>
+                <Coins silver={row.total} signed />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -99,6 +140,7 @@ function Accounts({ view }: { view: TreasuryAccounts }) {
                 Income <Coins silver={ledger.totals.income} signed /> · Expense <Coins silver={ledger.totals.expense} signed /> · Net{' '}
                 <Coins silver={ledger.totals.net} signed />
               </p>
+              <LinesTable totals={ledger.totals} guildName={view.guildName} />
             </>
           )}
           {ledger.rows.length === 0 ? (

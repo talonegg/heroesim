@@ -339,6 +339,11 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
     const treasury = await guildPart(page, 'Treasury');
     await expect(treasury.getByRole('table', { name: /^The ledger of / })).toBeVisible();
+    // Its lines, each with its total (DL-304 item 4): the purchase's line under the Expense section, in a box that does not scroll.
+    const lines = treasury.getByRole('table', { name: /^The lines of / });
+    await expect(lines.getByRole('rowheader', { name: 'Expense', exact: true })).toBeVisible();
+    await expect(lines.getByRole('rowheader', { name: 'Item purchases', exact: true })).toBeVisible();
+    expect(await lines.locator('xpath=..').evaluate((box) => box.scrollWidth - box.clientWidth), `the Treasury's lines at ${width}px`).toBeLessThanOrEqual(0);
     await check("the Guild's Treasury");
     // A name in the ledger's sentence reads as a name in the History's lines do: a link's look, in the
     // sentence, not a bordered button (from the close's screenshots).

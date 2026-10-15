@@ -171,10 +171,13 @@ describe('the lines (DL-302)', () => {
     ]);
     expect(totals).toMatchObject({ income: 420, expense: -210, net: 210 });
     expect(totals.sections.income).toEqual({ total: 380, lines: { 'quest-rewards': 300, 'item-sales': 0, 'transfers-out': 80 } });
-    expect(totals.sections.expenses).toEqual({
+    expect(totals.sections.expense).toEqual({
       total: -185,
       lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0 },
     });
+    // Other's own total, its income and expense together, apart from the sections (DL-304 item 4).
+    expect(totals.other).toBe(15);
+    expect(Object.keys(totals.sections)).toEqual(['income', 'expense']);
   });
 });
 
@@ -498,6 +501,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
       income: proceeds,
       expense,
       net: proceeds + expense,
+      other: 0,
       sections: {
         income: {
           total: proceeds,
@@ -505,18 +509,6 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
             'quest-rewards': 0,
             'item-sales': proceeds,
             'transfers-out': 0,
-          },
-        },
-        expenses: {
-          total: expense,
-          lines: {
-            wages: -upkeep,
-            'hall-upkeep': 0,
-            'improvement-upkeep': 0,
-            'item-purchases': -cost,
-            improvements: 0,
-            'signing-fees': -fee,
-            'transfers-in': 0,
           },
         },
         expense: {

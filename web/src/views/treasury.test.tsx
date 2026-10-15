@@ -5,7 +5,7 @@ import { coinWords } from '@heroesim/words';
 import { changed, documentOf, holding, played, started, withTrades, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { treasuryAccounts } from '../state/treasury';
-import { amountPattern, coinsPattern, section, silverOf, spokenText } from './page.test-support';
+import { amountPattern, coinsPattern, section, silverOf, silverOfWords, spokenText } from './page.test-support';
 import { Treasury } from './treasury';
 
 // The Guild's Treasury (DL-111 item 5, DL-112 item 6, DL-116): the Wealth, Upkeep's next
@@ -55,6 +55,21 @@ function rows(): string[][] {
     .getAllByRole('row')
     .slice(1)
     .map((row) => Array.from(row.querySelectorAll<HTMLElement>('th, td'), spokenText));
+}
+
+/** The lines table: each row its name and its total in Silver, in the order shown. */
+function lines(): [string, number][] {
+  return within(within(treasury()).getByRole('table', { name: 'The lines of The Lantern' }))
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => [within(row).getByRole('rowheader').textContent ?? '', silverOf(row.querySelector<HTMLElement>('td') as HTMLElement)]);
+}
+
+/** The ledger's rows of a category, their amounts summed in Silver. */
+function ledgerSum(category: string): number {
+  return rows()
+    .filter((row) => row[2] === category)
+    .reduce((sum, row) => sum + silverOfWords(row[3]?.replace('+', '') ?? ''), 0);
 }
 
 function totals(): string {
@@ -165,6 +180,49 @@ describe('the Treasury', () => {
     fireEvent.click(within(categories).getByRole('button', { name: 'All' }));
     // The opening row again, with every change.
     expect(rows()).toHaveLength(4);
+  });
+
+  test('gives the lines under the totals, the income lines then the expense lines, each with its total and each section with its own, a line of nothing left out (DL-304 item 4)', () => {
+    renderTreasury(traded());
+    const sales = ledgerSum('Item sales');
+    const wages = ledgerSum('Wages');
+    const fees = ledgerSum('Signing fees');
+
+    expect(sales).toBeGreaterThan(0);
+    expect(wages + fees).toBeLessThan(0);
+    expect(lines()).toEqual([
+      ['Income', sales],
+      ['Item sales', sales],
+      ['Expense', wages + fees],
+      ['Wages', wages],
+      ['Signing fees', fees],
+    ]);
+    // Under the sentence of totals, and above the ledger.
+    const table = within(treasury()).getByRole('table', { name: 'The lines of The Lantern' });
+    expect(within(treasury()).getByTestId('totals').compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(table.compareDocumentPosition(ledger()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  test('follows the filters: one line chosen, the table gives it and its section alone, and none shown, no table (DL-304 item 4)', () => {
+    renderTreasury(traded());
+    const categories = within(treasury()).getByRole('group', { name: 'Show of category' });
+    const wages = ledgerSum('Wages');
+
+    fireEvent.click(within(categories).getByRole('button', { name: /^Wages/ }));
+    expect(lines()).toEqual([
+      ['Expense', wages],
+      ['Wages', wages],
+    ]);
+
+    const flow = within(treasury()).getByRole('group', { name: 'Show income or expense' });
+    fireEvent.click(within(flow).getByRole('button', { name: /^Income/ }));
+    expect(within(treasury()).queryByRole('table', { name: 'The lines of The Lantern' })).toBeNull();
+  });
+
+  test('gives no lines before the Wealth has changed (DL-304 item 4)', () => {
+    renderTreasury(started());
+
+    expect(within(treasury()).queryByRole('table', { name: 'The lines of The Lantern' })).toBeNull();
   });
 
   test('pages the ledger by 20, from the newest', () => {

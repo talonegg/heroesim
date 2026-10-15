@@ -3383,6 +3383,12 @@ th.number .sort {
   font-weight: 600;
 }
 
+/* The Treasury's lines (DL-304 item 4): a section's row in full weight, its lines indented under it. */
+.lines-table__line th {
+  padding-inline-start: 1.25rem;
+  font-weight: 400;
+}
+
 .ledger__when {
   white-space: nowrap;
 }

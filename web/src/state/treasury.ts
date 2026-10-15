@@ -304,14 +304,17 @@ export interface LedgerSection<Line extends string = string> {
   lines: Record<Line, number>;
 }
 
-/** The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together, and each section with its lines (DL-302, Q19). */
+/**
+ * The sums of what the ledger shows, in Silver: income positive, expense negative, and the two together,
+ * each section with its lines, and Other's changes together, which are in no section (DL-302, DL-304 item 4).
+ */
 export interface LedgerTotals {
   income: number;
   expense: number;
   net: number;
+  other: number;
   sections: {
     income: LedgerSection<IncomeLine>;
-    expenses: LedgerSection<ExpenseLine>;
     expense: LedgerSection<ExpenseLine>;
   };
 }
@@ -404,8 +407,10 @@ export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
   const expenseLinesMap = zeroLines(expenseLines);
   let income = 0;
   let expense = 0;
+  let other = 0;
 
   for (const row of rows) {
+    if (row.category === 'other') other += row.amount;
     if (row.amount > 0) {
       income += row.amount;
       if (row.category in incomeLinesMap) {
@@ -421,23 +426,15 @@ export function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
 
   const net = income + expense;
   const sumOf = (lines: Record<string, number>): number => Object.values(lines).reduce((total, part) => total + part, 0);
-  const expensesSection: LedgerSection<ExpenseLine> = {
-    total: sumOf(expenseLinesMap),
-    lines: expenseLinesMap,
-  };
-  const incomeSection: LedgerSection<IncomeLine> = {
-    total: sumOf(incomeLinesMap),
-    lines: incomeLinesMap,
-  };
 
   return {
     income,
     expense,
     net,
+    other,
     sections: {
-      income: incomeSection,
-      expenses: expensesSection,
-      expense: expensesSection,
+      income: { total: sumOf(incomeLinesMap), lines: incomeLinesMap },
+      expense: { total: sumOf(expenseLinesMap), lines: expenseLinesMap },
     },
   };
 }
