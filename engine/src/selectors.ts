@@ -358,6 +358,21 @@ export function hallUpkeepParts(
 }
 
 /**
+ * A Hall upkeep charge, as `guild.hall-upkeep-paid` carries it, split into its two lines of expenses
+ * (DL-302, DL-304): the Improvements', the Facilities' charges summed, times the factor, rounded to whole
+ * Silver; and the Hall's, the rest of `amount`, so the two sum to the charge exactly. The one split the
+ * Treasury's ledger and the harness's wealth counters both read.
+ */
+export function hallUpkeepSplit({
+  amount,
+  facilities,
+  traitFactor,
+}: Pick<HallUpkeepParts, 'facilities' | 'traitFactor'> & { amount: number }): { hall: number; improvements: number } {
+  const improvements = Math.round(Object.values(facilities).reduce((total, charge) => total + charge, 0) * traitFactor);
+  return { hall: amount - improvements, improvements };
+}
+
+/**
  * One Upkeep as every reader of "Upkeeps" counts it (a Rival's hiring budget and reserve, the policy's
  * reserves, the consumables' reserve, the harness's hoarding and months, the Guilds table): a month's
  * costs, three wage charges and one of the Hall's (`hallUpkeepEveryDays` ÷ `upkeepEveryDays` wage charges

@@ -40,6 +40,7 @@ export {
   crossed,
   degreeWords,
   endingWords,
+  hallUpkeepPartSentence,
   itemsWords,
   narrate,
   narrateStop,

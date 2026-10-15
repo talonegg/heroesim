@@ -382,6 +382,7 @@ export {
   dispositionOf,
   effectiveStats,
   hallUpkeepParts,
+  hallUpkeepSplit,
   nextHallUpkeepDay,
   nextImprovement,
   nextWagesDay,

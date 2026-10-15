@@ -535,6 +535,18 @@ export function resolvedParts(event: EngineEventOf<'quest.resolved'>, content: C
   };
 }
 
+/** What each part of a Hall upkeep charge (`hallUpkeepSplit`) is paid in. */
+const hallUpkeepPartWords = { hall: 'Hall upkeep', improvements: "its Improvements' upkeep" } as const;
+
+/**
+ * One part of a Hall upkeep charge, as the Treasury's ledger words each of the two rows the charge
+ * splits into (`hallUpkeepSplit`, DL-302, DL-304): `The Kestrel Guild paid 90 Silver in Hall upkeep.`
+ * Without the Wealth left, which the whole charge left; the History keeps the whole charge's sentence.
+ */
+export function hallUpkeepPartSentence(event: EngineEventOf<'guild.hall-upkeep-paid'>, part: keyof typeof hallUpkeepPartWords, amount: number): Sentence {
+  return say`${called(event, event.payload.guildId)} paid ${coinWords(amount)} in ${hallUpkeepPartWords[part]}.`;
+}
+
 /**
  * `event` as a sentence, its names as slots for a Namer to fill, its dates by `calendar`, the game's
  * (DL-210). A module's own event is not the engine's to word: its sentence is `moduleSentence`'s, for

@@ -645,3 +645,25 @@ quick run `v1.2.2-s4-quick` and its `compare` with `v1.2.2-s3-quick`; the epic's
 **Evidence.** The commit `v1.2.2-S8 (DL-303)` (`cf42436`): the checks with their counts, the doctors' readings, the e2e at 360, 820 and 1280 wide, and the bundle check; the epic's S8 box.
 - Verified 2026-10-14 at 6875f18: each S8 item was traced to the commit that built it, and this entry now credits S2, S4, S5 and S7. Four of 43 mutations of the shown code survived (Build on another Guild's Hall, the Facility a button builds, the Treasury's headings, a floor other than 0), and new tests now kill them. The next grade's upkeep was missing from the Hall and every upkeep from `show hall`; both are now built test first (9 more mutations, all killed). The help texts are rewritten, and DL-112 item 6's note and record are written.
 
+## DL-304 — v1.2.2-S9 built: the Hall charge's split in one home, its ledger rows worded by their parts, and worthOf reused
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the agent, on the owner's rulings of 2026-10-14 on DL-301's and DL-302's judgement calls
+
+**Context.** The release's review found two copies (the epic's S9): `worthOf`, copied into `engine/src/surplus.ts` from `engine/src/gear.ts` (DL-301), and the split of a `guild.hall-upkeep-paid` charge into the Hall's line and the Improvements' (DL-302 item 2), written in the Treasury's reader (`web/src/state/treasury.ts`) and again in the harness's wealth counters (`harness/src/counters.ts`). Both of a split charge's ledger rows also gave the History's whole-charge sentence beside a part's amount; the owner chose each row worded by its own part (answer b to 3.6).
+
+**Decision.**
+
+1. *`worthOf`* (DL-49) is exported from `gear.ts`, where controllers rank gear, and `surplus.ts` imports it; its copy is gone.
+2. *The split* has one home, `hallUpkeepSplit({ amount, facilities, traitFactor })` in `engine/src/selectors.ts` beside `hallUpkeepParts`, exported from `@heroesim/engine`: the Improvements' part is the Facilities' charges summed, times the factor, rounded to whole Silver, and the Hall's is the rest, so the two sum to the charge exactly (DL-302's rounding). The Treasury's reader and the harness's counter both call it; the harness keeps its field checks and their messages. A charge with no Facilities is one Hall line, and a part of nothing gives no row, as before.
+3. *The rows' words* (`hallUpkeepPartSentence`, `words/src/narrate.ts`): each row of a split charge says its own part, "The Lantern paid 90 Silver in Hall upkeep." and "The Lantern paid 30 Silver in its Improvements' upkeep.", the Guild's name a link as in every row (`sentenceSegments`, `web/src/state/namer.ts`). The Hall's row of a whole charge, a charge with no Facilities, keeps the History's sentence. The History is unchanged: one entry, the whole charge's sentence.
+
+*Judgement calls, for the owner to see.*
+- `hallUpkeepSplit` lives in the engine beside the charge it splits, since the web and the harness both read the engine; it takes the payload's three fields and returns `{ hall, improvements }`.
+- The rows' words are the epic's: "in Hall upkeep", the History's own, and "in its Improvements' upkeep". "Leaving …" is dropped from a part's row: the Wealth left is the whole charge's, and beside a part it would misread.
+- A charge of Improvements alone (a Hall part of nothing, which the defaults never make) is one row worded as the Improvements', since it stands on their line; a Hall row is worded by its part only where it is not the whole charge.
+- The Treasury's reader keeps its defaults for a payload without `facilities` or `traitFactor`, which the validator does not hold, so its behaviour is unchanged.
+
+**Consequences.** The split cannot drift between the page and the harness's reports, and a split charge's rows each read as the amount beside them. Play does not move.
+
+**Evidence.** The commit `v1.2.2-S9 (DL-304)`: the checks with their counts, the doctors' readings and the bundle's bytes.
+

@@ -12,7 +12,6 @@ import type { EngineDeps } from './config.js';
 import {
   gearSlotKeys,
   type ConsumableEffectKind,
-  type GearDefinition,
   type ItemDefinitionKey,
   type SlotKey,
 } from './content-types.js';
@@ -25,6 +24,7 @@ import {
   type StackId,
   type World,
 } from './document.js';
+import { worthOf } from './gear.js';
 import { holdings, itemDefinition } from './items.js';
 import { sellPrice } from './market.js';
 
@@ -39,11 +39,6 @@ export interface SurplusKeeping {
 /** The target id (Item or Stack) of a SellAction for deterministic sorting. */
 function sellTargetId(action: SellAction): string {
   return 'itemId' in action ? action.itemId : action.stackId;
-}
-
-/** The sum of a piece of gear's Stat modifiers: how a controller ranks gear (DL-49). */
-function worthOf(definition: GearDefinition): number {
-  return Object.values(definition.statModifiers).reduce((sum, delta) => sum + delta, 0);
 }
 
 /** A piece of gear in the Guild's holding under consideration for surplus. */

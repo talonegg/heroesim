@@ -18,6 +18,7 @@ import {
   type Entry,
   type EventType,
   type GuildId,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { createProbe, makeId } from '@heroesim/engine/testing';
@@ -28,6 +29,7 @@ import { changed, documentOf, played, playerOf, started, withTrades, withWealth 
 import { initialGameState, playDeps, type GameState } from './reducer';
 import { countdownView } from './selectors';
 import { faceted, type FacetChoices } from './facets';
+import { narrateText } from './namer';
 import { ledgerCategories, ledgerOf, ledgerPage, lineWords, totalsOf, treasuryAccounts, wealthChangeOf } from './treasury';
 
 // The Treasury (DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
@@ -634,5 +636,43 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
 
     const view = ledgerPage({ ...ledger, changes: [], opening: null }, { rows: [], filtered: false }, 0);
     expect(view).toMatchObject({ rows: [], page: 0, pages: 1, shown: 0, opens: false });
+  });
+});
+
+describe("The Treasury: a Hall upkeep charge's rows, each worded by its own part (DL-304)", () => {
+  const accounts = treasuryAccounts(documentOf(started('treasury-hall-rows')));
+  if (accounts === null) throw new Error('no player’s Guild');
+  const { ledger } = accounts;
+
+  /** The charge's entry, The Lantern's, as the engine appends it. */
+  const charge = (amount: number, base: number, heroes: number, facilities: Record<string, number>): Entry => ({
+    ...entry('guild.hall-upkeep-paid', { guildId: lantern, amount, wealthAfter: 340, base, heroCount: heroes / 5, heroes, facilities, traitFactor: 1 }),
+    labels: { [lantern]: 'The Lantern' },
+  });
+
+  /** The ledger's rows of `paid`, as the page shows them. */
+  function rowsOf(paid: Entry) {
+    const changes = [wealthChangeOf(paid, lantern) ?? []].flat().map((change) => ({ ...change, position: 9, entry: paid }));
+    return ledgerPage({ ...ledger, changes, opening: null }, { rows: changes, filtered: false }, 0).rows;
+  }
+
+  test("a charge split between the Hall and its Improvements gives each row its own part, the Guild's name a link; the History keeps the whole charge's sentence", () => {
+    const paid = charge(120, 60, 30, { infirmary: 30 });
+    const rows = rowsOf(paid);
+    expect(rows.map((row) => [row.category, row.amount, row.sentence])).toEqual([
+      ['hall-upkeep', -90, 'The Lantern paid 90 Silver in Hall upkeep.'],
+      ['improvement-upkeep', -30, "The Lantern paid 30 Silver in its Improvements' upkeep."],
+    ]);
+    for (const row of rows) expect(row.segments[0]).toEqual({ kind: 'name', text: 'The Lantern', entityId: lantern, table: 'guilds' });
+    expect(narrateText(paid as TurnEvent, ledger.narration)).toBe('The Lantern paid 1 Gold 20 Silver in Hall upkeep, leaving 3 Gold 40 Silver.');
+  });
+
+  test("a charge with no Facilities is one row, in the History's sentence; a charge of Improvements alone is one row, worded as theirs", () => {
+    expect(rowsOf(charge(90, 60, 30, {})).map((row) => [row.category, row.amount, row.sentence])).toEqual([
+      ['hall-upkeep', -90, 'The Lantern paid 90 Silver in Hall upkeep, leaving 3 Gold 40 Silver.'],
+    ]);
+    expect(rowsOf(charge(10, 0, 0, { infirmary: 10 })).map((row) => [row.category, row.amount, row.sentence])).toEqual([
+      ['improvement-upkeep', -10, "The Lantern paid 10 Silver in its Improvements' upkeep."],
+    ]);
   });
 });

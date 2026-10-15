@@ -73,6 +73,7 @@ import {
   dispositionOf,
   encounterKinds,
   fatigueBand,
+  hallUpkeepSplit,
   topGrade,
   isEngineEvent,
   isId,
@@ -472,7 +473,8 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
  * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
  * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
  * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), split
- * as the Treasury splits it between the Hall's and the Improvements' (DL-298, DL-302); taken from
+ * between the Hall's and the Improvements' by `hallUpkeepSplit`, as the Treasury splits it (DL-298,
+ * DL-302, DL-304); taken from
  * Quests (`quest.resolved`'s `wealthDelta`), from Transfer fees (the same `fee`, for the selling Guild,
  * M6) and from the Market (`item.sold`'s `proceeds`, by its `cause`).
  */
@@ -1074,16 +1076,13 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
     const amount = numberField(entry, 'amount', what);
     const facilities = payloadField(entry, 'facilities');
     if (typeof facilities !== 'object' || facilities === null) throw new Error(`${what} has no facilities`);
-    let facilitiesSum = 0;
     for (const charge of Object.values(facilities)) {
       if (typeof charge !== 'number') throw new Error(`${what} has a Facility's charge that is no number`);
-      facilitiesSum += charge;
     }
     const factor = typeof payloadField(entry, 'traitFactor') === 'number' ? (payloadField(entry, 'traitFactor') as number) : 1;
-    const improvementUpkeep = Math.round(facilitiesSum * factor);
-    const hallUpkeep = amount - improvementUpkeep;
-    into.hallUpkeep += hallUpkeep;
-    into.improvementUpkeep += improvementUpkeep;
+    const { hall, improvements } = hallUpkeepSplit({ amount, facilities: facilities as Record<string, number>, traitFactor: factor });
+    into.hallUpkeep += hall;
+    into.improvementUpkeep += improvements;
   });
   each('quest.resolved', (into, entry, what) => {
     into.questRewards += numberField(entry, 'wealthDelta', what);

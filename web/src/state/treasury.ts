@@ -16,6 +16,7 @@
 import {
   facilityGrade,
   hallUpkeepParts,
+  hallUpkeepSplit,
   isEngineEvent,
   nextHallUpkeepDay,
   nextWagesDay,
@@ -27,11 +28,11 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, coinWords, facilityName, nightOfDay, whenOfTurn } from '@heroesim/words';
+import { capitalised, coinWords, facilityName, hallUpkeepPartSentence, nightOfDay, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import type { Facets } from './facets';
 import { foundingOf, historyPageSize, wealthChanges } from './history-reader';
-import { narrateSegments, textOf, type Narration, type Segment } from './namer';
+import { narrateSegments, sentenceSegments, textOf, type Narration, type Segment } from './namer';
 import { readingOf } from './reading';
 
 import { countdownView } from './selectors';
@@ -126,18 +127,11 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'guild.wages-paid': (payload, guildId) => when(payload.guildId === guildId, 'wages', -payload.amount),
   'guild.hall-upkeep-paid': (payload, guildId) => {
     if (payload.guildId !== guildId) return null;
-    const facilities = payload.facilities ?? {};
-    const facilitiesSum = Object.values(facilities).reduce((total, charge) => total + charge, 0);
-    if (facilitiesSum === 0) {
-      return { category: 'hall-upkeep', amount: -payload.amount };
-    }
-    const factor = payload.traitFactor ?? 1;
-    const improvementPart = Math.round(facilitiesSum * factor);
-    const hallPart = payload.amount - improvementPart;
-    const lines: WealthChange[] = [];
-    if (hallPart !== 0) lines.push({ category: 'hall-upkeep', amount: -hallPart });
-    if (improvementPart !== 0) lines.push({ category: 'improvement-upkeep', amount: -improvementPart });
-    return lines;
+    const { hall, improvements } = hallUpkeepSplit({ amount: payload.amount, facilities: payload.facilities ?? {}, traitFactor: payload.traitFactor ?? 1 });
+    return [
+      { category: 'hall-upkeep', amount: -hall },
+      { category: 'improvement-upkeep', amount: -improvements },
+    ];
   },
   'guild.below-floor': null,
   'guild.floor-recovered': null,
@@ -216,7 +210,7 @@ export interface LedgerRow {
   key: string;
   /** `Year 1 Day 20, night`. */
   when: string;
-  /** What happened, in the History's words, each name opening whom it names; `Founded with 5 Gold` for the opening row. */
+  /** What happened, in the History's words, a split Hall upkeep charge's part in its own (DL-304), each name opening whom it names; `Founded with 5 Gold` for the opening row. */
   segments: Segment[];
   sentence: string;
   /** `null` for the opening row. */
@@ -238,9 +232,22 @@ function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
   return wealthChanges(document.history, guildId, (entry) => wealthChangeOf(entry, guildId));
 }
 
-/** A change as the ledger shows it, in the History's words. */
-function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: Narration): LedgerRow {
-  const segments = narrateSegments(entry as TurnEvent, narration);
+/**
+ * What a change's row says: the History's words, but for a Hall upkeep charge that splits between the
+ * Hall and its Improvements, whose rows each say their own part (DL-304); the Hall's row of the whole
+ * charge keeps the History's sentence.
+ */
+function rowSegments({ entry, category, amount }: LedgerChange, narration: Narration): Segment[] {
+  if (isEngineEvent(entry) && entry.type === 'guild.hall-upkeep-paid' && (category === 'improvement-upkeep' || -amount !== entry.payload.amount)) {
+    return sentenceSegments(hallUpkeepPartSentence(entry, category === 'improvement-upkeep' ? 'improvements' : 'hall', -amount), narration);
+  }
+  return narrateSegments(entry as TurnEvent, narration);
+}
+
+/** A change as the ledger shows it, in the History's words (`rowSegments`). */
+function ledgerRow(change: LedgerChange, narration: Narration): LedgerRow {
+  const { position, entry, category, amount } = change;
+  const segments = rowSegments(change, narration);
   return {
     key: `ledger-${position}-${category}`,
     when: whenOfTurn(entry.turn, narration.calendar),

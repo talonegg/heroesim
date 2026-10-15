@@ -20,6 +20,7 @@ import {
   unattachedHeroes,
   unsignableHeroes,
   hallUpkeepParts,
+  hallUpkeepSplit,
   nextHallUpkeepDay,
   nextWagesDay,
   upkeep,
@@ -242,6 +243,36 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
     expect(nextWagesDay(nightOf(6), weekly)).toBe(13);
     expect(nextHallUpkeepDay(0, weekly)).toBe(13);
     expect(nextHallUpkeepDay(nightOf(13), weekly)).toBe(27);
+  });
+});
+
+describe("hallUpkeepSplit, a Hall upkeep charge's two lines (DL-302, DL-304)", () => {
+  test('with no Facilities the whole charge is the Hall’s', () => {
+    expect(hallUpkeepSplit({ amount: 35, facilities: {}, traitFactor: 1 })).toEqual({ hall: 35, improvements: 0 });
+    expect(hallUpkeepSplit({ amount: 32, facilities: {}, traitFactor: 0.9 })).toEqual({ hall: 32, improvements: 0 });
+  });
+
+  test("the Improvements' part is the Facilities' charges summed, times the factor, rounded to the nearest Silver; the Hall's the rest", () => {
+    expect(hallUpkeepSplit({ amount: 65, facilities: { infirmary: 30 }, traitFactor: 1 })).toEqual({ hall: 35, improvements: 30 });
+    expect(hallUpkeepSplit({ amount: 75, facilities: { infirmary: 17, quarters: 10 }, traitFactor: 1 })).toEqual({ hall: 48, improvements: 27 });
+    // 17 × 0.9 is 15.3 and 17 × 1.1 is 18.7: the nearest Silver, neither floored nor ceiled.
+    expect(hallUpkeepSplit({ amount: 54, facilities: { infirmary: 17 }, traitFactor: 0.9 })).toEqual({ hall: 39, improvements: 15 });
+    expect(hallUpkeepSplit({ amount: 70, facilities: { infirmary: 17 }, traitFactor: 1.1 })).toEqual({ hall: 51, improvements: 19 });
+  });
+
+  test('the parts sum to the charge exactly and are never negative, for every charge hallUpkeepParts makes', () => {
+    for (const traitFactor of [0.81, 0.9, 1, 1.1, 1.21]) {
+      for (const base of [0, 30]) {
+        for (const facilities of [{}, { infirmary: 10 }, { infirmary: 17 }, { infirmary: 17, quarters: 30, 'training-yard': 10 }]) {
+          const listed = base + Object.values(facilities).reduce((total: number, charge: number) => total + charge, 0);
+          const amount = Math.round(listed * traitFactor);
+          const { hall, improvements } = hallUpkeepSplit({ amount, facilities, traitFactor });
+          expect(hall + improvements).toBe(amount);
+          expect(hall).toBeGreaterThanOrEqual(0);
+          expect(improvements).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
   });
 });
 

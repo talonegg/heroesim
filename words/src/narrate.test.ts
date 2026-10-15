@@ -20,7 +20,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import type { Calendar } from './calendar.js';
-import { crossed, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
+import { crossed, hallUpkeepPartSentence, itemsWords, narrate, narratedTypes, narrateStop, resolvedParts, sentenceText, type Namer, type Sentence, type Slot } from './narrate.js';
 
 // DL-186 item 1: the narration, one sentence for each event type, its names as slots.
 // Each sentence is read here through a Namer of the test's own, which writes each slot as what it
@@ -476,6 +476,14 @@ describe("a Party's outcome cut at its band", () => {
 
     expect(`${sentenceText(lead, shown)}${band}${sentenceText(rest, shown)}`).toBe(sentenceText(whole, shown));
     expect(band).toBe('succeeded strongly');
+  });
+});
+
+describe("a Hall upkeep charge's two ledger rows, each worded by its own part (DL-304)", () => {
+  test("the Hall's part and the Improvements', each without the Wealth the whole charge left", () => {
+    const paid = samples['guild.hall-upkeep-paid'];
+    expect(sentenceText(hallUpkeepPartSentence(paid, 'hall', 90), shown)).toBe(`${kestrel} paid 90 Silver in Hall upkeep.`);
+    expect(sentenceText(hallUpkeepPartSentence(paid, 'improvements', 130), shown)).toBe(`${kestrel} paid 1 Gold 30 Silver in its Improvements' upkeep.`);
   });
 });
 
