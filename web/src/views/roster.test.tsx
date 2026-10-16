@@ -855,6 +855,11 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     expect(help.roster).not.toContain('keeps your choices');
   });
 
+  test('says in its help that the pool gives the first wage at each Contract length and signs for the length chosen (DL-315 item 4)', () => {
+    expect(help.pool).toContain('the first wage at each Contract length');
+    expect(help.pool).toContain('Recruit signs one to your Roster for the fee, on a Contract of the length chosen');
+  });
+
   test('sorts both views from the dropdown, the direction from its button; the headings in step, one pressed again reversing; ties in the default order', () => {
     const { state } = stocked();
     renderGame(changed(state, (document, player) => {

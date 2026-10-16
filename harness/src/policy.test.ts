@@ -686,7 +686,7 @@ describe('automaticPolicy', () => {
     expect(automaticPolicy(current, deps, noBuilding).some((action) => action.kind === 'nameCaptain')).toBe(false);
   });
 
-  test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (DL-57)', () => {
+  test('declines every priced Transfer Offer made for its Heroes, first, and makes no Transfer itself (DL-57, DL-319)', () => {
     const { document, guild, quests } = scene('policy-offers');
     openBoard(quests);
     let current = document;

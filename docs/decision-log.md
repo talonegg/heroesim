@@ -858,3 +858,50 @@ half waiting on a push on the owner's word. Tests red first: `contracts.test.ts`
 page's, Roster's, Guilds' and Offers' views, `contract.test.ts` (CLI), `args.test.ts`. The three doctors before and after,
 unchanged. `e2e/contract.spec.ts` at 360, 820 and 1280 wide.
 Verified 2026-10-17 at 9616ae3: the wages, payout, Days left and counts re-derived against the engine, 16 mutations red but the free Offer's length (closed by a test); fixed, test first: "0 Days left" on a last Day still open to renewal, now "the last Day"; a free Offer's card without its wages and its Accept saying "for 0 Silver"; the CLI's stop pointing a free Offer to decline, `release` asking --confirm for a Hero away, and usage promising a wage `show hero` lacks and a Hero Out of Contract taken in.
+
+## DL-324 — v1.2.3-S10: the close
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S10)
+
+**Context.** The close (`delivery.md`, A release): the release's commits `977892c..8050db0`, S1 to S9 and their
+verifications (DL-314 to DL-323), read across the stories; every check; the Gate and the boxes, each alone; Q21.
+
+**Decision.**
+
+1. **The review's fixes**, test first where a test can hold them: the pool's help names the first wage at each
+   Contract length and the length chosen (`section.tsx`; `roster.test.tsx`); the harness report's policy line says how
+   it answers a free Offer, the length it signs for and its release in debt, not that it declines every Offer
+   (`play-report.ts`; `sweep.test.ts`), the Gate report, run before it, keeping the old line; `approach.md`'s night
+   (the Contracts' end, the Generator bidding for every Guild's Heroes, an Offer's night); `rival.ts`'s header and a
+   `policy.test.ts` title.
+2. **Found sound:** every map keyed by event, stop, refusal, unavailability, gear return or Offer end is a typed
+   Record, complete; the Contract's life holds across the stories. *Noted, not built:* `transferOut` does not refuse
+   a Hero Out of Contract as `transferIn` does, so a Guild may send one away for no fee; no Rival does.
+3. **The Gate**, `v1.2.3-close-gate-2026-10-17` (`2c37bfa7…`), passes every line: refusals 0; invalid 0 (not
+   validated); stopped 0, the 15 Transfers out of the player's Guild each a free Offer taken; unfinished 0; round trips
+   50 of 50; the replay, `seed-0004`, identical; the save after 20 years, no longer absent, 19.17 MiB mean and 24.42
+   max gzipped over the 15 games that ran 20 years; the copy's share 0.2546. The baseline stays v1.2.0's (DL-305
+   item 8), though a passing Gate of a release that changes play would move it (`documentation.md`): the owner's word.
+4. **Targets, reported (Q20):** the player bankrupt in 30 games and wiped in 5, the policy in debt releasing its
+   Heroes Out of Contract down to none (DL-320, Q-M); Rival folds 5.24 a game; the Rivals' 7 lines inside.
+5. **The boxes:** the estimate 1.08 points (within 2) and 2.40 (within 5); the boxes kept apart, 3 passed; the speed
+   run, 2 passed; the twenty-year boxes, `rivals-build-and-buy` 3 passed, and `transfer-generator.harness.test.ts`'s
+   `beforeAll` ("the Transfer Generator over 100 seeds × 20 years") timed out at its 7,200 s, its 3 tests skipped.
+   For the owner (rule 4): a time limit its setup rests on, not an assertion; play moved by the Contracts, the
+   Rivals' Rosters larger and each Turn slower (the Gate's `advance` 15.6 ms against 2.4). Recommended: raise the
+   hook's limit, or play its seeds in processes, then run it again.
+6. **Q21** (the outcomes' v1.2.3 column and cost table): wages a Guild-year, the player 30,211.9 → 28,345.6 (−6.2%,
+   within 10%), the Rivals 21,087.8 → 72,710.2 (+244.8%), their Rosters about 6.3 → 23.9 Heroes, a Hero's wage a year
+   about −8% on each side; no refit (Q-K). Transfer fees a Guild-year, unfitted (DL-312): the player 0 and 0; the
+   Rivals 5.3 → 295.6, a mean fee 484 → 1,296.
+7. **S8's lines:** signings 1,050 (all of 2 years) and 9,153; renewals 710 and 1,286; expiries 1,131 and 9,423;
+   releases 293 and 1,051, all after the end, no payout; Out of Contract 65.1% and 79.7% of Hero-Days; Under Offer
+   0.1% and 0; free Offers 2,028, 1,996 renewed, 32 taken; each side's shares sum to 100.0%.
+8. **The start-up pages** total about 205.8 KB as the repository stores them (207.7 KB in a CRLF working copy),
+   under 250 KB (`documentation.md`, Budgets).
+
+**Consequences.** No play moves: the fixes are words. Waiting on the owner: the playtest, scored by sentence 5; a
+push and CI for S9's e2e box; the Generator box's limit; the baseline; the release.
+
+**Evidence.** This commit; the Gate report, committed; the epic's S10 boxes, the third waiting on the playtest; the
+checks' counts, the e2e by spec, the doctors and the sweeps' timings in the commit message.

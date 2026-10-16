@@ -763,6 +763,21 @@ describe('sweepPlay', () => {
       );
     });
 
+    test('says how the policy answers its Offers, the length it signs for, and its release in debt (DL-315, DL-319, DL-320, DL-322)', () => {
+      const policyLine = report.split('\n').find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      const { contractYears, rosterFloor } = sweep.policy;
+      expect(policyLine).not.toContain('first decline every Transfer Offer');
+      expect(policyLine).toContain(
+        `: first answer the Transfer Offers made for its Heroes, declining every priced one (M6-S2) and renewing for ` +
+          `${contractYears} years a Hero at home a free Offer stands for whose Level is at or above its Roster's median, ` +
+          `or with its Roster at ${rosterFloor} or below, else letting the Offer run out (DL-319); then the gear`,
+      );
+      expect(policyLine).toContain(` else the cheapest Hero who would sign, for ${contractYears} years, while Wealth exceeds `);
+      expect(policyLine).toMatch(
+        /never transfer a Hero in or out\. In debt, once its Holding is sold, it releases one Hero Out of Contract a Turn, the lowest Level first, never one it sends, renews or that is Under Offer \(DL-320, DL-322\)\.$/,
+      );
+    });
+
     test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
       expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
       expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);

@@ -10,7 +10,7 @@
 // (`freeOfferRenewal`, DL-319); in debt it releases its Heroes Out of Contract before its debt sale
 // (`debtRelease`, DL-320). M6-S4 has it build every facility of its Hall and buy gear
 // at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58). M6-S3's Transfer
-// Generator asks `transferBid` which of two Rivals bids for which Hero of the other (DL-59). It buys
+// Generator asks `transferBid` which of two Guilds bids for which Hero of the other (DL-59, DL-319). It buys
 // heal Items in its gear step and carries them on dispatch (DL-288).
 //
 // A rule reads the world and writes nothing to it but the draws it takes from the `rivals`

@@ -164,8 +164,9 @@ export const help: Readonly<Record<SectionId, string>> = {
   pool:
     'Heroes on no Roster, whom any Guild may sign for a signing fee. A Hero of a higher Level will not sign for a ' +
     'Guild whose Fame is below what their Level asks: their row is set back, and Recruit is disabled. Order the pool ' +
-    'by Class or by fee from their headings. Recruit signs one to your Roster for the fee; open a Hero to see their ' +
-    'Stats first.',
+    'by Class or by fee from their headings. Each row gives the signing fee and the first wage at each Contract length, ' +
+    'fixed for the term. Recruit signs one to your Roster for the fee, on a Contract of the length chosen; open a Hero ' +
+    'to see their Stats first.',
   guildmaster:
     'Your character in the world, who runs your Guild: their Sex, Age and what you wrote of them. Their Stats bear on ' +
     'running the Guild, never on fighting: each says what it bears on. Their Traits help or hinder the Guild, each ' +
