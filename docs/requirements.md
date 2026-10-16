@@ -47,7 +47,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
 | Recruitment from the Unattached pool | Yes | Scouting and hidden information |
 | Transfers with Rivals | Yes | Poaching |
-| Contracts: a wage set at signing, a length chosen, renewal, release, the free Offer and Under Offer | The wage set at signing and the length chosen (DL-315); the end, and renewal in the engine (DL-316); release in the engine (DL-317); the Transfer fee from the wages left (DL-318); the free Offer and Under Offer in the engine (DL-319); the page and the CLI not yet (DL-294 item 6, DL-311) | Wages and lengths negotiated; a Hero rejecting an Offer (DL-294 item 8, DL-311 item 4) |
+| Contracts: a wage set at signing, a length chosen, renewal, release, the free Offer and Under Offer | The wage set at signing and the length chosen (DL-315); the end, and renewal in the engine (DL-316); release in the engine (DL-317); the Transfer fee from the wages left (DL-318); the free Offer and Under Offer in the engine (DL-319); a Rival's and the policy's release of Heroes Out of Contract in debt, and the Rivals' search for a free Hero (DL-320); the page and the CLI not yet (DL-294 item 6, DL-311) | Wages and lengths negotiated; a Hero rejecting an Offer (DL-294 item 8, DL-311 item 4) |
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |

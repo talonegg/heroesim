@@ -4229,6 +4229,7 @@ offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTra
      `recruitingDeps`, which M6-S1's third box's test uses, so that its one-draw-per-dispatch count
      stands. `transfer.test.ts` shows the Transfer's own draw is one, from `rivals`, and nothing else
      moves; `controllers/dispositions.test.ts` (M6-S1's 100 seeds) passes unchanged.
+   *Superseded in part by DL-320 item 3, 2026-10-17: A Rival's search sought only a Hero of a Guild that would let one go or answers offers, one purchase of build, else `transferChoice`, else recruit, else `debtTransfer`; now a Hero Out of Contract is sought on any Roster whatever the seller says, by a free Offer its Guild answers, in the hiring step before the pool, and in debt the Heroes Out of Contract are released before `debtTransfer`. The record: [superseded/DL-57.md](superseded/DL-57.md).*
 6. **Offers** (data-model §3.2): an offer stands through the night of its **`transferOfferDays`
    (3)**-th Day, the Day it is made the first (a new config field, the agent's, mirroring
    `questOfferDays`; `offerExpiresOnTurn`), and is removed by a new night phase **`offerExpiry`**, after
@@ -4455,6 +4456,7 @@ how a test of 100 seeds × 20 years fits `npm test`.
    the bidder in each of its pairs, took Heroes it would not have hired: its folds rose from 45 to 75–84
    in 100 games, and its mean Roster to the range's top or above. Also not taken: no range check, under
    which the Generator took `reckless` down to two Heroes for `ambitious`, the moves the box is about.
+   *Superseded in part by DL-320 item 3, 2026-10-17: A bid only when the other lets a Hero go (`out`); now, since DL-319, a Hero Out of Contract is bid for whatever the other says, their Guild answering the free Offer. The rest of the item stands. The record: [superseded/DL-59.md](superseded/DL-59.md).*
 6. **The player.** *Superseded by DL-319 item 5, 2026-10-17; its text is in [superseded/DL-59.md](superseded/DL-59.md).*
 7. **What the boxes read.** "Rival-to-Rival Transfers occur": the Generator's own Transfers, and those of
    the afternoon (M6-S2), in play. "The distribution stays within the generation range": each of the

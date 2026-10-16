@@ -187,6 +187,7 @@ export {
 } from './content-types.js';
 export { availableHeroes, bestParties, partyPool, restBandOf, type BestParties, type BestParty } from './best-party.js';
 export {
+  debtRelease,
   renewsOnOffer,
   type TransferAnswer,
   type TransferRefusalReason,

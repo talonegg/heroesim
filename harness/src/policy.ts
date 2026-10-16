@@ -21,6 +21,7 @@ import {
   compareByCodeUnit,
   consumablePurchase,
   consumablesToCarry,
+  debtRelease,
   fameRefusal,
   freeOffer,
   gearChoices,
@@ -94,8 +95,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 
 /**
  * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
- * DL-287, DL-301, DL-319): answer its Offers, name a Captain, equip, dispatch, sell its surplus, then
- * one purchase.
+ * DL-287, DL-301, DL-319, DL-320): answer its Offers, name a Captain, equip, dispatch, sell its surplus,
+ * release in debt, then one purchase.
  *
  * - **Answer the Transfer Offers** made for its Heroes, in offer id order, first. It **declines every
  *   priced Offer** (M6 risk table: "the policy declines all offers in M6"; #20's rest). A **free
@@ -128,6 +129,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   Rival sells, DL-301): the gear in its holding beyond what its Heroes with the slot empty would put
  *   on, consumables above `consumableStock` of each, what its Parties carry counted, and Loot-only
  *   Items; in debt, its whole holding; never what the equips and dispatches above take.
+ * - **Release a Hero Out of Contract** in debt, once its holding is sold, as a Rival does (the engine's
+ *   `debtRelease`, DL-320): one a Turn, the lowest Level first, free, never one it sends or renews that
+ *   Turn. It has no debt sale beyond it, since it never transfers.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the next grade of the healing Facility, the first in content's order with the
  *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times
@@ -188,6 +192,10 @@ export function automaticPolicy(
   // DL-301: sell surplus outside the afternoon's one purchase
   const surplus = surplusChoices(world, guild, keeping(policy), deps, actions);
   actions.push(...surplus);
+  // DL-320: in debt, the Holding sold, one Hero Out of Contract is released, free, as a Rival does; not one sent or renewed above.
+  const committed = new Set<HeroId>(actions.flatMap((action) => (action.kind === 'dispatch' ? action.heroIds : action.kind === 'renew' ? [action.heroId] : [])));
+  const release = surplus.length > 0 ? null : debtRelease(world, guild, committed);
+  if (release !== null) actions.push(release);
 
   const purchase =
     healingBuild(guild, deps, policy) ??

@@ -675,3 +675,58 @@ with the Rivals' and the policy's answer, and restates ADR-0002.
 met. The new tests were red first; the free moves counted by replaying the four seeds, each save the report's.
 
 Verified 2026-10-17 at e9bb2c2: claims held, the pin traced; six surviving mutations closed by tests (Under Offer after an Injury, never away; a fee-0 priced Offer not free; the assertion on a free Offer in; the policy's Parties, no renewal away); two comments fixed. Q-L: the answer rule kept (the owner).
+
+## DL-320 — v1.2.3-S7 built: in debt, and the Rivals' search
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S7); the owner, Q15, Q-L
+
+**Context.** Below its floor a Rival sold its Holding and then made a debt sale, keeping a Hero Out of Contract
+on a wage it could stop by letting them go for nothing (DL-294 items 5 and 6, Q15, DL-301). Its search weighed a
+free Hero at a fee of 0 inside its Transfer step, and ranking them first sent every Transfer step to free Offers
+the seller renewed (Transfers 7 → 0, DL-319). S7 puts the order in debt and the preference in the hiring. Q-L: the
+owner kept the answer rule as set; `v1.2.4` tunes its threshold.
+
+**Decision.**
+
+1. **The debt order** (Q15). `debtRelease(world, guild, excluded)` (`controllers/rival.ts`): in debt
+   (`belowFloorSince`) with nothing left in the Holding to sell (`surplusChoices` empty), a Rival releases one
+   Hero Out of Contract at home, the lowest Level first, the lowest Hero id among equals, not one it sends that
+   afternoon. A release pays 0 once the Contract has ended (DL-317) and moves no Wealth, so it is no purchase
+   and stands beside the sales; the debt sale (`debtTransfer`) waits an afternoon in which a Hero was released.
+   One Hero a step, the shape of `surplusChoices` and `debtTransfer`: each afternoon reads the debt again.
+2. **The policy** (`harness/src/policy.ts`) sells its Holding, then releases by the same function, never a Hero
+   it sends or renews that Turn. It has no debt sale.
+3. **The search.** A Rival's Transfer step seeks only Heroes under Contract (`transferChoice`, `priced`). Its
+   hiring step first seeks a Hero Out of Contract on any Roster by a free Offer (`free`), at the same
+   `transferAppetite` chance and Roster room (`transferAnswer`, `in`), a second draw from `rivals`, taken only
+   when such a Hero is wanted, and only then recruits from the pool (`cheapestHire`). A free Hero never takes a
+   real Transfer's place. The Transfer Generator still weighs both together (`dearestWanted`, `all`). Supersedes
+   DL-57 item 5 and DL-59 item 5 in part: a Hero Out of Contract is sought whatever the seller says, their Guild
+   answering the free Offer.
+4. **The hiring budget** reads the Contracts' wages already, through `upkeep` and `wages` (DL-315): nothing
+   built, tested (the budget and the reserve move with a Contract's wage alone).
+
+*Judgement calls, for the owner to see.*
+- One release a step, not all the Heroes Out of Contract at once: a Guild back above its floor stops.
+- No guard on the Roster: a Guild whose every Hero is Out of Contract releases down to none, one an afternoon, and
+  meets "Roster wiped". No run reached a release.
+- A free Hero is chosen by the lowest id (all fees 0), and one a Rival seller would renew is not passed over, so
+  that afternoon's hiring is spent on an Offer renewed at once (Q-L); a refinement for `v1.2.4`.
+- Arranged (DL-315's note), assertions unchanged: `transfer.test.ts`'s "in debt, lets go its dearest by the wages
+  left", the Rival's other Contracts run past Day 400, a Hero Out of Contract being released first. Re-recorded,
+  old values in its comment: `quests-conclude.test.ts`'s History pin, games 2 and 3 (the second draw moves `rivals`).
+
+**Consequences.** Every game's play moves where a free Hero is wanted.
+- Quick run, 2 years (`v1.2.3-s7-quick-2026-10-17`, `387107e0…`) against S6's: refusals 0, stopped 0, folds 0,
+  the Gate PASS; pool hires by Rivals 51 → 42; Rival-to-Rival Transfers 7 → 9; free Offers 18 (7 to the player),
+  all renewed; releases 0; wages a Guild-year, the player 8,792 → 8,833, the Rivals 9,374 → 9,386.
+- Quick run, 4 years (`…s7-quick4…`, `c2806185…`) against S6's: refusals 0, stopped 0, folds 0, the Gate PASS;
+  pool hires 172 → 169; priced Transfers 30 → 24, free 2; free Offers 10 → 53 (20 to the player), 50 renewed, 2
+  taken; releases 0; wages a Guild-year, the player 16,330 → 16,821, the Rivals 18,370 → 17,758.
+- The Transfer step runs first and still deals, not 7 → 0 as ranking free Heroes first gave; the free step spends
+  hiring on Offers renewed at once. No game reached the debt order: the release is tested, not yet seen in play.
+
+**Evidence.** This story's commit; the two S7 quick reports; the S7 boxes. Tests: `rival.test.ts`,
+`transfer.test.ts`, `policy.test.ts`. Red first: the debt order's six, the policy's four and the second draw; the
+budget's two and the free step's other six held on the old code. The releases and free moves were counted by
+replaying the four seeds.

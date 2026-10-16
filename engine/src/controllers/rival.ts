@@ -7,7 +7,8 @@
 // choices were DL-30's for `steady`; DL-56 turns them into weights. M6-S2 adds Transfers: a Rival
 // seeks a Hero from another Guild, lets one go when in debt, and answers a Transfer asked of it by its
 // Disposition (`transferAnswer`, DL-57), and a free Offer for its Hero Out of Contract at once
-// (`freeOfferRenewal`, DL-319). M6-S4 has it build every facility of its Hall and buy gear
+// (`freeOfferRenewal`, DL-319); in debt it releases its Heroes Out of Contract before its debt sale
+// (`debtRelease`, DL-320). M6-S4 has it build every facility of its Hall and buy gear
 // at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58). M6-S3's Transfer
 // Generator asks `transferBid` which of two Rivals bids for which Hero of the other (DL-59). It buys
 // heal Items in its gear step and carries them on dispatch (DL-288).
@@ -17,6 +18,7 @@
 
 import type { GuildAction } from '../actions/action.js';
 import { dispatchRefusal, fameRefusal, type DispatchAction } from '../actions/dispatch.js';
+import type { ReleaseAction } from '../actions/release.js';
 import type { RenewAction } from '../actions/renew.js';
 import type { OfferTransferAction, TransferInAction } from '../actions/transfer.js';
 import { outOfContract } from '../contract.js';
@@ -72,6 +74,8 @@ import {
  *    in its holding beyond what its Heroes with the slot empty would put on, heal Items above
  *    `rivalHealItemStock` of each and every other consumable, and Loot-only Items; in debt, its whole
  *    holding; never what the equips and the dispatch above take;
+ * 3b. in debt, with nothing left in its holding to sell, release one Hero Out of Contract, free, the
+ *    lowest Level first (`debtRelease`, DL-320), before any debt sale;
  * 4. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
  *    - build the next grade of the first Facility of its Hall, in its `buildOrder` (content's order
@@ -85,14 +89,16 @@ import {
  *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
  *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
  *      Roster has room enough by `transferAppetite`, seek the Hero it wants from another Guild with the
- *      chance `transferAppetite`, one draw from `rivals` (`transferChoice`, M6-S2): a free Offer for a
- *      Hero Out of Contract on any Roster (DL-319), `transferIn` from a Guild whose Disposition
- *      consents, or a Transfer Offer to a Guild whose controller answers for itself;
- *    - recruit the cheapest Unattached Hero who would sign while it would hire, for no more than it
- *      would spend (`cheapestHire`);
- *    - while it is in debt (`belowFloorSince`) and has nothing left in its holding to sell, transfer
- *      its dearest Hero at home to the Guild that pays most for them and consents (`debtTransfer`,
- *      `transferOut`, M6-S2): the holding is sold before the debt sale (DL-301).
+ *      chance `transferAppetite`, one draw from `rivals` (`transferChoice`, M6-S2): `transferIn` from a
+ *      Guild whose Disposition consents, or a Transfer Offer to a Guild whose controller answers for
+ *      itself;
+ *    - while it would hire, a free Offer for a Hero Out of Contract on any Roster, by the same appetite
+ *      and Roster room, a second draw (`transferChoice`, DL-319, DL-320), before it recruits the
+ *      cheapest Unattached Hero who would sign, for no more than it would spend (`cheapestHire`);
+ *    - while it is in debt (`belowFloorSince`), has nothing left in its holding to sell and released no
+ *      Hero this afternoon, transfer its dearest Hero at home to the Guild that pays most for them and
+ *      consents (`debtTransfer`, `transferOut`, M6-S2): the holding is sold and the Heroes Out of
+ *      Contract released before the debt sale (DL-301, DL-320).
  *
  * At most one dispatch and one purchase an afternoon. The dispatch and the purchase do not depend on
  * each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen on the same
@@ -126,13 +132,16 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
   const keeping = { effects: healItems, stock: deps.config.rivalHealItemStock };
   const surplus = surplusChoices(world, guild, keeping, deps, choices);
   choices.push(...surplus);
+  // DL-320: the Holding sold, a Hero Out of Contract is released before any debt sale; free, so no purchase.
+  const release = surplus.length > 0 ? null : debtRelease(world, guild, dispatched);
+  if (release !== null) choices.push(release);
 
   const attempts: Record<PurchaseStep, () => GuildAction | null> = {
     build: () => hallBuild(guild, disposition, deps),
     gear: () => gearBuy(world, guild, disposition, deps) ?? healBuy(world, guild, disposition, deps),
-    transfer: () => transferChoice(world, guild, disposition, deps),
-    recruit: () => cheapestHire(world, guild, disposition, deps),
-    debt: () => (surplus.length > 0 ? null : debtTransfer(world, guild, dispatched, deps)),
+    transfer: () => transferChoice(world, guild, disposition, deps, 'priced'),
+    recruit: () => transferChoice(world, guild, disposition, deps, 'free') ?? cheapestHire(world, guild, disposition, deps),
+    debt: () => (surplus.length > 0 || release !== null ? null : debtTransfer(world, guild, dispatched, deps)),
   };
   // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
   // taken only then.
@@ -266,15 +275,16 @@ type Pricing = 'in' | 'offer' | null;
 /**
  * A Transfer `guild` seeks this afternoon, or `null` (M6-S2, DL-57). Only while it would hire by
  * its own answer (`transferAnswer`, `in`) and has no Transfer Offer of its own awaiting an answer.
- * The Hero it wants (`dearestWanted`) is on the Roster of another Guild in play that content knows:
- * any Hero Out of Contract there, by a free Offer (Q-C, DL-319), or one under Contract of a Guild
- * whose Disposition consents to let one go, or that answers offers. When there is such a Hero, a draw
- * from `rivals` decides, with the chance `transferAppetite`, whether it seeks them this afternoon, so
- * that its appetite is the share of its hiring it does by Transfer; it does so by `transferIn` from a
- * consenting Guild, or by a Transfer Offer (`offerTransfer`), free or priced. No draw when there is no
- * such Hero.
+ * The Hero it wants (`dearestWanted`) is on the Roster of another Guild in play that content knows,
+ * of the kind `kinds` names: `priced`, one under Contract of a Guild whose Disposition consents to let
+ * one go, or that answers offers, the Transfer step's; `free`, any Hero Out of Contract there, by a free
+ * Offer (Q-C, DL-319), the hiring step's, before the pool (DL-320), so that a free Hero never takes the
+ * place of a real Transfer. When there is such a Hero, a draw from `rivals` decides, with the chance
+ * `transferAppetite`, whether it seeks them this afternoon, so that its appetite is the share of its
+ * hiring it does by Transfer; it does so by `transferIn` from a consenting Guild, or by a Transfer
+ * Offer (`offerTransfer`), free or priced. No draw when there is no such Hero.
  */
-function transferChoice(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+function transferChoice(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps, kinds: 'priced' | 'free'): GuildAction | null {
   const budget = hiringBudget(world, guild, disposition, deps);
   if (budget === null || !transferAnswer(world, guild, 'in', deps).consents) return null;
   if (Object.values(world.offers).some((offer) => offer.toGuildId === guild.id)) return null;
@@ -284,7 +294,7 @@ function transferChoice(world: World, guild: Guild, disposition: Disposition, de
     const priced: Pricing = answer.consents ? 'in' : answer.because === 'answers-offers' ? 'offer' : null;
     return [{ guild: other, priced }];
   });
-  const wanted = dearestWanted(world, guild, sellers, budget, deps);
+  const wanted = dearestWanted(world, guild, sellers, budget, deps, kinds);
   if (wanted === null || !chance(streamOf(world, 'rivals'), disposition.transferAppetite)) return null;
   const heroId = wanted.hero.id;
   const years = disposition.contractYears;
@@ -296,7 +306,8 @@ function transferChoice(world: World, guild: Guild, disposition: Disposition, de
  * (`transferFee` at its Guildmaster's Negotiation, no more than `budget`), the lowest Hero id among
  * equal fees, among the Heroes on the sellers' Rosters a Transfer could move now (`transferable`): a
  * Hero Out of Contract on any seller's Roster, at the fee of 0 their Contract's end leaves, by a free
- * Offer (Q-C, DL-319), and one under Contract of a seller whose `priced` names a way. With it, whether
+ * Offer (Q-C, DL-319), and one under Contract of a seller whose `priced` names a way; `kinds` keeps
+ * only the `priced` or the `free` of them (DL-320), `all` both, the Generator's bid. With it, whether
  * it is sought by a Transfer Offer (`byOffer`): every free Offer, and a priced one to a Guild that
  * answers through Offers. Reads, never writes, and draws nothing. The one statement of whom a Rival
  * wants, for its afternoon's `transferChoice` and the Transfer Generator's bid (`transferBid`).
@@ -307,13 +318,14 @@ function dearestWanted(
   sellers: readonly { guild: Guild; priced: Pricing }[],
   budget: number,
   deps: Pick<EngineDeps, 'config' | 'content'>,
+  kinds: 'priced' | 'free' | 'all' = 'all',
 ): { hero: Hero; byOffer: boolean } | null {
   const guildmaster = guildmasterOf(buyer, world);
   let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
   for (const { guild, priced } of sellers) {
     for (const hero of transferable(world, guild, deps.config)) {
       const free = outOfContract(hero, world.turn);
-      if (!free && priced === null) continue;
+      if (free ? kinds === 'priced' : kinds === 'free' || priced === null) continue;
       const fee = transferFee(hero, guildmaster, world.turn, deps);
       if (fee > budget) continue;
       if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
@@ -322,6 +334,30 @@ function dearestWanted(
     }
   }
   return wanted === null ? null : { hero: wanted.hero, byOffer: wanted.byOffer };
+}
+
+/**
+ * A release a Guild in debt makes once its holding is sold (Q15, DL-294 item 5, DL-320), or `null`: its
+ * Hero Out of Contract at home with the lowest Level, the lowest Hero id among equals, not among
+ * `excluded` (the Heroes it sends on a Quest, or renews, this afternoon). Free, since a Contract that has
+ * ended pays no payout; one Hero a step, so that the next step weighs the Guild's debt again. It leaves a
+ * Roster as small as the Heroes under Contract, none at all if every Hero is Out of Contract: the Guild
+ * is in debt, and a Hero it keeps costs it a wage. The rule a Rival's afternoon and the harness's policy
+ * share. Reads, never writes, and draws nothing.
+ */
+export function debtRelease(
+  world: Pick<World, 'heroes' | 'turn'>,
+  guild: Pick<Guild, 'id' | 'rosterIds' | 'belowFloorSince'>,
+  excluded: ReadonlySet<HeroId>,
+): ReleaseAction | null {
+  if (guild.belowFloorSince === null) return null;
+  let lowest: Hero | null = null;
+  for (const heroId of guild.rosterIds) {
+    const hero = rowOf(world.heroes, heroId);
+    if (hero === undefined || hero.partyId !== null || excluded.has(heroId) || !outOfContract(hero, world.turn)) continue;
+    if (lowest === null || hero.level < lowest.level || (hero.level === lowest.level && compareByCodeUnit(hero.id, lowest.id) < 0)) lowest = hero;
+  }
+  return lowest === null ? null : { kind: 'release', guildId: guild.id, heroId: lowest.id };
 }
 
 /**

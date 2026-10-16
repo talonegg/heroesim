@@ -1534,3 +1534,180 @@ describe('surplus and debt (DL-301, Q18)', () => {
     ]);
   });
 });
+
+// ── The debt order: the Holding, the Heroes Out of Contract, then the debt sale (Q15, DL-320) ──
+
+describe('a Rival in debt releases its Heroes Out of Contract before its debt sale (Q15, DL-320)', () => {
+  const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
+  const deps = testDeps({ rivalHealItemStock: 2 });
+
+  /** An `ambitious` Rival in debt on an empty Board, every other Rival rich, so that a debt sale has a buyer. */
+  function indebted(seed: string, board = false) {
+    const { world, rival } = scene(seed, deps, 'ambitious');
+    if (!board) world.board = [];
+    for (const other of rivalsOf(world)) if (other.id !== rival.id) other.wealth = 100_000;
+    rival.wealth = -2000;
+    rival.belowFloorSince = 0;
+    // Every Contract runs to Day 1,000, so that only the Heroes a test expires are Out of Contract.
+    world.turn = 9;
+    for (const hero of Object.values(world.heroes)) {
+      if (hero.contract !== null) hero.contract = { ...hero.contract, endDay: 1_000 };
+    }
+    return { world, rival };
+  }
+
+  /** `hero`'s Contract ended on Day 2: Out of Contract on Day 3. */
+  function expire(hero: Hero, level: number): void {
+    hero.level = level;
+    hero.contract = { ...(hero.contract as Contract), endDay: 2 };
+  }
+
+  const releases = (choices: readonly GuildAction[]) => choices.filter((action) => action.kind === 'release');
+
+  test('sells the Holding first, then one Hero Out of Contract a step, the lowest Level first, then the debt sale', () => {
+    const { world, rival } = indebted('debt-order');
+    const [a, b, c, d] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero, Hero, Hero];
+    expire(a, 3);
+    expire(b, 1);
+    expire(c, 2);
+    expect(d.contract?.endDay).toBe(1_000);
+    expect(rival.rosterIds.length).toBeGreaterThan(4);
+    const blade = createItem(world, 'barrow-kings-blade', vaultOf(rival));
+
+    // The Holding first: its sale, no release, no debt sale.
+    let choices = rivalChoices(world, rival, deps);
+    expect(choices).toEqual([{ kind: 'sell', guildId: rival.id, itemId: blade }]);
+    for (const action of choices) expect(applyGuildAction(world, action, deps)).toMatchObject({ ok: true });
+
+    // Then the Heroes Out of Contract, one a step, the lowest Level first, free; no debt sale beside them.
+    for (const expected of [b, c, a]) {
+      choices = rivalChoices(world, rival, deps);
+      expect(choices).toEqual([{ kind: 'release', guildId: rival.id, heroId: expected.id }]);
+      const before = rival.wealth;
+      expect(applyGuildAction(world, choices[0] as GuildAction, deps)).toMatchObject({ ok: true });
+      expect(rival.wealth).toBe(before);
+    }
+
+    // And only then the debt sale, of a Hero under Contract.
+    choices = rivalChoices(world, rival, deps);
+    expect(releases(choices)).toEqual([]);
+    expect(choices).toMatchObject([{ kind: 'transferOut', guildId: rival.id }]);
+  });
+
+  test('breaks a tie of Levels by the lower Hero id', () => {
+    const { world, rival } = indebted('debt-order-tie');
+    const heroes = rival.rosterIds.map((id) => heroOf(world, id)).sort((x, y) => compareByCodeUnit(x.id, y.id));
+    const [first, second] = heroes as [Hero, Hero];
+    expire(first, 2);
+    expire(second, 2);
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'release', guildId: rival.id, heroId: first.id }]);
+  });
+
+  test('releases no Hero away and none under Contract: the lowest Level of those at home and Out of Contract', () => {
+    const { world, rival } = indebted('debt-order-guards');
+    const [away, home, kept] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero, Hero];
+    expire(away, 1);
+    expire(home, 2);
+    kept.level = 1;
+    away.partyId = makeId('parties', 99);
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([{ kind: 'release', guildId: rival.id, heroId: home.id }]);
+  });
+
+  test('releases no Hero it sends on a Quest this afternoon', () => {
+    const { world, rival } = indebted('debt-order-sent', true);
+    for (const heroId of rival.rosterIds) expire(heroOf(world, heroId), 1);
+    const [quest] = openBoard(world, [10]);
+    world.board = quest === undefined ? [] : [quest.id];
+    const choices = rivalChoices(world, rival, deps);
+    const sent = dispatchOf(world, rival, deps)?.heroIds ?? [];
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.length).toBeLessThan(rival.rosterIds.length);
+    const [release] = releases(choices);
+    expect(release).toMatchObject({ kind: 'release', guildId: rival.id });
+    expect(sent).not.toContain((release as { heroId: HeroId }).heroId);
+    for (const action of choices) expect(applyGuildAction(world, action, deps), action.kind).toMatchObject({ ok: true });
+  });
+
+  test('does not release while it is out of debt, whoever is Out of Contract', () => {
+    const { world, rival } = indebted('debt-order-solvent');
+    expire(heroOf(world, rival.rosterIds[0] as HeroId), 1);
+    rival.wealth = 0;
+    rival.belowFloorSince = null;
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([]);
+    rival.belowFloorSince = 0;
+    expect(releases(rivalChoices(world, rival, deps))).toHaveLength(1);
+  });
+
+  test('every choice of the debt order is accepted in order, and a released Hero joins the pool with no Contract', () => {
+    const { world, rival } = indebted('debt-order-applied');
+    const hero = heroOf(world, rival.rosterIds[1] as HeroId);
+    expire(hero, 1);
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices).toEqual([{ kind: 'release', guildId: rival.id, heroId: hero.id }]);
+    expect(applyGuildAction(world, choices[0] as GuildAction, deps)).toMatchObject({ ok: true });
+    expect(rival.rosterIds).not.toContain(hero.id);
+    expect(hero.guildId).toBeNull();
+    expect(hero.contract).toBeNull();
+  });
+});
+
+// ── The hiring budget reads the Contracts' wages (DL-315, DL-320) ──────────────────────────────
+
+describe("a Rival's hiring budget and reserve read the Contracts' wages through upkeep (DL-315, DL-320)", () => {
+  // Building, gear and Transfers stilled, an empty Board, Negotiation off: only the hire is in question.
+  const pins = { negotiationRange: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 };
+  const quiet = { buildThreshold: 1_000_000, gearThreshold: 1_000_000, transferAppetite: 0 };
+
+  /** Every living Roster Hero of `rival` on a Contract paying `wage`, Level and Stats untouched. */
+  function paying(world: World, rival: Guild, wage: number): void {
+    for (const heroId of rival.rosterIds) {
+      const hero = heroOf(world, heroId);
+      hero.contract = { ...(hero.contract as Contract), wage };
+    }
+  }
+
+  const upkeepOf = (world: World, rival: Guild, deps: EngineDeps) => upkeep(rival, world, deps.config, deps.content);
+
+  test("by choice: the Wealth above recruitThreshold Upkeeps hires, and the wages the Contracts hold set that Upkeep", () => {
+    const deps = testDeps(pins, withDispositions({ ...quiet, recruitThreshold: 10 }));
+    const { world, rival } = scene('budget-choice', deps);
+    world.board = [];
+    paying(world, rival, 1);
+    const cheap = upkeepOf(world, rival, deps);
+    paying(world, rival, 100);
+    const dear = upkeepOf(world, rival, deps);
+    expect(dear).toBeGreaterThan(cheap);
+
+    // The same Wealth, the same Heroes at the same Levels and Stats: only the Contracts' wages differ.
+    rival.wealth = 10 * cheap + 1;
+    paying(world, rival, 1);
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    paying(world, rival, 100);
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    // And exactly at the threshold the dearer wages set.
+    rival.wealth = 10 * dear + 1;
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    rival.wealth = 10 * dear;
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+  });
+
+  test("by need: the reserve is rivalHireReserveUpkeeps of the Upkeep the Contracts' wages set", () => {
+    const deps = testDeps(pins, withDispositions({ ...quiet, recruitThreshold: 1_000_000 }));
+    const { world, rival } = scene('budget-need', deps);
+    world.board = [];
+    for (const heroId of rival.rosterIds.splice(3)) Object.assign(heroOf(world, heroId), { diedOnTurn: world.turn, contract: null });
+    const [hero] = [...unattachedHeroes(world)].sort((a, b) => signingFee(a, deps) - signingFee(b, deps) || compareByCodeUnit(a.id, b.id));
+    const fee = signingFee(hero as Hero, deps);
+
+    paying(world, rival, 1);
+    const cheapReserve = 3 * upkeepOf(world, rival, deps);
+    rival.wealth = fee + cheapReserve;
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    // The wages rise and nothing else does: the same Wealth no longer keeps the reserve.
+    paying(world, rival, 100);
+    expect(3 * upkeepOf(world, rival, deps)).toBeGreaterThan(cheapReserve);
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    rival.wealth = fee + 3 * upkeepOf(world, rival, deps);
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+  });
+});

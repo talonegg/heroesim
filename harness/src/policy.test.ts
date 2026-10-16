@@ -954,6 +954,125 @@ describe('automaticPolicy', () => {
       ]);
     });
 
+    describe('in debt, releases its Heroes Out of Contract after the Holding and before anything else (Q15, DL-320)', () => {
+      /** The policy's Guild in debt on the morning of Day 3, every Contract to Day 1,000: `expire` ends the ones a test names. */
+      function indebted(seed: string, board = false) {
+        const { document, guild, quests } = scene(seed);
+        if (!board) document.world.board = [];
+        document.world.turn = 9;
+        for (const hero of Object.values(document.world.heroes)) {
+          if (hero.contract !== null) hero.contract = { ...hero.contract, endDay: 1_000 };
+        }
+        guild.belowFloorSince = 0;
+        guild.wealth = -1_000;
+        return { document, guild, quests };
+      }
+
+      /** `heroId` at `level`, its Contract ended on Day 2. */
+      function expire(document: WorldDocument, heroId: HeroId, level: number): void {
+        const hero = document.world.heroes[heroId] as Hero;
+        hero.level = level;
+        hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 2 };
+      }
+
+      const releases = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'release');
+
+      /** `actions` applied in order to `document`, each accepted; the document after them. */
+      function applied(document: WorldDocument, actions: GuildAction[]): WorldDocument {
+        let current = document;
+        for (const action of actions) {
+          const result = applyAction(current, action, deps);
+          expect(result.ok, action.kind).toBe(true);
+          if (result.ok) current = result.document;
+        }
+        return current;
+      }
+
+      test('sells the whole Holding first, then one Hero Out of Contract a Turn, the lowest Level first, free; it makes no debt sale', () => {
+        const scened = indebted('policy-debt-release');
+        let { document } = scened;
+        const { guild } = scened;
+        const [a, b, c] = guild.rosterIds as [HeroId, HeroId, HeroId];
+        expire(document, a, 3);
+        expire(document, b, 1);
+        expire(document, c, 2);
+        // Every Hero equipped, so that nothing in the holding is put on and the whole of it is sold.
+        for (const heroId of guild.rosterIds) {
+          addStack(document.world, 'short-sword', 1, { kind: 'hero', id: heroId, slot: 'weapon' });
+          addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+          addStack(document.world, 'lucky-charm', 1, { kind: 'hero', id: heroId, slot: 'trinket' });
+        }
+        const blade = createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+
+        // The Holding first: its sale, and no release beside it.
+        let actions = automaticPolicy(document, deps, noBuilding);
+        expect(actions).toEqual([{ kind: 'sell', guildId: guild.id, itemId: blade }]);
+        document = applied(document, actions);
+
+        // Then the Heroes Out of Contract, the lowest Level first, each free.
+        for (const expected of [b, c, a]) {
+          actions = automaticPolicy(document, deps, noBuilding);
+          expect(actions).toEqual([{ kind: 'release', guildId: guild.id, heroId: expected }]);
+          const before = (document.world.guilds[guild.id] as Guild).wealth;
+          document = applied(document, actions);
+          expect((document.world.guilds[guild.id] as Guild).wealth).toBe(before);
+          // The gear the Hero carried is back in the holding, and sold the next Turn before any other release.
+          actions = automaticPolicy(document, deps, noBuilding);
+          expect(actions.filter((action) => action.kind === 'sell')).toHaveLength(3);
+          expect(releases(actions)).toEqual([]);
+          document = applied(document, actions);
+        }
+        // None left Out of Contract: no release, and no transfer out (the policy has no debt sale).
+        actions = automaticPolicy(document, deps, noBuilding);
+        expect(releases(actions)).toEqual([]);
+        expect(actions.some((action) => action.kind === 'transferOut')).toBe(false);
+      });
+
+      test('releases none while it is out of debt, and none under Contract', () => {
+        const { document, guild } = indebted('policy-debt-solvent');
+        const [a, b] = guild.rosterIds as [HeroId, HeroId];
+        expire(document, a, 2);
+        (document.world.heroes[b] as Hero).level = 1;
+        guild.belowFloorSince = null;
+        expect(releases(automaticPolicy(document, deps, noBuilding))).toEqual([]);
+        guild.belowFloorSince = 0;
+        expect(releases(automaticPolicy(document, deps, noBuilding))).toEqual([{ kind: 'release', guildId: guild.id, heroId: a }]);
+      });
+
+      test('releases no Hero it renews this Turn: a free Offer answered by a renewal first', () => {
+        const { document, guild } = indebted('policy-debt-renews');
+        const [renewed, other] = guild.rosterIds as [HeroId, HeroId];
+        expire(document, renewed, 1);
+        expire(document, other, 2);
+        // A free Offer from a Rival for `renewed`, which the policy renews: its Roster is at the floor.
+        const rival = Object.values(document.world.guilds).find((row) => row.id !== guild.id) as Guild;
+        const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: renewed, years: 2 }, deps);
+        if (!offered.ok) throw new Error(`Refused: ${JSON.stringify(offered.rejection)}`);
+
+        const actions = automaticPolicy(offered.document, deps, noBuilding);
+        expect(actions[0]).toEqual({ kind: 'renew', guildId: guild.id, heroId: renewed, years: defaultPolicyConfig.contractYears });
+        expect(releases(actions)).toEqual([{ kind: 'release', guildId: guild.id, heroId: other }]);
+        applied(offered.document, actions);
+      });
+
+      test('releases no Hero it sends on a Quest this Turn', () => {
+        const { document, guild, quests } = indebted('policy-debt-sent', true);
+        openBoard(quests, 1);
+        // One Quest and the fewest Heroes it will do with (`fewest`), so that some Heroes stay home.
+        document.world.board = document.world.board.slice(0, 1);
+        for (const heroId of guild.rosterIds) expire(document, heroId, 1);
+
+        const actions = automaticPolicy(document, fewest, noBuilding);
+        const sent = dispatches(actions).flatMap((action) => action.heroIds);
+        expect(sent.length).toBeGreaterThan(0);
+        expect(sent.length).toBeLessThan(guild.rosterIds.length);
+        const [release] = releases(actions);
+        expect(release).toMatchObject({ kind: 'release', guildId: guild.id });
+        expect(sent).not.toContain((release as { heroId: HeroId }).heroId);
+        applied(document, actions);
+      });
+    });
+
     test('a loot-only Item it puts on a bare Hero is kept, not sold, and every action is accepted in order', () => {
       const scened = scene('policy-surplus-equip');
       const { guild } = scened;

@@ -1145,11 +1145,14 @@ describe('the Quest named on what its return causes', () => {
     // the Guilds that deal and what they then buy, and who is wanted; and the free Offer, the Transfer
     // Generator's pairs holding the player's Guild (DL-319; 4a418501…, e8fd9edb… and a6ed48bb…), which
     // moves `rivals` from the Generator's first night and so a Rival's Quest drawn, first on Turns 31,
-    // 34 and 79.
+    // 34 and 79; and the Rivals' hiring weighing a free Hero Out of Contract in a step of its own,
+    // before the pool, with a second draw from `rivals` where a real Transfer was sought and not drawn
+    // (DL-320; c1594279… and 0dae286f…, the first game's unchanged), which moves `rivals` from the
+    // first afternoon it is taken.
     expect(fingerprints).toEqual([
       '1bfb02769cb602971daa805e5cd4022af784b11bb2bad024a3a40a6e6461a8b7',
-      'c1594279f3b2aaa608a23858e4326b9a1b0de62937301fe48494537d4d660305',
-      '0dae286f4e9c7b82bfdfb4112c9a13e98a05675d8992799f93f54dc67295a31e',
+      'f20acf9fb051482892dc556b49c9115216f3d643dd488d23996d9db5fe1cffba',
+      'f6b497bbca956165acbea3b3f6a8f46f0d4fd3a03108e5a105e43f30bca05855',
     ]);
   });
 
