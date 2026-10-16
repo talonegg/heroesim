@@ -343,6 +343,11 @@ const sentences: Sentences = {
   },
   'hero.recruited': (event, _content, calendar) =>
     say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}${contractWords(event.payload, calendar)}.`,
+  // DL-316: a renewal, its new terms; a Contract's end, the wage repriced Out of Contract.
+  'hero.contract-renewed': (event, _content, calendar) =>
+    say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} again${contractWords(event.payload, calendar)}.`,
+  'hero.contract-expired': (event) =>
+    say`${hero(event, event.payload.heroId)}'s Contract with ${called(event, event.payload.guildId)} ended: Out of Contract, their wage is now ${coinWords(event.payload.wage)}.`,
   'hero.left-pool': (event) => say`${hero(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, content) => {
     const { patronId, templateKey, questId } = event.payload;
@@ -591,7 +596,7 @@ function held(kind: NameSlot['kind'], id: EntityId, rows: Readonly<Record<string
 
 /**
  * Why an advance or a fast forward stopped (M2-S11, M7-S3), one narration for both front ends
- * (DL-206 item 2, DL-209): its nine sentences, the names as slots a
+ * (DL-206 item 2, DL-209): its ten sentences, the names as slots a
  * front end's Namer fills, a Guild, a Hero, a Quest, the Parties counted or listed, an Offer's line,
  * and what to do next (`command`), which the CLI says as a command and the page as a button. `world`
  * is where it stopped, for the names its rows hold; `maxTurns` the cap it played under; `calendar` the
@@ -626,6 +631,9 @@ export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'her
       });
       return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next('answer-offer')}`;
     }
+    case 'contract-expired':
+      // DL-316: the Heroes whose Contracts ended tonight, Out of Contract until renewed.
+      return say`Stopped: a Contract ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} ${stop.heroIds.length === 1 ? 'is' : 'are'} Out of Contract${next('show-roster')}.`;
     case 'module':
       // M8-S2: an installed module's hook asked for the stop.
       return say`Stopped: the ${stop.moduleId} Module asked to stop.`;

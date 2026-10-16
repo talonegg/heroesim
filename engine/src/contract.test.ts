@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import type { GameConfig } from './config.js';
-import { contractWage, foundingContract, signContract } from './contract.js';
+import { contractWage, foundingContract, outOfContract, outOfContractWage, signContract } from './contract.js';
 import { createWorld } from './create.js';
-import type { Guild, Guildmaster, Hero, World } from './document.js';
+import type { Contract, Guild, Guildmaster, Hero, World } from './document.js';
 import { feeFactor, guildmasterOf } from './guildmaster.js';
 import { playerGuild, wages } from './selectors.js';
-import { dayOf, daysPerYear } from './time.js';
+import { dayOf, daysPerYear, nightOf } from './time.js';
 import { testDeps } from './world.test-support.js';
 
 // DL-294 item 6, DL-311 item 2, DL-315: a Contract's wage set at signing by one rule, its length chosen,
@@ -110,6 +110,45 @@ describe('signContract', () => {
     const hero = world.heroes[guild.rosterIds[0] as Hero['id']] as Hero;
     expect(signContract(world, hero, guild, 1, deps).wage).toBeGreaterThan(0);
     expect(wages(guild, world)).toBeGreaterThan(before);
+  });
+});
+
+describe('outOfContractWage, the repriced wage (Q-D, DL-311 item 1)', () => {
+  test('the wage rule at the 1-year factor × (1 + outOfContractPremium), rounded down once, at the end', () => {
+    const { deps, world, guild } = signing({ wageBase: 7, wagePerLevel: 20, wageStatDivisor: 40, wageFameFactor: 0.5, outOfContractPremium: 0.1 }, { fame: 10 });
+    // 76 at the 1-year factor, × 1.1 = 83.6, so 83.
+    expect(outOfContractWage(world, heroOf(world, 3, 8), guild, deps)).toBe(83);
+    // §2's Level 1 Hero, a Stat sum of 130: 23.25 × 1.1 = 25.575, so 25. A Stat sum of 260: 26.5 × 1.1 = 29.15, so
+    // 29, where a wage rounded before the premium would give 26 × 1.1 = 28.6, so 28.
+    expect(outOfContractWage(world, heroOf(world, 1, 6, { strength: 16 }), guild, { ...deps, config: { ...deps.config, wageFameFactor: 0, wageBase: 0 } })).toBe(25);
+    expect(outOfContractWage(world, heroOf(world, 1, 13), guild, { ...deps, config: { ...deps.config, wageFameFactor: 0, wageBase: 0 } })).toBe(29);
+  });
+
+  test("the 1-year factor is the shortest length's, wherever the list holds it, and a premium of 0 is the 1-year wage", () => {
+    const { deps, world, guild } = signing({ outOfContractPremium: 0 });
+    const hero = heroOf(world, 3, 8);
+    expect(outOfContractWage(world, hero, guild, deps)).toBe(contractWage(world, hero, guild, 1, deps));
+    const reordered = { ...deps, config: { ...deps.config, contractLengthsYears: [3, 1, 2], contractWageFactors: [0.5, 0.8, 0.75] } };
+    // 64 × 0.8 = 51.2.
+    expect(outOfContractWage(world, hero, guild, reordered)).toBe(51);
+  });
+
+  test('reads the Hero, the Guild and its Guildmaster now: a Level gained since signing moves it', () => {
+    const { deps, world, guild } = signing({ outOfContractPremium: 0.1 });
+    expect(outOfContractWage(world, heroOf(world, 4, 8), guild, deps)).toBeGreaterThan(outOfContractWage(world, heroOf(world, 3, 8), guild, deps));
+  });
+});
+
+describe('outOfContract (Q-D, DL-316)', () => {
+  test('from the night of the end Day on, and never for a Hero with no Contract', () => {
+    const { deps, world, guild } = signing();
+    const hero = world.heroes[guild.rosterIds[0] as Hero['id']] as Hero;
+    signContract(world, hero, guild, 1, deps);
+    const endDay = (hero.contract as Contract).endDay;
+    expect(outOfContract(hero, nightOf(endDay) - 1)).toBe(false);
+    expect(outOfContract(hero, nightOf(endDay))).toBe(true);
+    expect(outOfContract(hero, nightOf(endDay) + 1)).toBe(true);
+    expect(outOfContract({ contract: null }, nightOf(endDay))).toBe(false);
   });
 });
 

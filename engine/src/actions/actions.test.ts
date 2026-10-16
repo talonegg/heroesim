@@ -14,6 +14,7 @@ import { applyRecruit } from './recruit.js';
 import { applySell } from './sell.js';
 import { applyAcceptTransfer, applyDeclineTransfer, applyOfferTransfer, applyTransferIn, applyTransferOut } from './transfer.js';
 import { applyNameCaptain } from './captain.js';
+import { applyRenew } from './renew.js';
 import type { WorldActionResult } from './result.js';
 
 // A Guild's actions in a Turn applied on one copy of the world (DL-238, ADR-0011 as amended): the
@@ -328,6 +329,7 @@ describe('applyAction', () => {
     acceptTransfer: row((ids) => ({ kind: 'acceptTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyAcceptTransfer),
     declineTransfer: row((ids) => ({ kind: 'declineTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyDeclineTransfer),
     nameCaptain: row((ids) => ({ kind: 'nameCaptain', guildId: player(ids), heroId: idle(ids) }), applyNameCaptain),
+    renew: row((ids) => ({ kind: 'renew', guildId: player(ids), heroId: idle(ids), years: 3 }), applyRenew),
   };
 
   test.each(Object.keys(rows))('%s is its rule run on a copy of the world: the same world and events, the input left as it was, meta and the History shared', (kind) => {

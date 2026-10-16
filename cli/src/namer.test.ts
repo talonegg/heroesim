@@ -94,6 +94,8 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-renewed': event('hero.contract-renewed', [heroId, guildId], { heroId, guildId, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-expired': event('hero.contract-expired', [heroId, guildId], { heroId, guildId, wage: 25 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),

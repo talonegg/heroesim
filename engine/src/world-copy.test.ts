@@ -16,7 +16,9 @@ import { testDeps } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 // A short year, so that Heroes age, retire and die, and the pool's Heroes leave it, within a test.
-const deps = testDeps({ turnsPerYear: 12 });
+// The Bankruptcy floor far down, so that the 240-Turn game still plays at its end: in years of four Days every
+// Contract ends within a few and is repriced (DL-316), and at the default floor the game ends in Bankruptcy first.
+const deps = testDeps({ turnsPerYear: 12, bankruptcyFloor: -1_000_000 });
 const tables = ['heroes', 'guildmasters', 'guilds'] as const;
 
 /**

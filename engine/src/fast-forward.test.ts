@@ -14,8 +14,17 @@ import { timeOfDay } from './time.js';
 import { setup, testDeps, withValid } from './world.test-support.js';
 import { applyAction } from './actions/action.js';
 
+/**
+ * `seed`'s new world, its player's Heroes' Contracts ending past any fast forward here, so that the
+ * always-on stop at a Contract's end (DL-316) does not come before the stops these tests watch.
+ */
 function created(seed: string, deps: EngineDeps): WorldDocument {
-  return withValid(createWorld(seed, setup, deps).document, deps);
+  const { document } = createWorld(seed, setup, deps);
+  for (const heroId of player(document).rosterIds) {
+    const { contract } = document.world.heroes[heroId] as Hero;
+    if (contract !== null) contract.endDay += 10_000;
+  }
+  return withValid(document, deps);
 }
 
 function player(document: WorldDocument): Guild {

@@ -380,6 +380,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   wageFameFactor: finite({ min: 0 }),
   contractLengthsYears: contractLengths,
   contractWageFactors: contractFactors,
+  outOfContractPremium: finite({ min: 0 }),
   hallUpkeepEveryDays: whole({ min: 1 }),
   hallBaseUpkeep: whole({ min: 0 }),
   hallUpkeepPerHero: whole({ min: 0 }),

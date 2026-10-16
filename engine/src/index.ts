@@ -94,6 +94,7 @@ export type {
   RecruitRejection,
   SigningRefusedRejection,
 } from './actions/recruit.js';
+export type { RenewAction, RenewHeroInParty, RenewHeroNotOnRoster, RenewRejection } from './actions/renew.js';
 export type { ActionResult, Rejection, WorldActionResult } from './actions/result.js';
 export type {
   SellAction,

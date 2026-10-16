@@ -165,6 +165,12 @@ export interface GameConfig {
    */
   contractWageFactors: number[];
   /**
+   * What a Hero Out of Contract costs above the shortest term: on the night their Contract ends, the wage
+   * is repriced by the wage rule at the shortest length's factor × (1 + this), charged until they are
+   * renewed, released or taken (Q-D, DL-311 item 1, DL-316).
+   */
+  outOfContractPremium: number;
+  /**
    * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
    * are (DL-26), a month by default (DL-294 item 4, DL-298).
    */

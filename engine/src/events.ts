@@ -162,6 +162,19 @@ export type ContractTerms = Pick<Contract, 'wage' | 'years' | 'endDay'>;
 export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number } & ContractTerms>;
 
 /**
+ * A Guild signed a Hero of its Roster again through `renew`, on the new Contract's terms, its old term
+ * dropped (DL-316). A Milestone, naming the Hero and the Guild.
+ */
+export type HeroContractRenewed = Entry<'hero.contract-renewed', { heroId: HeroId; guildId: GuildId } & ContractTerms>;
+
+/**
+ * A Hero's Contract ended on the night of its end Day, and they play on, Out of Contract, on their Guild's
+ * Roster: `wage` is the wage repriced that night (`outOfContractWage`), charged from then (Q-D, DL-311 item
+ * 1, DL-316). A Milestone for every Guild's Hero alike, naming the Hero and the Guild.
+ */
+export type HeroContractExpired = Entry<'hero.contract-expired', { heroId: HeroId; guildId: GuildId; wage: number }>;
+
+/**
  * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
  * Hero, whose row is then removed unless an entry names them (data-model rule 8); recorded only
  * then (DL-211).
@@ -757,6 +770,8 @@ export type EngineEvent =
   | GuildBelowFloor
   | GuildFloorRecovered
   | HeroRecruited
+  | HeroContractRenewed
+  | HeroContractExpired
   | HeroLeftPool
   | QuestOffered
   | QuestExpired
@@ -821,6 +836,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guild.below-floor': false,
   'guild.floor-recovered': false,
   'hero.recruited': true,
+  'hero.contract-renewed': true,
+  'hero.contract-expired': true,
   'hero.left-pool': false,
   'quest.offered': false,
   'quest.expired': false,

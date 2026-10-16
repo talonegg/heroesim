@@ -1428,6 +1428,8 @@ const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
   'guild.below-floor': ['wealth', 'floor'],
   'guild.floor-recovered': ['wealth', 'floor'],
   'hero.recruited': ['fee', 'wage'],
+  'hero.contract-renewed': ['wage'],
+  'hero.contract-expired': ['wage'],
   'guild.improved': ['cost'],
   'item.bought': ['unitPrice', 'cost'],
   'item.sold': ['unitPrice', 'proceeds'],

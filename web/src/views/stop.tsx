@@ -40,6 +40,8 @@ const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   // Shown only when none of the Quests it named is still on the Board.
   'decision-needed': { label: 'Open the Board', target: 'board' },
   'transfer-offer': { label: 'Answer the Offer', target: 'offers' },
+  // DL-316: the Roster, where the Heroes Out of Contract are.
+  'contract-expired': { label: 'Open the Roster', target: 'roster' },
   // M8-S2: the module's own events say why it asked.
   module: { label: 'Read what happened', target: 'history' },
   'max-turns': { label: 'Fast forward again', again: true },
@@ -55,6 +57,7 @@ const iconFor: Readonly<Record<StopView['kind'], IconName>> = {
   'party-returned': 'guild',
   'decision-needed': 'board',
   'transfer-offer': 'roster',
+  'contract-expired': 'roster',
   module: 'about',
   'max-turns': 'forward',
   'pool-refreshed': 'roster',

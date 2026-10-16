@@ -206,7 +206,11 @@ contract:       { wage, signedOnTurn, years, endDay } | null
                                             contractLengthsYears; `endDay` the signing Day plus the
                                             years' Days (turnsPerYear ÷ turnsPerDay), or for a
                                             founding Contract a Day drawn over its term on
-                                            `contracts`
+                                            `contracts`. Kept past the night of its end Day,
+                                            when the Hero is Out of Contract (`outOfContract`,
+                                            a selector) and `wage` is repriced by
+                                            `outOfContractWage`, until a renewal signs another
+                                            or they leave the Roster (DL-316)
 ```
 A Hero's Gear is not on the Hero: it is the Items, a Unique Item or a stack of one, that the Hero
 holds in a slot (§3.3).

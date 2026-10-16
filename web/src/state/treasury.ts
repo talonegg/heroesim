@@ -130,6 +130,9 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'guild.below-floor': null,
   'guild.floor-recovered': null,
   'hero.recruited': (payload, guildId) => when(payload.guildId === guildId, 'signing-fees', -payload.fee),
+  // A renewal pays no fee, and an expiry only reprices the wages the wage Days charge (DL-316).
+  'hero.contract-renewed': null,
+  'hero.contract-expired': null,
   'hero.left-pool': null,
   'quest.offered': null,
   'quest.expired': null,

@@ -350,6 +350,14 @@ const sentences: Sentences = {
     const { calendar } = setting;
     return say`The Captain was last replaced on ${dateOfTurn(changedOnTurn, calendar)}, and the post cannot change again before ${dateOfTurn(untilTurn, calendar)}.`;
   },
+
+  // A renewal (DL-316).
+  'renew length-not-offered': lengthNotOffered,
+  'renew hero-not-on-roster': ({ heroId, guildId }, setting) =>
+    say`${hero(setting, heroId)} is not on ${guild(setting, guildId)}'s Roster${command('show-roster')}.`,
+  // The owner's Q-A: renewed once home, as a Transfer waits.
+  'renew hero-in-party': ({ heroId, partyId }, setting) =>
+    say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero's Contract is renewed only in the Hall.`,
 };
 
 /** Every kind the table has a sentence for: the test holds it to the union. */

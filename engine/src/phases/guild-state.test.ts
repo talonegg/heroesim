@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import type { GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
-import type { Guild, Guildmaster, World } from '../document.js';
+import { outOfContract, outOfContractWage } from '../contract.js';
+import type { Contract, Guild, Guildmaster, Hero, HeroId, World } from '../document.js';
 import type { EngineEventOf, TurnEvent } from '../events.js';
 import { phases } from '../pipeline.js';
 import { hallUpkeepParts, nextHallUpkeepDay, nextWagesDay, wages } from '../selectors.js';
@@ -228,6 +229,86 @@ describe('guildState: the wages and the Hall’s upkeep', () => {
     expect(ofType(events, 'guild.wages-paid').map((event) => event.turn)).toEqual([9, 19, 29].flatMap((day) => guilds.map(() => nightOf(day))));
     expect(ofType(events, 'guild.hall-upkeep-paid').map((event) => event.turn)).toEqual(guilds.map(() => nightOf(29)));
     for (const guild of guilds) expect(guild.wealth).toBe((startingWealth[guild.id] as number) - 3 * 5 - 35);
+  });
+});
+
+// Q-D, DL-311 item 1, DL-316: on the night of its end Day a Contract expires, for every Guild's Hero
+// alike, before the night's wages: the wage repriced, carried on the event and charged from then.
+describe('guildState: a Contract’s end', () => {
+  /** The world, its two Guilds, and each Guild's one Hero with its Contract ending on `endDay`; a premium of 1, so 5 becomes 10. */
+  function ending(endDay: number) {
+    const { world, deps } = smallWorld({ outOfContractPremium: 1 });
+    const guilds = Object.values(world.guilds) as [Guild, Guild];
+    const heroes = guilds.map((guild) => world.heroes[guild.rosterIds[0] as HeroId] as Hero) as [Hero, Hero];
+    for (const hero of heroes) hero.contract = { ...(hero.contract as Contract), endDay };
+    return { world, deps, guilds, heroes };
+  }
+
+  test('expires on the night of the end Day, the player’s Hero and a Rival’s: a Milestone with the repriced wage, the Hero kept on the Roster', () => {
+    const { world, deps, guilds, heroes } = ending(12);
+    world.turn = nightOf(12); // not a wages Day
+
+    const events = guildState(world, phaseContext(world, deps));
+
+    expect(events.map((event) => event.type)).toEqual(['hero.contract-expired', 'hero.contract-expired']);
+    guilds.forEach((guild, index) => {
+      const hero = heroes[index] as Hero;
+      const event = events[index] as EngineEventOf<'hero.contract-expired'>;
+      expect(event.payload).toEqual({ heroId: hero.id, guildId: guild.id, wage: 10 });
+      expect(event.participants).toEqual([hero.id, guild.id]);
+      expect(event.milestone).toBe(true);
+      expect(hero.contract).toMatchObject({ wage: 10, endDay: 12 });
+      expect(guild.rosterIds).toContain(hero.id);
+      expect(outOfContract(hero, world.turn)).toBe(true);
+    });
+  });
+
+  test('the repriced wage is the rule’s now (`outOfContractWage`): a Level gained since signing counts', () => {
+    const { world, deps, guilds, heroes } = ending(12);
+    const priced = { ...deps, config: { ...deps.config, wagePerLevel: 3 } };
+    const [hero] = heroes;
+    hero.level = 4;
+    world.turn = nightOf(12);
+    guildState(world, phaseContext(world, priced));
+    expect(hero.contract?.wage).toBe(outOfContractWage(world, hero, guilds[0], priced));
+    expect(hero.contract?.wage).toBe(34);
+  });
+
+  test('on a wages Day, expires first, and the night’s wages charge the repriced wage', () => {
+    const { world, deps, guilds, heroes } = ending(9);
+    world.turn = nightOf(9);
+    const before = guilds.map((guild) => guild.wealth);
+
+    const events = guildState(world, phaseContext(world, deps));
+
+    expect(events.map((event) => event.type)).toEqual(['hero.contract-expired', 'guild.wages-paid', 'hero.contract-expired', 'guild.wages-paid']);
+    guilds.forEach((guild, index) => {
+      expect(guild.wealth).toBe((before[index] as number) - 10);
+      const paid = ofType(events, 'guild.wages-paid').find((event) => event.payload.guildId === guild.id);
+      expect(paid?.payload.wages).toEqual({ [(heroes[index] as Hero).id]: 10 });
+    });
+  });
+
+  test('not before its night, and not again after it: the Hero stays Out of Contract at the repriced wage', () => {
+    const { world, deps, heroes } = ending(12);
+    world.turn = nightOf(11);
+    expect(guildState(world, phaseContext(world, deps))).toEqual([]);
+    expect(outOfContract(heroes[0], world.turn)).toBe(false);
+    world.turn = nightOf(12);
+    guildState(world, phaseContext(world, deps));
+    world.turn = nightOf(19);
+    const later = guildState(world, phaseContext(world, deps));
+    expect(later.map((event) => event.type)).toEqual(['guild.wages-paid', 'guild.wages-paid']);
+    expect(ofType(later, 'guild.wages-paid')[0]?.payload.amount).toBe(10);
+  });
+
+  test('a folded Guild’s Hero, on no Roster, expires nothing', () => {
+    const { world, deps, guilds } = ending(12);
+    const [folded] = guilds;
+    folded.foldedOnTurn = 1;
+    world.turn = nightOf(12);
+    const events = guildState(world, phaseContext(world, deps));
+    expect(events.some((event) => event.participants.includes(folded.id))).toBe(false);
   });
 });
 

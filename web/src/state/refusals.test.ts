@@ -230,6 +230,9 @@ const samples: Samples = {
   'nameCaptain hero-not-on-roster': { action: 'nameCaptain', reason: 'hero-not-on-roster', heroId: rivalHero.id },
   'nameCaptain already-captain': { action: 'nameCaptain', reason: 'already-captain', heroId },
   'nameCaptain captain-locked': { action: 'nameCaptain', reason: 'captain-locked', captainId: heroId, changedOnTurn: 30, untilTurn: 300 },
+  'renew length-not-offered': { action: 'renew', reason: 'length-not-offered', years: 4, offered: [1, 2, 3] },
+  'renew hero-not-on-roster': { action: 'renew', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
+  'renew hero-in-party': { action: 'renew', reason: 'hero-in-party', ...heroInParty },
 };
 
 const kinds = Object.keys(samples) as (keyof Samples)[];
@@ -366,6 +369,9 @@ const exactly: Record<keyof Samples, string> = {
   'nameCaptain hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
   'nameCaptain already-captain': `${hero.name} is already The Lantern's Captain.`,
   'nameCaptain captain-locked': `The Captain was last replaced on Year 1 Day 11, and the post cannot change again before Year 1 Day 101.`,
+  'renew length-not-offered': 'A Contract is 1, 2 or 3 Years long; 4 is not.',
+  'renew hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
+  'renew hero-in-party': `${hero.name} is away with a Party; a Hero's Contract is renewed only in the Hall.`,
 };
 
 /**

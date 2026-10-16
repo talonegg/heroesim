@@ -41,6 +41,9 @@ import { unattachedHeroes } from './selectors.js';
  *   "a Quest I can staff appears"). Opt-in.
  * - `transfer-offer`: Transfer Offers for Heroes of the watched Guild arrived this Turn, in the
  *   order they were made (M6-S2, DL-33, DL-57).
+ * - `contract-expired`: Contracts of Heroes of the watched Guild ended tonight, a
+ *   `hero.contract-expired` naming it for each, in the order they ended: the one stop a Contract
+ *   makes, at its end, none before it (DL-294 item 6, DL-316). A Rival's Hero's is its own affair.
  * - `module`: an installed module asked for time to stop at one of its hooks this Turn, naming
  *   itself (M8-S2, DL-33, DL-77); the first to ask, in
  *   registration order. Whoever is watching, as `ended` is.
@@ -54,6 +57,7 @@ export type StopReason =
   | { kind: 'decision-needed'; guildId: GuildId; questIds: QuestId[] }
   | { kind: 'quest-staffable'; guildId: GuildId; questIds: QuestId[] }
   | { kind: 'transfer-offer'; guildId: GuildId; offerIds: OfferId[] }
+  | { kind: 'contract-expired'; guildId: GuildId; heroIds: HeroId[] }
   | { kind: 'module'; moduleId: ModuleId }
   | { kind: 'max-turns' }
   | { kind: 'pool-refreshed'; heroIds: HeroId[] };
@@ -78,6 +82,7 @@ export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.free
   'decision-needed': true,
   'quest-staffable': false,
   'transfer-offer': true,
+  'contract-expired': true,
   module: true,
   'pool-refreshed': false,
 } satisfies Record<StopCondition, boolean>);
@@ -86,7 +91,7 @@ export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.free
  * Every condition, in the order a Turn that gives several reports them: an ending first, then the
  * watched Guild below the floor, the step before an ending (M9-S1), then its Parties home, then a
  * decision, then a Quest its pool could staff, which on an idle Roster names what the
- * decision names, then a Transfer Offer, then a module's stop, then the pool.
+ * decision names, then a Transfer Offer, then a Contract's end, then a module's stop, then the pool.
  */
 export const stopConditions: readonly StopCondition[] = Object.freeze([
   'ended',
@@ -95,6 +100,7 @@ export const stopConditions: readonly StopCondition[] = Object.freeze([
   'decision-needed',
   'quest-staffable',
   'transfer-offer',
+  'contract-expired',
   'module',
   'pool-refreshed',
 ] as const);
@@ -214,6 +220,18 @@ export function transferOfferStop(events: readonly TurnEvent[], guildId: GuildId
 }
 
 /**
+ * `contract-expired` when this Turn's events end Contracts of Heroes of `guildId`'s (`hero.contract-expired`
+ * naming it), in the order they ended. A Rival's Hero's end stops nothing.
+ */
+export function contractExpiredStop(events: readonly TurnEvent[], guildId: GuildId): StopReason | null {
+  const heroIds: HeroId[] = [];
+  for (const event of events) {
+    if (event.type === 'hero.contract-expired' && event.payload.guildId === guildId) heroIds.push(event.payload.heroId);
+  }
+  return heroIds.length === 0 ? null : { kind: 'contract-expired', guildId, heroIds };
+}
+
+/**
  * `pool-refreshed` when Heroes are in the Unattached pool after the Turn who were not before it:
  * the night's refill, and Heroes a folded Guild released, alike.
  */
@@ -266,6 +284,7 @@ export function stopsOfTurn(
     'decision-needed': () => decisionNeeded(staffed().before, staffed().after, guildId),
     'quest-staffable': () => questStaffable(staffed().before, staffed().after, guildId),
     'transfer-offer': () => transferOfferStop(events, guildId),
+    'contract-expired': () => contractExpiredStop(events, guildId),
     module: () => moduleStop(turn.stoppedBecause),
     'pool-refreshed': () => poolRefreshedStop(before, after),
   };
