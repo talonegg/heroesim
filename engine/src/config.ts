@@ -143,11 +143,27 @@ export interface GameConfig {
   /** The wages fall due every this many Days (DL-26 says which Days precisely; DL-298). */
   upkeepEveryDays: number;
   /**
-   * Wealth deducted per Level of each living Hero on the Roster, each time the wages fall due: a wage
-   * that weighs against the Quest rewards, so that a Guild must keep succeeding, and that a Roster
-   * gaining Levels can still bear (DL-35, DL-36).
+   * A Contract's wage before its Hero's Level, Stats and Guild: the base of the wage rule
+   * (`contractWage`), whole Silver each time the wages fall due (DL-294 item 6, DL-315).
+   */
+  wageBase: number;
+  /**
+   * The wage rule's part for each Level the Hero holds at signing: a wage that weighs against the
+   * Quest rewards, so that a Guild must keep succeeding, fixed for the Contract's term so that a Level
+   * gained costs nothing until the Contract is signed again (DL-36, DL-294 item 6, DL-315).
    */
   wagePerLevel: number;
+  /** The wage rule's Stat part: the sum of the Hero's base Stats divided by this (DL-294 item 6, DL-315). */
+  wageStatDivisor: number;
+  /** The wage rule's Fame part: this × the signing Guild's Fame, 0 by the owner's word (Q6, DL-294 item 6). */
+  wageFameFactor: number;
+  /** The lengths a Contract may be signed for, in years: the signer chooses one (Q7b, DL-294 item 6). */
+  contractLengthsYears: number[];
+  /**
+   * The wage's factor for each length, in `contractLengthsYears`' order, as long as it: a longer term
+   * cheaper each period (Q7b, DL-294 item 6).
+   */
+  contractWageFactors: number[];
   /**
    * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
    * are (DL-26), a month by default (DL-294 item 4, DL-298).

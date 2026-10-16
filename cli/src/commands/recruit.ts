@@ -30,7 +30,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const hero = rowOf(document.world.heroes, heroId);
   if (hero === undefined) return refuse(io, `${path} has no Hero ${heroId}.`);
 
-  const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps);
+  const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId, years: 2 }, deps);
   if (!result.ok) return refuse(io, refusalLine(result.rejection, setting));
 
   writeSave(path, result.document);

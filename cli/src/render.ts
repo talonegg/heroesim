@@ -259,7 +259,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     player === undefined || !inPlay(player) || world.ended !== null
       ? []
       : [
-          `Wages ${coinLetters(wages(player, world, config))} every ${config.upkeepEveryDays} Days, ` +
+          `Wages ${coinLetters(wages(player, world))} every ${config.upkeepEveryDays} Days, ` +
             `next paid on ${nightOfDay(nextWagesDay(world.turn, config), config)}.`,
           `Hall upkeep ${coinLetters(hallUpkeepParts(player, world, config, deps.content).total)} every ${config.hallUpkeepEveryDays} Days, ` +
             `next paid on ${nightOfDay(nextHallUpkeepDay(world.turn, config), config)}.`,

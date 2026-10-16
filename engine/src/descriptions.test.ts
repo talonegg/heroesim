@@ -308,8 +308,8 @@ describe('every Guildmaster of a new game is described (DL-125 item 6)', () => {
 
   test("a new world has the stream descriptions, after gm-portraits and before the Heroes' two", () => {
     const { document } = createWorld('streams', setup, deps);
-    expect(Object.keys(document.world.rng).slice(-4)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
-    expect(streamNames.slice(-4)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
+    expect(Object.keys(document.world.rng).slice(-5, -1)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
+    expect(streamNames.slice(-5, -1)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
   });
 });
 

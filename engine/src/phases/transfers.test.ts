@@ -3,6 +3,7 @@ import { applyTransferIn } from '../actions/transfer.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet, DispositionKey } from '../content-types.js';
 import { transferBid } from '../controllers/rival.js';
+import { contractWage } from '../contract.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type PartyId, type World, type WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf } from '../events.js';
@@ -229,12 +230,15 @@ describe('the bid', () => {
       const wanted = dearest(world, bidder, seller, with_);
       const wealthBefore = bidder.wealth + seller.wealth;
       world.turn = generatorNight;
-      const expected = applyTransferIn(structuredClone(world), { guildId: bidder.id, heroId: wanted.heroId }, with_);
+      // The bidder signs for its Disposition's length (DL-315): ambitious 1 year, miserly 3 in the test content.
+      const years = bidder === ambitious ? 1 : 3;
+      const wage = contractWage(world, world.heroes[wanted.heroId] as Hero, bidder, years, with_);
+      const expected = applyTransferIn(structuredClone(world), { guildId: bidder.id, heroId: wanted.heroId, years }, with_);
 
       const events = run(world, with_);
 
       expect(transferred(events).map((event) => event.payload)).toEqual([
-        { heroId: wanted.heroId, fromGuildId: seller.id, toGuildId: bidder.id, fee: wanted.fee, offerId: null },
+        { heroId: wanted.heroId, fromGuildId: seller.id, toGuildId: bidder.id, fee: wanted.fee, offerId: null, wage, years, endDay: 6 + years * 360 },
       ]);
       // Exactly what transferIn makes of the bid: its events, its fee, its Wealth.
       expect(expected.ok && expected.events).toEqual(events);

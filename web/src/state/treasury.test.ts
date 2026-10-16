@@ -228,7 +228,7 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   const guildId = (playerGuild(next.world)?.id ?? lantern) as GuildId;
   const guild = () => next.world.guilds[guildId];
   const [signed] = unattachedHeroes(next.world);
-  if (signed !== undefined) next = tried(next, applyAction(next, { kind: 'recruit', guildId, heroId: signed.id }, deps));
+  if (signed !== undefined) next = tried(next, applyAction(next, { kind: 'recruit', guildId, heroId: signed.id, years: 2 }, deps));
   next = tried(next, applyAction(next, { kind: 'build', guildId, facility: month % 2 === 0 ? 'infirmary' : 'quarters' }, deps));
   const cheapest = [...marketStock(next.world, deps)].sort((a, b) => a.price - b.price)[0];
   if (cheapest !== undefined) next = tried(next, applyAction(next, { kind: 'buy', guildId, definitionKey: cheapest.definition.key, quantity: 1 }, deps));
@@ -246,7 +246,7 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   if (month % 3 === 0) {
     const rival = Object.values(next.world.guilds).find((other) => other.id !== guildId && other.foldedOnTurn === null && other.rosterIds.length > 1);
     const theirs = rival?.rosterIds[0];
-    if (rival !== undefined && theirs !== undefined) next = tried(next, applyAction(next, { kind: 'transferIn', guildId, heroId: theirs }, deps));
+    if (rival !== undefined && theirs !== undefined) next = tried(next, applyAction(next, { kind: 'transferIn', guildId, heroId: theirs, years: 2 }, deps));
     const atHome = availableHeroes(next.world, guild() ?? { rosterIds: [] }).filter(
       (h) => h.transferredOnTurn === null || next.world.turn - h.transferredOnTurn > deps.config.transferLockDays * 3,
     );
@@ -420,7 +420,7 @@ describe('The Treasury: the Wealth, Upkeep and the Bankruptcy floor', () => {
     const guild = document.world.guilds[mine(state)];
     if (guild === undefined) throw new Error('no Guild');
     const { config } = playDeps(document);
-    const owed = wages(guild, document.world, config);
+    const owed = wages(guild, document.world);
     const parts = hallUpkeepParts(guild, document.world, config, content);
     const infirmary = parts.facilities['infirmary'] ?? Number.NaN;
     const view = treasuryPage(document, both, 0);
@@ -512,7 +512,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
     state = played(state, { kind: 'sell', stackId: stack.id, quantity: 1 });
     const [signing] = unattachedHeroes(documentOf(state).world);
     if (signing === undefined) throw new Error('no one in the pool');
-    state = played(state, { kind: 'recruit', heroId: signing.id });
+    state = played(state, { kind: 'recruit', heroId: signing.id, years: 2 });
     return played(state, { kind: 'advance', turns: 30 });
   }
 

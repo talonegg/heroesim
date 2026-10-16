@@ -88,7 +88,7 @@ describe('applyActions', () => {
       { kind: 'sell', guildId, stackId: ids.guildStack, quantity: 1 },
       { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 50 },
       { kind: 'build', guildId, facility: 'quarters' },
-      { kind: 'recruit', guildId, heroId: ids.partyHero },
+      { kind: 'recruit', guildId, heroId: ids.partyHero, years: 2 },
       { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 2 },
     ];
     const apart = structuredClone(document);
@@ -112,8 +112,8 @@ describe('applyActions', () => {
       { kind: 'dispatch', guildId, questId: ids.takenQuest, heroIds: [ids.partyHero] },
       { kind: 'dispatch', guildId, questId: ids.offeredQuest, heroIds: [ids.rivalHero] },
       { kind: 'dispatch', guildId, questId: ids.offeredQuest, heroIds: [ids.partyHero] },
-      { kind: 'recruit', guildId, heroId: ids.partyHero },
-      { kind: 'recruit', guildId, heroId: ids.unattachedHero as never },
+      { kind: 'recruit', guildId, heroId: ids.partyHero, years: 2 },
+      { kind: 'recruit', guildId, heroId: ids.unattachedHero as never, years: 2 },
       { kind: 'build', guildId, facility: 'quarters' },
       { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 1 },
       { kind: 'buy', guildId, definitionKey: 'healing-draught', quantity: 13 },
@@ -123,10 +123,10 @@ describe('applyActions', () => {
       { kind: 'equip', guildId, heroId: ids.partyHero, stackId: ids.guildStack },
       { kind: 'equip', guildId, heroId: ids.rivalHero, stackId: ids.guildStack },
       { kind: 'unequip', guildId, heroId: ids.partyHero, slot: 'armour' },
-      { kind: 'transferIn', guildId, heroId: ids.partyHero },
-      { kind: 'transferIn', guildId, heroId: ids.rivalHero },
+      { kind: 'transferIn', guildId, heroId: ids.partyHero, years: 2 },
+      { kind: 'transferIn', guildId, heroId: ids.rivalHero, years: 2 },
       { kind: 'transferOut', guildId, heroId: ids.partyHero, toGuildId: ids.rivalGuild },
-      { kind: 'offerTransfer', guildId, heroId: ids.rivalHero },
+      { kind: 'offerTransfer', guildId, heroId: ids.rivalHero, years: 2 },
       { kind: 'acceptTransfer', guildId, offerId },
       { kind: 'declineTransfer', guildId, offerId },
     ];
@@ -195,14 +195,14 @@ describe('applyActions', () => {
       ],
       [{ kind: 'unequip', guildId: player, heroId: idle, slot: 'armour' }, 'slot-empty'],
       [
-        { kind: 'transferIn', guildId: player, heroId: ids.rivalHero },
+        { kind: 'transferIn', guildId: player, heroId: ids.rivalHero, years: 2 },
         'recently-transferred',
         (world) => {
           ambitious(world);
           (world.heroes[ids.rivalHero] as Hero).transferredOnTurn = world.turn;
         },
       ],
-      [{ kind: 'transferIn', guildId: player, heroId: ids.rivalHero }, 'insufficient-wealth', ambitious],
+      [{ kind: 'transferIn', guildId: player, heroId: ids.rivalHero, years: 2 }, 'insufficient-wealth', ambitious],
       [{ kind: 'transferOut', guildId: player, heroId: idle, toGuildId: rival }, 'transfer-refused'],
       [
         { kind: 'transferOut', guildId: player, heroId: idle, toGuildId: rival },
@@ -213,13 +213,13 @@ describe('applyActions', () => {
         },
       ],
       [
-        { kind: 'offerTransfer', guildId: rival, heroId: idle },
+        { kind: 'offerTransfer', guildId: rival, heroId: idle, years: 2 },
         'offer-pending',
         (world) => {
           Object.assign(world.offers[ids.offer] as object, { fromGuildId: player, toGuildId: rival, heroId: idle });
         },
       ],
-      [{ kind: 'offerTransfer', guildId: rival, heroId: idle }, 'insufficient-wealth', (world) => shortOfFee(world, rival, idle)],
+      [{ kind: 'offerTransfer', guildId: rival, heroId: idle, years: 2 }, 'insufficient-wealth', (world) => shortOfFee(world, rival, idle)],
       [
         { kind: 'acceptTransfer', guildId: rival, offerId: ids.offer },
         'guild-folded',
@@ -309,7 +309,7 @@ describe('applyAction', () => {
       (ids, world) => ({ kind: 'dispatch', guildId: player(ids), questId: ids.offeredQuest, heroIds: [idle(ids), (world.guilds[player(ids)] as Guild).rosterIds[2] as HeroId] }),
       applyDispatch,
     ),
-    recruit: row((ids) => ({ kind: 'recruit', guildId: player(ids), heroId: ids.unattachedHero as HeroId }), applyRecruit),
+    recruit: row((ids) => ({ kind: 'recruit', guildId: player(ids), heroId: ids.unattachedHero as HeroId, years: 2 }), applyRecruit),
     build: row((ids) => ({ kind: 'build', guildId: player(ids), facility: 'quarters' }), applyBuild),
     equip: row((ids) => ({ kind: 'equip', guildId: player(ids), heroId: idle(ids), stackId: ids.heroStack }), applyEquip, (world, ids) =>
       jackTo(world, ids, { kind: 'guild', id: player(ids) }),
@@ -322,9 +322,9 @@ describe('applyAction', () => {
     'sell an Item': row((ids) => ({ kind: 'sell', guildId: player(ids), itemId: ids.item }), applySell, (world, ids) => {
       (world.items[ids.item] as { holder: Stack['holder'] }).holder = { kind: 'guild', id: player(ids) };
     }),
-    transferIn: row((ids) => ({ kind: 'transferIn', guildId: player(ids), heroId: ids.rivalHero }), applyTransferIn, ambitious),
+    transferIn: row((ids) => ({ kind: 'transferIn', guildId: player(ids), heroId: ids.rivalHero, years: 2 }), applyTransferIn, ambitious),
     transferOut: row((ids) => ({ kind: 'transferOut', guildId: player(ids), heroId: idle(ids), toGuildId: ids.rivalGuild }), applyTransferOut, ambitious),
-    offerTransfer: row((ids) => ({ kind: 'offerTransfer', guildId: ids.rivalGuild, heroId: idle(ids) }), applyOfferTransfer),
+    offerTransfer: row((ids) => ({ kind: 'offerTransfer', guildId: ids.rivalGuild, heroId: idle(ids), years: 2 }), applyOfferTransfer),
     acceptTransfer: row((ids) => ({ kind: 'acceptTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyAcceptTransfer),
     declineTransfer: row((ids) => ({ kind: 'declineTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyDeclineTransfer),
     nameCaptain: row((ids) => ({ kind: 'nameCaptain', guildId: player(ids), heroId: idle(ids) }), applyNameCaptain),

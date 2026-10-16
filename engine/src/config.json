@@ -1,5 +1,5 @@
 {
-  "version": 34,
+  "version": 35,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -34,7 +34,8 @@
     "31 from v1.2.2-S3, which moves the Hall's four effects to content, each Facility's and Improvement's rows (`facilities.json`, `improvements.json`) holding today's values: `infirmaryHealFactor`, `quartersMoraleBonus`, `fatigueFallByQuarters` and `xpPerTrainingDay` leave config (DL-294 item 3, DL-297).",
     "32 from v1.2.2-S4, which charges the Hall's upkeep with its Improvements' every 30 Days, apart from the wages: it adds `hallUpkeepEveryDays`, 30, `hallBaseUpkeep`, 30, `hallUpkeepPerHero`, 5, `hallUpkeepHeroExponent`, 1, and `improvementUpkeepGradeFactor`, 1.73, and removes `hallMaintenancePerGrade` (DL-294 items 2 to 4, DL-298).",
     "33 from one Upkeep a month of costs (DL-300): rivalHireReserveUpkeeps 3 to 1.",
-    "34 from v1.2.2-S6 (DL-301): lootOnlyPrice removed, each loot-only Item carries its own value."
+    "34 from v1.2.2-S6 (DL-301): lootOnlyPrice removed, each loot-only Item carries its own value.",
+    "35 from v1.2.3-S2, which sets each Hero's wage at signing by a Contract's wage rule: it adds `wageBase`, 0, `wageStatDivisor`, 40, `wageFameFactor`, 0, `contractLengthsYears`, [1, 2, 3], and `contractWageFactors`, [1, 0.95, 0.9], beside `wagePerLevel`, 20 (DL-294 item 6, DL-315)."
   ],
   "sections": {
     "world": {
@@ -79,7 +80,12 @@
     },
     "guilds": {
       "upkeepEveryDays": 10,
+      "wageBase": 0,
       "wagePerLevel": 20,
+      "wageStatDivisor": 40,
+      "wageFameFactor": 0,
+      "contractLengthsYears": [1, 2, 3],
+      "contractWageFactors": [1, 0.95, 0.9],
       "hallUpkeepEveryDays": 30,
       "hallBaseUpkeep": 30,
       "hallUpkeepPerHero": 5,

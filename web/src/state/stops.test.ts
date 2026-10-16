@@ -61,7 +61,7 @@ describe('stopText', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     const rich = structuredClone(document);
     (rich.world.guilds[rival.id] as { wealth: number }).wealth = 100_000;
-    const offered = applyAction(rich, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+    const offered = applyAction(rich, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
     if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');

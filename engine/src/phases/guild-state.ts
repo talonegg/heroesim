@@ -5,7 +5,8 @@
 // (`foldedOnTurn` set — M2-CONTEXT: every per-Guild rule skips a folded Guild). Two charges, each on
 // its own Days (DL-26 says which; `nextWagesDay` and `nextHallUpkeepDay` give them, DL-112 item 3), each
 // for the Roster and the Hall there that night, in full, with no share of a span taken off (DL-294
-// item 4): the wages (`wages`), emitting `guild.wages-paid`, then the Hall's upkeep with its
+// item 4): the wages, each living Roster Hero's Contract wage (`wageBill`, DL-315), emitting `guild.wages-paid`
+// with each Hero's, then the Hall's upkeep with its
 // Improvements' (`hallUpkeepParts`), emitting `guild.hall-upkeep-paid` with its parts. Each is deducted
 // from Wealth, which may go negative. Every night, after any charge and whether or not one fell, a Guild
 // whose Wealth is now below `bankruptcyFloor` has `belowFloorSince` set to this Turn if it was not
@@ -19,7 +20,7 @@
 // `guild.floor-recovered`. Nothing is said while it stays set or stays clear.
 
 import type { EngineEvent } from '../events.js';
-import { bankruptcyCountdown, hallUpkeepParts, nextHallUpkeepDay, nextWagesDay, wages } from '../selectors.js';
+import { bankruptcyCountdown, hallUpkeepParts, nextHallUpkeepDay, nextWagesDay, wageBill } from '../selectors.js';
 import { dayOf } from '../time.js';
 import type { PhaseRun } from './phase.js';
 
@@ -34,13 +35,14 @@ export const guildState: PhaseRun = (world, ctx) => {
     if (guild.foldedOnTurn !== null) continue;
 
     if (wagesTonight) {
-      const amount = wages(guild, world, ctx.config);
+      const bill = wageBill(guild, world);
+      const amount = Object.values(bill).reduce((total, wage) => total + wage, 0);
       guild.wealth -= amount;
       events.push(
         ctx.emit({
           type: 'guild.wages-paid',
           participants: [guild.id],
-          payload: { guildId: guild.id, amount, wealthAfter: guild.wealth },
+          payload: { guildId: guild.id, amount, wealthAfter: guild.wealth, wages: bill },
         }),
       );
     }

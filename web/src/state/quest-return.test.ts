@@ -242,7 +242,7 @@ describe('questReturn', () => {
     // A second Hero at home, signed before the Party comes home.
     const [signing] = unattachedHeroes((base.document as WorldDocument).world);
     if (signing === undefined) throw new Error('no one in the pool');
-    const more = played(withWealth(base, 5_000), { kind: 'recruit', heroId: signing.id });
+    const more = played(withWealth(base, 5_000), { kind: 'recruit', heroId: signing.id, years: 2 });
     const document = more.document as WorldDocument;
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");

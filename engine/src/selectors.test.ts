@@ -24,6 +24,7 @@ import {
   nextHallUpkeepDay,
   nextWagesDay,
   upkeep,
+  wageBill,
   wages,
 } from './selectors.js';
 
@@ -149,15 +150,20 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
     expect(engine.nextHallUpkeepDay).toBe(nextHallUpkeepDay);
   });
 
-  test('the wages are wagePerLevel × Level over the living Roster: a Hero away counts, the dead and the retired do not', () => {
-    const { deps, world, guild } = hallOf('wages');
+  test("the wages are each living Roster Hero's Contract wage, summed: a Hero away counts, the dead and the retired do not, and a Level gained moves nothing (DL-315)", () => {
+    const { world, guild } = hallOf('wages');
     const [first, second, third, fourth] = guild.rosterIds as [HeroId, HeroId, HeroId, HeroId];
+    guild.rosterIds.forEach((heroId, index) => {
+      (world.heroes[heroId] as Hero).contract = { wage: 10 + index, signedOnTurn: 0, years: 1, endDay: 360 };
+    });
     (world.heroes[first] as Hero).level = 3;
     (world.heroes[second] as Hero).partyId = makeId('parties', 1);
-    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1 + 1 + 1));
+    expect(wageBill(guild, world)).toEqual({ [first]: 10, [second]: 11, [third]: 12, [fourth]: 13 });
+    expect(wages(guild, world)).toBe(10 + 11 + 12 + 13);
     (world.heroes[third] as Hero).diedOnTurn = 5;
     (world.heroes[fourth] as Hero).retiredOnTurn = 5;
-    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1));
+    expect(wageBill(guild, world)).toEqual({ [first]: 10, [second]: 11 });
+    expect(wages(guild, world)).toBe(10 + 11);
   });
 
   test("the Hall's upkeep: the Guild's own base, the Heroes' share on its curve, and each built Facility's upkeep × the grade factor ^ (grade − 1), each part rounded", () => {
@@ -188,7 +194,7 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
     const { deps, world, guild } = hallOf('hall-traits');
     guild.hall = { infirmary: 2, 'training-yard': 0, quarters: 1 };
     const listed = 40 + 20 + Math.round(15 * 1.73) + 10;
-    const plainWages = wages(guild, world, deps.config);
+    const plainWages = wages(guild, world);
     for (const [trait, factor] of [
       ['thrifty', 0.9],
       ['spendthrift', 1.1],
@@ -197,7 +203,7 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
       const parts = hallUpkeepParts(guild, world, deps.config, deps.content);
       expect(parts, trait).toMatchObject({ base: 40, heroes: 20, facilities: { infirmary: 26, quarters: 10 }, traitFactor: factor });
       expect(parts.total, trait).toBe(Math.round(listed * factor));
-      expect(wages(guild, world, deps.config), trait).toBe(plainWages);
+      expect(wages(guild, world), trait).toBe(plainWages);
     }
   });
 
@@ -278,12 +284,14 @@ describe("hallUpkeepSplit, a Hall upkeep charge's two lines (DL-302, DL-304)", (
 
 describe('upkeep, the measure the readers of Upkeeps count in (DL-298, DL-300)', () => {
   test("is a month's costs: three wage charges and one of the Hall's (hallUpkeepEveryDays ÷ upkeepEveryDays wage charges and one Hall charge), the sum rounded to whole Silver (DL-300)", () => {
-    const deps = testDeps({ startingRosterSize: 4, wagePerLevel: 5, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
+    // Each Contract's wage 5 by the wage rule's base alone: floor((5 + 0 × Level + a Stat sum ÷ 10⁹) × 1 × 1) (DL-315).
+    const wageOfFive = { wageBase: 5, wagePerLevel: 0, wageStatDivisor: 1e9, contractWageFactors: [1, 1, 1], negotiationRange: 0 };
+    const deps = testDeps({ startingRosterSize: 4, ...wageOfFive, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
     const { world } = createWorld('upkeep-measure', setup, deps).document;
     const guild = playerGuild(world) as Guild;
     (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
     guild.hallBaseUpkeep = 41;
-    // Wages 20; for 30 Days (3 charges): 60. The Hall's 41 + 20 = 61. Total: 60 + 61 = 121.
+    // Wages 4 × 5 = 20; for 30 Days (3 charges): 60. The Hall's 41 + 20 = 61. Total: 60 + 61 = 121.
     expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 61);
     guild.hallBaseUpkeep = 42;
     expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 62);

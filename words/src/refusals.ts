@@ -160,6 +160,11 @@ function inParty({ heroId, partyId }: Extract<ActionRejection, { reason: 'hero-i
   return say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero is transferred only from the Hall.`;
 }
 
+/** A signing for a length the config does not offer (DL-315): the lengths it does. */
+function lengthNotOffered({ years, offered }: Extract<ActionRejection, { reason: 'length-not-offered' }>): Sentence {
+  return say`A Contract is ${listed(offered.map(String), 'or')} years long; ${years} is not.`;
+}
+
 function notFound({ offerId }: Extract<ActionRejection, { reason: 'offer-not-found' }>, setting: RefusalSetting): Sentence {
   return say`No such Transfer Offer${ids(offerId)} stands for ${player(setting)}'s Heroes${command('show-offers')}.`;
 }
@@ -247,6 +252,7 @@ const sentences: Sentences = {
 
   // recruit.
   'recruit guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and signs no one.`,
+  'recruit length-not-offered': lengthNotOffered,
   'recruit hero-not-unattached': ({ heroId }, setting) => say`${hero(setting, heroId)} is not in the Unattached pool${command('pool-holds')}.`,
   'recruit signing-refused': ({ heroId, fameRequired, fame, shortfall }, setting) =>
     say`${hero(setting, heroId)} will not sign for a Guild with less than ${fameRequired} Fame; ${player(setting)} has ${fame}, ${shortfall} short.`,
@@ -294,6 +300,7 @@ const sentences: Sentences = {
 
   // The five Transfer actions (DL-57).
   'transferIn guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
+  'transferIn length-not-offered': lengthNotOffered,
   'transferIn hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
   'transferIn same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
   'transferIn hero-in-party': inParty,
@@ -308,9 +315,11 @@ const sentences: Sentences = {
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
   'transferOut transfer-refused': refused,
+  'transferOut length-not-offered': lengthNotOffered,
   'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
   'offerTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
+  'offerTransfer length-not-offered': lengthNotOffered,
   'offerTransfer hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
   'offerTransfer same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
   'offerTransfer hero-in-party': inParty,
@@ -326,6 +335,7 @@ const sentences: Sentences = {
   'acceptTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'acceptTransfer offer-not-found': notFound,
   'acceptTransfer hero-in-party': inParty,
+  'acceptTransfer length-not-offered': lengthNotOffered,
   'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
   'declineTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'declineTransfer offer-not-found': notFound,

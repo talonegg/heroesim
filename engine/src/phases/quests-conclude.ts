@@ -109,7 +109,7 @@ export function conclude(world: World, ctx: PhaseContext, { party, guild, quest,
     const hero = requireRow(world.heroes, heroId);
     hero.diedOnTurn = turn;
     hero.partyId = null;
-    leaveRoster(guild, heroId);
+    leaveRoster(guild, hero);
     events.push(emit({ type: 'hero.died', participants: [heroId, quest.id], payload: { heroId, questId: quest.id } }));
   }
 

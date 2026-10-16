@@ -515,14 +515,14 @@ export const testContent: ContentSet = deepFreeze({
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
   // The four Dispositions (INPUTS 7.5) with the weights the core has (DL-56; reckless's
-  // gearThreshold retuned by DL-58); partyMargin and restBand the core's (DL-157, DL-286). The M6
+  // gearThreshold retuned by DL-58); partyMargin, restBand and contractYears the core's (DL-157, DL-286, DL-315). The M6
   // close retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
   // measured, as a fixture of the one rule.
   dispositions: {
-    ...disposition('ambitious', { questRiskAppetite: 0.6, recruitThreshold: 40, buildThreshold: 1.5, gearThreshold: 2, transferAppetite: 0.75, partyMargin: 0.05, restBand: 'exhausted' }),
-    ...disposition('miserly', { questRiskAppetite: 0.25, recruitThreshold: 80, buildThreshold: 20, gearThreshold: 10, transferAppetite: 0.1, partyMargin: 0.05, restBand: 'tired' }),
-    ...disposition('reckless', { questRiskAppetite: 1, recruitThreshold: 30, buildThreshold: 4, gearThreshold: 3, transferAppetite: 0.5, partyMargin: 0.1, restBand: null }),
-    ...disposition('steady', { questRiskAppetite: 0, recruitThreshold: 60, buildThreshold: 3, gearThreshold: 3, transferAppetite: 0.25, partyMargin: 0.05, restBand: 'tired' }),
+    ...disposition('ambitious', { questRiskAppetite: 0.6, recruitThreshold: 40, buildThreshold: 1.5, gearThreshold: 2, transferAppetite: 0.75, partyMargin: 0.05, restBand: 'exhausted', contractYears: 1 }),
+    ...disposition('miserly', { questRiskAppetite: 0.25, recruitThreshold: 80, buildThreshold: 20, gearThreshold: 10, transferAppetite: 0.1, partyMargin: 0.05, restBand: 'tired', contractYears: 3 }),
+    ...disposition('reckless', { questRiskAppetite: 1, recruitThreshold: 30, buildThreshold: 4, gearThreshold: 3, transferAppetite: 0.5, partyMargin: 0.1, restBand: null, contractYears: 1 }),
+    ...disposition('steady', { questRiskAppetite: 0, recruitThreshold: 60, buildThreshold: 3, gearThreshold: 3, transferAppetite: 0.25, partyMargin: 0.05, restBand: 'tired', contractYears: 2 }),
   },
   facilities: facilities(),
   improvements: improvements(),
@@ -771,6 +771,7 @@ export const plannedStreams = [
   'descriptions',
   'hero-portraits',
   'hero-descriptions',
+  'contracts',
 ] as const;
 
 /** `encounter`'s one Check: an Encounter has one or several (DL-148). */
@@ -1077,6 +1078,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       appearance: `An Appearance of ${id}.`,
       biography: `A Biography of ${id}.`,
       regard: {},
+      contract: guildId === null ? null : { wage: 20, signedOnTurn: 0, years: 2, endDay: 400 },
     };
     world.heroes[id] = row;
     log(0, 'hero.generated', [id]);
@@ -1150,6 +1152,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   log(9, 'quest.resolved', [resolvedQuest, patron, playerGuild], false, { wealthDelta: 0 });
   log(12, 'hero.left-pool', [departedHero]);
   deadHero.diedOnTurn = 30;
+  deadHero.contract = null;
   log(30, 'hero.died', [deadHero.id, playerGuild], true);
 
   // A Quest taken by a Party, and one on the Board.
@@ -1216,6 +1219,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
     toGuildId: playerGuild,
     heroId: rivalHero,
     fee: 300,
+    years: 2,
     offeredOnTurn: 39,
     expiresOnTurn: 45,
   };

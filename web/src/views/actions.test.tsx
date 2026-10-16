@@ -158,7 +158,7 @@ describe('the Unattached pool', () => {
     expect(within(rosterList()).getAllByRole('button')).toHaveLength(heroes + 1);
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     expect(within(section('Unattached pool')).queryByRole('button', { name })).toBeNull();
-    logSays(new RegExp(`^The Lantern signed ${name} for ${coinWords(fee)}\\.$`));
+    logSays(new RegExp(`^The Lantern signed ${name} for ${coinWords(fee)}, on a Contract at .+\\.$`));
   });
 
   test('says why a Hero will not sign, and recruits from their page too', async () => {
@@ -263,7 +263,7 @@ describe("a Hero's page on the player's Roster", () => {
     expect(wealth()).toBe(before + silverOfWords(feeWords));
     fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
     expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
-    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}\\.$`));
+    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}, on a Contract at .+\\.$`));
   });
 
   test('says why a Guild will not take the Hero', async () => {
@@ -295,7 +295,7 @@ describe("another Guild's Roster", () => {
 
     expect(wealth()).toBe(before - fee);
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
-    logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for ${coinWords(fee)}\\.$`));
+    logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for ${coinWords(fee)}, on a Contract at .+\\.$`));
   });
 
   test("offers the same from a Rival Hero's page, and says why a Guild will not part with them", async () => {
@@ -338,7 +338,7 @@ describe('Transfer Offers', () => {
     expect(wealth()).toBe(before + silverOfWords(feeWords));
     expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
-    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}, accepting its Transfer Offer\\.$`));
+    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${feeWords}, accepting its Transfer Offer, on a Contract at .+\\.$`));
   });
 
   test('declines an offer: the Hero stays', async () => {

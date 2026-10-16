@@ -248,7 +248,7 @@ export function withWealth(state: GameState, wealth: number, belowFloorSince?: n
 export function withRosterReleased(state: GameState, wealth = 1_000_000): GameState {
   return changed(state, (document, player) => {
     for (const heroId of player.rosterIds) {
-      Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn });
+      Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn, contract: null });
     }
     player.rosterIds = [];
     player.wealth = wealth;
@@ -581,7 +581,7 @@ export function withOffer(state: GameState): GameState {
   const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id);
   const heroId = player.rosterIds[0];
   if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
-  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, { config: { ...defaultConfig, ...document.meta.config }, content });
+  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, { config: { ...defaultConfig, ...document.meta.config }, content });
   if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
   return { ...rich, document: offered.document };
 }
@@ -600,7 +600,7 @@ export function withWorldNews(state: GameState): GameState {
     const retiring = world.guildmasters[succeeding.guildmasterId];
     if (retiring === undefined) throw new Error('no Guildmaster');
     retiring.ageAtEntry = { ...defaultConfig, ...document.meta.config }.guildmasterRetirementAge;
-    for (const heroId of folding.rosterIds) Object.assign(world.heroes[heroId] as Hero, { guildId: null, unattachedSince: world.turn });
+    for (const heroId of folding.rosterIds) Object.assign(world.heroes[heroId] as Hero, { guildId: null, unattachedSince: world.turn, contract: null });
     folding.rosterIds = [];
     folding.wealth = 0;
   });

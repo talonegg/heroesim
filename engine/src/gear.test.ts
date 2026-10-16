@@ -208,7 +208,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
     const charm = addStack(world, 'lucky-charm', 1, slotOf(retiree.id, 'trinket'));
     addStack(world, 'lucky-charm', 1, slotOf(active.id, 'trinket'));
     world.turn = nightOf(3);
-    retiree.retiredOnTurn = world.turn;
+    Object.assign(retiree, { retiredOnTurn: world.turn, contract: null });
     guild.rosterIds = guild.rosterIds.filter((id) => id !== retiree.id);
 
     const events = gearReturn(world, phaseContext(world, deps));

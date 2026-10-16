@@ -15,6 +15,7 @@ import {
   type Guildmaster,
   type Hall,
   type Hero,
+  type HeroId,
   type Quest,
   type StatValues,
   type Turn,
@@ -100,12 +101,20 @@ function heroFee(
   buyer: Pick<Guildmaster, 'stats'> | undefined,
 ): number {
   const { config, content } = deps;
-  let statSum = 0;
-  for (const stat of Object.values(content.stats)) {
-    if (stat.owner === 'hero') statSum += baseStat(hero.stats, stat);
-  }
-  const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor;
+  const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + heroStatSum(hero, content) / config.signingFeeStatDivisor;
   return Math.floor(list * factor * feeFactor(buyer, content, config));
+}
+
+/**
+ * The sum of `hero`'s base Stats over content's Hero Stats (`baseStat`), what the fees and the wage rule
+ * read: a Stat content no longer defines is ignored, and one the row lacks reads as its default (rule 5).
+ */
+export function heroStatSum(hero: Pick<Hero, 'stats'>, content: Pick<ContentSet, 'stats'>): number {
+  let sum = 0;
+  for (const stat of Object.values(content.stats)) {
+    if (stat.owner === 'hero') sum += baseStat(hero.stats, stat);
+  }
+  return sum;
 }
 
 /** Why an Unattached Hero refuses to sign for a Guild: its Fame is short of what their Level asks. */
@@ -304,12 +313,22 @@ function livingRoster(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroe
 }
 
 /**
- * A Guild's wages each time they fall due (M2-S7, INPUTS 4.6, DL-298): `wagePerLevel` for each Level of
- * each living Hero on the Roster (`livingRoster`), whole Silver as both are. No Guildmaster Trait
- * scales them (DL-294 item 3, Q17). Computed from the Roster, never stored (data-model §3.2, rule 1).
+ * Each living Hero on the Roster (`livingRoster`) and their Contract's wage, in Roster order: what
+ * `guild.wages-paid` names (DL-298, DL-315). The wage was set at signing and is fixed for the term, so a
+ * Level gained moves nothing (DL-294 item 6). No Guildmaster Trait scales it (DL-294 item 3, Q17).
  */
-export function wages(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>, config: Pick<GameConfig, 'wagePerLevel'>): number {
-  return livingRoster(guild, world).reduce((total, hero) => total + config.wagePerLevel * hero.level, 0);
+export function wageBill(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>): Record<HeroId, number> {
+  const bill: Record<HeroId, number> = {};
+  for (const hero of livingRoster(guild, world)) bill[hero.id] = hero.contract?.wage ?? 0;
+  return bill;
+}
+
+/**
+ * A Guild's wages each time they fall due (DL-298, DL-315): the sum of each living Roster Hero's Contract
+ * wage (`wageBill`), whole Silver as each is. Computed from the Roster, never stored (data-model §3.2, rule 1).
+ */
+export function wages(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>): number {
+  return Object.values(wageBill(guild, world)).reduce((total, wage) => total + wage, 0);
 }
 
 /** The Hall's upkeep in its parts (`hallUpkeepParts`): what `guild.hall-upkeep-paid` carries and the Treasury shows. */
@@ -384,12 +403,12 @@ export function upkeep(
   world: Pick<World, 'heroes' | 'guildmasters'>,
   config: Pick<
     GameConfig,
-    'wagePerLevel' | 'upkeepEveryDays' | 'hallUpkeepEveryDays' | 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'
+    'upkeepEveryDays' | 'hallUpkeepEveryDays' | 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'
   >,
   content: Pick<ContentSet, 'facilities' | 'guildmasterTraits'>,
 ): number {
   const hall = hallUpkeepParts(guild, world, config, content).total;
-  return Math.round((wages(guild, world, config) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
+  return Math.round((wages(guild, world) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
 }
 
 /**

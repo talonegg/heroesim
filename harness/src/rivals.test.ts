@@ -37,7 +37,7 @@ describe("the core's Rivals hire back to rivalRosterMin by need (DL-60)", () => 
       // (DL-58's order); a Wealth under the row's threshold, so that only the need hires.
       for (const heroId of rival.rosterIds.splice(2)) {
         const hero = document.world.heroes[heroId];
-        if (hero !== undefined) hero.diedOnTurn = document.world.turn;
+        if (hero !== undefined) Object.assign(hero, { diedOnTurn: document.world.turn, contract: null });
       }
       for (const facility of Object.keys(content.facilities)) rival.hall[facility] = topGrade(facility);
       rival.wealth = 1_000;

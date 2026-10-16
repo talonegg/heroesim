@@ -181,7 +181,7 @@ describe('dispatch', () => {
       const { document, ids, rogue, mage, healer } = built();
       const changed = structuredClone(document);
       heroOf(changed.world, mage).injury = { typeKey: 'broken-arm', healsOnTurn: fixtureTurn + 30 };
-      heroOf(changed.world, healer).retiredOnTurn = fixtureTurn - 1;
+      Object.assign(heroOf(changed.world, healer), { retiredOnTurn: fixtureTurn - 1, contract: null });
       const player = changed.world.guilds[ids.playerGuild] as Guild;
       player.rosterIds = player.rosterIds.filter((id) => id !== healer);
       withValid(changed, deps);

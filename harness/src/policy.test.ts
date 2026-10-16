@@ -164,7 +164,7 @@ describe('automaticPolicy', () => {
     expect(random).not.toHaveBeenCalled();
     const byId = [...quests].sort((a, b) => (a.id < b.id ? -1 : 1)).map((quest) => quest.id);
     expect(dispatches(actions).map((action) => action.questId)).toEqual(byId.slice(0, dispatches(actions).length));
-    expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id }]);
+    expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id, years: defaultPolicyConfig.contractYears }]);
   });
 
   test('sends the Party the engine’s staffing rule names, by the chance estimate, of equal chances to the highest reward first', () => {
@@ -428,7 +428,7 @@ describe('automaticPolicy', () => {
       const cheapest = Math.min(...pool.map((hero) => signingFee(hero, deps)));
       const expected = pool.find((hero) => signingFee(hero, deps) === cheapest);
 
-      expect(automaticPolicy(document, deps, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: expected?.id }]);
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: expected?.id, years: defaultPolicyConfig.contractYears }]);
     });
 
     test('only when Wealth is strictly above the threshold and covers the fee', () => {
@@ -458,10 +458,10 @@ describe('automaticPolicy', () => {
       expect(signingFee(first, gated)).toBeLessThan(signingFee(second, gated));
       expect(signingRefusal(guild, first, gated.config)).toEqual({ fameRequired: 20, fame: 0, shortfall: 20 });
 
-      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: second.id }]);
+      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: second.id, years: defaultPolicyConfig.contractYears }]);
 
       guild.fame = 20;
-      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: first.id }]);
+      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: first.id, years: defaultPolicyConfig.contractYears }]);
 
       guild.fame = 0;
       for (const hero of pool) hero.level = 2;
@@ -479,7 +479,7 @@ describe('automaticPolicy', () => {
       const { document, guild } = recruiting(0);
       guild.hallBaseUpkeep = 3_000;
       const threshold = defaultPolicyConfig.recruitWealthMultiple * upkeep(guild, document.world, deps.config, deps.content);
-      expect(threshold).toBeGreaterThan(defaultPolicyConfig.recruitWealthMultiple * (wages(guild, document.world, deps.config) + 800));
+      expect(threshold).toBeGreaterThan(defaultPolicyConfig.recruitWealthMultiple * (wages(guild, document.world) + 800));
 
       guild.wealth = threshold;
       expect(automaticPolicy(document, deps, noBuilding)).toEqual([]);
@@ -694,7 +694,7 @@ describe('automaticPolicy', () => {
       const heroId = guild.rosterIds[index];
       if (heroId === undefined) throw new Error('Too few Heroes');
       (current.world.guilds[rival.id] as Guild).wealth = 10_000;
-      const result = applyAction(current, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      const result = applyAction(current, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
       if (!result.ok) throw new Error(`Refused: ${JSON.stringify(result.rejection)}`);
       current = result.document;
       return Object.keys(current.world.offers).sort().at(-1);

@@ -128,7 +128,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                       aria-label={`Recruit ${row.name}`}
                       aria-describedby={row.willSign === false ? signsId(row.heroId) : undefined}
                       disabled={busy || row.willSign === false}
-                      onClick={() => play({ kind: 'recruit', heroId: row.heroId })}
+                      onClick={() => play({ kind: 'recruit', heroId: row.heroId, years: 2 })}
                     >
                       Recruit
                     </button>

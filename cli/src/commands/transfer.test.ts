@@ -72,7 +72,7 @@ describe('transfer', () => {
     const moved = guildOf(after.world, ambitious);
     const fee = 1_000_000 - moved.wealth;
     expect(fee).toBeGreaterThan(0);
-    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${coinWords(fee)}.`);
+    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${coinWords(fee)}, on a Contract at `);
     expect(run.out).toContain(`The Test: Wealth ${coinLetters(player.wealth + fee)}; ${player.rosterIds.length - 1} Heroes on the Roster.`);
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).rosterIds).not.toContain(heroId);
@@ -105,7 +105,7 @@ describe('transfer', () => {
     // The player's own Heroes have no one fee: each Rival pays at its own Guildmaster's Negotiation.
     expect(play(['show', 'roster']).out).not.toContain('Transfer fee');
     expect(play(['show', 'hero', ownId]).out).not.toContain('Transfer fee');
-    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}.`);
+    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}, on a Contract at `);
   });
 
   test('a Rival that will not take the Hero, or a Guild the save lacks, is refused and nothing is written', () => {
@@ -135,7 +135,7 @@ describe('transfer', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     const after = document();
     const fee = 10_000 - thePlayer(after.world).wealth;
-    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${coinWords(fee)}.`);
+    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${coinWords(fee)}, on a Contract at `);
     expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
     expect(guildOf(after.world, reckless).wealth).toBe(guildOf(before.world, reckless).wealth + fee);
   });
@@ -186,7 +186,7 @@ describe('Transfer Offers', () => {
     });
     const [heroId] = thePlayer(before.world).rosterIds as [HeroId];
     const deps = { config: { ...defaultConfig, ...before.meta.config }, content };
-    const made = applyAction(before, { kind: 'offerTransfer', guildId: ambitious as GuildId, heroId }, deps);
+    const made = applyAction(before, { kind: 'offerTransfer', guildId: ambitious as GuildId, heroId, years: 2 }, deps);
     if (!made.ok) throw new Error(`Refused: ${JSON.stringify(made.rejection)}`);
     writeFileSync(current(), serialise(made.document));
     const [offer] = Object.values(made.document.world.offers);
@@ -222,7 +222,7 @@ describe('Transfer Offers', () => {
     const accepted = play(['accept', '--offer', offerId]);
 
     expect(accepted).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(accepted.out).toContain(`from The Test for ${coinWords(fee)}, accepting ${offerId}.`);
+    expect(accepted.out).toContain(`from The Test for ${coinWords(fee)}, accepting ${offerId}, on a Contract at `);
     const after = document();
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).wealth).toBe(wealth + fee);

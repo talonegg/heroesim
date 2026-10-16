@@ -351,7 +351,7 @@ function HeroActionsView({
               className="button--primary"
               aria-label={`Recruit ${name}`}
               disabled={busy || !actions.willSign}
-              onClick={() => play({ kind: 'recruit', heroId })}
+              onClick={() => play({ kind: 'recruit', heroId, years: 2 })}
             >
               Recruit
             </button>
@@ -366,7 +366,7 @@ function HeroActionsView({
             {actions.guildName} is willing to part with them.
           </p>
           <div className="actions">
-            <button type="button" aria-label={`Take ${name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId })}>
+            <button type="button" aria-label={`Take ${name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId, years: 2 })}>
               Take in
             </button>
           </div>

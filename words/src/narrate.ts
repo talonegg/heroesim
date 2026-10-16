@@ -23,6 +23,7 @@ import {
   isModuleEvent,
   parseId,
   regardBandNames,
+  type ContractTerms,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
@@ -46,7 +47,7 @@ import {
   type World,
 } from '@heroesim/engine';
 import { type ContentSet, type Degree } from '@heroesim/engine/content';
-import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
+import { dateOfDay, dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
 import { coinWords } from './coins.js';
 import { facilityIs, facilityName } from './facilities.js';
 import { listed, nameIn, signed, signedCoins } from './names.js';
@@ -297,6 +298,14 @@ export function itemsWords(content: ContentSet, definitionKey: string, quantity:
   return quantity === 1 ? name : `${quantity} × ${name}`;
 }
 
+/**
+ * A signing's Contract as its sentence ends (DL-315): `, on a Contract at 22 Silver to Year 2 Day 41`, its
+ * wage and its end Day as the calendar names it, which says its length; short enough for the CLI's line.
+ */
+function contractWords({ wage, endDay }: ContractTerms, calendar: Calendar): Sentence {
+  return say`, on a Contract at ${coinWords(wage)} to ${dateOfDay(endDay, calendar)}`;
+}
+
 /** An Item of gear that moved, by content's name and the id `equip` takes: `Arming sword (stack-000004)` in the CLI. */
 function gear(move: GearMove, content: ContentSet): Sentence {
   return say`${nameIn(content.items, move.definitionKey)}${ids(move.itemId ?? move.stackId ?? '')}`;
@@ -332,7 +341,8 @@ const sentences: Sentences = {
     const { guildId, wealth, floor, belowFloorSince } = event.payload;
     return say`${called(event, guildId)}'s Wealth, ${coinWords(wealth)}, is back to the Bankruptcy floor of ${coinWords(floor)} or more, after falling below it on ${dateOfTurn(belowFloorSince, calendar)}: no Bankruptcy is due.`;
   },
-  'hero.recruited': (event) => say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}.`,
+  'hero.recruited': (event, _content, calendar) =>
+    say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}${contractWords(event.payload, calendar)}.`,
   'hero.left-pool': (event) => say`${hero(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, content) => {
     const { patronId, templateKey, questId } = event.payload;
@@ -477,11 +487,11 @@ const sentences: Sentences = {
       ? say`${called(event, guildId)}'s ${what} went to the Market for ${coinWords(proceeds)} as the Guild folded.`
       : say`${called(event, guildId)} sold ${what} at the Market for ${coinWords(proceeds)}.`;
   },
-  'hero.transferred': (event) => {
-    // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was.
+  'hero.transferred': (event, _content, calendar) => {
+    // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was; the new Contract's terms (DL-315).
     const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
     const accepted = offerId === null ? '' : say`, accepting ${{ kind: 'offer', id: offerId }}`;
-    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${coinWords(fee)}${accepted}.`;
+    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${coinWords(fee)}${accepted}${contractWords(event.payload, calendar)}.`;
   },
   'guild.transfer-offered': (event, _content, calendar) => {
     const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;

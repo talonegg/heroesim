@@ -70,6 +70,8 @@ export interface PolicyConfig {
    * Upkeeps (DL-62, DL-300), so that a Guild earning little over its Upkeep keeps its margin for its wages.
    */
   consumableReserveUpkeeps: number;
+  /** The length, in years, of the Contract it signs each Hero it recruits for (Q7c, DL-294 item 6, DL-315). */
+  contractYears: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
@@ -79,6 +81,7 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
   buyWealthMultiple: 3,
   consumableStock: 2,
   consumableReserveUpkeeps: 20 / 3,
+  contractYears: 2,
 });
 
 /**
@@ -123,7 +126,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   - **Recruit** when the Roster is below `rosterLimit` and Wealth is above
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
- *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
+ *     M3-S5), if Wealth covers the fee, on a Contract of `contractYears`. A Hero who would refuse the
+ *     Guild's Fame is passed over.
  *   - **Buy consumables** toward `consumableStock` of each (DL-62; the engine's `consumablePurchase`,
  *     DL-288, as a Rival buys its heal Items): of the consumables the Market
  *     has for sale, the one the Guild has fewest of, lowest key among equals, as many as it lacks
@@ -192,7 +196,9 @@ function recruitment(world: World, guild: Guild, deps: EngineDeps, policy: Reado
   if (guild.rosterIds.length >= policy.rosterLimit) return null;
   if (guild.wealth <= policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)) return null;
   const cheapest = cheapestUnattached(world, deps, guild);
-  return cheapest !== null && cheapest.fee <= guild.wealth ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id } : null;
+  return cheapest !== null && cheapest.fee <= guild.wealth
+    ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id, years: policy.contractYears }
+    : null;
 }
 
 /** Every consumable's effect: the policy keeps every consumable, a Rival its heal Items alone (DL-288). */

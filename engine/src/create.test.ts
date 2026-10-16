@@ -32,6 +32,17 @@ function rivals(document: WorldDocument): Guild[] {
  * (DL-135 item 4), so a change to one Guildmaster may change the pictures of those after, and with
  * them their Appearance and Biography, while every draw of every stream is the same.
  */
+/**
+ * `chosen` with its Heroes' Contract wages set to `drawn`'s: a founding wage reads the Guildmaster's
+ * Negotiation (DL-315), so the player's Stats chosen move it, though no draw.
+ */
+function wagesAside(chosen: WorldDocument, drawn: WorldDocument): void {
+  for (const hero of Object.values(chosen.world.heroes)) {
+    const was = drawn.world.heroes[hero.id]?.contract;
+    if (hero.contract !== null && was !== null && was !== undefined) hero.contract.wage = was.wage;
+  }
+}
+
 function picturesAside(document: WorldDocument): WorldDocument {
   const copy = structuredClone(document);
   for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
@@ -789,6 +800,7 @@ describe("the player's Guildmaster's Stats chosen (DL-149)", () => {
       const chosen = createWorld(seed, { ...setup, guildmasterStats: best }, deps).document;
       expect(guildmasterOf(chosen).stats).not.toEqual(guildmasterOf(drawn).stats);
       guildmasterOf(chosen).stats = guildmasterOf(drawn).stats;
+      wagesAside(chosen, drawn);
       // No picture or text reads a Stat, so not even they are set aside.
       expect(chosen, seed).toEqual(drawn);
     }
@@ -814,6 +826,7 @@ describe("the player's Guildmaster's Stats chosen (DL-149)", () => {
       ).document;
       const was = guildmasterOf(drawn);
       chosen.world.guildmasters[was.id] = structuredClone(was);
+      wagesAside(chosen, drawn);
       // Every Guildmaster's picture fits them among those not in use, so a Rival's, and the
       // texts it writes, may follow the player's; every draw of every stream is the same.
       expect(picturesAside(chosen), seed).toEqual(picturesAside(drawn));

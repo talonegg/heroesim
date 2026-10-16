@@ -20,9 +20,17 @@ afterEach(() => {
 /** Each Facility's upkeep a month at grade 1, pinned in content. */
 const priced = withFacilityUpkeep({ infirmary: 10, 'training-yard': 10, quarters: 10 });
 
-/** The figures these tests reason by hand with: wages 5 a Level, the Hall 30, 5 a Hero, every 10 and 30 Days. */
+/**
+ * The figures these tests reason by hand with: the Hall 30, 5 a Hero, every 10 and 30 Days; and every
+ * Contract's wage 5, the wage rule's base alone (DL-315): floor((5 + 0 × Level + a Stat sum of about 130 ÷
+ * 10⁹) × 1 at every length × 1, no Negotiation).
+ */
 const charges: Partial<GameConfig> = {
-  wagePerLevel: 5,
+  wageBase: 5,
+  wagePerLevel: 0,
+  wageStatDivisor: 1e9,
+  contractWageFactors: [1, 1, 1],
+  negotiationRange: 0,
   upkeepEveryDays: 10,
   hallUpkeepEveryDays: 30,
   hallBaseUpkeep: 30,
@@ -78,10 +86,10 @@ describe('guildState: the wages and the Hall’s upkeep', () => {
     expect(events.map((event) => event.type)).toEqual(guilds.map(() => 'guild.wages-paid'));
     for (const guild of guilds) {
       const was = before[guild.id] as Guild;
-      // One Hero each, at Level 1.
+      // One Hero each, on a Contract of 5.
       expect(guild.wealth).toBe(was.wealth - 5);
       const [event] = ofType(events, 'guild.wages-paid').filter((candidate) => candidate.payload.guildId === guild.id);
-      expect(event?.payload).toEqual({ guildId: guild.id, amount: 5, wealthAfter: guild.wealth });
+      expect(event?.payload).toEqual({ guildId: guild.id, amount: 5, wealthAfter: guild.wealth, wages: { [guild.rosterIds[0] as string]: 5 } });
       expect(event?.participants).toEqual([guild.id]);
       expect(event?.milestone).toBe(false);
     }
@@ -121,7 +129,7 @@ describe('guildState: the wages and the Hall’s upkeep', () => {
     player.hall = { infirmary: 3, 'training-yard': 1, quarters: 0 };
     (world.guildmasters[player.guildmasterId] as Guildmaster).traits = ['spendthrift'];
     world.turn = nightOf(59);
-    const owedWages = wages(player, world, deps.config);
+    const owedWages = wages(player, world);
     const parts = hallUpkeepParts(player, world, deps.config, deps.content);
     const before = player.wealth;
 

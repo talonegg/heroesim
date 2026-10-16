@@ -441,7 +441,7 @@ export function treasuryAccounts(document: WorldDocument): TreasuryAccounts | nu
   if (guild === undefined) return null;
   const { config } = deps;
 
-  const owed = wages(guild, world, config);
+  const owed = wages(guild, world);
   const hall = hallUpkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
   const changes = changesOf(document, guild.id);

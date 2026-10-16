@@ -1114,7 +1114,7 @@ describe('sweepPlay', () => {
             refusals: [
               {
                 turn: 9,
-                action: { kind: 'recruit', guildId: 'guild-000001' as never, heroId: 'hero-000009' as never },
+                action: { kind: 'recruit', guildId: 'guild-000001' as never, heroId: 'hero-000009' as never, years: 2 },
                 rejection: { action: 'recruit', reason: 'insufficient-wealth', fee: 90, wealth: 10 },
               },
             ],

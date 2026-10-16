@@ -155,7 +155,14 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   guildmasterTraitsMax: maxOf('guildmasterTraitsMin', 'guildmasterTraitsMax'),
   guildmasterTraitBudget: anyFinite,
   upkeepEveryDays: wholeFrom(1),
+  // The wage rule's terms and the Contract's lengths, a factor for each (DL-294 item 6).
+  wageBase: wholeFrom(0),
   wagePerLevel: wholeFrom(0),
+  wageStatDivisor: finiteAbove(0),
+  wageFameFactor: finiteFrom(0),
+  // Three each, as long as `contractWageFactors`, whose rule reads it: its length is 'the Contract's lengths and factors'.
+  contractLengthsYears: { refused: [[], [0, 1, 2], [1, 1, 2], [1, 1.5, 2], [1, '2', 3], 1], allowed: [[1, 2, 3], [2, 4, 6], [3, 1, 2]] },
+  contractWageFactors: { refused: [[1, 0.95], [1, 0.95, 0.9, 0.85], [1, 0, 1], [1, -1, 1], [1, Number.NaN, 1], [1, '1', 1], 1], allowed: [[1, 1, 1], [0.5, 2, 0.01]] },
   // DL-298: the Hall's upkeep, its Days, its base, its Heroes' curve and its grades' factor.
   hallUpkeepEveryDays: wholeFrom(1),
   hallBaseUpkeep: wholeFrom(0),
@@ -537,6 +544,16 @@ describe('the bands, in their order', () => {
     const bands = { ...defaultConfig.chanceBands, even: defaultConfig.chanceBands.likely };
     expect(checkConfig({ ...defaultConfig, chanceBands: bands })[0]?.message).toBe(
       `chanceBands is ${JSON.stringify(bands)}; it holds unlikely < even < likely < near-certain, each a finite number, above 0 and below 1`,
+    );
+  });
+});
+
+describe("the Contract's lengths and factors (DL-294 item 6)", () => {
+  test('a factor for each length: two lengths take two factors, and a list of another length is refused, naming the lengths', () => {
+    expect(broken({ contractLengthsYears: [1, 2], contractWageFactors: [1, 0.9] })).toEqual([]);
+    expect(broken({ contractLengthsYears: [1, 2] })).toEqual(['contractWageFactors']);
+    expect(checkConfig({ ...defaultConfig, contractWageFactors: [1] })[0]?.message).toBe(
+      'contractWageFactors is [1]; it is a list of one factor for each of contractLengthsYears ([1,2,3]), in its order, each a finite number above 0',
     );
   });
 });

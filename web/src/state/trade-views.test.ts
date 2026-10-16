@@ -236,7 +236,7 @@ describe('offersView', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     expect(offersView(document)).toEqual({ guildName: 'The Lantern', offers: [] });
 
-    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
     if (!offered.ok) throw new Error(offered.rejection.reason);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');
@@ -263,7 +263,7 @@ describe('offersView', () => {
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
     if (rival === undefined) throw new Error('no Rival');
     for (const heroId of guild.rosterIds.slice(0, 2)) {
-      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
       if (!offered.ok) throw new Error(offered.rejection.reason);
       document = offered.document;
     }

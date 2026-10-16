@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { contractWage } from '../contract.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type HeroId, type WorldDocument } from '../document.js';
 import { count } from '../history.js';
@@ -40,7 +41,7 @@ describe('recruit', () => {
     const wealth = guild.wealth;
     const roster = [...guild.rosterIds];
 
-    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -61,7 +62,7 @@ describe('recruit', () => {
     const { document, guild, hero } = scene();
     const fee = signingFee(hero, deps);
 
-    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     expect(result.events).toEqual([
@@ -71,7 +72,8 @@ describe('recruit', () => {
         participants: [hero.id, guild.id],
         labels: { [hero.id]: hero.name, [guild.id]: guild.name },
         milestone: true,
-        payload: { heroId: hero.id, guildId: guild.id, fee },
+        // The Contract signed for 2 years at the wage rule's wage, its end Day 2 × 360 Days on from Day 0 (DL-315).
+        payload: { heroId: hero.id, guildId: guild.id, fee, wage: contractWage(document.world, hero, guild, 2, deps), years: 2, endDay: 720 },
       },
     ]);
     const { history } = result.document;
@@ -84,7 +86,7 @@ describe('recruit', () => {
     const { document, rival, hero } = scene();
     const fee = signingFee(hero, deps);
 
-    const result = applyAction(document, { kind: 'recruit', guildId: rival.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: rival.id, heroId: hero.id, years: 2 }, deps);
 
     if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
     const { world } = withValid(result.document, deps);
@@ -96,25 +98,43 @@ describe('recruit', () => {
     const { document, guild, hero } = scene();
     guild.wealth = signingFee(hero, deps);
 
-    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
 
     expect(result.ok && result.document.world.guilds[guild.id]?.wealth).toBe(0);
   });
 
+  // DL-315: the Guild chooses the length, and the Hero holds the Contract signed.
+  test.each([1, 2, 3])('signs the Hero on a Contract of the %i years chosen, at the wage rule\'s wage for that length', (years) => {
+    const { document, guild, hero } = scene();
+
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years }, deps);
+
+    if (!result.ok) throw new Error(`Refused: ${result.rejection.reason}`);
+    const { world } = withValid(result.document, deps);
+    expect(world.heroes[hero.id]?.contract).toEqual({ wage: contractWage(document.world, hero, guild, years, deps), signedOnTurn: 0, years, endDay: years * 360 });
+  });
 });
 
 describe('recruit refuses, never throwing and changing nothing', () => {
   /** Recruits `heroId` for `guildId` in `document`, asserting it neither throws nor changes anything. */
-  function refused(document: WorldDocument, guild: Guild, heroId: HeroId): RecruitRejection {
+  function refused(document: WorldDocument, guild: Guild, heroId: HeroId, years = 2): RecruitRejection {
     const saved = serialise(document);
     const entries = document.history.entries.length;
     let result: ActionResult<RecruitRejection> | undefined;
-    expect(() => (result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps))).not.toThrow();
+    expect(() => (result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId, years }, deps))).not.toThrow();
     expect(serialise(document)).toBe(saved);
     expect(document.history.entries).toHaveLength(entries);
     if (result === undefined || result.ok) throw new Error('Recruited, where a refusal was expected');
     return result.rejection;
   }
+
+  test('length-not-offered: a length contractLengthsYears does not hold, before the Hero is asked (DL-315)', () => {
+    const { document, guild, hero } = scene();
+    for (const years of [0, 4, 1.5]) {
+      expect(refused(document, guild, hero.id, years)).toEqual({ action: 'recruit', reason: 'length-not-offered', years, offered: [1, 2, 3] });
+    }
+    expect(refused(document, guild, guild.rosterIds[0] as HeroId, 4)).toMatchObject({ reason: 'length-not-offered' });
+  });
 
   test('hero-not-unattached: a Hero on a Roster', () => {
     const { document, guild, rival } = scene();
@@ -172,7 +192,7 @@ describe('recruit and Fame (R10 as amended, pre-M0 review B4)', () => {
 
   /** Recruits `hero` for `guild` under `gated`, asserting the document when it succeeds. */
   function sign(document: WorldDocument, guild: Guild, hero: Hero) {
-    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, gated);
+    const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, gated);
     if (result.ok) withValid(result.document, gated);
     return result;
   }
@@ -225,7 +245,7 @@ describe('recruit throws on a programming error', () => {
     const { document, hero } = scene();
     const saved = serialise(document);
 
-    expect(() => applyAction(document, { kind: 'recruit', guildId: makeId('guilds', 99), heroId: hero.id }, deps)).toThrow(RangeError);
+    expect(() => applyAction(document, { kind: 'recruit', guildId: makeId('guilds', 99), heroId: hero.id, years: 2 }, deps)).toThrow(RangeError);
     expect(serialise(document)).toBe(saved);
   });
 });

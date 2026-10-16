@@ -1,9 +1,10 @@
 // `recruit` (M2-S8, R27, DL-27): a Guild signs a Hero from the Unattached pool for the signing
-// fee. Every Guild recruits through this one rule, `applyRecruit`, the player's front end by
+// fee, on a Contract of the length the Guild chooses (DL-315). Every Guild recruits through this one rule, `applyRecruit`, the player's front end by
 // `applyAction` and a Rival's controller on the Turn's copy (ADR-0002, DL-30), so every Guild pays
 // the same price by the same rule.
 
 import type { EngineDeps } from '../config.js';
+import { lengthNotOffered, signContract, type LengthNotOffered } from '../contract.js';
 import {
   rowOf,
   type Guild,
@@ -22,6 +23,8 @@ export interface RecruitAction {
   guildId: GuildId;
   /** A Hero in the Unattached pool. */
   heroId: HeroId;
+  /** The Contract's length in years, the Guild's choice: one of `contractLengthsYears` (DL-294 item 6). */
+  years: number;
 }
 
 /** The Guild has folded (M2-S10): it has left play and never gains a Roster again. */
@@ -51,6 +54,7 @@ export interface InsufficientWealthRejection extends Rejection<'recruit', 'insuf
 /** Why a Guild could not sign a Hero. */
 export type RecruitRejection =
   | GuildFoldedRejection
+  | LengthNotOffered<'recruit'>
   | HeroNotUnattachedRejection
   | SigningRefusedRejection
   | InsufficientWealthRejection;
@@ -59,10 +63,12 @@ export type RecruitRejection =
  * `guildId` signs `heroId` from the Unattached pool: deducts exactly `signingFee(hero, deps,
  * guildmaster)`, the fee at the Guild's Guildmaster's Negotiation (M4-S5), from the Guild's Wealth,
  * sets the Hero's `guildId`, takes them out of the pool (`unattachedSince`
- * null), appends them to the Roster, and emits `hero.recruited`, a Milestone naming the Hero and
- * the Guild. Wealth equal to the fee is enough.
+ * null), appends them to the Roster, signs them on a Contract of `years` (`signContract`, DL-315), and
+ * emits `hero.recruited`, a Milestone naming the Hero and the Guild, with the fee and the Contract's
+ * terms. Wealth equal to the fee is enough; the wage is paid on the wage Days.
  *
- * Refused, changing nothing: `guild-folded`, `hero-not-unattached` (a Hero with no row included,
+ * Refused, changing nothing: `guild-folded`, `length-not-offered` (a length `contractLengthsYears`
+ * does not hold), `hero-not-unattached` (a Hero with no row included,
  * since a Hero who left the pool has an id the History still shows), `signing-refused` (the Hero
  * asks more Fame of the Guild than it has, M3-S5), `insufficient-wealth`, in that order: a Hero
  * who will not sign refuses whatever the Guild could pay (DL-38). Throws only on a Guild id the world does not hold: Guild rows are never removed,
@@ -73,7 +79,7 @@ export type RecruitRejection =
  */
 export function applyRecruit(
   world: World,
-  { guildId, heroId }: Pick<RecruitAction, 'guildId' | 'heroId'>,
+  { guildId, heroId, years }: Pick<RecruitAction, 'guildId' | 'heroId' | 'years'>,
   deps: EngineDeps,
 ): WorldActionResult<RecruitRejection> {
   const guild: Guild | undefined = rowOf(world.guilds, guildId);
@@ -81,6 +87,8 @@ export function applyRecruit(
   if (guild.foldedOnTurn !== null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'guild-folded', guildId } };
   }
+  const length = lengthNotOffered('recruit', years, deps.config);
+  if (length !== null) return { ok: false, rejection: length };
   const hero: Hero | undefined = rowOf(world.heroes, heroId);
   if (hero === undefined || hero.unattachedSince === null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'hero-not-unattached', heroId } };
@@ -100,11 +108,12 @@ export function applyRecruit(
   hero.guildId = guildId;
   hero.unattachedSince = null;
   guild.rosterIds.push(heroId);
+  const { wage, endDay } = signContract(world, hero, guild, years, deps);
 
   const recruited = eventEmitter(world)({
     type: 'hero.recruited',
     participants: [heroId, guildId],
-    payload: { heroId, guildId, fee },
+    payload: { heroId, guildId, fee, wage, years, endDay },
   });
   return { ok: true, events: [recruited] };
 }

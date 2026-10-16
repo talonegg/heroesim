@@ -444,7 +444,7 @@ describe('a refusal is stored, never thrown', () => {
     const before = play(started(), { kind: 'advance' });
     const heroId = playerOf(documentOf(before)).rosterIds[0];
     if (heroId === undefined) throw new Error('expected a Hero on the Roster');
-    const refused = play(before, { kind: 'recruit', heroId });
+    const refused = play(before, { kind: 'recruit', heroId, years: 2 });
 
     expect(refused.rejection).toEqual({ action: 'recruit', reason: 'hero-not-unattached', heroId });
     expect(refused.document).toBe(before.document);
@@ -944,16 +944,16 @@ describe('the document is never mutated', () => {
         return { kind: 'dispatch', questId: quest.id, heroIds, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] };
       },
       () => ({ kind: 'build', facility: 'infirmary' }),
-      (state) => ({ kind: 'recruit', heroId: unattachedHeroes(documentOf(state).world)[0]?.id ?? makeId('heroes', 999) }),
+      (state) => ({ kind: 'recruit', heroId: unattachedHeroes(documentOf(state).world)[0]?.id ?? makeId('heroes', 999), years: 2 }),
       (state) => {
         const { world } = documentOf(state);
         const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(documentOf(state)).id && guild.rosterIds.length > 0);
-        return { kind: 'transferIn', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999) };
+        return { kind: 'transferIn', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999), years: 2 };
       },
       (state) => {
         const { world } = documentOf(state);
         const rival = Object.values(world.guilds).find((guild) => guild.id !== playerOf(documentOf(state)).id && guild.rosterIds.length > 0);
-        return { kind: 'offerTransfer', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999) };
+        return { kind: 'offerTransfer', heroId: rival?.rosterIds[0] ?? makeId('heroes', 999), years: 2 };
       },
       () => ({ kind: 'acceptTransfer', offerId: makeId('offers', 999) }),
       () => ({ kind: 'declineTransfer', offerId: makeId('offers', 999) }),

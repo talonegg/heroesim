@@ -150,7 +150,8 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
  *    one of its Heroes), is withdrawn, in id order, with `guild.transfer-offer-expired` for
  *    `guild-folded` (M6-S2, DL-57): no offer outlives the Guild it names.
  * 6. Its Heroes are released to the Unattached pool, in Roster order, each with `hero.left-guild`,
- *    keeping their Injuries, Levels and Morale; the Roster is emptied and `foldedOnTurn` set.
+ *    keeping their Injuries, Levels and Morale and holding no Contract (DL-315); the Roster is emptied
+ *    and `foldedOnTurn` set.
  * 7. `guild.folded`, a Milestone naming the Guild, its Guildmaster, each Party it disbanded and each
  *    Quest it abandoned, closes the fold. It is made first, while those rows still exist (an event
  *    names only rows the world has, `emit`), and told last.
@@ -205,6 +206,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     );
     hero.guildId = null;
     hero.unattachedSince = ctx.turn;
+    hero.contract = null;
   }
   guild.rosterIds = [];
   guild.captainId = null;

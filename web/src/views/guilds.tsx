@@ -331,7 +331,7 @@ function GuildPage({
                       </td>
                       <td>
                         {row.fee === null ? null : (
-                          <button type="button" aria-label={`Take ${row.name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId: row.heroId })}>
+                          <button type="button" aria-label={`Take ${row.name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId: row.heroId, years: 2 })}>
                             Take in
                           </button>
                         )}

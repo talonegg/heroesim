@@ -7,7 +7,8 @@
     "gearThreshold": 3,
     "transferAppetite": 0.2,
     "partyMargin": 0.05,
-    "restBand": "tired"
+    "restBand": "tired",
+    "contractYears": 2
   },
   "ambitious": {
     "name": "Ambitious",
@@ -17,7 +18,8 @@
     "gearThreshold": 2,
     "transferAppetite": 0.3,
     "partyMargin": 0.05,
-    "restBand": "exhausted"
+    "restBand": "exhausted",
+    "contractYears": 1
   },
   "miserly": {
     "name": "Miserly",
@@ -27,7 +29,8 @@
     "gearThreshold": 10,
     "transferAppetite": 0.1,
     "partyMargin": 0.05,
-    "restBand": "tired"
+    "restBand": "tired",
+    "contractYears": 3
   },
   "reckless": {
     "name": "Reckless",
@@ -37,6 +40,7 @@
     "gearThreshold": 3,
     "transferAppetite": 0.25,
     "partyMargin": 0.1,
-    "restBand": null
+    "restBand": null,
+    "contractYears": 1
   }
 }

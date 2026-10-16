@@ -191,6 +191,7 @@ export {
 } from './controllers/rival.js';
 export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
+export type { LengthNotOffered } from './contract.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export { surplusChoices, type SurplusKeeping } from './surplus.js';
 export * from './create.js';
@@ -210,6 +211,7 @@ export {
   isId,
   parseId,
   schemaVersion,
+  type Contract,
   type Controller,
   type DescriptiveAttribute,
   type Ending,

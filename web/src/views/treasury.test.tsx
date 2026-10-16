@@ -32,7 +32,7 @@ function trade(): GameState {
   state = played(state, { kind: 'sell', stackId: stack.id, quantity: 1 });
   const signing = Object.values(state.document?.world.heroes ?? {}).find((hero) => hero.unattachedSince !== null);
   if (signing === undefined) throw new Error('no one in the pool');
-  state = played(state, { kind: 'recruit', heroId: signing.id });
+  state = played(state, { kind: 'recruit', heroId: signing.id, years: 2 });
   return played(state, { kind: 'advance', turns: 30 });
 }
 

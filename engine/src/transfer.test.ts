@@ -38,7 +38,8 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 const pins: Partial<GameConfig> = { negotiationRange: 0, marketSize: 0, transferFeeFactor: 2, transferOfferDays: 3, transferLockDays: 5 };
 
 /** Rivals who deal whenever they would hire, and would hire at any Wealth: every weighing a Transfer. */
-const dealing = withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 });
+// Every Disposition signs for 3 years, so a Rival's choice of length shows (DL-315).
+const dealing = withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000, contractYears: 3 });
 
 /** Rivals who neither deal, recruit nor build: for tests whose subject is an offer already made. */
 const still = withDispositions({ ...thriftyRivals, transferAppetite: 0 });
@@ -82,7 +83,7 @@ function dearest(hero: Hero): void {
 
 /** `rival`'s offer for `heroId`, applied to `world` in place; its id. */
 function offerFor(world: World, rival: Guild, heroId: HeroId, deps: EngineDeps): OfferId {
-  const result = applyOfferTransfer(world, { guildId: rival.id, heroId }, deps);
+  const result = applyOfferTransfer(world, { guildId: rival.id, heroId, years: 2 }, deps);
   if (!result.ok) throw new Error(`Refused: ${JSON.stringify(result.rejection)}`);
   const [offered] = ofType(result.events, 'guild.transfer-offered');
   if (offered === undefined) throw new Error('No offer');
@@ -167,6 +168,7 @@ describe('a fold withdraws the Transfer Offers that name the folding Guild (DL-5
       toGuildId: other.id,
       heroId: theirs,
       fee: 100,
+      years: 2,
       offeredOnTurn: 0,
       expiresOnTurn: nightOf(2),
     };
@@ -256,7 +258,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
 
     const choices = rivalChoices(world, rival, deps);
 
-    expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+    expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted, years: 3 }]);
     const drawn = structuredClone(before.rng.rivals);
     next(drawn);
     expect(world).toEqual({ ...before, rng: { ...before.rng, rivals: drawn } });
@@ -273,7 +275,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     dearest(heroOf(world, wanted));
 
     const choices = rivalChoices(world, rival, deps);
-    expect(choices).toEqual([{ kind: 'offerTransfer', guildId: rival.id, heroId: wanted }]);
+    expect(choices).toEqual([{ kind: 'offerTransfer', guildId: rival.id, heroId: wanted, years: 3 }]);
     expect(applyGuildAction(world, choices[0] as never, deps)).toMatchObject({ ok: true });
     expect(Object.values(world.offers).map((offer) => [offer.toGuildId, offer.heroId])).toEqual([[rival.id, wanted]]);
 
@@ -295,7 +297,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
 
   test('seeks a Transfer with the chance transferAppetite, one draw: at or above it the Rival recruits from the pool, below it takes the Hero', () => {
     // An appetite strictly between 0 and 1, so that the draw decides (DL-57 item 5).
-    const half = testDeps(pins, withDispositions({ transferAppetite: 0.5, recruitThreshold: 0, buildThreshold: 1_000_000 }));
+    const half = testDeps(pins, withDispositions({ transferAppetite: 0.5, recruitThreshold: 0, buildThreshold: 1_000_000, contractYears: 3 }));
     for (const [below, kind] of [
       [false, 'recruit'],
       [true, 'transferIn'],
@@ -311,7 +313,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
       const choices = rivalChoices(world, rival, half);
 
       expect(choices.map((action) => action.kind), `a draw ${below ? 'below' : 'at or above'} the appetite`).toEqual([kind]);
-      if (below) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+      if (below) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted, years: 3 }]);
       expect(world.rng.rivals).toEqual(once);
     }
   });
@@ -334,7 +336,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
       const choices = rivalChoices(world, rival, negotiating);
 
       const [choice] = choices as [Extract<(typeof choices)[number], { heroId: HeroId }>];
-      if (negotiation === 20) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+      if (negotiation === 20) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted, years: 3 }]);
       else expect(choice.heroId).not.toBe(wanted);
       // Whichever it wants, the rules accept: it never picks a Hero it cannot pay for.
       expect(applyGuildAction(world, choice, negotiating)).toMatchObject({ ok: true });
@@ -346,7 +348,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     const { world, rival, other } = scene('rival-lock', deps);
     const [wanted] = other.rosterIds as [HeroId];
     dearest(heroOf(world, wanted));
-    expect(rivalChoices(structuredClone(world), structuredClone(rival), deps)).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+    expect(rivalChoices(structuredClone(world), structuredClone(rival), deps)).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted, years: 3 }]);
     heroOf(world, wanted).transferredOnTurn = world.turn;
 
     const choices = rivalChoices(world, rival, deps);

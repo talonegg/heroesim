@@ -38,7 +38,7 @@ describe('build', () => {
     const hall = hallUpkeepParts(built, world, meta.config, content);
     expect(hall.facilities).toEqual({ infirmary: content.facilities['infirmary']?.upkeep });
     expect(run.out).toContain(
-      `Wealth 8g; wages ${coinLetters(wages(built, world, meta.config))} every ${meta.config.upkeepEveryDays} Days, ` +
+      `Wealth 8g; wages ${coinLetters(wages(built, world))} every ${meta.config.upkeepEveryDays} Days, ` +
         `Hall upkeep ${coinLetters(hall.total)} every ${meta.config.hallUpkeepEveryDays} Days.`,
     );
     expect(run.out).toContain('The next grade, Infirmary ward, costs 5g.');

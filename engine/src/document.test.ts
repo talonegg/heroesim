@@ -149,6 +149,7 @@ const hero: Hero = {
   appearance: 'A scarred young face.',
   biography: 'She grew up on a farm.',
   regard: { [guildmasterId]: regardEntry },
+  contract: { wage: 22, signedOnTurn: 0, years: 2, endDay: 720 },
 };
 
 const patron: Patron = {
@@ -197,6 +198,7 @@ const offer: TransferOffer = {
   toGuildId: rivalId,
   heroId,
   fee: 300,
+  years: 2,
   offeredOnTurn: 30,
   expiresOnTurn: 39,
 };
@@ -355,7 +357,7 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board, quests, encounters, pool, heroes, progression, rivals, market, gm-portraits, descriptions, hero-portraits and hero-descriptions, in ADR-0009 order', () => {
+  test('the streams so far are generation, board, quests, encounters, pool, heroes, progression, rivals, market, gm-portraits, descriptions, hero-portraits, hero-descriptions and contracts, in ADR-0009 order', () => {
     expect(streamNames).toEqual([
       'generation',
       'board',
@@ -370,6 +372,7 @@ describe('the World State document', () => {
       'descriptions',
       'hero-portraits',
       'hero-descriptions',
+      'contracts',
     ]);
   });
 

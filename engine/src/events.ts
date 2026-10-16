@@ -20,6 +20,7 @@ import type {
   TraitKey,
 } from './content-types.js';
 import type {
+  Contract,
   EndingReason,
   EntityId,
   Entry,
@@ -96,10 +97,14 @@ export type WorldRulesAdopted = Entry<
 // ── The Guild State Engine (M2-S7, INPUTS 4.6, DL-26) ────────────────────────────────────────
 
 /**
- * A Guild's wages were deducted from its Wealth on their Day (`wages`, `nextWagesDay`, selectors.ts;
- * DL-298): `amount` taken and Wealth after paying it, which may be negative. Names the Guild.
+ * A Guild's wages were deducted from its Wealth on their Day (`wageBill`, `nextWagesDay`, selectors.ts;
+ * DL-298): `amount` taken, Wealth after paying it, which may be negative, and each Hero's Contract wage
+ * it was the sum of, by Hero (DL-315). Names the Guild.
  */
-export type GuildWagesPaid = Entry<'guild.wages-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+export type GuildWagesPaid = Entry<
+  'guild.wages-paid',
+  { guildId: GuildId; amount: number; wealthAfter: number; wages: Record<HeroId, number> }
+>;
 
 /**
  * A Guild's Hall upkeep with its Improvements' was deducted from its Wealth on its Day
@@ -145,10 +150,16 @@ export type GuildFloorRecovered = Entry<
 // ── Recruitment and the Unattached pool (M2-S8, DL-27) ───────────────────────────────────────
 
 /**
- * A Guild signed an Unattached Hero for `fee` Wealth through `recruit`. A Milestone, naming the
- * Hero and the Guild.
+ * A Contract's terms as a signing's event carries them (DL-315): its wage in whole Silver, its length
+ * in years and its end Day; the Turn signed is the event's.
  */
-export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number }>;
+export type ContractTerms = Pick<Contract, 'wage' | 'years' | 'endDay'>;
+
+/**
+ * A Guild signed an Unattached Hero for `fee` Wealth through `recruit`, on the Contract's terms. A
+ * Milestone, naming the Hero and the Guild.
+ */
+export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number } & ContractTerms>;
 
 /**
  * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
@@ -678,11 +689,12 @@ export type ItemSold = Entry<
 /**
  * A Hero moved from `fromGuildId`'s Roster to `toGuildId`'s for `fee` Wealth, paid by the second to
  * the first: through `transferIn`, `transferOut`, or `acceptTransfer`, which names the Transfer Offer
- * accepted as `offerId` (`null` otherwise). A Milestone, naming the Hero, both Guilds and the offer.
+ * accepted as `offerId` (`null` otherwise). Their old Contract ended, and they signed the new one's
+ * terms with the Guild they joined (DL-315). A Milestone, naming the Hero, both Guilds and the offer.
  */
 export type HeroTransferred = Entry<
   'hero.transferred',
-  { heroId: HeroId; fromGuildId: GuildId; toGuildId: GuildId; fee: number; offerId: OfferId | null }
+  { heroId: HeroId; fromGuildId: GuildId; toGuildId: GuildId; fee: number; offerId: OfferId | null } & ContractTerms
 >;
 
 /** A Transfer Offer as its events carry it: the offer, the two Guilds, the Hero and the fee. */

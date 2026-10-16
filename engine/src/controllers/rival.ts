@@ -26,6 +26,7 @@ import {
   gearSlotKeys,
   purchaseSteps,
   type ConsumableEffectKind,
+  type ContentSet,
   type Disposition,
   type PurchaseStep,
   type SlotKey,
@@ -127,7 +128,7 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
     build: () => hallBuild(guild, disposition, deps),
     gear: () => gearBuy(world, guild, disposition, deps) ?? healBuy(world, guild, disposition, deps),
     transfer: () => transferChoice(world, guild, disposition, deps),
-    recruit: () => cheapestHire(world, guild, deps),
+    recruit: () => cheapestHire(world, guild, disposition, deps),
     debt: () => (surplus.length > 0 ? null : debtTransfer(world, guild, dispatched, deps)),
   };
   // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
@@ -271,7 +272,8 @@ function transferChoice(world: World, guild: Guild, disposition: Disposition, de
   const wanted = dearestWanted(world, guild, sellers, budget, deps);
   if (wanted === null || !chance(streamOf(world, 'rivals'), disposition.transferAppetite)) return null;
   const heroId = wanted.hero.id;
-  return wanted.byOffer ? { kind: 'offerTransfer', guildId: guild.id, heroId } : { kind: 'transferIn', guildId: guild.id, heroId };
+  const years = disposition.contractYears;
+  return wanted.byOffer ? { kind: 'offerTransfer', guildId: guild.id, heroId, years } : { kind: 'transferIn', guildId: guild.id, heroId, years };
 }
 
 /**
@@ -341,10 +343,11 @@ export function transferBid(world: World, pair: readonly [Guild, Guild], deps: E
   const { rivalRosterMin, rivalRosterMax } = deps.config;
   if (!(bidder.rosterIds.length < rivalRosterMax && seller.rosterIds.length > rivalRosterMin)) return null;
   if (!transferAnswer(world, bidder, 'in', deps).consents || !transferAnswer(world, seller, 'out', deps).consents) return null;
-  const budget = hiringBudget(world, bidder, aBids ? rowA : rowB, deps);
+  const row = aBids ? rowA : rowB;
+  const budget = hiringBudget(world, bidder, row, deps);
   if (budget === null) return null;
   const wanted = dearestWanted(world, bidder, [{ guild: seller, byOffer: false }], budget, deps);
-  return wanted === null ? null : { kind: 'transferIn', guildId: bidder.id, heroId: wanted.hero.id };
+  return wanted === null ? null : { kind: 'transferIn', guildId: bidder.id, heroId: wanted.hero.id, years: row.contractYears };
 }
 
 /**
@@ -503,12 +506,22 @@ function healBuy(world: World, guild: Guild, disposition: Disposition, deps: Eng
  * fees), while it would hire and the fee is no more than it would spend (`hiringBudget`: by its
  * Disposition's `recruitThreshold`, or by the need of a Roster below `rivalRosterMin`, DL-60);
  * `null` otherwise, and when no Hero in the pool would sign. A Hero who would refuse the Guild's Fame
- * is passed over, never asked.
+ * is passed over, never asked. It signs them for its Disposition's `contractYears`.
  */
-function cheapestHire(world: World, guild: Guild, deps: EngineDeps): GuildAction | null {
-  const budget = budgetOf(world, guild, deps);
+function cheapestHire(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+  const budget = hiringBudget(world, guild, disposition, deps);
   if (budget === null) return null;
   const cheapest = cheapestUnattached(world, deps, guild);
   if (cheapest === null || cheapest.fee > budget) return null;
-  return { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id };
+  return { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id, years: disposition.contractYears };
+}
+
+/**
+ * The length of Contract `guild` signs a Hero for (Q7c, DL-294 item 6): its Disposition's
+ * `contractYears`; `null` for a Guild that chooses its own (the player's), or one whose Disposition
+ * content does not define. `transferOut` reads it for the Guild taking the Hero in, whose choice it is.
+ */
+export function contractYearsOf(guild: Pick<Guild, 'controller'>, content: Pick<ContentSet, 'dispositions'>): number | null {
+  const disposition = chooser(guild, content);
+  return disposition === 'own' || disposition === null ? null : disposition.contractYears;
 }

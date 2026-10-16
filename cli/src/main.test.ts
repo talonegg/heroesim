@@ -314,7 +314,7 @@ describe('show', () => {
       const guild = thePlayer(world);
       const config = { ...defaultConfig, ...meta.config };
       return [
-        `Wages ${coinLetters(wages(guild, world, config))} every ${config.upkeepEveryDays} Days`,
+        `Wages ${coinLetters(wages(guild, world))} every ${config.upkeepEveryDays} Days`,
         `Hall upkeep ${coinLetters(hallUpkeepParts(guild, world, config, content).total)} every ${config.hallUpkeepEveryDays} Days`,
       ];
     };
@@ -376,7 +376,7 @@ describe('show', () => {
     edit((edited) => {
       const guild = thePlayer(edited.world);
       for (const heroId of guild.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       }
       guild.rosterIds = [];
       guild.foldedOnTurn = 0;
@@ -429,7 +429,7 @@ describe('show', () => {
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
       for (const heroId of rival.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       }
       rival.rosterIds = [];
       rival.foldedOnTurn = 0;
@@ -819,7 +819,7 @@ describe('advance --until: fast forward', () => {
       edited.meta.config = { ...edited.meta.config, turnsPerYear: 30 };
       const guild = edited.world.guilds[playerId] as Guild;
       for (const heroId of guild.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn, contract: null });
       }
       guild.rosterIds = [];
     });
@@ -1041,7 +1041,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     const pooled = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
-      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0 });
+      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       rival.rosterIds = [];
       rival.foldedOnTurn = 13;
       Object.assign(edited.world.heroes[pooled] as Hero, { unattachedSince: null, diedOnTurn: 13 });

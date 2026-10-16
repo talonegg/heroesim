@@ -93,7 +93,7 @@ describe('departures', () => {
     const [hero] = unattachedHeroes(start.world);
     if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
 
-    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
     if (!recruited.ok) throw new Error(`Refused: ${recruited.rejection.reason}`);
     const { document } = playTo(recruited.document, nightOf(1), deps);
 
@@ -218,7 +218,7 @@ describe('the refill', () => {
     const guild = playerGuild(start.world);
     const [hero] = unattachedHeroes(start.world);
     if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
-    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id }, deps);
+    const recruited = applyAction(start, { kind: 'recruit', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
     if (!recruited.ok) throw new Error(`Refused: ${recruited.rejection.reason}`);
     expect(unattachedHeroes(recruited.document.world)).toHaveLength(deps.config.unattachedPoolSize - 1);
 

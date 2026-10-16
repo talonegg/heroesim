@@ -516,7 +516,7 @@ describe('the harness assertion (DL-69): no hero.transferred names the player\'s
       if (document.world.turn !== 0) return automaticPolicy(document, given, policy);
       for (const rival of Object.values(document.world.guilds).filter((other) => other.id !== guild.id)) {
         for (const heroId of rival.rosterIds) {
-          const action: GuildAction = { kind: 'transferIn', guildId: guild.id, heroId };
+          const action: GuildAction = { kind: 'transferIn', guildId: guild.id, heroId, years: 2 };
           if (applyAction(structuredClone(document), action, given).ok) return [action];
         }
       }

@@ -2,9 +2,11 @@
 // named stream — `generation` at world creation, `pool` when M2-S8 refills the Unattached pool
 // (pre-M0 review D7). The draw order is DL-19 item 4; changing it changes every seed's Heroes.
 // Their Portrait and their texts are drawn after, on `hero-portraits` and `hero-descriptions`, one
-// draw and thirteen whatever is written, so no draw of the named stream moves (v1.1.3-S6).
+// draw and thirteen whatever is written, so no draw of the named stream moves (v1.1.3-S6). A Hero
+// generated onto a Roster is a founding one, their Contract drawn on `contracts` (DL-311 item 2).
 
 import type { EngineDeps } from '../config.js';
+import { foundingContract } from '../contract.js';
 import type { Class, ClassKey, SkillKey } from '../content-types.js';
 import {
   highestSkillRating,
@@ -58,7 +60,8 @@ export interface GeneratedHero {
 
 /**
  * Generates a Hero into `world` (DL-19 item 4): adds the row, takes its id from the counters,
- * puts the Hero on the named Guild's Roster if any, and returns the Hero and its
+ * puts the Hero on the named Guild's Roster if any, with a founding Contract (`foundingContract`, two
+ * draws from `contracts`), and returns the Hero and its
  * `hero.generated` event for the caller to append. Draws from `options.stream`, `generation` by
  * default; then the Hero's Portrait from `hero-portraits` (`giveHeroPortrait`) and their Appearance
  * and Biography from `hero-descriptions` (`describeNewHero`), a fixed number of draws of each
@@ -87,6 +90,7 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
   // The Hero's own two streams, found before anything changes.
   streamOf(world, heroPortraitsStream);
   streamOf(world, heroDescriptionsStream);
+  if (guild !== undefined) streamOf(world, 'contracts');
 
   // The sex by its weight in `heroSexWeights` (v1.1.6-S16, DL-202), one draw whatever the weights.
   const sex = weightedPick(state, sexes, sexes.map((one) => config.heroSexWeights[one]));
@@ -127,13 +131,17 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     appearance: '',
     biography: '',
     regard: {},
+    contract: null,
   };
   // The Portrait, then the texts, each from a stream of its own (ADR-0009, rule 4), so no
   // draw of `options.stream` moves (v1.1.3-S6, DL-135 items 3 and 6). The texts follow the picture.
   giveHeroPortrait(world, content, hero);
   describeNewHero(world, deps, hero);
   world.heroes[id] = hero;
-  guild?.rosterIds.push(id);
+  if (guild !== undefined) {
+    guild.rosterIds.push(id);
+    foundingContract(world, hero, guild, deps);
+  }
 
   // The Guild of any Hero involved is a participant (data-model §4).
   const participants: EntityId[] = [id];

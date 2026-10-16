@@ -7,6 +7,7 @@
 // Nothing here draws a random number or reads the History.
 
 import { leaveRoster } from './captain.js';
+import { signContract } from './contract.js';
 import { regardBandNames, type EngineDeps, type GameConfig } from './config.js';
 import {
   compareByCodeUnit,
@@ -34,6 +35,8 @@ export interface Deal {
   /** The Guild the Hero joins, which pays it. */
   to: Guild;
   fee: number;
+  /** The length of the Contract the Guild they join signs them for: the buyer's choice (DL-315). */
+  years: number;
   /** The Transfer Offer accepted, for `acceptTransfer`; `null` for `transferIn` and `transferOut`. */
   offerId: OfferId | null;
 }
@@ -46,10 +49,10 @@ export interface Deal {
  *    item 8), `item.returned` for `transferred`, while the Hero is still that Guild's;
  * 2. the Guild they join pays the fee to the Guild they leave, so the two hold as much Wealth
  *    together as before;
- * 3. the Hero leaves the one Roster, its post empty if they were its Captain (`leaveRoster`, DL-287),
- *    and joins the end of the other, their `transferredOnTurn` set to
- *    this Turn (the lock, `transferLock`, DL-60), and `hero.transferred`, a Milestone, names the Hero,
- *    both Guilds and the offer accepted;
+ * 3. the Hero leaves the one Roster, its post empty if they were its Captain and their Contract
+ *    ended (`leaveRoster`, DL-287, DL-315), and joins the end of the other on a Contract of `years`
+ *    (`signContract`), their `transferredOnTurn` set to this Turn (the lock, `transferLock`, DL-60), and
+ *    `hero.transferred`, a Milestone, names the Hero, both Guilds, the offer accepted and the terms;
  * 4. each Hero left on the Roster they leave whose own Regard for the Hero is in `transferRegardBand`
  *    or above loses `transferMoraleCost` Morale, in Roster order, with `hero.morale-changed` only
  *    when a band is crossed (pre-M0 review D5: pairwise; the epic's rule for this cost); nobody
@@ -63,21 +66,22 @@ export interface Deal {
  * a Hero carrying gear with no Guild, which no rule makes.
  */
 export function makeTransfer(world: World, deal: Deal, deps: Pick<EngineDeps, 'config' | 'content'>, emit: Emit): EngineEvent[] {
-  const { hero, from, to, fee, offerId } = deal;
+  const { hero, from, to, fee, years, offerId } = deal;
   const { config, content } = deps;
   const events: EngineEvent[] = [...returnGear(world, hero, 'transferred', emit)];
 
   to.wealth -= fee;
   from.wealth += fee;
-  leaveRoster(from, hero.id);
+  leaveRoster(from, hero);
   to.rosterIds.push(hero.id);
   hero.guildId = to.id;
   hero.transferredOnTurn = world.turn;
+  const { wage, endDay } = signContract(world, hero, to, years, deps);
   events.push(
     emit({
       type: 'hero.transferred',
       participants: [hero.id, from.id, to.id, ...(offerId === null ? [] : [offerId])],
-      payload: { heroId: hero.id, fromGuildId: from.id, toGuildId: to.id, fee, offerId },
+      payload: { heroId: hero.id, fromGuildId: from.id, toGuildId: to.id, fee, offerId, wage, years, endDay },
     }),
   );
 

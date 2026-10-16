@@ -634,7 +634,7 @@ describe('steady: recruiting', () => {
     expect(recruits(world, rival)).toEqual([]);
 
     rival.wealth = threshold + 1;
-    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id }]);
+    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id, years: rowOf(rival, deps).contractYears }]);
   });
 
   test('breaks a tie of fees by the lower Hero id', () => {
@@ -645,7 +645,7 @@ describe('steady: recruiting', () => {
     // Every Hero in the pool alike: the same Stats and Level, so the same fee.
     for (const hero of pool) hero.stats = { ...lowestId?.stats };
 
-    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id }]);
+    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id, years: rowOf(rival, deps).contractYears }]);
   });
 
   test("passes over a Hero who would refuse its Fame for the cheapest who would sign, and asks no one when none would", () => {
@@ -667,7 +667,7 @@ describe('steady: recruiting', () => {
     expect(hire?.kind === 'recruit' && hire.heroId).not.toBe(first.id);
 
     rival.fame = 10;
-    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id }]);
+    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id, years: rowOf(rival, deps).contractYears }]);
 
     rival.fame = 0;
     for (const hero of unattachedHeroes(world)) hero.level = 3;
@@ -698,7 +698,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
 
   /** `rival`'s Roster cut to its first `size` Heroes, the others dead (off the Roster, out of the pool). */
   function cut(world: World, rival: Guild, size: number): void {
-    for (const heroId of rival.rosterIds.splice(size)) heroOf(world, heroId).diedOnTurn = world.turn;
+    for (const heroId of rival.rosterIds.splice(size)) Object.assign(heroOf(world, heroId), { diedOnTurn: world.turn, contract: null });
   }
 
   /** The fee of the cheapest Hero in the pool, and what `rival` must hold to hire them by need: the fee and its reserve. */
@@ -719,7 +719,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     rival.wealth = wealth - 1;
     expect(rivalChoices(world, rival, deps)).toEqual([]);
     rival.wealth = wealth;
-    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId, years: rowOf(rival, deps).contractYears }]);
   });
 
   test('in play, a Rival of every Disposition cut to two Heroes recruits back to rivalRosterMin within ten Days, under its own row', () => {
@@ -771,7 +771,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
       const { heroId, wealth } = needed(world, rival, deps);
       rival.wealth = wealth;
 
-      expect(rivalChoices(world, rival, deps), disposition).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+      expect(rivalChoices(world, rival, deps), disposition).toEqual([{ kind: 'recruit', guildId: rival.id, heroId, years: rowOf(rival, deps).contractYears }]);
     }
   });
 
@@ -981,7 +981,7 @@ describe('a Rival names its Captain', () => {
     // The player's Guild takes the Rival's Captain once they are home: the post is empty, and filled the next afternoon, free.
     while ((document.world.heroes[first] as Hero).partyId !== null) document = withValid(advance(document, deps).document, deps);
     (playerGuild(document.world) as Guild).wealth = 1_000_000;
-    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first }, deps);
+    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first, years: 2 }, deps);
     if (!taken.ok) throw new Error(taken.rejection.reason);
     document = withValid(taken.document, deps);
     expect(rivalOf(document).captainId).toBeNull();
@@ -1066,6 +1066,7 @@ describe('one rule for every Disposition, reading its row', () => {
       transferAppetite: 0.3,
       partyMargin: 0.2,
       restBand: 'weary',
+      contractYears: 2,
     };
     const withFifth = (row: Disposition = cautious): ContentSet =>
       deepFreeze({ ...testContent, dispositions: { ...testContent.dispositions, [row.key]: row } });

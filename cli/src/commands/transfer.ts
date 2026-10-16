@@ -63,7 +63,7 @@ export function transferHero(
     if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
   }
-  const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero }, deps);
+  const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero, years: 2 }, deps);
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }
