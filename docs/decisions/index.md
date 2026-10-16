@@ -320,6 +320,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

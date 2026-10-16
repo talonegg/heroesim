@@ -256,3 +256,64 @@ narrowed to Heroes under Contract at `v1.2.3`-S6. On Q-A, a Hero away on a Quest
 once home; the epic's own defaults are approved as starting points, reviewed in `v1.2.4`'s tuning.
 
 *Note, 2026-10-16 (the owner's word: "a", to push the record, `v1.2.3-dev` and Dependabot's move).* `v1.2.3-dev` is cut from `v1.2.2`'s record, and Dependabot's two `target-branch`es move to it (DL-147 item 6), taking effect when the record is merged into `main`.
+
+## DL-311 — v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes, CI read after each push
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner (answers Q-D to Q-I, "a" to apply the fixes); Claude (the fixes)
+
+**Context.** `v1.2.3`'s epic was planned on 2026-10-12 (DL-294's note), before `v1.2.2` was built. An
+assessment of it against `v1.2.2`'s record (Opus, read-only, at `5f0fc84`) found facts the build had
+moved and gaps in the stories, and raised questions Q-D to Q-H; `v1.2.2`'s CI had stayed red four days
+unseen (DL-310), Q-I. The owner answered on 2026-10-16 and chose to apply the fixes now.
+
+**Decision.**
+
+1. **An expired Hero's wage** (Q-D, c) is repriced at expiry by the wage rule at the 1-year factor ×
+   (1 + `outOfContractPremium`), a new setting at 0.1 for `v1.2.4` to tune (the epic's S3, §2).
+2. **The founding Contracts** (Q-E, b) start part-way through their terms, each end Day drawn evenly
+   over its term, on a new stream, `contracts` (S2).
+3. **`transferFeeFactor`** (Q-F, c) is fitted at S5 over a fixed World State, every Rival Hero priced
+   by both rules, and set through `npm run edit -- config` (S5).
+4. **Under Offer** (Q-G; Q-H, c): a Hero any Offer stands for, free or priced, cannot be chosen for a
+   Party until it ends; an Offer may be made for a Hero away, who is Under Offer from their return,
+   its Days counted from then (S6). A Hero rejecting an Offer is backlog (`plan.md` §3).
+5. **CI read after each push** (Q-I, a): a Haiku agent reads the pushed commit's runs and reports a
+   red one before the next story (`docs/agents/delivery.md`, A story, step 8).
+6. **The assessment's fixes**, in the epic:
+   - the save after 20 years fails by absence while no game runs 20 years, not blocking, and the
+     baseline stays `v1.2.0`'s (DL-305 items 6 and 8);
+   - S1 runs two baseline quick runs, 4×2 and 4×4, that each story's `compare` reads; the close reads
+     `v1.2.2-close-gate-2026-10-16`;
+   - in debt, the whole Holding first, then the Heroes Out of Contract released, then a Rival's debt
+     sale; the policy has none (S7);
+   - the release payout's ledger line and `WealthFlows` counter land with release (S4), and one
+     selector, `wagesLeft`, serves the payout and the fee;
+   - S2 reaches the page's and the CLI's signings, `guild.wages-paid`, the sentences and the
+     validator's money maps, and S9 keeps the rest; a new event type reaches every map keyed by
+     event type in its own story (§0);
+   - a year's Days are read as `turnsPerYear` ÷ `turnsPerDay`, never a constant;
+   - the expiry is a Milestone for every Guild's Hero;
+   - S6 reaches `controller-reads.test.ts`, `gate.json`'s wording and the glossary's Transfer
+     Generator;
+   - S1's glossary words, §5's facts restated on `b1d1cad`, S8's shares by largest remainder, S9's
+     words for `show guilds`, S10 at 2 sessions, and the wage and fee rules' tests first.
+7. **The estimate** rises from 13–17 sessions to 15–19.
+
+*Judgement calls, for the owner to see.*
+- **Under Offer is a selector over the Offers, not a field stored on the Hero:** data-model rule 1
+  makes availability a selector, and the Offer row already names its Hero. No schema change but S2's.
+- A Hero's Under Offer ends when the Offer is declined, lapses, is withdrawn by a renewal or taken.
+- A founding Contract's length is drawn on `contracts` too, so no `generation` draw moves.
+- ADR-0002 already holds three amendment notes, so S6 restates it and archives its old wording,
+  rather than adding a fourth (`docs/agents/documentation.md`).
+- The fit's box test reports both rules' means and pins no default (`docs/agents/config.md`).
+- `show treasury` is put to the owner before S9 (Q-J).
+- The config version rises at S3, for `outOfContractPremium`, and not at S6, which adds no engine
+  setting.
+
+**Consequences.** S2 grows to 3 sessions, S4 to 1.5, S6 to 2.5 and S10 to 2, and S9 falls to 1.5;
+S8 stays at 1, its Treasury line moved to S4. S6's record supersedes DL-57 items 1 and 6 in part
+(Q-H), with the items the epic's §3 names; this entry supersedes nothing.
+
+**Evidence.** The epic `docs/planning/epics/v1.2.3-release.md`, its §6 the answers; `delivery.md`'s
+step 8; the epics' register; `plan.md` §3's backlog (Q-G).

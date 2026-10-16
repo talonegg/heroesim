@@ -128,6 +128,9 @@ name its path, or use `rg -u`.
      attribution lines the session gives;
    - stage only the files changed, never `git add -A`;
    - use `git commit -F -` with a heredoc.
+8. **CI, after a push** on the owner's word (DL-311): a Haiku agent reads the pushed commit's runs
+   (`gh run list`, `gh run view --log-failed`) and reports a red one with its failing test before the
+   next story starts; a red run is reported as any failing test is, never rewritten to pass.
 
 ## A release
 

@@ -133,9 +133,10 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
     by what each Hero wants and more factors behind a Guildmaster's preferred length; the wage read
     from a Hero's and the Guild's reputation, personality, Regard and comparable teammates' wages;
     competing bids for an Unattached Hero, weighed by signing fee, wage and Regard; a Guildmaster's
-    premium on a Hero; Rivals renewing early; a choosable starting Hall, with its bonuses and base
-    upkeep; selling Hall assets; patronage by Sphere; investments, gambling, and Random and Inciting
-    Events as income or cost; borrowing and debt; Campaigns and Scenarios with economic stakes.
+    premium on a Hero; Rivals renewing early; a Hero rejecting an Offer made for them (the owner,
+    `v1.2.3`'s Q-G); a choosable starting Hall, with its bonuses and base upkeep; selling Hall
+    assets; patronage by Sphere; investments, gambling, and Random and Inciting Events as income or
+    cost; borrowing and debt; Campaigns and Scenarios with economic stakes.
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Loot's content (#36).
   - Rival encounters during Quests; direct contests between Guilds, a separate later feature

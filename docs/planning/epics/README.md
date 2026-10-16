@@ -30,7 +30,7 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
-| `v1.2.3` | [Contracts](./v1.2.3-release.md) | A full `gate`'s correctness and performance lines; play unchanged at S1; each side's wages and fees near `v1.2.2`'s; DL-83's targets reported, not tuned; the owner's playtest, by sentence 5 | 13–17 | `v1.2.2` (DL-294) |
+| `v1.2.3` | [Contracts](./v1.2.3-release.md) | A full `gate`'s correctness and performance lines, the save after 20 years failing by absence; play unchanged at S1; each side's wages and fees near `v1.2.2`'s; DL-83's targets reported, not tuned; the owner's playtest, by sentence 5 | 15–19 | `v1.2.2` (DL-294, DL-311) |
 | `v1.2.4` | [The economy pass](./v1.2.4-release.md) | Every line of `gate.json`, the save after 20 years included; the bands the owner approves at S1 met or accepted; each change measured alone; the owner's playtest | 10–14 | `v1.2.3` (DL-294) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
