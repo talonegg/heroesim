@@ -742,6 +742,8 @@ describe('automaticPolicy', () => {
       const { document, guild, hero, actions } = freeOffered('policy-free-renews', [4, 1, 1, 1, 1, 1, 1, 1], 0, below);
       expect(actions[0]).toEqual({ kind: 'renew', guildId: guild.id, heroId: hero.id, years: defaultPolicyConfig.contractYears });
       expect(actions.some((action) => action.kind === 'declineTransfer')).toBe(false);
+      // Its Parties are chosen from the Heroes its answers leave free: the Hero renewed is among them.
+      expect(dispatches(actions).flatMap((action) => action.heroIds)).toContain(hero.id);
       let current = document;
       for (const action of actions) {
         const result = applyAction(current, action, deps);
@@ -756,6 +758,12 @@ describe('automaticPolicy', () => {
       expect(guild.rosterIds.length).toBeGreaterThan(below.rosterFloor);
       expect(actions.filter((action) => action.kind === 'renew' || action.kind === 'declineTransfer')).toEqual([]);
       expect(actions.flatMap((action) => (action.kind === 'dispatch' ? action.heroIds : []))).not.toContain(hero.id);
+    });
+
+    test('renews no Hero away: renew refuses them until they are home (Q-A)', () => {
+      const { document, hero } = freeOffered('policy-free-away', [4, 1, 1, 1, 1, 1, 1, 1], 0, below);
+      (document.world.heroes[hero.id] as Hero).partyId = makeId('parties', 99);
+      expect(automaticPolicy(document, deps, below).filter((action) => action.kind === 'renew')).toEqual([]);
     });
 
     test('renews a Hero below the median when its Roster is at the floor, rosterFloor (4)', () => {

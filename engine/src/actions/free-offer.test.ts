@@ -195,6 +195,7 @@ describe('the free Offer (Q8)', () => {
     expect(taken.guildId).toBe(bidder.id);
     expect(taken.contract).toMatchObject({ years: 2, signedOnTurn: nightOf(5), endDay: 5 + 2 * 360 });
     expect(transferLock(taken, after.world.turn, deps.config)).not.toBeNull();
+    expect(unavailability(taken, after.world)).toBeNull();
     // The friend's Morale drifts over the Offer's Days; the take costs them transferMoraleCost that night.
     const cost = ofType(events, 'hero.morale-changed').filter((event) => event.payload.heroId === friend.id && event.turn === nightOf(5));
     expect(cost.map((event) => event.payload.after - event.payload.before)).toContain(-15);
@@ -338,6 +339,26 @@ describe('Under Offer (Q-G, Q-H)', () => {
     expect(availableHeroes(document.world, guild).map((each) => each.id)).not.toContain(hero.id);
     expect(partyPool(document.world, guild, deps).map((each) => each.id)).not.toContain(hero.id);
     expect(availableHeroes(document.world, guild)).toHaveLength(guild.rosterIds.length - 1);
+    // Checked after Death, Retirement, an Injury and a Party: an injured Hero Under Offer is injured.
+    const hurt = structuredClone(document.world);
+    heroOf(hurt, hero.id).injury = { typeKey: 'broken-arm', healsOnTurn: hurt.turn + 30 };
+    expect(unavailability(heroOf(hurt, hero.id), hurt)).toBe('injured');
+  });
+
+  test('a priced Offer at a fee of 0, for a Hero under Contract with no wages left, is no free Offer: declined, and the Hero free again', () => {
+    const document = created('under-offer-priced-zero');
+    const guild = player(document.world);
+    const bidder = rival(document.world);
+    const hero = heroOf(document.world, guild.rosterIds[0] as HeroId);
+    // Ending before the next wage Day: under Contract, its wages left 0 (DL-317, DL-318).
+    hero.contract = { ...(hero.contract as Contract), endDay: dayOf(document.world.turn) + 1 };
+    expect(outOfContract(hero, document.world.turn)).toBe(false);
+    const { document: offered } = accepted(applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps));
+    const [offer] = Object.values(offered.world.offers);
+    expect(offer?.fee).toBe(0);
+    expect(freeOffer(offered.world, offer as NonNullable<typeof offer>)).toBe(false);
+    const { document: after } = accepted(applyAction(offered, { kind: 'declineTransfer', guildId: guild.id, offerId: offer?.id as OfferId }, deps));
+    expect(unavailability(heroOf(after.world, hero.id), after.world)).toBeNull();
   });
 
   test('free to go again at each end of the Offer: declined, expired, withdrawn by a renewal', () => {
@@ -370,6 +391,7 @@ describe('Under Offer (Q-G, Q-H)', () => {
     const [offerId] = Object.keys(offered.world.offers) as [OfferId];
     expect(offered.world.offers[offerId]?.expiresOnTurn).toBe(nightOf(dayOf(returnsOnTurn) + 3));
     expect(unavailability(heroOf(offered.world, hero.id), offered.world)).toBe('in-party');
+    expect(underOffer(offered.world, heroOf(offered.world, hero.id))).toBe(false);
     expect(refused(offered, { kind: 'acceptTransfer', guildId: guild.id, offerId })).toMatchObject({ reason: 'hero-in-party' });
 
     const { document: home } = playUntil(offered, (world) => world.turn > returnsOnTurn);

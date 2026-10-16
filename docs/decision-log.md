@@ -616,13 +616,13 @@ Verified 2026-10-16 at f7a4a63: the fee re-derived (§2's Level 1 Hero, 22 × 36
 **Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S6); the owner, Q-C, Q-G, Q-H
 
 **Context.** A Hero Out of Contract is to be open to a free Offer their Guild answers only by renewing, and a
-Hero any Offer stands for kept from every Party (DL-294 item 6, DL-311, Q8, Q15, Q-C, Q-G, Q-H). S6 builds both
-in the engine, the Rivals' and the policy's answer, and restates ADR-0002.
+Hero any Offer stands for kept from every Party (DL-294 item 6, DL-311, Q8, Q15, Q-C, Q-G, Q-H). S6 builds both,
+with the Rivals' and the policy's answer, and restates ADR-0002.
 
 **Decision.**
 
-1. **The free Offer** (Q8). `offerTransfer` for a Hero Out of Contract on any Guild's Roster, at the fee of 0
-   their Contract's end leaves; `freeOffer(world, offer)` reads the Hero's Contract at `offeredOnTurn`, nothing
+1. **The free Offer** (Q8). `offerTransfer` for a Hero Out of Contract on any Guild's Roster, at a fee of 0;
+   `freeOffer(world, offer)` reads the Hero's Contract at `offeredOnTurn`, nothing
    stored. Two new ends of `guild.transfer-offer-expired`: `renewed` (`renew` withdraws each free Offer for the
    Hero) and `taken` (on its last night, `takeOffer`: the end, then `makeTransfer` naming the Offer, with the
    Transfer's Morale cost, Regard and lock). `declineTransfer` refuses one, `free-offer`; `transferIn` refuses a
@@ -636,7 +636,7 @@ in the engine, the Rivals' and the policy's answer, and restates ADR-0002.
    preview, the page and the Rivals' search pass over them. Words: "is Under Offer", the chip "Under Offer".
 4. **An Offer for a Hero away** (Q-H): `offerTransfer`'s `hero-in-party` goes; `expiresOnTurn` is the night of their return Day + `transferOfferDays`, stored when made (`offerExpiresOnTurn`); `acceptTransfer` still waits for them home. Supersedes DL-57 items 1 and 6 in part.
 5. **Who bids** (Q-C). `dearestWanted` weighs a Hero Out of Contract on every Roster, at their fee of 0, by a
-   free Offer, beside the Heroes under Contract it weighed, the dearest wanted as before. The Generator pairs every Guild in play, one draw a pair; the player's Guild never bids, and its Heroes under Contract are never bid for (ADR-0002, exception 3, now in `transferBid` through `chooser`): the phase reads no controller. Supersedes DL-59 item 6 in full, item 3 in part, and its context's box in part.
+   free Offer, beside those under Contract, the dearest wanted as before. The Generator pairs every Guild in play, one draw a pair; the player's Guild never bids, and its Heroes under Contract are never bid for (ADR-0002, exception 3, now in `transferBid` through `chooser`): the phase reads no controller. Supersedes DL-59 item 6 in full, item 3 in part, and its context's box in part.
 6. **The policy** declines every priced Offer and answers a free one by `renewsOnOffer` at its `rosterFloor` 4, a
    harness setting, renewing for `contractYears` once the Hero is home; its Parties are chosen from the Heroes
    its answers leave free.
@@ -671,6 +671,7 @@ in the engine, the Rivals' and the policy's answer, and restates ADR-0002.
 - Q-K's wages a Guild-year: 2 years against S1's, the player −49.5%, the Rivals −27.0%; 4 years against S1's
   4×4, the player −25.9%, the Rivals +9.0% (against S3's, +0.2% and +7.8%).
 
-**Evidence.** Commit of this story; the two S6 quick reports; ADR-0002 and its archive; the epic's S6 boxes,
-all five met. The new tests (`free-offer.test.ts`, the Generator's, the policy's, the assertion's) were red
-first; the free moves counted by replaying the four seeds, each save the report's.
+**Evidence.** This story's commit; the two S6 quick reports; ADR-0002 and its archive; the S6 boxes, all five
+met. The new tests were red first; the free moves counted by replaying the four seeds, each save the report's.
+
+Verified 2026-10-17 at e9bb2c2: claims held, the pin traced; six surviving mutations closed by tests (Under Offer after an Injury, never away; a fee-0 priced Offer not free; the assertion on a free Offer in; the policy's Parties, no renewal away); two comments fixed. Q-L: the answer rule kept (the owner).

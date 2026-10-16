@@ -601,7 +601,8 @@ export interface GameConfig {
   guildmasterRegardPerTransferDeal: number;
   /**
    * Days a Transfer Offer stands, the Day it is made included: it expires on that last Day's night
-   * and is removed then, with `guild.transfer-offer-expired`, unless answered first.
+   * and is removed then, with `guild.transfer-offer-expired`, unless answered first. For a Hero away
+   * when it is made, the Days after their Party's return night (Q-H, DL-319).
    */
   transferOfferDays: number;
   /**

@@ -535,6 +535,25 @@ describe('the harness assertion (DL-69, DL-319): no hero.transferred names the p
     expect(playerTransferred(current)).toBeNull();
   });
 
+  test("fires on a free Offer taken into the player's Guild: the policy makes no Offer (DL-319)", () => {
+    const document = createWorld('play-free-in', harnessSetup, deps).document;
+    const guild = playerGuild(document.world) as Guild;
+    const [rival] = Object.values(document.world.guilds)
+      .filter((other) => other.id !== guild.id)
+      .sort((a, b) => b.rosterIds.length - a.rosterIds.length) as [Guild];
+    expect(rival.rosterIds.length).toBeGreaterThan(deps.config.rivalRosterMin);
+    for (const heroId of rival.rosterIds) (document.world.heroes[heroId] as Hero).level = 5;
+    const hero = document.world.heroes[rival.rosterIds[0] as HeroId] as Hero;
+    hero.level = 1;
+    document.world.turn = 9;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 2 };
+    // Below its Roster's median, above its floor: the Rival lets the Hero go at once, the Offer taken.
+    const taken = applyAction(document, { kind: 'offerTransfer', guildId: guild.id, heroId: hero.id, years: 2 }, deps);
+    if (!taken.ok) throw new Error(JSON.stringify(taken.rejection));
+    expect(taken.document.world.heroes[hero.id]?.guildId).toBe(guild.id);
+    expect(playerTransferred(taken.document)).toMatchObject({ check: 'player-transferred' });
+  });
+
   test("fires on a Transfer into the player's Guild, stopping the game as a validator refusal does, and the report lists it", async () => {
     // A player's choices that take a Rival's Hero in on the first Turn, then play as the policy does.
     // Each try is on a copy: an accepted action appends to the History it shares (ADR-0008).
