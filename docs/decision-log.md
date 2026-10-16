@@ -272,8 +272,7 @@ unseen (DL-310), Q-I. The owner answered on 2026-10-16 and chose to apply the fi
    (1 + `outOfContractPremium`), a new setting at 0.1 for `v1.2.4` to tune (the epic's S3, §2).
 2. **The founding Contracts** (Q-E, b) start part-way through their terms, each end Day drawn evenly
    over its term, on a new stream, `contracts` (S2).
-3. **`transferFeeFactor`** (Q-F, c) is fitted at S5 over a fixed World State, every Rival Hero priced
-   by both rules, and set through `npm run edit -- config` (S5).
+3. **`transferFeeFactor`.** *Superseded by DL-312 item 1, 2026-10-16; its text is in [superseded/DL-311.md](decisions/archive/superseded/DL-311.md).*
 4. **Under Offer** (Q-G; Q-H, c): a Hero any Offer stands for, free or priced, cannot be chosen for a
    Party until it ends; an Offer may be made for a Hero away, who is Under Offer from their return,
    its Days counted from then (S6). A Hero rejecting an Offer is backlog (`plan.md` §3).
@@ -307,6 +306,7 @@ unseen (DL-310), Q-I. The owner answered on 2026-10-16 and chose to apply the fi
 - ADR-0002 already holds three amendment notes, so S6 restates it and archives its old wording,
   rather than adding a fourth (`docs/agents/documentation.md`).
 - The fit's box test reports both rules' means and pins no default (`docs/agents/config.md`).
+  *Superseded in part by DL-312 item 1, 2026-10-16: the fit's box test; now no fit, and no box test for it. The record: [superseded/DL-311.md](decisions/archive/superseded/DL-311.md).*
 - `show treasury` is put to the owner before S9 (Q-J).
 - The config version rises at S3, for `outOfContractPremium`, and not at S6, which adds no engine
   setting.
@@ -317,3 +317,27 @@ S8 stays at 1, its Treasury line moved to S4. S6's record supersedes DL-57 items
 
 **Evidence.** The epic `docs/planning/epics/v1.2.3-release.md`, its §6 the answers; `delivery.md`'s
 step 8; the epics' register; `plan.md` §3's backlog (Q-G).
+
+## DL-312 — `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4`
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner
+
+**Context.** DL-311 item 3 had S5 fit `transferFeeFactor` over a fixed World State so the new fee's
+mean met `v1.2.2`'s. Asked what that mean should be, the owner revisited Q-F. The fee from the wages
+left climbs with Level faster than the list price did: a year into a 2-year Contract, the factor
+matching `v1.2.2`'s fee is about 0.28 for a Level 1 Hero and 0.11 for a Level 8 (the epic's §2).
+
+**Decision.**
+
+1. **No fit for now** (the owner: "do not fit for now, the economic model will need to be tuned,
+   considering wages and other economic factors"). `transferFeeFactor` takes its new meaning at S5 at
+   §2's 0.3, through `npm run edit -- config`, with no box test of a fit. `v1.2.4`'s S5 tunes it with
+   the wages and the rest of the economy. Supersedes DL-311 item 3 in full and its judgement call on
+   the fit's box test.
+
+**Consequences.** Until `v1.2.4` a high-Level Hero's fee runs up to about three times `v1.2.2`'s, and
+the Rivals' buying and debt sales move with it; `v1.2.3`'s close reports the fee, not blocking. The
+Gate's 10% aim covers the wages only.
+
+**Evidence.** The epic `docs/planning/epics/v1.2.3-release.md`: the Gate, S5, §2, §4 and §6's Q-F;
+`docs/planning/epics/v1.2.4-release.md` S5; the record `superseded/DL-311.md`.
