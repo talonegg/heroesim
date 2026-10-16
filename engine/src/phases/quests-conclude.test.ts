@@ -936,7 +936,8 @@ describe('the Quest named on what its return causes', () => {
    * A History entry as it was before DL-112: the new `questId` and the Quest's participation taken out;
    * a founding's Wealth (DL-120 item 4, DL-121); an
    * Encounter's Degree, the Check that decided it and its Checks (DL-152); and (DL-155) each
-   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`.
+   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`; and
+   * (DL-315) a Contract's terms on a signing and each Hero's wage on the wages paid.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
     if (entry.type === 'quest.resolved') {
@@ -949,6 +950,18 @@ describe('the Quest named on what its return causes', () => {
       delete payload.degree;
       delete payload.decidedBy;
       delete payload.checks;
+      return { ...entry, payload };
+    }
+    if (entry.type === 'hero.recruited' || entry.type === 'hero.transferred') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wage;
+      delete payload.years;
+      delete payload.endDay;
+      return { ...entry, payload };
+    }
+    if (entry.type === 'guild.wages-paid') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wages;
       return { ...entry, payload };
     }
     if (entry.type === 'guild.founded') {
@@ -1121,11 +1134,14 @@ describe('the Quest named on what its return causes', () => {
     // Facility's, in `guild.wages-paid` and `guild.hall-upkeep-paid` (DL-298; 1d3cdc9c…, 31fb72fd… and
     // 015a5606…), which moves every Guild's Wealth and so its purchases; and the surplus sold by
     // Rivals outside the purchase step (DL-301; d0d1d4eb…, 52d50c39… and 9bc95dbc…), which moves each
-    // Guild's Wealth and gear.
+    // Guild's Wealth and gear; and the Contract's wage, set at signing from the Level and Stats and
+    // fixed for its term, charged in place of a wage by Level (DL-315; ce0f9958…, c7cff6d6… and
+    // 1e05000c…), which moves every Guild's Wealth from the first wage Day, with no other event before
+    // it, and so its purchases, Parties and Quests.
     expect(fingerprints).toEqual([
-      'ce0f9958d3fc5b816d08426645ab2809953f0ac9cb78b0e17dcae45e955e5543',
-      'c7cff6d61d943c66a4506a99688cfa8c3aa75ea12401f8ae015c86fb02dedab8',
-      '1e05000c3407cf2e27a678ca5ed2eefb5cb4f0c92514258cb492a03af08c62a6',
+      '8c9d6cd530847d2464fb1d97af81c110c790d9550aa39dfbc94862a83b92a989',
+      '99268a020974f4f699b0d17e4ba035aeeb14238046a5aebfe841e5d9d8bb3fc4',
+      '53958f27b6e7ae48b2f7191d4658594d1121a05c692dc4e30444c8e9ff904b50',
     ]);
   });
 

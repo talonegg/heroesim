@@ -110,7 +110,7 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
     case 'advance':
       return 'until' in command ? fastForwardTurns(command, context) : advanceTurns(command.turns, context);
     case 'recruit':
-      return recruitHero(command.hero, context);
+      return recruitHero(command.hero, command.years, context);
     case 'preview':
       return look(context, (document, deps) => previewParty(command, document, deps));
     case 'dispatch':

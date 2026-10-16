@@ -47,7 +47,7 @@ describe('recruit', () => {
   test("signs a pool Hero to the player's Guild for the fee, prints it and the new Roster size, and saves", () => {
     const { guild, hero, fee } = newWorld();
 
-    const run = play(['recruit', '--hero', hero.id]);
+    const run = play(['recruit', '--hero', hero.id, '--years', '2']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain(`${hero.name} (${hero.id})`);
@@ -60,12 +60,24 @@ describe('recruit', () => {
     expect(play(['show', 'pool']).out).not.toContain(hero.id);
   });
 
+  test('signs the Contract for the --years given, and refuses a length the rules do not offer, writing nothing (DL-315 item 4)', () => {
+    const { hero } = newWorld();
+    const before = saved();
+
+    const refused = play(['recruit', '--hero', hero.id, '--years', '5']);
+
+    expect(refused).toMatchObject({ code: exitCodes.refused, err: expect.stringContaining('A Contract is 1, 2 or 3 years long; 5 is not.') });
+    expect(saved()).toBe(before);
+    expect(play(['recruit', '--hero', hero.id, '--years', '3']).code).toBe(exitCodes.ok);
+    expect(document().world.heroes[hero.id]?.contract?.years).toBe(3);
+  });
+
   test('refuses a Hero not in the pool, or one whose fee is above the Wealth, writing nothing', () => {
     const { guild, hero, fee } = newWorld();
     const onRoster = guild.rosterIds[0] ?? makeId('heroes', 1);
     const before = saved();
 
-    const taken = play(['recruit', '--hero', onRoster]);
+    const taken = play(['recruit', '--hero', onRoster, '--years', '2']);
     expect(taken.code).toBe(exitCodes.refused);
     expect(taken.err).toContain('not in the Unattached pool');
 
@@ -74,7 +86,7 @@ describe('recruit', () => {
       if (player !== undefined) player.wealth = fee - 1;
     });
     const edited = saved();
-    const dear = play(['recruit', '--hero', hero.id]);
+    const dear = play(['recruit', '--hero', hero.id, '--years', '2']);
     expect(dear.code).toBe(exitCodes.refused);
     expect(dear.err).toContain(`signing fee is ${coinWords(fee)}`);
     expect(saved()).toBe(edited);
@@ -85,11 +97,11 @@ describe('recruit', () => {
     newWorld();
     const before = saved();
 
-    const missing = play(['recruit', '--hero', 'hero-000999']);
+    const missing = play(['recruit', '--hero', 'hero-000999', '--years', '2']);
     expect(missing.code).toBe(exitCodes.refused);
     expect(missing.err).toContain('hero-000999');
-    expect(play(['recruit', '--hero', 'guild-000001']).code).toBe(exitCodes.usage);
-    expect(play(['recruit', '--hero', 'Brenna']).code).toBe(exitCodes.usage);
+    expect(play(['recruit', '--hero', 'guild-000001', '--years', '2']).code).toBe(exitCodes.usage);
+    expect(play(['recruit', '--hero', 'Brenna', '--years', '2']).code).toBe(exitCodes.usage);
     expect(saved()).toBe(before);
   });
 });
@@ -111,7 +123,7 @@ describe('recruit and Fame', () => {
     });
     const before = saved();
 
-    const refused = play(['recruit', '--hero', hero.id]);
+    const refused = play(['recruit', '--hero', hero.id, '--years', '2']);
 
     expect(refused.code).toBe(exitCodes.refused);
     expect(refused.err).toContain(`${hero.name} (${hero.id}) will not sign for a Guild with less than 40 Fame`);
@@ -122,7 +134,7 @@ describe('recruit and Fame', () => {
       const player = edited.world.guilds[guild.id];
       if (player !== undefined) player.fame = 40;
     });
-    expect(play(['recruit', '--hero', hero.id]).code).toBe(exitCodes.ok);
+    expect(play(['recruit', '--hero', hero.id, '--years', '2']).code).toBe(exitCodes.ok);
   });
 });
 

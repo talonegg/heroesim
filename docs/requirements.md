@@ -223,7 +223,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
   (R17). Scouting and hidden information are deferred.
 - R44. A Hero on a Roster holds a Contract: a wage set at signing from their Level and Stats and
   fixed for its term, paid every 10 Days, and a length of 1, 2 or 3 years that the signer chooses,
-  a longer one cheaper a year. A Hero on no Roster holds none (DL-294 item 6; to be built).
+  a longer one cheaper a year. A Hero on no Roster holds none. A Death, a Retirement, a Transfer or
+  a fold ends it. A founding Roster's Contracts have their lengths and end Days drawn, so they do not
+  end together (DL-294 item 6, DL-315).
 - R45. A Guild may renew a Hero's Contract at any time the Hero is home, at the rule's price and
   with no fee, which replaces its term. When the end Day passes, the Hero is Out of Contract: still
   on the Roster and playing, at a wage repriced with a premium, and open to a free Offer that the

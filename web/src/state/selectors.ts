@@ -121,6 +121,7 @@ import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, questNamer, rejectionSentence, sentenceWords, type Narration } from './namer';
 import type { Facets } from './facets';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { newestEntries } from './history-reader';
 import { classMarkOf, type ClassMarked, placeWords, transferCostWords } from './names';
 import { readingOf, type PageReading } from './reading';
@@ -1194,7 +1195,7 @@ export interface Captaincy {
 /**
  * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip,
  * transfer out and name Captain (DL-289); on another Guild's Roster, take them in for the Transfer fee; in the Unattached
- * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
+ * pool, recruit them for the signing fee, each at a Contract length with its first wage (`contractTerms`, DL-315). The fees are the engine's (`transferFee`, `signingFee`,
  * at the paying Guildmaster's Negotiation); whether it is done is the engine's too, which refuses
  * with a sentence. Whether a Hero in the pool would sign is the engine's `signingRefusal`, as the
  * pool's row reads it (`poolView`), so Recruit can be disabled for one who will not (DL-109 item 2,
@@ -1202,8 +1203,8 @@ export interface Captaincy {
  */
 export type HeroActions =
   | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[]; captaincy: Captaincy }
-  | { kind: 'rival'; guildName: string; fee: number }
-  | { kind: 'pool'; fee: number; signs: string; willSign: boolean };
+  | { kind: 'rival'; guildName: string; fee: number; terms: ContractTerm[] }
+  | { kind: 'pool'; fee: number; signs: string; willSign: boolean; terms: ContractTerm[] };
 
 /** History entries as lines, keyed by their place in the list. */
 export function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
@@ -1319,9 +1320,9 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading, docume
   if (player === undefined) return null;
   if (read.signing !== null) {
     const { fee, signs } = read.signing;
-    return { kind: 'pool', fee, signs: signsWords(signs), willSign: signs.willSign };
+    return { kind: 'pool', fee, signs: signsWords(signs), willSign: signs.willSign, terms: contractTerms(reading, hero) };
   }
-  if (read.transferFee !== null) return { kind: 'rival', guildName: read.guild?.name ?? '', fee: read.transferFee };
+  if (read.transferFee !== null) return { kind: 'rival', guildName: read.guild?.name ?? '', fee: read.transferFee, terms: contractTerms(reading, hero) };
   if (read.guild?.id !== player.id || read.relationships === null) return null;
   return {
     kind: 'own',

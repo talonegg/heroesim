@@ -21,7 +21,7 @@ interface SaveFile {
   world: {
     turn: number;
     guilds: Record<string, { controller: { kind: string }; rosterIds: string[]; wealth: number }>;
-    heroes: Record<string, { guildId: string | null; unattachedSince: number | null }>;
+    heroes: Record<string, { guildId: string | null; unattachedSince: number | null; contract: unknown }>;
   };
 }
 
@@ -43,7 +43,7 @@ async function aYearWithNoStop(page: Page, testInfo: TestInfo): Promise<{ path: 
   for (const heroId of player.rosterIds) {
     const hero = save.world.heroes[heroId];
     if (hero === undefined) throw new Error(`the save has no Hero ${heroId}`);
-    Object.assign(hero, { guildId: null, unattachedSince: save.world.turn });
+    Object.assign(hero, { guildId: null, unattachedSince: save.world.turn, contract: null });
   }
   player.rosterIds = [];
   player.wealth = 1_000_000;

@@ -26,6 +26,7 @@ import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
 import { Coins } from './coins';
+import { SignForLength } from './contract-length';
 import { HeroName, Icon } from './icons';
 import { GuildBanner, PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
@@ -331,9 +332,14 @@ function GuildPage({
                       </td>
                       <td>
                         {row.fee === null ? null : (
-                          <button type="button" aria-label={`Take ${row.name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId: row.heroId, years: 2 })}>
-                            Take in
-                          </button>
+                          <SignForLength
+                            terms={row.terms}
+                            name={row.name}
+                            text="Take in"
+                            label={`Take ${row.name} in`}
+                            disabled={busy}
+                            onSign={(years) => play({ kind: 'transferIn', heroId: row.heroId, years })}
+                          />
                         )}
                       </td>
                     </>

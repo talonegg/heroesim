@@ -467,7 +467,7 @@ describe('show', () => {
     });
     const sentence = "The save has no player's Guild.";
 
-    for (const argv of [['show', 'roster'], ['show', 'hall'], ['show', 'guildmaster'], ['recruit', '--hero', 'hero-000001'], ['advance', '--until', 'decision']]) {
+    for (const argv of [['show', 'roster'], ['show', 'hall'], ['show', 'guildmaster'], ['recruit', '--hero', 'hero-000001', '--years', '2'], ['advance', '--until', 'decision']]) {
       expect(play(argv), argv.join(' ')).toMatchObject({ code: exitCodes.refused, out: '', err: `${sentence}\n` });
     }
     expect(play(['show', 'offers']).out).toBe(`${sentence}\n`);
@@ -881,7 +881,7 @@ describe('dispatch', () => {
     const actions = [
       ['dispatch', '--quest', questId, '--heroes', heroIds.join(',')],
       ['build', '--facility', 'infirmary'],
-      ['recruit', '--hero', pooled.id],
+      ['recruit', '--hero', pooled.id, '--years', '2'],
     ];
     edit((edited) => {
       (edited.world.guilds[playerId] as Guild).wealth = 100_000;

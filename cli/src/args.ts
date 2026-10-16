@@ -88,9 +88,10 @@ Commands:
       staffable (a Quest the rested Heroes at home could take reaches the Board, even
       with a Party out) and pool-refreshed (new Heroes in the Unattached pool). --max
       caps the Turns played: one year of Turns unless given.
-  recruit --hero <heroId>
+  recruit --hero <heroId> --years <years>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
-      show pool, and print the fee and the new Roster size.
+      show pool, on a Contract of --years years, a length the rules offer (a refusal
+      names them), and print the fee and the new Roster size.
   preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
       is sent: the Quest's Beats, its narrative in the order it plays them; each
@@ -130,11 +131,13 @@ Commands:
       Sell n Items of a stack the player's Guild holds, 1 unless given, or one of its unique
       Items, to the Market for what show market says each sells for. An Item a Hero carries
       is unequipped first. The Market's stock is drawn afresh each morning.
-  transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in
+  transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in --years <years>
       Transfer a Hero for a fee, twice their signing fee at the buying Guildmaster's
       Negotiation. --to sends one of the player's Heroes to another Guild, which pays; --in
-      takes a Hero from another Guild's Roster, and the player's Guild pays the fee show
-      roster <guildId> and show hero <heroId> give for them. The other Guild
+      takes a Hero from another Guild's Roster on a Contract of --years years (a length the
+      rules offer), and the player's Guild pays the fee show roster <guildId> and
+      show hero <heroId> give for them; the other Guild's Disposition chooses the length of
+      a Hero --to sends. The other Guild
       must be willing, by its Disposition's appetite for Transfers, its Roster and, to buy,
       its Wealth. The Hero must be at the Hall; their gear stays with the Guild they leave,
       and the Heroes left behind who held them in high Regard lose Morale.
@@ -208,7 +211,7 @@ export type Command =
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number; modules?: string[] }
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number; modules?: string[] }
-  | { name: 'recruit'; save: string; hero: string }
+  | { name: 'recruit'; save: string; hero: string; years: number }
   | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'build'; save: string; facility: FacilityKey }
@@ -219,7 +222,7 @@ export type Command =
   | { name: 'sell'; save: string; stack: StackId; quantity: number }
   | { name: 'sell'; save: string; item: ItemId }
   | { name: 'transfer'; save: string; hero: HeroId; to: GuildId }
-  | { name: 'transfer'; save: string; hero: HeroId; in: true }
+  | { name: 'transfer'; save: string; hero: HeroId; in: true; years: number }
   | { name: 'accept'; save: string; offer: OfferId }
   | { name: 'decline'; save: string; offer: OfferId }
   | { name: 'rebase'; save: string }
@@ -250,7 +253,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   },
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value', modules: 'value' },
-  recruit: { save: 'value', hero: 'value' },
+  recruit: { save: 'value', hero: 'value', years: 'value' },
   preview: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   build: { save: 'value', facility: 'value' },
@@ -259,7 +262,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   unequip: { save: 'value', hero: 'value', slot: 'value' },
   buy: { save: 'value', item: 'value', quantity: 'value' },
   sell: { save: 'value', stack: 'value', item: 'value', quantity: 'value' },
-  transfer: { save: 'value', hero: 'value', to: 'value', in: 'switch' },
+  transfer: { save: 'value', hero: 'value', to: 'value', in: 'switch', years: 'value' },
   accept: { save: 'value', offer: 'value' },
   decline: { save: 'value', offer: 'value' },
   rebase: { save: 'value' },
@@ -373,6 +376,12 @@ function sexFlag(value: string): Sex {
 function ageFlag(value: string): number {
   const n = Number(value);
   return /^\d+$/.test(value) && Number.isSafeInteger(n) ? n : refuse(`--age needs a whole number of years; got "${value}"`);
+}
+
+/** `--years` (DL-315): a whole number of years, in digits; whether the rules offer that length is the engine's to say. */
+function yearsFlag(value: string): number {
+  const n = Number(value);
+  return /^\d+$/.test(value) && Number.isSafeInteger(n) ? n : refuse(`--years needs a whole number of years; got "${value}"`);
 }
 
 /**
@@ -621,7 +630,7 @@ function parse(argv: readonly string[]): Command {
     }
     case 'recruit':
       atMost(positional, 0, 'recruit');
-      return { name, save, hero: required(flags, name, 'hero') };
+      return { name, save, hero: required(flags, name, 'hero'), years: yearsFlag(required(flags, name, 'years')) };
     case 'preview':
     case 'dispatch': {
       atMost(positional, 0, name);
@@ -662,7 +671,8 @@ function parse(argv: readonly string[]): Command {
       const hero = heroId(required(flags, name, 'hero'));
       const to = flags.get('to');
       if ((to === undefined) === !flags.has('in')) refuse('transfer takes --to <guildId> or --in, and one of them only');
-      if (to === undefined) return { name, save, hero, in: true };
+      if (to === undefined) return { name, save, hero, in: true, years: yearsFlag(required(flags, name, 'years')) };
+      if (flags.has('years')) refuse('transfer --to takes no --years: the Guild taking the Hero chooses the length');
       return isId('guilds', to) ? { name, save, hero, to } : refuse(`--to needs a Guild id such as guild-000002; got "${to}"`);
     }
     case 'accept':

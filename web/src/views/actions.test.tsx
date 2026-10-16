@@ -161,6 +161,21 @@ describe('the Unattached pool', () => {
     logSays(new RegExp(`^The Lantern signed ${name} for ${coinWords(fee)}, on a Contract at .+\\.$`));
   });
 
+  test('recruits for the length chosen, the wage the row showed for that length (DL-315 item 4)', async () => {
+    renderGame(started());
+    const [row] = within(section('Unattached pool')).getAllByTestId('pool-row');
+    if (row === undefined) throw new Error('an empty pool');
+    const name = within(row).getByRole('rowheader').textContent ?? '';
+    const wages = within(row).getAllByTestId('wage').map((cell) => silverOf(cell));
+    expect(wages).toHaveLength(3);
+
+    fireEvent.change(within(row).getByLabelText(`Contract length for ${name}`), { target: { value: '3' } });
+    fireEvent.click(within(row).getByRole('button', { name: `Recruit ${name}` }));
+    await idle();
+
+    logSays(new RegExp(`^The Lantern signed ${name} for .+, on a Contract at ${coinWords(wages[2] ?? 0)} to Year 4 Day \\d+\\.$`));
+  });
+
   test('says why a Hero will not sign, and recruits from their page too', async () => {
     renderGame(withWealth(started(), 0));
     const pool = section('Unattached pool');
@@ -280,6 +295,21 @@ describe("a Hero's page on the player's Roster", () => {
 });
 
 describe("another Guild's Roster", () => {
+  test('takes a Hero in for the length chosen', async () => {
+    renderGame(started());
+    fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Ashford Guild' }));
+    const [row] = within(within(section('Guilds')).getByRole('article')).getAllByTestId('guild-hero');
+    if (row === undefined) throw new Error('an empty Roster');
+    const name = within(row).getByRole('rowheader').textContent ?? '';
+    expect(within(row).getAllByRole('option').map((option) => option.textContent)).toEqual(['1 year', '2 years', '3 years']);
+
+    fireEvent.change(within(row).getByLabelText(`Contract length for ${name}`), { target: { value: '2' } });
+    fireEvent.click(within(row).getByRole('button', { name: `Take ${name} in` }));
+    await idle();
+
+    logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for .+, on a Contract at .+ to Year 3 Day \\d+\\.$`));
+  });
+
   test('takes a Hero in for the Transfer fee shown', async () => {
     renderGame(started());
     fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Ashford Guild' }));

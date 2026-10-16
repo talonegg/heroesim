@@ -105,7 +105,7 @@ describe('transfer', () => {
     // The player's own Heroes have no one fee: each Rival pays at its own Guildmaster's Negotiation.
     expect(play(['show', 'roster']).out).not.toContain('Transfer fee');
     expect(play(['show', 'hero', ownId]).out).not.toContain('Transfer fee');
-    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}, on a Contract at `);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}, on a Contract at `);
   });
 
   test('a Rival that will not take the Hero, or a Guild the save lacks, is refused and nothing is written', () => {
@@ -130,7 +130,7 @@ describe('transfer', () => {
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
     const hero = heroOf(before.world, heroId);
 
-    const run = play(['transfer', '--hero', heroId, '--in']);
+    const run = play(['transfer', '--hero', heroId, '--in', '--years', '2']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     const after = document();
@@ -149,7 +149,7 @@ describe('transfer', () => {
     pinned.meta.config.transferLockDays = 30;
     writeFileSync(current(), serialise(pinned));
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
-    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).code).toBe(exitCodes.ok);
     const saved = readFileSync(current(), 'utf8');
 
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
@@ -169,7 +169,7 @@ describe('transfer', () => {
     pinned.meta.config.turnsPerYear = 6;
     writeFileSync(current(), serialise(pinned));
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
-    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).code).toBe(exitCodes.ok);
 
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
 

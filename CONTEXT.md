@@ -43,10 +43,11 @@ _Avoid_: Team, Squad, Stable
 **Contract**:
 A Hero's term with their Guild: a wage charged every 10 Days, set at signing from the Hero's Level
 and Stats and fixed for the term, and a length of 1, 2 or 3 years that the signer chooses, a longer
-one cheaper a year. A Hero on a Roster holds one; a Hero on no Roster holds none. The Guild may
-renew it at any time the Hero is home, replacing the term at the rule's price with no fee, or
-release the Hero for most of the wages left; once its end Day passes, the Hero is Out of Contract
-(DL-294 item 6 and its note of 2026-10-12, the whole entry to be built). Not the module contract
+one cheaper a year (DL-315). A Hero on a Roster holds one; a Hero on no Roster holds none. A Death, a
+Retirement, a Transfer or their Guild's fold ends it. The Guild may renew it at any time the Hero is
+home, replacing the term at the rule's price with no fee, or release the Hero for most of the wages
+left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6 and its note of
+2026-10-12; renewal, release and expiry to be built). Not the module contract
 (ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
 case.
 _Avoid_: Deal, Agreement, Lease
@@ -789,8 +790,8 @@ _Avoid_: Bank, Coffers, Vault
 **Upkeep**:
 The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
 upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). Each wage is
-the one its Hero's Contract sets, repriced Out of Contract and still charged (DL-294 item 6, DL-311
-item 1, to be built).
+the one its Hero's Contract sets (DL-315), repriced Out of Contract and still charged (DL-294 item 6,
+DL-311 item 1; the repricing to be built).
 One Upkeep, as a measure, is a month of them: three charges of wages and one of the Hall's, and
 every reading of the Guild's reserves in Upkeeps counts so (DL-300).
 _Avoid_: Wages (alone), Salary, Running costs

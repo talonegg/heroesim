@@ -245,11 +245,12 @@ describe('parseArgs', () => {
       hero: 'hero-000003',
       to: 'guild-000002',
     });
-    expect(command('transfer', '--in', '--hero=hero-000009', '--save', 'demo')).toEqual({
+    expect(command('transfer', '--in', '--hero=hero-000009', '--years', '3', '--save', 'demo')).toEqual({
       name: 'transfer',
       save: 'demo',
       hero: 'hero-000009',
       in: true,
+      years: 3,
     });
     expect(command('accept', '--offer', 'offer-000001')).toEqual({ name: 'accept', save: 'current', offer: 'offer-000001' });
     expect(command('decline', '--offer=offer-000002')).toEqual({ name: 'decline', save: 'current', offer: 'offer-000002' });
@@ -343,6 +344,10 @@ describe('parseArgs', () => {
     [['build', '--facility', 'Stables'], 'got "Stables"'],
     [['build', 'infirmary'], 'does not take "infirmary"'],
     [['recruit'], 'recruit needs --hero'],
+    [['recruit', '--hero', 'hero-000001'], 'recruit needs --years'],
+    [['recruit', '--hero', 'hero-000001', '--years', 'two'], '--years needs a whole number of years; got "two"'],
+    [['transfer', '--hero', 'hero-000001', '--in'], 'transfer needs --years'],
+    [['transfer', '--hero', 'hero-000001', '--to', 'guild-000002', '--years', '2'], 'transfer --to takes no --years'],
     [['equip', '--hero', 'hero-000001'], 'equip needs --item or --stack, and one of them only'],
     [['equip', '--hero', 'hero-000001', '--stack', 'stack-000001', '--item', 'item-000001'], 'one of them only'],
     [['equip', '--hero', 'hero-000001', '--item', 'stack-000001'], '--item needs an Item id such as item-000001; got "stack-000001"'],
@@ -361,7 +366,7 @@ describe('parseArgs', () => {
     [['sell', '--stack', 'stack-000001', '--quantity', 'all'], '--quantity needs a whole number from 1; got "all"'],
     [['transfer', '--to', 'guild-000002'], 'transfer needs --hero'],
     [['transfer', '--hero', 'hero-000001'], 'transfer takes --to <guildId> or --in, and one of them only'],
-    [['transfer', '--hero', 'hero-000001', '--in', '--to', 'guild-000002'], 'one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--in', '--years', '2', '--to', 'guild-000002'], 'one of them only'],
     [['transfer', '--hero', 'hero-000001', '--to', 'hero-000002'], '--to needs a Guild id such as guild-000002; got "hero-000002"'],
     [['transfer', '--hero', 'Brenna', '--in'], '--hero needs a Hero id such as hero-000001; got "Brenna"'],
     [['transfer', '--hero', 'hero-000001', '--in=yes'], '--in takes no value'],

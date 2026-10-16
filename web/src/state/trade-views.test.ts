@@ -3,6 +3,7 @@ import {
   addStack,
   ageOf,
   applyAction,
+  contractWage,
   defaultConfig,
   guildmasterOf,
   holdings,
@@ -163,7 +164,10 @@ describe('poolView', () => {
         fee: signingFee(hero, deps, buyer),
         age: ageOf(hero, document.world.turn, defaultConfig),
         signs: refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`,
+        // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
+        terms: defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, deps) })),
       });
+      expect(row.terms.map((term) => term.years)).toEqual(defaultConfig.contractLengthsYears);
     }
     expect(view.rows[0]?.signs).toMatch(/^Needs Fame \d+$/);
     expect(view.note).toBe('The Lantern has 0 Fame. A Hero who needs more will not sign for it until it has that much.');

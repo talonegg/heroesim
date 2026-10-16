@@ -45,7 +45,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-33 | 2026-09-26 | Fast forward: always-on and opt-in stops, the watched Guild, and the CLI's `--until` (M2-S11) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-34 | 2026-09-26 | The automatic policy, the play sweep, validating from where the last validation stopped, and the M2 … | in part by DL-39 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-35 | 2026-09-26 | The first balance pass: the stub's bands, the wage, and how much a Rival keeps before it recruits … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-36 | 2026-09-26 | XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-36 | 2026-09-26 | XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2) | item 8 by DL-315; item 10 in part by DL-315 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-37 | 2026-09-26 | Potential hints, and the yearly ageing decline beside the Retirement check (M3-S3, M3-S4) | item 9 in part by DL-83 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-38 | 2026-09-26 | Rankings are read, not narrated; Fame gates who will sign; Hall Improvements are built (M3-S5 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-39 | 2026-09-26 | M2 close: verification, the timing tests, and which harness run a tag carries |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -324,6 +324,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-312 | 2026-10-16 | `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4` |  | [decision-log](../decision-log.md) |
 | DL-313 | 2026-10-16 | CI's runner pinned to `ubuntu-24.04` for `v1.2.3` |  | [decision-log](../decision-log.md) |
 | DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [decision-log](../decision-log.md) |
+| DL-315 | 2026-10-16 | v1.2.3-S2 built: the Contract and its wage |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

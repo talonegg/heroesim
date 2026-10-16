@@ -110,6 +110,18 @@ function loadedEnd(): WorldDocument {
   return loaded.document;
 }
 
+/**
+ * The end loaded afresh, with its first Hero retired: the game played to the end holds no Hero out of play
+ * since the Contracts moved its play (DL-315), and these tests need one to share and to write to.
+ */
+function loadedEndWithARetiredHero(): World {
+  const { world } = loadedEnd();
+  const hero = Object.values(world.heroes)[0];
+  if (hero === undefined) throw new Error('no Hero');
+  hero.retiredOnTurn = world.turn;
+  return world;
+}
+
 describe('copyWorld', () => {
   test("copies a played world as structuredClone does, every Turn: equal, every object's keys in the same order, the same save", () => {
     expect(played.mismatches).toEqual([]);
@@ -118,7 +130,7 @@ describe('copyWorld', () => {
   });
 
   test('shares each write-once row frozen all the way down, and copies every other object anew, none frozen', () => {
-    const world = loadedEnd().world;
+    const world = loadedEndWithARetiredHero();
     const shared = writeOnceRows(world);
     const kinds = tables.map((table) => Object.values(world[table] as Record<string, never>).filter((row) => writeOnce[table](row)).length);
     expect(kinds[0]).toBeGreaterThan(0);
@@ -191,7 +203,7 @@ describe('copyWorld', () => {
   });
 
   test('a write to a write-once row throws once it is shared, in the engine as in this strict-mode test', () => {
-    const world = loadedEnd().world;
+    const world = loadedEndWithARetiredHero();
     copyWorld(world);
     const hero = Object.values(world.heroes).find((row) => writeOnce.heroes(row));
     if (hero === undefined) throw new Error('no Hero out of play');

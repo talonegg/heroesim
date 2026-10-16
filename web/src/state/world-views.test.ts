@@ -2,6 +2,7 @@
 import {
   ageOf,
   baseStat,
+  contractWage,
   createWorld,
   defaultConfig,
   facilityUpkeep,
@@ -467,6 +468,13 @@ describe('guildPage', () => {
     expect(page?.name).toBe(other.name);
     expect(page?.roster.map((row) => ({ heroId: row.heroId, fee: row.fee }))).toEqual(
       other.rosterIds.map((heroId) => ({ heroId, fee: transferFee(document.world.heroes[heroId] as never, buyer, deps) })),
+    );
+    // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
+    const player = playerOf(document);
+    expect(page?.roster.map((row) => row.terms)).toEqual(
+      other.rosterIds.map((heroId) =>
+        defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, document.world.heroes[heroId] as never, player, years, deps) })),
+      ),
     );
     // Each Hero's sex and Portrait's key, for their thumbnail beside their name (DL-147).
     expect(page?.roster.map((row) => ({ sex: row.sex, portraitKey: row.portraitKey }))).toEqual(

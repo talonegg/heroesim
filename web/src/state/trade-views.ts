@@ -25,6 +25,7 @@ import {
 } from '@heroesim/engine';
 import { capitalised, coinWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
 import { content } from '../content';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { kindFacet, type Facets } from './facets';
 import { classMarkOf, type ClassMarked, transferCostWords } from './names';
 import { readingOf } from './reading';
@@ -165,6 +166,8 @@ export interface PoolRow extends ClassMarked {
   signs: string | null;
   /** Whether they would sign for the player's Guild now (`signingRefusal`), for the row to be set back when not; `null` as `signs`. */
   willSign: boolean | null;
+  /** The first wage the player's Guild would pay at each Contract length offered (`contractWage`, DL-315). */
+  terms: ContractTerm[];
 }
 
 /** How the pool may be ordered for display (M9-S6): as it lists them, by Class in the content's order, or by fee, lowest first. */
@@ -199,6 +202,7 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
     fee: row.fee,
     signs: row.signs === null ? null : capitalised(signsWords(row.signs)),
     willSign: row.signs === null ? null : row.signs.willSign,
+    terms: contractTerms(reading, world.heroes[row.id] as Hero),
   }));
   // A stable sort: a fee's ties keep the pool's own order; a Class's are the Roster's default order, which begins with the Class.
   if (order === 'class') {

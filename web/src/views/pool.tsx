@@ -3,7 +3,8 @@
 // Recruit button, and their page when opened, which says the same beside their Stats and hints.
 //
 // A part of the Roster (M9-S3, DL-103), as rows (M9-S6, DL-106; the review's B8): Name, Class,
-// Level, Age, Background, Fee, whether they sign, and Recruit. The Class and Fee headings order the
+// Level, Age, Background, Fee, the first wage of a Contract at each length (DL-315 item 4), whether
+// they sign, and Recruit with the length chosen. The Class and Fee headings order the
 // rows, for display only (`poolView`), and the order is kept in this browser. A Hero who will not
 // sign is set back, with the pool's own reason, and their Recruit is disabled, the reason describing
 // it: the engine's `signingRefusal`, as the row reads it (DL-109 item 2, Q17).
@@ -15,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { poolView, type PoolOrder } from '../state/trade-views';
 import { Coins } from './coins';
+import { SignForLength } from './contract-length';
 import { HeroPage } from './hero-page';
 import { PortraitThumb } from './pictures';
 import { preferences, useRemembered } from './remembered';
@@ -73,6 +75,9 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
         {view.note === null ? null : <span className="subtle"> {view.note}</span>}
       </p>
       {view.rows.length === 0 ? null : (
+        <p className="subtle">Each Contract column is the wage the Guild would pay at that length, fixed for the term.</p>
+      )}
+      {view.rows.length === 0 ? null : (
         <StickyTableBox>
           <table className="table table--first-sticky pool-table" aria-label="Heroes in the Unattached pool">
             <thead>
@@ -87,6 +92,12 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                 </th>
                 <th scope="col">Background</th>
                 <SortHeader label="Fee" direction="ascending" active={order === 'fee'} onSort={() => orderBy('fee')} className="number" />
+                {/* The first wage at each length, the same lengths on every row. */}
+                {(view.rows[0]?.terms ?? []).map(({ years }) => (
+                  <th key={years} scope="col" className="number">
+                    {years}-year Contract
+                  </th>
+                ))}
                 <th scope="col">Signs</th>
                 <th scope="col">
                   <VisuallyHidden>Recruit</VisuallyHidden>
@@ -119,19 +130,24 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                   <td className="number" data-testid="fee">
                     <Coins silver={row.fee} />
                   </td>
+                  {row.terms.map((term) => (
+                    <td key={term.years} className="number" data-testid="wage">
+                      <Coins silver={term.wage} />
+                    </td>
+                  ))}
                   <td data-testid="signs" id={signsId(row.heroId)}>
                     {row.signs}
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      aria-label={`Recruit ${row.name}`}
-                      aria-describedby={row.willSign === false ? signsId(row.heroId) : undefined}
+                    <SignForLength
+                      terms={row.terms}
+                      name={row.name}
+                      text="Recruit"
+                      label={`Recruit ${row.name}`}
+                      describedBy={row.willSign === false ? signsId(row.heroId) : undefined}
                       disabled={busy || row.willSign === false}
-                      onClick={() => play({ kind: 'recruit', heroId: row.heroId, years: 2 })}
-                    >
-                      Recruit
-                    </button>
+                      onSign={(years) => play({ kind: 'recruit', heroId: row.heroId, years })}
+                    />
                   </td>
                 </tr>
               ))}

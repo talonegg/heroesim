@@ -233,7 +233,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
       }));
   }
 
-  test('lists Name, Class, Level, Age, Background, Fee, whether they sign and Recruit; one who will not sign is set back with the pool’s reason, and Recruit disabled', () => {
+  test('lists Name, Class, Level, Age, Background, Fee, the wage at each Contract length, whether they sign and Recruit; one who will not sign is set back with the pool’s reason, and Recruit disabled', () => {
     const state = changed(started(), (document, player) => {
       player.fame = 0;
       const pooled = Object.values(document.world.heroes).find((hero) => hero.unattachedSince !== null);
@@ -243,14 +243,19 @@ describe("the Unattached pool as rows (the review's B8)", () => {
     renderGame(state);
     const table = within(section('Unattached pool')).getByRole('table', { name: 'Heroes in the Unattached pool' });
 
-    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', 'Signs', 'Recruit']);
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', '1-year Contract', '2-year Contract', '3-year Contract', 'Signs', 'Recruit']);
     const all = rows();
     expect(all.length).toBeGreaterThan(3);
-    for (const { name, cells: [kind, level, age, , , signs], row } of all) {
+    for (const { name, cells: [kind, level, age, , , , , , signs], row } of all) {
       expect(classNames).toContain(kind);
       expect([level, age].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
       // The fee is coins (DL-294 item 1), whole Silver.
       expect(Number.isSafeInteger(silverOf(within(row).getByTestId('fee')))).toBe(true);
+      // The first wage at each length, longer cheaper a period (DL-315 item 2), whole Silver.
+      const wages = within(row).getAllByTestId('wage').map((cell) => silverOf(cell));
+      expect(wages).toHaveLength(3);
+      expect(wages.every((wage) => Number.isSafeInteger(wage))).toBe(true);
+      expect(wages[2]).toBeLessThanOrEqual(wages[0] ?? 0);
       expect(signs).toMatch(/^(Yes|Needs Fame \d+)$/);
       expect(row.className).toBe(signs === 'Yes' ? '' : 'is-set-back');
       const recruit = within(row).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement;
@@ -261,7 +266,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
       const reason = recruit.getAttribute('aria-describedby');
       expect(reason === null ? null : document.getElementById(reason)?.textContent).toBe(signs === 'Yes' ? null : signs);
     }
-    expect(all.filter(({ cells }) => cells[5] !== 'Yes').length).toBeGreaterThan(0);
+    expect(all.filter(({ cells }) => cells[8] !== 'Yes').length).toBeGreaterThan(0);
   });
 
   test("a Hero's page opened from the pool disables Recruit for one who will not sign, and says why", () => {
@@ -279,6 +284,8 @@ describe("the Unattached pool as rows (the review's B8)", () => {
     const page = within(section('Unattached pool')).getByRole('article');
     // The fee is a coins element between the words (`getByText` reads a node's own text).
     expect(silverOf(within(page).getByText(/^Signing fee \. Signs for your Guild: needs Fame \d+\.$/))).toBeGreaterThan(0);
+    // The first wage at each length, beside the length to choose (DL-315 item 4).
+    expect(within(page).getByTestId('wages-by-length').querySelectorAll('.coins')).toHaveLength(3);
     expect((within(page).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement).disabled).toBe(true);
   });
 

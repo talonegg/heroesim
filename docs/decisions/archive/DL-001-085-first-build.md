@@ -1976,8 +1976,7 @@ rise with Level.
    `levelUps` comes straight after `questsConclude` (the epic) and after `training`, so a night's
    Quest XP and training XP are levelled that night: at every night's end each covered Hero's Level
    is the highest their XP reaches, up to the cap. Approach §2's night line names both.
-8. **Upkeep** already reads Level (`wagePerLevel`, DL-26, DL-35), so a Level gained costs its Guild
-   `wagePerLevel` more at each Upkeep from then on.
+8. **Upkeep.** *Superseded by DL-315 item 3, 2026-10-16; its text is in [superseded/DL-36.md](superseded/DL-36.md).*
 9. **Config.** Seven fields are added with INPUTS 5.1 to 5.3's values (`xpCurveBase` **100**,
    `xpCurveExponent` **2**, `levelCap` **20**, `growthPointsPerLevel` **3**, and item 5's and 6's),
    and one removed with its effect kept. The growth weights are content's and already refused
@@ -2001,6 +2000,7 @@ rise with Level.
     pass tunes the wage again with the other M3 tracks' rules merged. The wage's shape, all per
     Level with no base (INPUTS 4.6), is unchanged; a base plus a smaller per-Level part is the other
     lever, and the owner's. Tests pin the wages they rely on; one pins the new default.
+    *Superseded in part by DL-315 item 2, 2026-10-16: A wage all per Level with no base; now a Contract's wage, set at signing from `wageBase`, `wagePerLevel` × Level, the Stat sum and Fame, and fixed for its term. The record: [superseded/DL-36.md](superseded/DL-36.md).*
 
 **Consequences.** Heroes grow now, on every Roster, and their wages with them (item 10). A save made
 before this entry plays under `configVersion` 2, a wage of 70, until the player rebases. The curve

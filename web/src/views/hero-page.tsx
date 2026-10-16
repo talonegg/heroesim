@@ -31,6 +31,7 @@ import type { GameAction } from '../state/reducer';
 import { heroPage, type Captaincy, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
 import { Coins } from './coins';
+import { SignForLength, WagesByLength } from './contract-length';
 import { HeroName, Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
 import { Terms } from './section';
@@ -344,17 +345,18 @@ function HeroActionsView({
           <p>
             Signing fee <Coins silver={actions.fee} />. Signs for your Guild: {actions.signs}.
           </p>
+          <WagesByLength terms={actions.terms} />
           <div className="actions">
             {/* Disabled for one who will not sign, the sentence above saying why (DL-109 item 2, Q17). */}
-            <button
-              type="button"
+            <SignForLength
+              terms={actions.terms}
+              name={name}
+              text="Recruit"
+              label={`Recruit ${name}`}
               className="button--primary"
-              aria-label={`Recruit ${name}`}
               disabled={busy || !actions.willSign}
-              onClick={() => play({ kind: 'recruit', heroId, years: 2 })}
-            >
-              Recruit
-            </button>
+              onSign={(years) => play({ kind: 'recruit', heroId, years })}
+            />
           </div>
         </div>
       );
@@ -365,10 +367,16 @@ function HeroActionsView({
             Your Guild would pay {actions.guildName} a Transfer fee of <Coins silver={actions.fee} /> to take {name} in, if{' '}
             {actions.guildName} is willing to part with them.
           </p>
+          <WagesByLength terms={actions.terms} />
           <div className="actions">
-            <button type="button" aria-label={`Take ${name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId, years: 2 })}>
-              Take in
-            </button>
+            <SignForLength
+              terms={actions.terms}
+              name={name}
+              text="Take in"
+              label={`Take ${name} in`}
+              disabled={busy}
+              onSign={(years) => play({ kind: 'transferIn', heroId, years })}
+            />
           </div>
         </div>
       );

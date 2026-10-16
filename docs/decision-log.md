@@ -405,3 +405,58 @@ text names a Contract, so no view changes. S2 to S8 `compare` against the two re
 `8e5f31e3…`), committed in this story's commit; the doctors' and checks' readings in that message; the
 epic's S1 boxes.
 Verified 2026-10-16 at 0367bf5: the reports' fingerprints recompute and every claim held but these, fixed in `CONTEXT.md` and `requirements.md`: unbuilt rules stated with no "to be built" (Contract, Under Offer, Upkeep, Treasury, an Offer's new ends), renewal at any time without Q-A's "once home" (the Contract, R45), the Transfer fee called the wages left rather than read from them, the Market's rule cited to DL-305 for DL-301 (and built, not to be built as item 2 says), four _Avoid_ words unqualified that the page uses for Offers, Quests and Items, and §2's row naming no backlog.
+
+## DL-315 — v1.2.3-S2 built: the Contract and its wage
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** an agent (the epic's S2); the owner, item 8
+
+**Context.** Every Hero on a Roster is to hold a Contract whose wage is set at signing and fixed for its
+term, with a length the signer chooses (DL-294 item 6, DL-311). S2 builds the record, the wage rule, the
+charge, the signing with a length on the engine, the page and the CLI, and the founding Contracts.
+
+**Decision.**
+
+1. **The record.** `Hero.contract` `{ wage, signedOnTurn, years, endDay }`, null on no Roster;
+   `TransferOffer.years`. `schemaVersion` 14, no migration. The validator's `contract-mismatch`: a Roster
+   Hero in play holds a sound Contract ending after its signing Day, any other Hero none.
+2. **The wage rule.** `contractWage` (`engine/src/contract.ts`): (`wageBase` + `wagePerLevel` × Level +
+   Stat sum ÷ `wageStatDivisor` + `wageFameFactor` × the Guild's Fame) × the length's factor × (1 −
+   Negotiation), floored once. Config 35 adds `wageBase` 0, `wageStatDivisor` 40, `wageFameFactor` 0,
+   `contractLengthsYears` [1, 2, 3] and `contractWageFactors` [1, 0.95, 0.9], held to one length by
+   `checkConfig`. It supersedes DL-36 item 10's wage shape.
+3. **Charged.** `wages` sums each living Roster Hero's Contract wage, `upkeep` follows, and
+   `guild.wages-paid` carries `wages` by Hero (`moneyMaps`). A Level gained no longer moves a wage. It
+   supersedes DL-36 item 8.
+4. **Signed with a length.** `recruit`, `transferIn` and `offerTransfer` take `years`, one of the list,
+   else `length-not-offered`; `transferOut` signs for the taking Guild's `contractYears`.
+   `hero.recruited` and `hero.transferred` carry wage, years and end Day. The Pool shows each signing fee
+   beside the first wage at each length and a length to choose; the page's Transfers (the Guild's Roster,
+   the Hero page) choose one, wages by `contractTerms`; the CLI's `recruit` and `transfer --in` take
+   `--years`, required, and `--to` refuses it.
+5. **Who chooses.** A Disposition's `contractYears` (content 50): steady 2, ambitious 1, miserly 3,
+   reckless 1; the harness policy 2 (a whole setting).
+6. **Founding Contracts** draw length and end Day evenly on the stream `contracts`, two draws a Hero,
+   so `generation` is unmoved. A Rival founded at a fold draws alike.
+7. **Ended** by a Death, a Retirement, a Transfer or a fold.
+8. **No refit** (the owner's "a", 2026-10-16). The wages a Guild-year, −64% for the player and −38% for the
+   Rivals against S1's baseline, are recorded, not refitted. S3's and S6's runs read them again as
+   expiry's repricing and the renewals arrive; the close reports them against `v1.2.2`'s close; `v1.2.4`
+   tunes the wage's keys with the rest of the economy, as DL-312 did the fee.
+
+*Judgement calls, for the owner to see.*
+- An Offer stores its years and the wage is set at its acceptance, by the buyer's rule then.
+- The validator checks only that the end Day falls after the signing Day, since a rebase may change
+  `turnsPerYear`.
+- A founding Contract is signed at the full-term wage, only its end Day drawn part-way.
+- The signing sentence leaves out the length, saying the wage and the end date (the CLI's 170-character
+  line); the length shows in the Pool and the Roster.
+- `--years` is required on the CLI; a length the list lacks is the engine's refusal, naming those offered.
+
+**Consequences.** Two tests are red for the owner: `quests-conclude.test.ts` "nothing else moves … History
+of 86c7afa" (a deliberate pin of play, whose three fingerprints moved from the first wage Day on) and two in
+`world-copy.test.ts` (their 240-Turn game no longer ends with a Hero out of play). Both are set up anew;
+the owner may overrule. Rival folds 1 → 0, Rival Transfers 0 → 30 and Offers to the player 0 → 14, all
+declined. The Pool's table is wider, scrolling in its box on a phone.
+
+**Evidence.** Commits `7be4ecb` and this story's; `harness/reports/v1.2.3-s2-quick-2026-10-16` (fingerprint
+`cd75566d…`) against `v1.2.3-s1-baseline-quick-2026-10-16`; the epic's S2 boxes and Q-K.

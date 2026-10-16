@@ -36,6 +36,7 @@ import {
   type Guild,
   type GuildId,
   type GuildmasterId,
+  type Hero,
   type HeroId,
   type RankingMeasure,
   type RegardBand,
@@ -44,6 +45,7 @@ import {
 } from '@heroesim/engine';
 import { capitalised, dateOfTurn, endingWords, facilityDoes, facilityName, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { classMarkOf, type ClassMarked, controllerWords, placeWords } from './names';
 import { readingOf } from './reading';
 
@@ -443,6 +445,8 @@ export interface OtherRosterRow extends ClassMarked {
   background: string;
   /** What the player's Guild would pay to take them in (`transferFee`); `null` with no player's Guild. */
   fee: number | null;
+  /** The first wage the player's Guild would pay at each Contract length offered (`contractWage`, DL-315); none on the player's own Roster. */
+  terms: ContractTerm[];
 }
 
 export interface GuildPageView {
@@ -491,6 +495,7 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
       morale: row.morale,
       background: row.background,
       fee: row.transferFee,
+      terms: row.transferFee === null ? [] : contractTerms(reading, world.heroes[row.id] as Hero),
     })),
     hall,
     guildmaster: guildmasterView(document, guildId),

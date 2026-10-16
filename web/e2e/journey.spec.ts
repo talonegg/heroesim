@@ -73,7 +73,7 @@ async function recruitAHero(page: Page): Promise<string> {
   await expectWealth(page, wealth - chosen.fee);
   await expect(pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true })).toHaveCount(0);
   await expect((await rosterList(page)).getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
-  const signed = historyText(await history(page), new RegExp(`^The Lantern signed ${escaped(chosen.name)} for ${escaped(coinWords(chosen.fee))}\\.$`));
+  const signed = historyText(await history(page), new RegExp(`^The Lantern signed ${escaped(chosen.name)} for ${escaped(coinWords(chosen.fee))}, on a Contract at .+ to Year \\d+ Day \\d+\\.$`));
   await expect(signed).toHaveCount(1);
   await expect(lineOf(signed)).toHaveClass(/\bis-new\b/);
   return chosen.name;
@@ -159,7 +159,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(treasury.getByText(new RegExp(`^Hall upkeep of The Lantern: ${amountPattern} every 30 Days$`))).toBeVisible();
   await expect.poll(() => spokenText(treasury.getByTestId('hall-upkeep-next'))).toMatch(new RegExp(`^Next paid on the night of Year \\d+ Day \\d+: ${amountPattern}\\.$`));
   const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
-  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for ${amountPattern}\\.Signing fees-`) })).toHaveCount(1);
+  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Year \\d+ Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for ${amountPattern}, on a Contract at .+ to Year \\d+ Day \\d+\\.Signing fees-`) })).toHaveCount(1);
   // It opens with the Wealth the Guild was founded with, last on its only page (DL-120 item 4).
   await expect(ledger.getByRole('row').last()).toHaveText(new RegExp(`^Year 1 Day 1, morningFounded with ${amountPattern}Opening balance`));
   await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: /^Expense \d+$/ }).click();

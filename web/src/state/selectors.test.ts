@@ -8,6 +8,7 @@ import {
   bestParties,
   captainLock,
   configVersion,
+  contractWage,
   dayOf,
   defaultConfig,
   effectiveStats,
@@ -1552,11 +1553,14 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const [pooled] = unattachedHeroes(document.world);
     if (theirs === undefined || pooled === undefined) throw new Error('no Hero');
 
-    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, deps) });
+    // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
+    const termsOf = (hero: Hero) => defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, deps) }));
+    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, deps), terms: termsOf(theirs) });
     const refusal = signingRefusal(guild, pooled, defaultConfig);
     expect(heroPage(document, pooled.id)?.actions).toEqual({
       kind: 'pool',
       fee: signingFee(pooled, deps, buyer),
+      terms: termsOf(pooled),
       signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
       willSign: refusal === null,
     });
