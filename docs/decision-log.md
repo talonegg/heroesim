@@ -732,3 +732,46 @@ budget's two and the free step's other six held on the old code. The releases an
 replaying the four seeds.
 
 Verified 2026-10-17 at ed9c9a0: claims held, the pin traced to the search; a surviving mutation (the policy releasing a Hero it sends) closed by a stronger test, a test added of a Rival releasing to an empty Roster and folding, Roster wiped; DL-57's note names items 1 and 3; a 12-year replay reached the order, 28 releases, all free and in order, one Rival wiped.
+
+## DL-321 — v1.2.3-S8 built: the harness's lines
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S8)
+
+**Context.** The rules of S2 to S7 are built and the harness reports little of them. S8 counts them, with no band
+(`v1.2.4` proposes any), and rounds the Wealth's shares so each side's sum to the whole (DL-305's note).
+
+**Decision.**
+
+1. **`contracts`** (`counters.ts`, `game-counters.ts`), from the History, by side: Contracts signed by way (`hero.recruited`,
+   `hero.transferred` for the Guild the Hero joins, `hero.contract-renewed`) and by years; expiries; releases. A release's payout is
+   `releasePayouts` (DL-317), shown beside it, not counted again. Founding Contracts have no event and are not signings.
+2. **`freeOffers`**, from the History, by the side that made the Offer and the side asked: made, withdrawn by a renewal, taken. An
+   Offer is free when its Hero's last event before it is `hero.contract-expired` (no signing or release since), the History's order
+   standing for `freeOffer`'s Contract read; a priced Offer at a fee of 0 is not free.
+3. **`contractDays`**, observed once a Day on a morning's Turn before the policy acts: Hero-Days and Guild-Days Out of Contract
+   (`outOfContract`) and Under Offer (`underOffer`), and the wage in force by Level over Hero-Days, for the mean wage by Level.
+4. **The mean Transfer fee** is the existing column's; a row beside the Contracts' repeats it for a Hero bought by each side.
+5. **The shares** of the Wealth spent and taken, `shares` (`report.ts`), by largest remainder in tenths of a percent, earlier first
+   among equals; a whole of nothing reads a dash. A new section, `## Contracts (DL-321)`, holds the lines; no old line moves.
+6. **`outOfContract` and `underOffer`** are exported from the engine's index, the only change to `engine/src/`.
+
+*Judgement calls, for the owner to see.*
+- The Days are sampled at a morning, so an Offer a Rival's answer ends at once is never seen standing: Hero-Days Under Offer read 0
+  in the quick run, where every free Offer was renewed within its Turn.
+- The mean wage is the wage in force (a Hero Out of Contract on the repriced wage), not the wage at signing.
+- Arranged for the owner to see (DL-315's note), assertions unchanged: `counters.test.ts`'s hand-built `hero.recruited` and
+  `hero.transferred` entries gain the terms (`wage`, `years`, `endDay`) the engine's carry, and `sweep.test.ts`'s fixture a value in
+  each new counter. Changed with the rule: `sweep.test.ts`'s shares, Improvements' upkeep 3.8% to 3.9%, the naive rounding's 99.9%.
+
+**Consequences.** Play does not move. Quick run, 2 years (`v1.2.3-s8-quick-2026-10-17`, `387107e0…`, S7's): `compare` with S7's
+moves 43 paths, all new, and none of the old. The Gate PASS, refusals 0, folds 0.
+- The player signed 23 Contracts (16 recruits, 7 renewals, all of 2 years), the Rivals 62 (42 recruits, 9 Transfers, 11 renewals);
+  14 and 83 expired; releases 0. Free Offers 18 (7 to the player), all renewed, none taken, as S7's replay counted.
+- Out of Contract: 17.9% of the player's Hero-Days and 51.2% of the Rivals', nobody renewing but on a free Offer. Under Offer 0.
+- The mean wage by Level, Level 1 to 4: the player 21.7, 23.7, 28.0, 39.8; the Rivals 22.1, 27.5, 38.1, 54.1. The mean Transfer fee
+  a Rival paid, 410.
+- Each side's shares sum to 100.0%. Q-M, the owner's "a" (2026-10-17): a Rival in debt releasing down to an empty Roster, kept as
+  built; `v1.2.4` judges a guard or unprompted renewals with the economy (DL-320).
+
+**Evidence.** This story's commit; `harness/reports/v1.2.3-s8-quick-2026-10-17`; the S8 boxes, both met. Red first: the
+Contracts' and the free Offers' counters, the observer, the report's lines and the shares (9 tests).

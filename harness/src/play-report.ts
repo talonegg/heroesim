@@ -74,6 +74,7 @@ const headings: Record<Section, readonly string[]> = {
       "a Rival takes, and whether an afternoon Transfer's seller was in debt.",
     '',
   ],
+  contracts: ['## Contracts (DL-321)', ''],
   fatigue: ['## Fatigue and the Captain (DL-290)', ''],
   portraits: ['## Portraits (v1.1.3-S5)', ''],
   heroes: ['## Heroes described (v1.1.3-S6)', ''],

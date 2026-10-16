@@ -130,6 +130,28 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
   the engine eases the hurt from the next Encounter on; by a heal Item spent on the Hero at that Encounter, which shortens the Injury
   even at the last; by both; or by neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
 
+### The Contracts' lines
+
+The report's `## Contracts` section (DL-321) states, the player's Guild and the Rivals apart, what the Contracts did. It has no
+band; `v1.2.4` proposes any. Each is read from the History or the World State and draws nothing, so play is as it was without them.
+
+- **Signed, expired, released** (`contracts`): `hero.recruited`, `hero.transferred` (for the Guild the Hero joins) and
+  `hero.contract-renewed`, by the way signed and the years of the term, with the count a Guild-year; `hero.contract-expired`;
+  `hero.released`, whose payout is the Wealth flow `releasePayouts` and is not counted again. A founding Contract has no event
+  and is not among the signings. The mean release payout and the mean Transfer fee paid, a Hero bought (from `transfers`),
+  stand beside them.
+- **Free Offers** (`freeOffers`): the Offers made by a side to a side for a Hero Out of Contract, how many their Guild withdrew
+  by renewing them (cause `renewed`) and how many were taken (cause `taken`). An Offer is free when the Hero's last event
+  before it is a `hero.contract-expired`, no signing or release since: a priced Offer whose fee reads 0 is not.
+- **Days Out of Contract and Under Offer** (`contractDays`): sampled once a Day, on a morning's Turn before the policy acts,
+  for each Guild in play: the Roster's Heroes (`outOfContract`, `underOffer`) in Hero-Days, and the Guild-Days with at least one.
+  An Offer a Rival's answer ends at once is never standing at a morning, so the Days Under Offer are those over a night.
+- **The mean wage by Level** (`contractDays`): the wage in force over the Hero-Days of Roster Heroes with a Contract, a Hero Out
+  of Contract on the wage repriced.
+
+The shares of the Wealth spent and taken (`wealth`) are rounded by largest remainder, so each side's sum to 100.0% (`shares`,
+`src/report.ts`).
+
 ## The Gate
 
 `harness/gate.json` declares what a release's closing sweep must meet, line by line, with each line's

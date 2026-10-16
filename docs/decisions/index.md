@@ -330,6 +330,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-318 | 2026-10-16 | v1.2.3-S5 built: the Transfer fee from the wages left |  | [decision-log](../decision-log.md) |
 | DL-319 | 2026-10-17 | v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer |  | [decision-log](../decision-log.md) |
 | DL-320 | 2026-10-17 | v1.2.3-S7 built: in debt, and the Rivals' search |  | [decision-log](../decision-log.md) |
+| DL-321 | 2026-10-17 | v1.2.3-S8 built: the harness's lines |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

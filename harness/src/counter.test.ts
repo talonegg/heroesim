@@ -201,6 +201,25 @@ describe('the Wealth spent and taken', () => {
       "Shares of the Wealth taken: The player's Guild: Quest rewards 70.0%, Item sales 20.0%, Transfers 10.0%; The Rivals: Quest rewards —, Item sales —, Transfers —.",
     );
   });
+
+  // DL-321 (DL-305's note): thirds that round alone to 99.9% sum to the whole by largest remainder.
+  test("each side's shares sum to the whole, by largest remainder, where rounding each alone misses it", () => {
+    const counter = gameCounters.find((it) => it.key === 'wealth');
+    if (counter?.lines === undefined) throw new Error('No wealth counter');
+    const thirds = { ...noWealth(), wages: 1, hallUpkeep: 1, improvementUpkeep: 1, questRewards: 1, transferFeesTaken: 1, sales: { sale: 1, fold: 0 } };
+    const totals = { wealth: { player: thirds, rival: noWealth() }, guildYears: { player: [1], rival: [2] } };
+
+    const lines = counter.lines(totals as unknown as SweepTotals, {} as never).flatMap((text) => text.split('\n'));
+
+    expect(lines).toContain(
+      "Shares of the Wealth spent: The player's Guild: wages 33.4%, Hall upkeep 33.3%, Improvements’ upkeep 33.3%, Items 0.0%, " +
+        'Improvements 0.0%, signing 0.0%, Transfers 0.0%, release payouts 0.0%; The Rivals: wages —, Hall upkeep —, Improvements’ upkeep —, Items —, ' +
+        'Improvements —, signing —, Transfers —, release payouts —.',
+    );
+    expect(lines).toContain(
+      "Shares of the Wealth taken: The player's Guild: Quest rewards 33.4%, Item sales 33.3%, Transfers 33.3%; The Rivals: Quest rewards —, Item sales —, Transfers —.",
+    );
+  });
 });
 
 // DL-271: the Board's top Tier and each side's best four, as each year begins.

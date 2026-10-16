@@ -1,0 +1,2597 @@
+{
+  "format": 1,
+  "milestone": "v1.2.3-s8-quick",
+  "profile": "neutral",
+  "startedAt": "2026-10-16T15:15:24.441Z",
+  "settings": [
+    "HEROESIM_PROFILE=neutral",
+    "HEROESIM_MILESTONE=v1.2.3-s8-quick",
+    "HEROESIM_SEEDS=4",
+    "HEROESIM_YEARS=2"
+  ],
+  "machine": {
+    "node": "v26.9.0",
+    "os": "Windows_NT 10.0.26300",
+    "arch": "x64",
+    "cpu": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S",
+    "cores": 32
+  },
+  "seeds": [
+    "seed-0001",
+    "seed-0002",
+    "seed-0003",
+    "seed-0004"
+  ],
+  "years": 2,
+  "workers": 4,
+  "validated": false,
+  "content": {
+    "id": "core",
+    "version": 50,
+    "drafted": []
+  },
+  "configVersion": 38,
+  "schemaVersion": 14,
+  "config": {
+    "turnsPerYear": 1080,
+    "startingRosterSize": 4,
+    "startingWealth": 500,
+    "rivalCount": 4,
+    "rivalRosterMin": 4,
+    "rivalRosterMax": 8,
+    "rivalHireReserveUpkeeps": 1,
+    "rivalHealItemStock": 2,
+    "rivalStartingWealthMin": 300,
+    "rivalStartingWealthMax": 700,
+    "patronCount": 12,
+    "unattachedPoolSize": 8,
+    "heroStartingAgeMin": 18,
+    "heroStartingAgeMax": 36,
+    "heroSexWeights": {
+      "female": 1,
+      "male": 1
+    },
+    "statBaseMin": 3,
+    "statBaseMax": 10,
+    "statBiasMin": 2,
+    "statBiasMax": 4,
+    "potentialGapMin": 3,
+    "potentialGapMax": 12,
+    "startingSkillsMin": 1,
+    "startingSkillsMax": 2,
+    "startingSkillRatingMax": 2,
+    "moraleBaseline": 50,
+    "guildmasterStartingAgeMin": 21,
+    "guildmasterStartingAgeMax": 50,
+    "guildmasterSexWeights": {
+      "female": 1,
+      "male": 1
+    },
+    "guildmasterStatMin": 5,
+    "guildmasterStatMax": 15,
+    "guildmasterStatPoints": 50,
+    "guildmasterTraitsMin": 0,
+    "guildmasterTraitsMax": 2,
+    "guildmasterTraitBudget": 1,
+    "upkeepEveryDays": 10,
+    "wageBase": 0,
+    "wagePerLevel": 20,
+    "wageStatDivisor": 40,
+    "wageFameFactor": 0,
+    "contractLengthsYears": [
+      1,
+      2,
+      3
+    ],
+    "contractWageFactors": [
+      1,
+      0.95,
+      0.9
+    ],
+    "outOfContractPremium": 0.1,
+    "releasePayoutFactor": 0.8,
+    "hallUpkeepEveryDays": 30,
+    "hallBaseUpkeep": 30,
+    "hallUpkeepPerHero": 5,
+    "hallUpkeepHeroExponent": 1,
+    "improvementUpkeepGradeFactor": 1.73,
+    "bankruptcyFloor": 0,
+    "bankruptcyGraceDays": 30,
+    "fameFloor": 0,
+    "foundingFame": 0,
+    "signingFeeBase": 50,
+    "signingFeePerLevel": 25,
+    "signingFeeStatDivisor": 4,
+    "unattachedStayDays": 10,
+    "fameRequiredPerLevel": 10,
+    "boardSizeStart": 6,
+    "boardGrowthPerYear": 0,
+    "boardSizeMax": 6,
+    "questOfferDays": 3,
+    "questDifficultyMin": 10,
+    "questDifficultyMax": 100,
+    "encounterTagWeight": 3,
+    "tiers": [
+      {
+        "difficultyMin": 10,
+        "difficultyMax": 28,
+        "daysMin": 3,
+        "daysMax": 5,
+        "beats": 2,
+        "loot": false,
+        "rewardFactor": 1.36,
+        "xpFactor": 1.4,
+        "deathScale": 0,
+        "fameMinimum": 0,
+        "unlockLevel": 0
+      },
+      {
+        "difficultyMin": 28,
+        "difficultyMax": 46,
+        "daysMin": 5,
+        "daysMax": 8,
+        "beats": 3,
+        "loot": false,
+        "rewardFactor": 1.64,
+        "xpFactor": 1.64,
+        "deathScale": 0,
+        "fameMinimum": 0,
+        "unlockLevel": 3
+      },
+      {
+        "difficultyMin": 46,
+        "difficultyMax": 64,
+        "daysMin": 8,
+        "daysMax": 12,
+        "beats": 3,
+        "loot": true,
+        "rewardFactor": 2.04,
+        "xpFactor": 2.04,
+        "deathScale": 0,
+        "fameMinimum": 0,
+        "unlockLevel": 6
+      },
+      {
+        "difficultyMin": 64,
+        "difficultyMax": 82,
+        "daysMin": 12,
+        "daysMax": 16,
+        "beats": 4,
+        "loot": true,
+        "rewardFactor": 2.43,
+        "xpFactor": 2.42,
+        "deathScale": 1,
+        "fameMinimum": 0,
+        "unlockLevel": 9
+      },
+      {
+        "difficultyMin": 82,
+        "difficultyMax": 100,
+        "daysMin": 16,
+        "daysMax": 20,
+        "beats": 5,
+        "loot": true,
+        "rewardFactor": 2.55,
+        "xpFactor": 2.51,
+        "deathScale": 1,
+        "fameMinimum": 0,
+        "unlockLevel": 12
+      }
+    ],
+    "tierDrawWeights": [
+      1,
+      0.5,
+      0.2
+    ],
+    "unlockHeroes": 4,
+    "deathFactor": 1,
+    "checkVariance": 0.4,
+    "skillBonusPerRating": 2,
+    "bandBySuccessShare": {
+      "successAbove": 0.5,
+      "strongAtLeast": 1
+    },
+    "checkDegrees": {
+      "triumph": 1.35,
+      "success": 1,
+      "setback": 0.75
+    },
+    "strongTriumphShare": 0.6,
+    "hurtCheckFactor": 0.6,
+    "healerHurtRelief": 0.5,
+    "healItemHurtRelief": 0.5,
+    "exposureRange": 2,
+    "guardRange": 0.5,
+    "chanceBands": {
+      "unlikely": 0.1,
+      "even": 0.35,
+      "likely": 0.65,
+      "near-certain": 0.9
+    },
+    "playerPartyMargin": 0.05,
+    "moraleMin": 0,
+    "moraleMax": 100,
+    "moraleDrift": 1,
+    "moraleBands": {
+      "wretched": 0,
+      "low": 11,
+      "steady": 35,
+      "high": 66,
+      "elated": 90
+    },
+    "moraleOnRosterDeath": -20,
+    "moraleOnStrongSuccess": 5,
+    "heroRetirementAge": 45,
+    "heroRetirementChancePerYear": 0.02,
+    "heroRetirementInjuredMultiplier": 2,
+    "fatigueMax": 100,
+    "fatigueBands": {
+      "fresh": 0,
+      "weary": 25,
+      "tired": 50,
+      "exhausted": 75
+    },
+    "fatigueRiseByTier": [
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fatigueScaling": 0.4,
+    "playerRestBand": "tired",
+    "captainFormFactor": 1.05,
+    "captainHomecomingMorale": 5,
+    "captainHomeBaselineBonus": 5,
+    "captainChangeMoraleCost": -10,
+    "captainChangeLockDays": 30,
+    "potentialHintBands": {
+      "modest": 0,
+      "promising": 6,
+      "exceptional": 10
+    },
+    "declineAge": 40,
+    "declinePerYear": 1,
+    "declineAreas": [
+      "physical"
+    ],
+    "guildmasterRetirementAge": 61,
+    "rivalReplacementDays": 30,
+    "xpCurveBase": 100,
+    "xpCurveExponent": 2,
+    "levelCap": 20,
+    "growthPointsPerLevel": 3,
+    "xpPerDifficultyPoint": 1,
+    "xpBandFactor": {
+      "fail": 0.5,
+      "success": 1,
+      "strong": 1
+    },
+    "regardMin": -20,
+    "regardMax": 20,
+    "regardBands": {
+      "hostile": -20,
+      "cool": -12,
+      "neutral": -4,
+      "warm": 4,
+      "close": 12
+    },
+    "regardPerSharedQuest": 1,
+    "regardOnSuccessBonus": 0.5,
+    "regardDecayPerYear": 0.25,
+    "teamworkRange": 0.1,
+    "patronRegardOnSuccess": 1,
+    "patronRegardOnFailure": -2,
+    "patronRegardOnExpiry": -1,
+    "patronRegardRecoveryPerYear": 0.5,
+    "boardRegardWeight": 1,
+    "negotiationRange": 0.1,
+    "inspirationMoraleShift": 10,
+    "coachingFactor": 0.5,
+    "influenceFactor": 0.5,
+    "judgementHintSharpening": 0.25,
+    "guildmasterRegardOnPatronSuccess": 1,
+    "guildmasterRegardOnPatronFailure": -1,
+    "guildmasterRegardOnHeroSuccess": 1,
+    "guildmasterRegardOnHeroFailure": -1,
+    "transferFeeFactor": 0.3,
+    "transferMoraleCost": -15,
+    "transferRegardBand": "warm",
+    "guildmasterRegardPerTransferDeal": 2,
+    "transferOfferDays": 3,
+    "transferGeneratorEveryDays": 7,
+    "transferGeneratorChance": 0.5,
+    "transferLockDays": 90,
+    "lootOnBands": [
+      "strong"
+    ],
+    "lootOnFinaleDegrees": [
+      "triumph"
+    ],
+    "marketSize": 10,
+    "marketStackMin": 1,
+    "marketStackMax": 5,
+    "sellRatio": 0.5
+  },
+  "configured": {},
+  "policy": {
+    "recruitWealthMultiple": 1,
+    "rosterLimit": 8,
+    "buildWealthMultiple": 3,
+    "buyWealthMultiple": 3,
+    "consumableStock": 2,
+    "consumableReserveUpkeeps": 6.666666666666667,
+    "contractYears": 2,
+    "rosterFloor": 4
+  },
+  "policyChanged": {},
+  "modules": [],
+  "fingerprint": "387107e06c45468ef352ac102616c178aaf1265a434a4ed45faf47ef1ed6a417",
+  "replay": {
+    "seed": "seed-0001",
+    "identical": true,
+    "length": 9912400
+  },
+  "games": [
+    {
+      "seed": "seed-0001",
+      "fingerprint": "999ced286ff6395dd3e038c380fd7c9e0891c0bc2e024e4beedd553f6c309ef5",
+      "serialisedLength": 9912400,
+      "turnsPlayed": 2160,
+      "ranFullLength": true,
+      "ending": null,
+      "roundTrips": true,
+      "invalid": false,
+      "stopped": false,
+      "refusals": 0
+    },
+    {
+      "seed": "seed-0002",
+      "fingerprint": "d18d12a0b747f2f31dd46ee6fe135a6a083816f490cff928eb6e496d616b5409",
+      "serialisedLength": 9372901,
+      "turnsPlayed": 2160,
+      "ranFullLength": true,
+      "ending": null,
+      "roundTrips": true,
+      "invalid": false,
+      "stopped": false,
+      "refusals": 0
+    },
+    {
+      "seed": "seed-0003",
+      "fingerprint": "6aa2aafa7f18b94f44fe874c31718d3cedde618544807f5b7421587dc2925958",
+      "serialisedLength": 12757809,
+      "turnsPlayed": 2160,
+      "ranFullLength": true,
+      "ending": null,
+      "roundTrips": true,
+      "invalid": false,
+      "stopped": false,
+      "refusals": 0
+    },
+    {
+      "seed": "seed-0004",
+      "fingerprint": "2500647d5aadfacf389c36fffd9c7e06692b68532926b20e2a7486a0ff325107",
+      "serialisedLength": 8710798,
+      "turnsPlayed": 2160,
+      "ranFullLength": true,
+      "ending": null,
+      "roundTrips": true,
+      "invalid": false,
+      "stopped": false,
+      "refusals": 0
+    }
+  ],
+  "timings": {
+    "totalMs": 9351.9872,
+    "gamesMs": 5628.4621,
+    "advance": {
+      "count": 8640,
+      "mean": 1.0864431134259205,
+      "sd": 0.7289372436972019,
+      "min": 0.2497000000000753,
+      "max": 9.526699999999437,
+      "p50": 0.901299999999992,
+      "p99": 3.7832000000003063
+    },
+    "replayAdvance": {
+      "count": 2160,
+      "mean": 1.149090648148164,
+      "sd": 0.5852967318706648,
+      "min": 0.29620000000068103,
+      "max": 6.355599999999868,
+      "p50": 0.9792000000006738,
+      "p99": 3.0733000000000175
+    },
+    "validation": {
+      "count": 0,
+      "mean": "NaN",
+      "sd": "NaN",
+      "min": "NaN",
+      "max": "NaN",
+      "p50": "NaN",
+      "p99": "NaN"
+    }
+  },
+  "totals": {
+    "games": 4,
+    "questsTaken": {
+      "player": 1704,
+      "rival": 4099
+    },
+    "questsResolved": {
+      "player": {
+        "fail": 51,
+        "success": 445,
+        "strong": 1194
+      },
+      "rival": {
+        "fail": 773,
+        "success": 1817,
+        "strong": 1458
+      }
+    },
+    "heroesInjured": {
+      "player": 18,
+      "rival": 147
+    },
+    "heroesDied": {
+      "player": 0,
+      "rival": 0
+    },
+    "heroesRecruited": {
+      "player": 16,
+      "rival": 42
+    },
+    "heroesRetired": {
+      "player": 0,
+      "rival": 0
+    },
+    "traitsGained": {
+      "player": 21,
+      "rival": 44
+    },
+    "traitsLost": {
+      "player": 0,
+      "rival": 0
+    },
+    "questingHeroes": {
+      "player": 32,
+      "rival": 136
+    },
+    "endings": {
+      "retirement": 0,
+      "bankruptcy": 0,
+      "roster-wiped": 0,
+      "survived": 4
+    },
+    "yearsSurvived": {
+      "count": 4,
+      "mean": 2,
+      "sd": 0,
+      "min": 2,
+      "max": 2,
+      "p50": 2,
+      "p99": 2
+    },
+    "rivalFolds": {
+      "retirement": 0,
+      "bankruptcy": 0,
+      "roster-wiped": 0
+    },
+    "rivalSuccessions": 0,
+    "refusals": 0,
+    "invalidGames": 0,
+    "assertionGames": 0,
+    "belowFloor": {
+      "player": 0,
+      "rival": 9
+    },
+    "floorRecovered": {
+      "player": 0,
+      "rival": 9
+    },
+    "endedInYear": [
+      0,
+      0
+    ],
+    "guildYears": {
+      "player": [
+        4,
+        4
+      ],
+      "rival": [
+        16,
+        16
+      ]
+    },
+    "levelsGained": {
+      "player": [
+        64,
+        32
+      ],
+      "rival": [
+        201,
+        169
+      ]
+    },
+    "declines": {
+      "player": [
+        0,
+        0
+      ],
+      "rival": [
+        0,
+        0
+      ]
+    },
+    "rosters": [
+      {
+        "games": 4,
+        "player": {
+          "guilds": 4,
+          "wealth": 2000,
+          "heroes": 16,
+          "levels": 16,
+          "atPotential": 0
+        },
+        "rival": {
+          "guilds": 16,
+          "wealth": 8153,
+          "heroes": 95,
+          "levels": 95,
+          "atPotential": 0
+        }
+      },
+      {
+        "games": 4,
+        "player": {
+          "guilds": 4,
+          "wealth": 67574,
+          "heroes": 32,
+          "levels": 96,
+          "atPotential": 2
+        },
+        "rival": {
+          "guilds": 16,
+          "wealth": 101292,
+          "heroes": 95,
+          "levels": 296,
+          "atPotential": 0
+        }
+      },
+      {
+        "games": 4,
+        "player": {
+          "guilds": 4,
+          "wealth": 136588,
+          "heroes": 32,
+          "levels": 128,
+          "atPotential": 6
+        },
+        "rival": {
+          "guilds": 16,
+          "wealth": 245688,
+          "heroes": 137,
+          "levels": 507,
+          "atPotential": 8
+        }
+      }
+    ],
+    "highestLevels": {
+      "player": {
+        "games": [
+          4,
+          4
+        ],
+        "levels": [
+          12,
+          16
+        ],
+        "highest": [
+          3,
+          4
+        ]
+      },
+      "ambitious": {
+        "games": [
+          4,
+          4
+        ],
+        "levels": [
+          14,
+          20
+        ],
+        "highest": [
+          4,
+          5
+        ]
+      },
+      "miserly": {
+        "games": [
+          4,
+          4
+        ],
+        "levels": [
+          12,
+          16
+        ],
+        "highest": [
+          3,
+          4
+        ]
+      },
+      "reckless": {
+        "games": [
+          4,
+          4
+        ],
+        "levels": [
+          12,
+          19
+        ],
+        "highest": [
+          3,
+          5
+        ]
+      },
+      "steady": {
+        "games": [
+          4,
+          4
+        ],
+        "levels": [
+          12,
+          17
+        ],
+        "highest": [
+          3,
+          5
+        ]
+      }
+    },
+    "playerWealthMonths": [
+      {
+        "games": 4,
+        "months": 6.480295071958732
+      },
+      {
+        "games": 4,
+        "months": 93.50902411403489
+      },
+      {
+        "games": 4,
+        "months": 119.19560514552924
+      }
+    ],
+    "growthAgainstDecline": {
+      "player": {
+        "guilds": 0,
+        "guildYearsBefore": 0,
+        "levelsBefore": 0,
+        "guildYearsAfter": 0,
+        "levelsAfter": 0,
+        "pointsGrownAfter": 0,
+        "pointsDeclinedAfter": 0
+      },
+      "rival": {
+        "guilds": 0,
+        "guildYearsBefore": 0,
+        "levelsBefore": 0,
+        "guildYearsAfter": 0,
+        "levelsAfter": 0,
+        "pointsGrownAfter": 0,
+        "pointsDeclinedAfter": 0
+      }
+    },
+    "retirementAges": {
+      "player": {},
+      "rival": {}
+    },
+    "fameGate": {
+      "player": {
+        "heroDays": 0,
+        "guildDays": 2880,
+        "guildDaysWithAny": 0
+      },
+      "rival": {
+        "heroDays": 0,
+        "guildDays": 11520,
+        "guildDaysWithAny": 0
+      }
+    },
+    "signingRefused": 0,
+    "gamesAtCountedYear": 0,
+    "improvementGrades": {
+      "player": {},
+      "rival": {}
+    },
+    "improvementGradesByDisposition": {},
+    "encounters": {
+      "player": {
+        "combat": {
+          "success": 507,
+          "failure": 60,
+          "injured": 13,
+          "died": 0
+        },
+        "travel": {
+          "success": 1138,
+          "failure": 38,
+          "injured": 0,
+          "died": 0
+        },
+        "social": {
+          "success": 847,
+          "failure": 17,
+          "injured": 0,
+          "died": 0
+        },
+        "arcane": {
+          "success": 246,
+          "failure": 9,
+          "injured": 0,
+          "died": 0
+        },
+        "stealth": {
+          "success": 827,
+          "failure": 26,
+          "injured": 2,
+          "died": 0
+        },
+        "lore": {
+          "success": 189,
+          "failure": 30,
+          "injured": 3,
+          "died": 0
+        }
+      },
+      "rival": {
+        "combat": {
+          "success": 1264,
+          "failure": 604,
+          "injured": 78,
+          "died": 0
+        },
+        "travel": {
+          "success": 2813,
+          "failure": 428,
+          "injured": 20,
+          "died": 0
+        },
+        "social": {
+          "success": 1623,
+          "failure": 399,
+          "injured": 0,
+          "died": 0
+        },
+        "arcane": {
+          "success": 468,
+          "failure": 163,
+          "injured": 13,
+          "died": 0
+        },
+        "stealth": {
+          "success": 1499,
+          "failure": 475,
+          "injured": 30,
+          "died": 0
+        },
+        "lore": {
+          "success": 585,
+          "failure": 168,
+          "injured": 6,
+          "died": 0
+        }
+      }
+    },
+    "synergies": {
+      "player": {
+        "quests": 1690,
+        "withAny": 702,
+        "applied": 735,
+        "byKey": {
+          "sword-and-salve": 308,
+          "shadow-and-spell": 390,
+          "a-full-company": 16,
+          "scouting-ahead": 21
+        }
+      },
+      "rival": {
+        "quests": 4048,
+        "withAny": 1621,
+        "applied": 1671,
+        "byKey": {
+          "sword-and-salve": 813,
+          "shadow-and-spell": 584,
+          "scouting-ahead": 158,
+          "wards-and-blessings": 102,
+          "a-full-company": 8,
+          "shield-wall": 6
+        }
+      }
+    },
+    "partySizes": {
+      "player": {
+        "2": {
+          "quests": 1613,
+          "fail": 48,
+          "strong": 1132,
+          "xpPerHero": 32283,
+          "heroesHome": 3226,
+          "xpTaken": 64566
+        },
+        "3": {
+          "quests": 61,
+          "fail": 3,
+          "strong": 48,
+          "xpPerHero": 903,
+          "heroesHome": 183,
+          "xpTaken": 2709
+        },
+        "4": {
+          "quests": 16,
+          "fail": 0,
+          "strong": 14,
+          "xpPerHero": 224,
+          "heroesHome": 64,
+          "xpTaken": 896
+        }
+      },
+      "rival": {
+        "2": {
+          "quests": 3802,
+          "fail": 745,
+          "strong": 1378,
+          "xpPerHero": 95665,
+          "heroesHome": 7604,
+          "xpTaken": 191330
+        },
+        "3": {
+          "quests": 234,
+          "fail": 28,
+          "strong": 73,
+          "xpPerHero": 4697,
+          "heroesHome": 702,
+          "xpTaken": 14091
+        },
+        "4": {
+          "quests": 12,
+          "fail": 0,
+          "strong": 7,
+          "xpPerHero": 183,
+          "heroesHome": 48,
+          "xpTaken": 732
+        }
+      }
+    },
+    "questTiers": {
+      "1": {
+        "offered": 4106,
+        "byController": {
+          "player": {
+            "taken": 1142,
+            "heroes": 2349,
+            "days": 4268,
+            "resolved": 1136,
+            "resolvedDays": 4244,
+            "fail": 37,
+            "success": 253,
+            "strong": 846,
+            "wealth": 113093,
+            "xp": 30874,
+            "loot": 0,
+            "deaths": 0
+          },
+          "rival": {
+            "taken": 1664,
+            "heroes": 3432,
+            "days": 7053,
+            "resolved": 1655,
+            "resolvedDays": 7016,
+            "fail": 363,
+            "success": 524,
+            "strong": 768,
+            "wealth": 156903,
+            "xp": 49150,
+            "loot": 0,
+            "deaths": 0
+          }
+        }
+      },
+      "2": {
+        "offered": 4223,
+        "byController": {
+          "rival": {
+            "taken": 2435,
+            "heroes": 5029,
+            "days": 16355,
+            "resolved": 2393,
+            "resolvedDays": 16068,
+            "fail": 410,
+            "success": 1293,
+            "strong": 690,
+            "wealth": 549127,
+            "xp": 157003,
+            "loot": 0,
+            "deaths": 0
+          },
+          "player": {
+            "taken": 562,
+            "heroes": 1153,
+            "days": 3396,
+            "resolved": 554,
+            "resolvedDays": 3348,
+            "fail": 14,
+            "success": 192,
+            "strong": 348,
+            "wealth": 139593,
+            "xp": 37297,
+            "loot": 0,
+            "deaths": 0
+          }
+        }
+      }
+    },
+    "tierUnlocks": [
+      {
+        "games": 4,
+        "top": [
+          4
+        ],
+        "sides": {
+          "player": {
+            "guilds": 4,
+            "levels": 4,
+            "unlocked": [
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "ambitious": {
+            "guilds": 4,
+            "levels": 4,
+            "unlocked": [
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "miserly": {
+            "guilds": 4,
+            "levels": 4,
+            "unlocked": [
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "reckless": {
+            "guilds": 4,
+            "levels": 4,
+            "unlocked": [
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "steady": {
+            "guilds": 4,
+            "levels": 4,
+            "unlocked": [
+              4,
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "games": 4,
+        "top": [
+          0,
+          4
+        ],
+        "sides": {
+          "player": {
+            "guilds": 4,
+            "levels": 12,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "ambitious": {
+            "guilds": 4,
+            "levels": 14,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "miserly": {
+            "guilds": 4,
+            "levels": 12,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "reckless": {
+            "guilds": 4,
+            "levels": 12,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "steady": {
+            "guilds": 4,
+            "levels": 12,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "games": 4,
+        "top": [
+          0,
+          4
+        ],
+        "sides": {
+          "player": {
+            "guilds": 4,
+            "levels": 16,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "ambitious": {
+            "guilds": 4,
+            "levels": 19.5,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "miserly": {
+            "guilds": 4,
+            "levels": 16,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "reckless": {
+            "guilds": 4,
+            "levels": 16.75,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          },
+          "steady": {
+            "guilds": 4,
+            "levels": 17,
+            "unlocked": [
+              0,
+              4,
+              0,
+              0,
+              0
+            ]
+          }
+        }
+      }
+    ],
+    "traitsGainedByKey": {
+      "player": {
+        "wayfinder": 16,
+        "silver-tongued": 5
+      },
+      "rival": {
+        "wayfinder": 31,
+        "silver-tongued": 13
+      }
+    },
+    "injuriesByType": {
+      "player": {
+        "deep-cut": 13,
+        "bruised-ribs": 1,
+        "lung-fever": 1,
+        "eye-wound": 2,
+        "broken-arm": 1
+      },
+      "rival": {
+        "deep-cut": 76,
+        "broken-arm": 24,
+        "lung-fever": 8,
+        "shattered-knee": 9,
+        "eye-wound": 14,
+        "bruised-ribs": 14,
+        "sprained-ankle": 2
+      }
+    },
+    "patronYears": [
+      48,
+      48
+    ],
+    "silentPatronYears": [
+      0,
+      0
+    ],
+    "regardAtCountedYear": {
+      "games": 0,
+      "relationships": {
+        "hostile": 0,
+        "cool": 0,
+        "neutral": 0,
+        "warm": 0,
+        "close": 0
+      },
+      "guildmasterForPatrons": {
+        "hostile": 0,
+        "cool": 0,
+        "neutral": 0,
+        "warm": 0,
+        "close": 0
+      },
+      "guildmasterForHeroes": {
+        "hostile": 0,
+        "cool": 0,
+        "neutral": 0,
+        "warm": 0,
+        "close": 0
+      }
+    },
+    "wealth": {
+      "player": {
+        "signing": 1723,
+        "transferFeesPaid": 0,
+        "releasePayouts": 0,
+        "items": 29670,
+        "itemsBought": 1018,
+        "improvements": 6800,
+        "wages": 70661,
+        "hallUpkeep": 6552,
+        "improvementUpkeep": 2692,
+        "questRewards": 252686,
+        "transferFeesTaken": 0,
+        "sales": {
+          "sale": 0,
+          "fold": 0
+        },
+        "itemsSold": {
+          "sale": 0,
+          "fold": 0
+        }
+      },
+      "rival": {
+        "signing": 4354,
+        "transferFeesPaid": 3692,
+        "releasePayouts": 0,
+        "items": 61775,
+        "itemsBought": 600,
+        "improvements": 60600,
+        "wages": 300337,
+        "hallUpkeep": 23831,
+        "improvementUpkeep": 19532,
+        "questRewards": 706030,
+        "transferFeesTaken": 3692,
+        "sales": {
+          "sale": 1934,
+          "fold": 0
+        },
+        "itemsSold": {
+          "sale": 32,
+          "fold": 0
+        }
+      }
+    },
+    "loot": {
+      "player": {},
+      "rival": {}
+    },
+    "playerQuestsByDifficulty": [
+      {
+        "quests": 0,
+        "difficulty": 0,
+        "strong": 0,
+        "loot": 0,
+        "unique": 0
+      },
+      {
+        "quests": 769,
+        "difficulty": 10544,
+        "strong": 590,
+        "loot": 0,
+        "unique": 0
+      },
+      {
+        "quests": 483,
+        "difficulty": 11953,
+        "strong": 332,
+        "loot": 0,
+        "unique": 0
+      },
+      {
+        "quests": 352,
+        "difficulty": 11886,
+        "strong": 223,
+        "loot": 0,
+        "unique": 0
+      },
+      {
+        "quests": 86,
+        "difficulty": 3632,
+        "strong": 49,
+        "loot": 0,
+        "unique": 0
+      }
+    ],
+    "playerQuestsByYear": [
+      {
+        "quests": 953,
+        "difficulty": 19070,
+        "strong": 654,
+        "loot": 0,
+        "unique": 0
+      },
+      {
+        "quests": 737,
+        "difficulty": 18945,
+        "strong": 540,
+        "loot": 0,
+        "unique": 0
+      }
+    ],
+    "questWeight": {
+      "player": {
+        "quests": 1704,
+        "heroes": 3502,
+        "days": 7664
+      },
+      "ambitious": {
+        "quests": 1054,
+        "heroes": 2181,
+        "days": 6326
+      },
+      "miserly": {
+        "quests": 920,
+        "heroes": 1885,
+        "days": 4280
+      },
+      "reckless": {
+        "quests": 1119,
+        "heroes": 2359,
+        "days": 7599
+      },
+      "steady": {
+        "quests": 1006,
+        "heroes": 2036,
+        "days": 5203
+      }
+    },
+    "consumables": {
+      "player": {
+        "quests": 1690,
+        "carried": 3812,
+        "expended": 938,
+        "questsWithAny": 808,
+        "byEffect": {
+          "bonus": 864,
+          "reroll": 70,
+          "heal": 4
+        },
+        "byDefinition": {
+          "blessed-candle": 40,
+          "lockpicks": 471,
+          "whetstone": 393,
+          "grappling-line": 30,
+          "physicians-kit": 4
+        }
+      },
+      "rival": {
+        "quests": 4048,
+        "carried": 5442,
+        "expended": 100,
+        "questsWithAny": 99,
+        "byEffect": {
+          "bonus": 0,
+          "reroll": 0,
+          "heal": 100
+        },
+        "byDefinition": {
+          "physicians-kit": 93,
+          "healing-draught": 7
+        }
+      }
+    },
+    "gear": {
+      "player": {
+        "equipped": 32,
+        "unequipped": 0,
+        "returned": {
+          "died": 0,
+          "retired": 0,
+          "guild-folded": 0,
+          "transferred": 0,
+          "released": 0
+        }
+      },
+      "rival": {
+        "equipped": 428,
+        "unequipped": 0,
+        "returned": {
+          "died": 0,
+          "retired": 0,
+          "guild-folded": 0,
+          "transferred": 26,
+          "released": 0
+        }
+      }
+    },
+    "transfers": {
+      "in": {
+        "transfers": 0,
+        "fees": 0
+      },
+      "out": {
+        "transfers": 0,
+        "fees": 0
+      },
+      "rival-to-rival": {
+        "transfers": 9,
+        "fees": 3692
+      }
+    },
+    "rivalTransfers": {
+      "afternoon": {
+        "transfers": 9,
+        "fees": 3692
+      },
+      "afternoon-seller-in-debt": {
+        "transfers": 0,
+        "fees": 0
+      },
+      "generator": {
+        "transfers": 0,
+        "fees": 0
+      },
+      "accepted-offer": {
+        "transfers": 0,
+        "fees": 0
+      }
+    },
+    "transfersBack": 0,
+    "transfersBackSoon": 0,
+    "transfersShort": 0,
+    "transfersBySide": {
+      "steady": {
+        "reckless": {
+          "transfers": 2,
+          "fees": 497
+        }
+      },
+      "ambitious": {
+        "reckless": {
+          "transfers": 3,
+          "fees": 2365
+        }
+      },
+      "reckless": {
+        "ambitious": {
+          "transfers": 4,
+          "fees": 830
+        }
+      }
+    },
+    "offers": {
+      "reckless": {
+        "player": {
+          "made": 19,
+          "fees": 13456,
+          "accepted": 0,
+          "declined": 12,
+          "ended": {
+            "expired": 0,
+            "hero-left": 0,
+            "guild-folded": 0,
+            "renewed": 7,
+            "taken": 0
+          }
+        },
+        "ambitious": {
+          "made": 8,
+          "fees": 0,
+          "accepted": 0,
+          "declined": 0,
+          "ended": {
+            "expired": 0,
+            "hero-left": 0,
+            "guild-folded": 0,
+            "renewed": 8,
+            "taken": 0
+          }
+        },
+        "miserly": {
+          "made": 1,
+          "fees": 0,
+          "accepted": 0,
+          "declined": 0,
+          "ended": {
+            "expired": 0,
+            "hero-left": 0,
+            "guild-folded": 0,
+            "renewed": 1,
+            "taken": 0
+          }
+        }
+      },
+      "ambitious": {
+        "miserly": {
+          "made": 2,
+          "fees": 0,
+          "accepted": 0,
+          "declined": 0,
+          "ended": {
+            "expired": 0,
+            "hero-left": 0,
+            "guild-folded": 0,
+            "renewed": 2,
+            "taken": 0
+          }
+        },
+        "player": {
+          "made": 2,
+          "fees": 2784,
+          "accepted": 0,
+          "declined": 2,
+          "ended": {
+            "expired": 0,
+            "hero-left": 0,
+            "guild-folded": 0,
+            "renewed": 0,
+            "taken": 0
+          }
+        }
+      }
+    },
+    "contracts": {
+      "player": {
+        "signed": {
+          "recruited": {
+            "2": 16
+          },
+          "transferred": {},
+          "renewed": {
+            "2": 7
+          }
+        },
+        "expired": 14,
+        "released": 0
+      },
+      "rival": {
+        "signed": {
+          "recruited": {
+            "1": 41,
+            "3": 1
+          },
+          "transferred": {
+            "1": 9
+          },
+          "renewed": {
+            "1": 8,
+            "3": 3
+          }
+        },
+        "expired": 83,
+        "released": 0
+      }
+    },
+    "freeOffers": {
+      "reckless": {
+        "player": {
+          "made": 7,
+          "renewed": 7,
+          "taken": 0
+        },
+        "ambitious": {
+          "made": 8,
+          "renewed": 8,
+          "taken": 0
+        },
+        "miserly": {
+          "made": 1,
+          "renewed": 1,
+          "taken": 0
+        }
+      },
+      "ambitious": {
+        "miserly": {
+          "made": 2,
+          "renewed": 2,
+          "taken": 0
+        }
+      }
+    },
+    "contractDays": {
+      "player": {
+        "guildDays": 2880,
+        "heroDays": 22897,
+        "outOfContractDays": 4088,
+        "guildDaysOutOfContract": 1830,
+        "underOfferDays": 0,
+        "guildDaysUnderOffer": 0,
+        "wages": {
+          "1": {
+            "heroDays": 1098,
+            "wage": 23879
+          },
+          "2": {
+            "heroDays": 4792,
+            "wage": 113731
+          },
+          "3": {
+            "heroDays": 9533,
+            "wage": 266548
+          },
+          "4": {
+            "heroDays": 7474,
+            "wage": 297111
+          }
+        }
+      },
+      "rival": {
+        "guildDays": 11520,
+        "heroDays": 74258,
+        "outOfContractDays": 38023,
+        "guildDaysOutOfContract": 10353,
+        "underOfferDays": 0,
+        "guildDaysUnderOffer": 0,
+        "wages": {
+          "1": {
+            "heroDays": 5272,
+            "wage": 116591
+          },
+          "2": {
+            "heroDays": 18521,
+            "wage": 509124
+          },
+          "3": {
+            "heroDays": 24650,
+            "wage": 939461
+          },
+          "4": {
+            "heroDays": 24722,
+            "wage": 1336943
+          },
+          "5": {
+            "heroDays": 1093,
+            "wage": 76005
+          }
+        }
+      }
+    },
+    "rivalYearStarts": [
+      {
+        "ambitious": {
+          "heroes": [
+            8,
+            7,
+            8,
+            4
+          ],
+          "wealth": [
+            418,
+            382,
+            303,
+            663
+          ]
+        },
+        "miserly": {
+          "heroes": [
+            4,
+            5,
+            7,
+            6
+          ],
+          "wealth": [
+            468,
+            366,
+            629,
+            362
+          ]
+        },
+        "reckless": {
+          "heroes": [
+            4,
+            4,
+            8,
+            5
+          ],
+          "wealth": [
+            579,
+            638,
+            554,
+            646
+          ]
+        },
+        "steady": {
+          "heroes": [
+            8,
+            4,
+            8,
+            5
+          ],
+          "wealth": [
+            568,
+            474,
+            498,
+            605
+          ]
+        }
+      },
+      {
+        "ambitious": {
+          "heroes": [
+            8,
+            7,
+            8,
+            4
+          ],
+          "wealth": [
+            7121,
+            3227,
+            12900,
+            695
+          ]
+        },
+        "miserly": {
+          "heroes": [
+            4,
+            5,
+            7,
+            6
+          ],
+          "wealth": [
+            4846,
+            4647,
+            7744,
+            6482
+          ]
+        },
+        "reckless": {
+          "heroes": [
+            4,
+            4,
+            8,
+            5
+          ],
+          "wealth": [
+            3343,
+            4168,
+            9613,
+            2669
+          ]
+        },
+        "steady": {
+          "heroes": [
+            8,
+            4,
+            8,
+            5
+          ],
+          "wealth": [
+            10122,
+            5935,
+            11510,
+            6270
+          ]
+        }
+      },
+      {
+        "ambitious": {
+          "heroes": [
+            9,
+            6,
+            16,
+            4
+          ],
+          "wealth": [
+            21033,
+            7826,
+            29744,
+            3794
+          ]
+        },
+        "miserly": {
+          "heroes": [
+            4,
+            5,
+            7,
+            7
+          ],
+          "wealth": [
+            9907,
+            10547,
+            13954,
+            14778
+          ]
+        },
+        "reckless": {
+          "heroes": [
+            6,
+            16,
+            26,
+            8
+          ],
+          "wealth": [
+            12508,
+            15153,
+            28685,
+            10192
+          ]
+        },
+        "steady": {
+          "heroes": [
+            7,
+            4,
+            7,
+            5
+          ],
+          "wealth": [
+            20462,
+            10792,
+            20449,
+            15864
+          ]
+        }
+      }
+    ],
+    "rivalsAtFloor": {
+      "ambitious": {
+        "starts": 12,
+        "hoarding": 0
+      },
+      "miserly": {
+        "starts": 12,
+        "hoarding": 2
+      },
+      "reckless": {
+        "starts": 12,
+        "hoarding": 1
+      },
+      "steady": {
+        "starts": 12,
+        "hoarding": 2
+      }
+    },
+    "rankings": [
+      {
+        "games": 4,
+        "fame": [
+          4
+        ],
+        "wealth": [
+          0,
+          1,
+          2,
+          1
+        ]
+      },
+      {
+        "games": 4,
+        "fame": [
+          4
+        ],
+        "wealth": [
+          4
+        ]
+      },
+      {
+        "games": 4,
+        "fame": [
+          4
+        ],
+        "wealth": [
+          3,
+          1
+        ]
+      }
+    ],
+    "marketPurchases": {
+      "miserly": {
+        "purchases": 101,
+        "items": 103,
+        "cost": 5350
+      },
+      "reckless": {
+        "purchases": 218,
+        "items": 225,
+        "cost": 34295
+      },
+      "steady": {
+        "purchases": 100,
+        "items": 105,
+        "cost": 6630
+      },
+      "ambitious": {
+        "purchases": 162,
+        "items": 167,
+        "cost": 15500
+      },
+      "player": {
+        "purchases": 918,
+        "items": 1018,
+        "cost": 29670
+      }
+    },
+    "dispositions": {
+      "steady": {
+        "guilds": 4,
+        "guildYears": 8,
+        "questsTaken": 1006,
+        "questsWithDifficulty": 1006,
+        "difficulty": 27646,
+        "questsResolved": {
+          "fail": 96,
+          "success": 410,
+          "strong": 491
+        },
+        "deaths": 0,
+        "recruits": 0,
+        "folds": {
+          "retirement": 0,
+          "bankruptcy": 0,
+          "roster-wiped": 0
+        }
+      },
+      "ambitious": {
+        "guilds": 4,
+        "guildYears": 8,
+        "questsTaken": 1054,
+        "questsWithDifficulty": 1054,
+        "difficulty": 34869,
+        "questsResolved": {
+          "fail": 205,
+          "success": 485,
+          "strong": 349
+        },
+        "deaths": 0,
+        "recruits": 7,
+        "folds": {
+          "retirement": 0,
+          "bankruptcy": 0,
+          "roster-wiped": 0
+        }
+      },
+      "miserly": {
+        "guilds": 4,
+        "guildYears": 8,
+        "questsTaken": 920,
+        "questsWithDifficulty": 920,
+        "difficulty": 22021,
+        "questsResolved": {
+          "fail": 152,
+          "success": 349,
+          "strong": 411
+        },
+        "deaths": 0,
+        "recruits": 1,
+        "folds": {
+          "retirement": 0,
+          "bankruptcy": 0,
+          "roster-wiped": 0
+        }
+      },
+      "reckless": {
+        "guilds": 4,
+        "guildYears": 8,
+        "questsTaken": 1119,
+        "questsWithDifficulty": 1119,
+        "difficulty": 42450,
+        "questsResolved": {
+          "fail": 320,
+          "success": 573,
+          "strong": 207
+        },
+        "deaths": 0,
+        "recruits": 34,
+        "folds": {
+          "retirement": 0,
+          "bankruptcy": 0,
+          "roster-wiped": 0
+        }
+      }
+    },
+    "moduleEvents": {},
+    "moduleEffects": {},
+    "portraits": {
+      "player": {
+        "guildmasters": 4,
+        "pictured": 4,
+        "silhouettes": 0,
+        "ageHeld": 4,
+        "callingClashes": 0
+      },
+      "rival": {
+        "guildmasters": 16,
+        "pictured": 16,
+        "silhouettes": 0,
+        "ageHeld": 16,
+        "callingClashes": 0
+      }
+    },
+    "dispatchFatigue": {
+      "player": {
+        "parties": 1704,
+        "tired": 0,
+        "byWorstBand": {
+          "fresh": 53,
+          "weary": 1651,
+          "tired": 0,
+          "exhausted": 0
+        },
+        "heroes": 3502,
+        "fatigue": 150239,
+        "captainNamed": 1704,
+        "captained": 452
+      },
+      "rival": {
+        "parties": 4099,
+        "tired": 2037,
+        "byWorstBand": {
+          "fresh": 148,
+          "weary": 1914,
+          "tired": 1041,
+          "exhausted": 996
+        },
+        "heroes": 8461,
+        "fatigue": 468043,
+        "captainNamed": 4099,
+        "captained": 1337
+      }
+    },
+    "restKept": {
+      "player": {
+        "guildDays": 2880,
+        "guildDaysKept": 2128,
+        "free": 10597,
+        "kept": 6224
+      },
+      "rival": {
+        "guildDays": 11520,
+        "guildDaysKept": 5051,
+        "free": 25900,
+        "kept": 11463
+      }
+    },
+    "fatigueRecovery": {
+      "player": {
+        "toRest": {
+          "spells": 2989,
+          "done": 2986,
+          "doneDays": 6244,
+          "sent": 0,
+          "sentDays": 0,
+          "left": 0,
+          "open": 3
+        },
+        "toFresh": {
+          "spells": 3365,
+          "done": 67,
+          "doneDays": 96,
+          "sent": 3295,
+          "sentDays": 6987.666666666667,
+          "left": 0,
+          "open": 3
+        }
+      },
+      "rival": {
+        "toRest": {
+          "spells": 5047,
+          "done": 5040,
+          "doneDays": 11562,
+          "sent": 0,
+          "sentDays": 0,
+          "left": 0,
+          "open": 7
+        },
+        "toFresh": {
+          "spells": 8177,
+          "done": 489,
+          "doneDays": 1846,
+          "sent": 7663,
+          "sentDays": 19978.666666666748,
+          "left": 0,
+          "open": 25
+        }
+      }
+    },
+    "hurtRelief": {
+      "player": {
+        "injuries": 18,
+        "healer": 1,
+        "item": 4,
+        "both": 0,
+        "neither": 13,
+        "atLast": 12
+      },
+      "rival": {
+        "injuries": 147,
+        "healer": 5,
+        "item": 87,
+        "both": 13,
+        "neither": 42,
+        "atLast": 80
+      }
+    },
+    "heroes": {
+      "generated": 2454,
+      "pictured": 0,
+      "silhouettes": 2454,
+      "repeats": 0,
+      "longestAppearance": 272,
+      "longestBiography": 353,
+      "blank": 0
+    },
+    "saves": [
+      {
+        "lengths": [
+          5313223,
+          4682003,
+          6136230,
+          4653429
+        ],
+        "heroFields": [
+          22874,
+          20320,
+          26580,
+          20305
+        ],
+        "gzipped": []
+      },
+      {
+        "lengths": [
+          9912400,
+          9372901,
+          12757809,
+          8710798
+        ],
+        "heroFields": [
+          24026,
+          26430,
+          40632,
+          22516
+        ],
+        "gzipped": [
+          1210588,
+          1160021,
+          1612444,
+          1053206
+        ]
+      }
+    ],
+    "worlds": [
+      {
+        "characters": [
+          128972,
+          113424,
+          148737,
+          113692
+        ],
+        "heroes": {
+          "live": [
+            40,
+            36,
+            47,
+            36
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "guildmasters": {
+          "live": [
+            5,
+            5,
+            5,
+            5
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "guilds": {
+          "live": [
+            5,
+            5,
+            5,
+            5
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "otherRows": [
+          157,
+          135,
+          176,
+          139
+        ],
+        "copyMs": [
+          0.3808666666667098,
+          0.6211333333333945,
+          0.39210000000002765,
+          0.29793333333335187
+        ]
+      },
+      {
+        "characters": [
+          138934,
+          152803,
+          234643,
+          129706
+        ],
+        "heroes": {
+          "live": [
+            42,
+            47,
+            72,
+            40
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "guildmasters": {
+          "live": [
+            5,
+            5,
+            5,
+            5
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "guilds": {
+          "live": [
+            5,
+            5,
+            5,
+            5
+          ],
+          "writeOnce": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "otherRows": [
+          170,
+          183,
+          271,
+          163
+        ],
+        "copyMs": [
+          0.5565666666666402,
+          0.7162333333333967,
+          0.7894666666667641,
+          0.533866666666654
+        ]
+      }
+    ]
+  },
+  "gate": {
+    "pass": true,
+    "status": "approved",
+    "lines": [
+      {
+        "line": "Policy actions the rules refused",
+        "verdict": "pass",
+        "measured": "0",
+        "limit": "at most 0",
+        "source": "M2-S12 (DL-34): the policy chooses only what the rules accept, so a refusal is a bug; 0 at v1.2.0's closing full gate (DL-274)"
+      },
+      {
+        "line": "Games the validator refused",
+        "verdict": "pass",
+        "measured": "0 (not validated after every advance)",
+        "limit": "at most 0",
+        "source": "M2-S12 (DL-34): a game the validator refuses; 0 at every close; read only when validated after every advance, which a Gate run is not (v1.2.0's closing full gate (DL-274) was not)"
+      },
+      {
+        "line": "Games a harness assertion stopped",
+        "verdict": "pass",
+        "measured": "0",
+        "limit": "at most 0",
+        "source": "M6-S3's harness assertion (DL-59, DL-69, DL-319): no hero.transferred names the player's Guild but the taking of a free Offer on a Hero Out of Contract that the policy let run out; 0 at v1.2.0's closing full gate (DL-274)"
+      },
+      {
+        "line": "Games neither ended nor played to their last Turn",
+        "verdict": "pass",
+        "measured": "0",
+        "limit": "at most 0",
+        "source": "M2-S12 (DL-34): every game ends or plays to its last Turn; 50 of 50 at v1.2.0's closing full gate (DL-274)"
+      },
+      {
+        "line": "Saves that fail their round trip",
+        "verdict": "pass",
+        "measured": "0",
+        "limit": "at most 0",
+        "source": "M2-S12 (DL-34): every last save loads and serialises back identically; 50 of 50 at v1.2.0's closing full gate (DL-274)"
+      },
+      {
+        "line": "One seed replayed alone, its last save the same as its shard recorded",
+        "verdict": "pass",
+        "measured": "`seed-0001`: identical",
+        "limit": "identical",
+        "source": "M2-S12 (DL-34), since v1.1.6-S3 (DL-189) one seed played once more, alone, its last save's length and fingerprint compared with those its shard recorded: two processes; seed-0001 identical at v1.2.0's closing full gate (DL-274), 150,701,821 characters"
+      },
+      {
+        "line": "The save after 20 years, gzipped",
+        "verdict": "not comparable",
+        "measured": "this run played 4 games of 2 years",
+        "limit": "mean under 30.00 MiB",
+        "source": "the owner's answer (DL-188): \"stay under 30mb\", the mean over the run's games, not every save, measured gzipped as the page keeps it (DL-67, DL-186 item 21, data-model §7); no guard on the uncompressed size, which the report prints; v1.2.0's closing full gate (DL-274): mean 16.31 MiB, max 22.68 MiB gzipped"
+      },
+      {
+        "line": "The per-Turn copy's share of a Turn",
+        "verdict": "not comparable",
+        "measured": "this run played 4 games of 2 years",
+        "limit": "share at most 0.4875 (0.390 + 25%)",
+        "source": "the owner's answer (DL-203): \"Mean ≤ baseline +25%\", restated by the owner as the copy's share of a Turn (DL-206 item 17, DL-205's finding that the copy's milliseconds follow the machine's load): the mean time of the per-Turn copy (copyWorld, ADR-0011) over the run, timed as each year ended, over the mean time of advance, may grow at most 25% over its baseline share without a DL entry; the baseline measured at v1.1.9's closing full gate (harness/reports/v1.1.9-gate-2026-10-10.md): copy mean 1.438 ms over 1,000 copies, advance mean 3.688 ms, share 0.390, at most 0.4875, anchored there by the owner (DL-252), since advance is 34% faster by design (the Best Party module, DL-237) and copyWorld unchanged; v1.2.0's closing full gate (DL-274): copy mean 3.066 ms, advance mean 7.897 ms, share 0.388"
+      }
+    ]
+  },
+  "targets": {
+    "baseline": {
+      "report": "harness/reports/v1.2.0-gate-2026-10-11.json",
+      "milestone": "v1.2.0-gate",
+      "games": 50,
+      "years": 20,
+      "fingerprint": "59d52e71b712bd1721a81d42b41a43fd3f680a7f29003cfe2533d04807c42d11"
+    },
+    "rows": [
+      {
+        "key": "bankruptOrWiped",
+        "what": "The player's Bankruptcy or wiped Roster, a share of games",
+        "source": "DL-83 item 2",
+        "band": "5.0% to 15.0%",
+        "unit": "share",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0,
+        "inside": false
+      },
+      {
+        "key": "firstByFame",
+        "what": "The player first in the Rankings by Fame, a share of year-starts after 1 year or more (the new world's tie left out)",
+        "source": "DL-83 item 3, DL-91 item 2",
+        "band": "40.0% to 60.0%",
+        "unit": "share",
+        "measured": 1,
+        "standardError": 0,
+        "baseline": 0.319,
+        "inside": false
+      },
+      {
+        "key": "firstByWealth",
+        "what": "The player first in the Rankings by Wealth, a share of year-starts after 1 year or more",
+        "source": "DL-83 item 3, DL-91 item 2",
+        "band": "40.0% to 60.0%",
+        "unit": "share",
+        "measured": 0.875,
+        "standardError": 0.125,
+        "baseline": 0.422,
+        "inside": false
+      },
+      {
+        "key": "failed",
+        "what": "The player's Quests failed, a share of those resolved",
+        "source": "DL-83 item 4",
+        "band": "20.0% to 30.0%",
+        "unit": "share",
+        "measured": 0.03017751479289941,
+        "standardError": 0.006463797194573971,
+        "baseline": 0.01064734820263251,
+        "inside": false
+      },
+      {
+        "key": "strong",
+        "what": "The player's Quests a strong success, a share of those resolved",
+        "source": "DL-83 item 4",
+        "band": "at most 50.0%",
+        "unit": "share",
+        "measured": 0.7065088757396449,
+        "standardError": 0.02346218689691883,
+        "baseline": 0.8519463775237914,
+        "inside": false
+      },
+      {
+        "key": "rivalFolds",
+        "what": "Rival folds, a game",
+        "source": "DL-83 item 5",
+        "band": "1.50 to 3.50",
+        "unit": "number",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 2.18,
+        "inside": false
+      },
+      {
+        "key": "deaths",
+        "what": "The player's Hero Deaths, a game",
+        "source": "DL-256 item 10, DL-257 item 7",
+        "band": "3.00 to 8.00",
+        "unit": "number",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0.24,
+        "inside": false
+      },
+      {
+        "key": "wealthMonths",
+        "what": "The player's Wealth in months of its Upkeep, the mean of its year-starts after 2 years or more",
+        "source": "DL-83 item 7",
+        "band": "6.00 to 12.00",
+        "unit": "number",
+        "measured": 29.79890128638231,
+        "standardError": 2.8703179022281873,
+        "baseline": 36.57444447441406,
+        "inside": false
+      },
+      {
+        "key": "meanLevel",
+        "what": "The mean Level of the player's Heroes after 10 years",
+        "source": "DL-83 item 21",
+        "band": "8.00 to 10.00",
+        "unit": "number",
+        "measured": null,
+        "standardError": null,
+        "baseline": 8.705,
+        "inside": null
+      },
+      {
+        "key": "highestLevel",
+        "what": "The highest Level a Hero of the player's has reached by year 20, the mean over the games still in play at year 20",
+        "source": "DL-83 item 22",
+        "band": "14.00 to 17.00",
+        "unit": "number",
+        "measured": null,
+        "standardError": null,
+        "baseline": 11.04,
+        "inside": null
+      },
+      {
+        "key": "hoarding:ambitious",
+        "what": "`ambitious` Rivals at the Roster floor (`rivalRosterMin` Heroes or fewer) with more than 6.67 Upkeeps in hand, a share of its year-starts",
+        "source": "DL-69 item 4",
+        "band": "under 50.0%",
+        "unit": "share",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0.04775549188156638,
+        "inside": true
+      },
+      {
+        "key": "hoarding:miserly",
+        "what": "`miserly` Rivals at the Roster floor (`rivalRosterMin` Heroes or fewer) with more than 6.67 Upkeeps in hand, a share of its year-starts",
+        "source": "DL-69 item 4",
+        "band": "under 50.0%",
+        "unit": "share",
+        "measured": 0.16666666666666666,
+        "standardError": 0.16666666666666666,
+        "baseline": 0.06978967495219886,
+        "inside": true
+      },
+      {
+        "key": "hoarding:reckless",
+        "what": "`reckless` Rivals at the Roster floor (`rivalRosterMin` Heroes or fewer) with more than 6.67 Upkeeps in hand, a share of its year-starts",
+        "source": "DL-69 item 4",
+        "band": "under 50.0%",
+        "unit": "share",
+        "measured": 0.08333333333333333,
+        "standardError": 0.08333333333333333,
+        "baseline": 0.007677543186180422,
+        "inside": true
+      },
+      {
+        "key": "hoarding:steady",
+        "what": "`steady` Rivals at the Roster floor (`rivalRosterMin` Heroes or fewer) with more than 6.67 Upkeeps in hand, a share of its year-starts",
+        "source": "DL-69 item 4",
+        "band": "under 50.0%",
+        "unit": "share",
+        "measured": 0.16666666666666666,
+        "standardError": 0.16666666666666666,
+        "baseline": 0.1518624641833811,
+        "inside": true
+      },
+      {
+        "key": "transfersBack",
+        "what": "Transfers between Rivals back to one that had sold the Hero, a share of those between Rivals",
+        "source": "DL-69 item 4",
+        "band": "under 15.0%",
+        "unit": "share",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0.1636546184738956,
+        "inside": true
+      },
+      {
+        "key": "transfersBackSoon",
+        "what": "Transfers between Rivals back to one that had sold the Hero fewer than 90 Days before, a game",
+        "source": "DL-69 item 4",
+        "band": "none",
+        "unit": "number",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0,
+        "inside": true
+      },
+      {
+        "key": "transfersShort",
+        "what": "Transfers that left their seller below `rivalRosterMin`, a game",
+        "source": "DL-69 item 4",
+        "band": "none",
+        "unit": "number",
+        "measured": 0,
+        "standardError": 0,
+        "baseline": 0,
+        "inside": true
+      }
+    ],
+    "questWeight": [
+      {
+        "side": "player",
+        "perGuildYear": {
+          "measured": 213,
+          "standardError": 3.926406329796582,
+          "baseline": 189.431
+        },
+        "party": {
+          "measured": 2.0551643192488265,
+          "standardError": 0.016772315499013632,
+          "baseline": 2.0449081723688307
+        },
+        "days": {
+          "measured": 4.497652582159624,
+          "standardError": 0.09267582750831142,
+          "baseline": 7.178492432600788
+        }
+      },
+      {
+        "side": "ambitious",
+        "perGuildYear": {
+          "measured": 131.75,
+          "standardError": 20.693698718853202,
+          "baseline": 250.39552775327786
+        },
+        "party": {
+          "measured": 2.069259962049336,
+          "standardError": 0.01569777847190405,
+          "baseline": 2.2761649397200387
+        },
+        "days": {
+          "measured": 6.001897533206831,
+          "standardError": 0.014817672612909697,
+          "baseline": 11.325012287761389
+        }
+      },
+      {
+        "side": "miserly",
+        "perGuildYear": {
+          "measured": 115,
+          "standardError": 13.408641492211903,
+          "baseline": 163.2286647827132
+        },
+        "party": {
+          "measured": 2.0489130434782608,
+          "standardError": 0.015502514996317062,
+          "baseline": 2.0973300360208884
+        },
+        "days": {
+          "measured": 4.6521739130434785,
+          "standardError": 0.038626518891351755,
+          "baseline": 7.7036959763378965
+        }
+      },
+      {
+        "side": "reckless",
+        "perGuildYear": {
+          "measured": 139.875,
+          "standardError": 30.136062975555827,
+          "baseline": 267.717638691985
+        },
+        "party": {
+          "measured": 2.1081322609472744,
+          "standardError": 0.007064783129409979,
+          "baseline": 2.2739910701209554
+        },
+        "days": {
+          "measured": 6.79088471849866,
+          "standardError": 0.02829680223109851,
+          "baseline": 12.484128623304056
+        }
+      },
+      {
+        "side": "steady",
+        "perGuildYear": {
+          "measured": 125.75,
+          "standardError": 20.498475553074673,
+          "baseline": 166.28887246780198
+        },
+        "party": {
+          "measured": 2.0238568588469183,
+          "standardError": 0.008416958722913613,
+          "baseline": 2.1781088355904545
+        },
+        "days": {
+          "measured": 5.171968190854871,
+          "standardError": 0.037748723224957106,
+          "baseline": 9.170069911541727
+        }
+      }
+    ]
+  }
+}

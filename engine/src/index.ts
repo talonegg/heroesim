@@ -195,7 +195,7 @@ export {
 } from './controllers/rival.js';
 export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
-export { contractWage, type LengthNotOffered } from './contract.js';
+export { contractWage, outOfContract, type LengthNotOffered } from './contract.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export { surplusChoices, type SurplusKeeping } from './surplus.js';
 export * from './create.js';
@@ -421,7 +421,7 @@ export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReaso
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, turnsPerDay, yearOf, type Aged, type TimeOfDay } from './time.js';
 export { bestFourLevel, boardTopTier, difficultyBand, isDeadly, offeredTiers, tierFigures, unlockedTier } from './tiers.js';
 export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
-export { freeOffer, offersTo } from './transfer.js';
+export { freeOffer, offersTo, underOffer } from './transfer.js';
 export {
   validate,
   type RefusalCheck,

@@ -18,6 +18,7 @@ import { addInto, type Counter, type Gatherer, type ReportContext } from './coun
 import {
   consumableCounters,
   consumableEffects,
+  contractCounters,
   controllerKinds,
   carryHighestLevels,
   copiesTimed,
@@ -29,6 +30,7 @@ import {
   encounterOutcomes,
   endingOf,
   endingReasons,
+  freeOfferCounters,
   gearCounters,
   gearReturnCauses,
   guildYearCounters,
@@ -43,6 +45,8 @@ import {
   moduleCounters,
   noBands,
   noConsumables,
+  noContractDays,
+  noContracts,
   noDifficulty,
   noDispatchFatigue,
   noDisposition,
@@ -62,6 +66,7 @@ import {
   noSynergies,
   noTransfers,
   noWealth,
+  observeContractDays,
   observeDispatches,
   observeFameGate,
   observeHighestLevels,
@@ -96,6 +101,7 @@ import {
   rosterCensus,
   saleCauses,
   savedDocumentLength,
+  signingKinds,
   successionCount,
   synergyCounters,
   tierUnlocks,
@@ -105,6 +111,7 @@ import {
   traitsGainedByKey,
   wealthCounters,
   type ByController,
+  type ContractDays,
   type ControllerKind,
   type DifficultyTally,
   type DispatchFatigue,
@@ -128,6 +135,7 @@ import {
   type RivalTransferWay,
   type RosterCensus,
   type SaveSize,
+  type SigningKind,
   type TierSideTally,
   type TierTally,
   type TierUnlocks,
@@ -138,7 +146,7 @@ import {
   type WorldSize,
 } from './counters.js';
 import type { Moment } from './play.js';
-import { fixed, markdownTable, percent, whole } from './report.js';
+import { fixed, markdownTable, percent, shares, whole } from './report.js';
 import { summarise, type Summary } from './stats.js';
 
 // ── The totals' shapes ───────────────────────────────────────────────────────────────────────
@@ -202,6 +210,8 @@ export interface GameTotals {
   dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
   /** The free Heroes a rest band kept out of their Guild's pool, sampled once a Day, over the games (DL-290). */
   restKept: Record<ControllerKind, RestKept>;
+  /** The Roster Heroes Out of Contract and Under Offer, and the wages in force by Level, sampled once a Day, over the games (DL-321). */
+  contractDays: Record<ControllerKind, ContractDays>;
 }
 
 /** A side's highest Levels by year, over the games: index k by the end of year k + 1. */
@@ -311,6 +321,8 @@ function sidesOf(totals: SweepTotals, deps: EngineDeps): string[] {
       ...Object.values(totals.transfersBySide),
       totals.offers,
       ...Object.values(totals.offers),
+      totals.freeOffers,
+      ...Object.values(totals.freeOffers),
       totals.marketPurchases,
     ).filter((side) => side !== playerSide),
   ];
@@ -1255,20 +1267,26 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
     const taken = (flows: WealthFlows): number => flows.questRewards + flows.transferFeesTaken + totalSales(flows);
     const spentShares = controllerKinds.flatMap((kind) => {
       const flows = totals.wealth[kind];
-      const all = spent(flows);
+      // Rounded by largest remainder, so that the eight sum to the whole (DL-321).
+      const [wages, hall, upkeep, items, improvements, signing, transfers, releases] = shares([
+        flows.wages,
+        flows.hallUpkeep,
+        flows.improvementUpkeep,
+        flows.items,
+        flows.improvements,
+        flows.signing,
+        flows.transferFeesPaid,
+        flows.releasePayouts,
+      ]);
       return [
-        `${kindLabel(kind)}: wages ${percent(flows.wages, all)}, Hall upkeep ${percent(flows.hallUpkeep, all)}, ` +
-          `Improvements’ upkeep ${percent(flows.improvementUpkeep, all)}, Items ${percent(flows.items, all)}, ` +
-          `Improvements ${percent(flows.improvements, all)}, signing ${percent(flows.signing, all)}, ` +
-          `Transfers ${percent(flows.transferFeesPaid, all)}, release payouts ${percent(flows.releasePayouts, all)}`,
+        `${kindLabel(kind)}: wages ${wages}, Hall upkeep ${hall}, Improvements’ upkeep ${upkeep}, Items ${items}, ` +
+          `Improvements ${improvements}, signing ${signing}, Transfers ${transfers}, release payouts ${releases}`,
       ];
     });
     const takenShares = controllerKinds.flatMap((kind) => {
       const flows = totals.wealth[kind];
-      const all = taken(flows);
-      return [
-        `${kindLabel(kind)}: Quest rewards ${percent(flows.questRewards, all)}, Item sales ${percent(totalSales(flows), all)}, Transfers ${percent(flows.transferFeesTaken, all)}`,
-      ];
+      const [rewards, sales, transfers] = shares([flows.questRewards, totalSales(flows), flows.transferFeesTaken]);
+      return [`${kindLabel(kind)}: Quest rewards ${rewards}, Item sales ${sales}, Transfers ${transfers}`];
     });
     const kindHeaders = controllerKinds.flatMap((kind) => [kind === 'player' ? "Player's" : "Rivals'", 'a Guild-year']);
     return [
@@ -2210,6 +2228,126 @@ const hurtRelief: Declared<GameCounters['hurtRelief'], SweepTotals['hurtRelief']
   zero: () => ({ player: noRelief(), rival: noRelief() }),
 };
 
+// ── The Contracts' lines (DL-321) ─────────────────────────────────────────────────────────────
+
+const contracts: Declared<GameCounters['contracts'], SweepTotals['contracts']> = {
+  key: 'contracts',
+  kind: 'play',
+  read: (document) => contractCounters(document),
+  zero: () => ({ player: noContracts(), rival: noContracts() }),
+  section: 'contracts',
+  lines(totals: SweepTotals, { deps }) {
+    const [signed, days] = [(kind: ControllerKind) => totals.contracts[kind].signed, totals.contractDays];
+    const share = (n: number, of: number): string => `${whole(n)} (${percent(n, of)})`;
+    const countRow = (label: string, count: (kind: ControllerKind) => number): string[] => [
+      label,
+      ...controllerKinds.flatMap((kind) => [whole(count(kind)), ratio(count(kind), guildYearsOf(totals, kind), 1)]),
+    ];
+    const lengths = keysOf(deps.config.contractLengthsYears.map(String), ...controllerKinds.flatMap((kind) => Object.values(signed(kind))));
+    const signedOf = (kind: ControllerKind, ways: readonly SigningKind[], years?: string): number =>
+      sum(ways.flatMap((way) => (years === undefined ? Object.values(signed(kind)[way]) : [signed(kind)[way][years] ?? 0])));
+    const wayRows: [SigningKind, string][] = [
+      ['recruited', 'a recruit (`hero.recruited`)'],
+      ['transferred', 'a Transfer (`hero.transferred`, the Guild the Hero joins)'],
+      ['renewed', 'a renewal (`hero.contract-renewed`)'],
+    ];
+    const bought = (kind: ControllerKind): TransferTally => {
+      const every = noTransfers();
+      for (const direction of kind === 'player' ? (['in'] as const) : (['out', 'rival-to-rival'] as const)) addInto(every, totals.transfers[direction]);
+      return every;
+    };
+    const row = (label: string, cell: (kind: ControllerKind) => string): string[] => [label, ...controllerKinds.map(cell)];
+    const sides = sidesOf(totals, deps);
+    const freeRows = sides.flatMap((maker) =>
+      sides.flatMap((asked) => {
+        const tally = totals.freeOffers[maker]?.[asked];
+        if (tally === undefined) return [];
+        return [[`${capitalised(sideLabel(maker))} to ${sideLabel(asked)}`, ...[tally.made, tally.renewed, tally.taken, tally.made - tally.renewed - tally.taken].map(whole)]];
+      }),
+    );
+    const levels = [...new Set(controllerKinds.flatMap((kind) => Object.keys(days[kind].wages)))].sort((a, b) => Number(a) - Number(b));
+    const wageCells = (kind: ControllerKind, level: string): string[] => {
+      const at = days[kind].wages[level];
+      return [whole(at?.heroDays ?? 0), ratio(at?.wage ?? 0, at?.heroDays ?? 0, 1)];
+    };
+    return [
+      'The Contracts, the player’s Guild and the Rivals apart, with no band. The signings, expiries and releases are read from the History, ' +
+        'a Transfer signing for the Guild the Hero joins; a founding Contract has no event and is not among the signings. The Days are sampled ' +
+        'once a Day as it begins, on a morning’s Turn before the policy acts: the Heroes of each Guild in play on its Roster, those Out of Contract ' +
+        '(their Contract ended and not renewed) and those Under Offer (at home, an Offer standing, free or priced). An Offer a Rival’s answer ends ' +
+        'before the Day closes is never seen standing. A release’s payout is the Wealth flow of the same name.',
+      '',
+      markdownTable(
+        ['Contracts', "Player's", 'a Guild-year', "Rivals'", 'a Guild-year'],
+        [
+          countRow('Signed, in all', (kind) => signedOf(kind, signingKinds)),
+          ...lengths.map((years) => countRow(`Signed, of ${years} ${years === '1' ? 'year' : 'years'}`, (kind) => signedOf(kind, signingKinds, years))),
+          ...wayRows.map(([way, label]) => countRow(`Signed by ${label}`, (kind) => signedOf(kind, [way]))),
+          countRow('Expired (`hero.contract-expired`)', (kind) => totals.contracts[kind].expired),
+          countRow('Released (`hero.released`)', (kind) => totals.contracts[kind].released),
+          countRow('Release payouts paid (`hero.released` `payout`)', (kind) => totals.wealth[kind].releasePayouts),
+        ],
+        ['left', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+      markdownTable(
+        ['Line', ...controllerKinds.map(kindLabel)],
+        [
+          row('Mean release payout', (kind) => ratio(totals.wealth[kind].releasePayouts, totals.contracts[kind].released, 0)),
+          row('Mean Transfer fee paid, a Hero bought', (kind) => ratio(bought(kind).fees, bought(kind).transfers, 0)),
+          row('Guild-Days sampled', (kind) => whole(days[kind].guildDays)),
+          row('Hero-Days on Rosters', (kind) => whole(days[kind].heroDays)),
+          row('Hero-Days Out of Contract', (kind) => share(days[kind].outOfContractDays, days[kind].heroDays)),
+          row('Guild-Days with at least one Hero Out of Contract', (kind) => share(days[kind].guildDaysOutOfContract, days[kind].guildDays)),
+          row('Hero-Days Under Offer', (kind) => share(days[kind].underOfferDays, days[kind].heroDays)),
+          row('Guild-Days with at least one Hero Under Offer', (kind) => share(days[kind].guildDaysUnderOffer, days[kind].guildDays)),
+        ],
+        ['left', ...controllerKinds.map(() => 'right' as const)],
+      ),
+      '',
+      ...(freeRows.length === 0
+        ? ['No free Offer was made.']
+        : [
+            'Free Offers, by the Guild that made them and the Guild asked: made for a Hero Out of Contract, withdrawn by their Guild renewing them ' +
+              '(`guild.transfer-offer-expired`, cause `renewed`), taken (cause `taken`), and the rest, accepted, ended otherwise or standing when the game stopped:',
+            '',
+            markdownTable(['Free Offers', 'Made', 'Withdrawn by a renewal', 'Taken', 'The rest'], freeRows, ['left', 'right', 'right', 'right', 'right']),
+          ]),
+      '',
+      'The mean wage in force by Level, over the Hero-Days of Heroes with a Contract (a Hero Out of Contract on the wage repriced):',
+      '',
+      markdownTable(
+        ['Level', "Player's Hero-Days", 'Mean wage', "Rivals' Hero-Days", 'Mean wage'],
+        levels.map((level) => [level, ...controllerKinds.flatMap((kind) => wageCells(kind, level))]),
+        ['left', 'right', 'right', 'right', 'right'],
+      ),
+      '',
+    ];
+  },
+};
+
+const freeOffers: Declared<GameCounters['freeOffers'], SweepTotals['freeOffers']> = {
+  key: 'freeOffers',
+  kind: 'play',
+  read: (document) => freeOfferCounters(document),
+  zero: () => ({}),
+};
+
+const contractDays: Declared<GameObservations['contractDays'], SweepTotals['contractDays']> = {
+  key: 'contractDays',
+  kind: 'play',
+  observe() {
+    const taken = { player: noContractDays(), rival: noContractDays() };
+    return {
+      beforeChoices: ({ document }) => {
+        if (document.world.ended === null) observeContractDays(taken, document.world);
+      },
+      value: () => taken,
+    };
+  },
+  zero: () => ({ player: noContractDays(), rival: noContractDays() }),
+};
+
 /**
  * The core's counters (DL-239), in the play report's order, which is the totals' order: each section's
  * lines in it, and the Summary's rows. A counter shown in another's table (the Heroes table's, the
@@ -2275,6 +2413,9 @@ export const gameCounters: readonly Counter[] = [
   short,
   transfersBySide,
   offers,
+  contracts,
+  freeOffers,
+  contractDays,
   rivalYearStarts,
   atFloor,
   rankings,

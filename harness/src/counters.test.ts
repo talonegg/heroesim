@@ -726,8 +726,8 @@ describe("M5's counters, from the History", () => {
   test('Wealth spent by category and taken from Quests and the Market, by controller', () => {
     const { document, player, rivals } = fixture('counters-wealth');
     const heroId = firstHero(player);
-    add(document, 3, 'hero.recruited', [heroId, player.id], { heroId, guildId: player.id, fee: 120 });
-    add(document, 4, 'hero.recruited', [heroId, rivals[0].id], { heroId, guildId: rivals[0].id, fee: 80 });
+    add(document, 3, 'hero.recruited', [heroId, player.id], { heroId, guildId: player.id, fee: 120, wage: 20, years: 2, endDay: 100 });
+    add(document, 4, 'hero.recruited', [heroId, rivals[0].id], { heroId, guildId: rivals[0].id, fee: 80, wage: 20, years: 2, endDay: 100 });
     const bought = (turn: number, guild: Guild, quantity: number, unitPrice: number): void => {
       add(document, turn, 'item.bought', [guild.id], {
         guildId: guild.id,
@@ -1089,7 +1089,7 @@ describe("M6's counters, from the History", () => {
   /** Appends a `hero.transferred` and returns its position in the History. */
   function transferred(document: WorldDocument, turn: number, heroId: HeroId, from: Guild, to: Guild, fee: number, offerId: EntityId | null = null): number {
     const position = document.history.entries.length;
-    add(document, turn, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee, offerId });
+    add(document, turn, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee, offerId, wage: 20, years: 2, endDay: 100 });
     return position;
   }
 
@@ -1243,7 +1243,7 @@ describe("M6's counters, from the History", () => {
     add(document, 9, 'hero.died', [firstHero(player), player.id], { heroId: firstHero(player), questId: quest(4) });
     resolved(11, b, quest(3), 'success');
     resolved(11, player, quest(4), 'success');
-    add(document, 12, 'hero.recruited', [firstHero(b), b.id], { heroId: firstHero(b), guildId: b.id, fee: 80 });
+    add(document, 12, 'hero.recruited', [firstHero(b), b.id], { heroId: firstHero(b), guildId: b.id, fee: 80, wage: 20, years: 2, endDay: 100 });
     b.foldedOnTurn = 45;
     add(document, 45, 'guild.folded', [b.id], { guildId: b.id, reason: 'bankruptcy' });
     // Its replacement inherits its Disposition (DL-56 item 7).
@@ -1677,7 +1677,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1, h2, h3] = a.rosterIds;
     if (h1 === undefined || h2 === undefined || h3 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, heroId: HeroId, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, h1, a, b);
     transferred(2, h1, b, a); // back to A a Day after A sold them
@@ -1969,7 +1969,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1] = a.rosterIds;
     if (h1 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, a, player);
     transferred(2, player, a); // back to A, from the player
@@ -1988,7 +1988,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1] = a.rosterIds;
     if (h1 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, a, b);
     transferred(200, b, a); // back to A 199 Days after its sale
