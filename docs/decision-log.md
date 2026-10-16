@@ -503,8 +503,10 @@ renewal and the end in the engine, and says the stop on the page and the CLI.
 wages the player 49,887 → 70,977 (+42%), the Rivals 252,423 → 291,865 (+16%). Quick run, 4 years
 (`v1.2.3-s3-quick4-2026-10-16`, `f613da04…`) against S1's 4×4 baseline: wages the player 352,420 → 260,813
 (−26%), the Rivals 1,072,520 → 1,090,154 (+1.6%); Rival folds 4 → 0; Rival-to-Rival Transfers 0 → 45;
-refusals and stopped games 0. Q-K reads the wages again here: in the 4-year run the player's are still 26% below S1's, the
-Rivals' within 10%. In those four seeds' 4 years, replayed with the policy: 223 `hero.contract-expired`
+refusals and stopped games 0. Q-K reads the wages again here, against S1's: in the 2-year run the player's are
+49% below, the Rivals' 29%, both still outside 10%; in the 4-year run the player's 26% below, the Rivals'
+within 10%. In those four seeds' 4 years, replayed with the policy: 223 `hero.contract-expired`
 (seed-0001 37, seed-0002 59, seed-0003 89, seed-0004 38; the player's 8 in each), `hero.contract-renewed` 0.
 
 **Evidence.** Commits `f930e13` and this story's; the two reports; the epic's S3 boxes, all three met.
+Verified 2026-10-16 at 686900b: the price, the term, the refusals, the night's expiry before the wages for every Guild, once, the repricing (§2's 25), the stop in every map, nobody renewing, and 223 expired and 0 renewed replayed, wages as the report's; the History pin's move is the expiry alone (old values with it off), the arranged setups needed; 21 mutations red, two only after a test of the refusals' order was added; fixed: Q-K's 2-year reading here, the requirements' scope row.

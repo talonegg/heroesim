@@ -138,6 +138,21 @@ describe('renew', () => {
       expect(document.world).toEqual(before);
     });
 
+    test('in the order length-not-offered, hero-not-on-roster, hero-in-party: the first that holds is the one given', () => {
+      const { document, guild, hero } = created();
+      const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id) as Guild;
+      const theirs = document.world.heroes[rival.rosterIds[0] as HeroId] as Hero;
+      theirs.partyId = 'party-000001' as PartyId;
+      (document.world.heroes[hero.id] as Hero).partyId = 'party-000002' as PartyId;
+      const reason = (heroId: HeroId, years: number) => refusal(applyAction(document, { kind: 'renew', guildId: guild.id, heroId, years }, deps)).reason;
+      expect([reason(hero.id, 4), reason(theirs.id, 4), reason(theirs.id, 1), reason(hero.id, 1)]).toEqual([
+        'length-not-offered',
+        'length-not-offered',
+        'hero-not-on-roster',
+        'hero-in-party',
+      ]);
+    });
+
     test('a Guild the world does not hold is a programming error', () => {
       const { document, hero } = created();
       expect(() => applyAction(document, { kind: 'renew', guildId: 'guild-999999' as GuildId, heroId: hero.id, years: 1 }, deps)).toThrow(RangeError);

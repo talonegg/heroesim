@@ -85,10 +85,10 @@ Commands:
       player's Heroes ends (contract-expired: they are Out of Contract), an installed
       module asks to stop, and the game ends.
       <stops> names any of party-returns, decision, staffable, transfer-offer,
-      contract-expired, below-floor, ended and pool-refreshed, joined by commas. Two stop it only when named:
-      staffable (a Quest the rested Heroes at home could take reaches the Board, even
-      with a Party out) and pool-refreshed (new Heroes in the Unattached pool). --max
-      caps the Turns played: one year of Turns unless given.
+      contract-expired, below-floor, ended and pool-refreshed, joined by commas. Two
+      stop it only when named: staffable (a Quest the rested Heroes at home could take
+      reaches the Board, even with a Party out) and pool-refreshed (new Heroes in the
+      Unattached pool). --max caps the Turns played: one year of Turns unless given.
   recruit --hero <heroId> --years <years>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, on a Contract of --years years, a length the rules offer (a refusal
