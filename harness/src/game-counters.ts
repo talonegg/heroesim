@@ -47,6 +47,7 @@ import {
   noConsumables,
   noContractDays,
   noContracts,
+  noUnderOfferSeen,
   noDifficulty,
   noDispatchFatigue,
   noDisposition,
@@ -210,7 +211,7 @@ export interface GameTotals {
   dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
   /** The free Heroes a rest band kept out of their Guild's pool, sampled once a Day, over the games (DL-290). */
   restKept: Record<ControllerKind, RestKept>;
-  /** The Roster Heroes Out of Contract and Under Offer, and the wages in force by Level, sampled once a Day, over the games (DL-321). */
+  /** The Roster Heroes Out of Contract and Under Offer, and the wages in force by Level, by the Day, over the games (DL-321). */
   contractDays: Record<ControllerKind, ContractDays>;
 }
 
@@ -2273,9 +2274,9 @@ const contracts: Declared<GameCounters['contracts'], SweepTotals['contracts']> =
     return [
       'The Contracts, the player’s Guild and the Rivals apart, with no band. The signings, expiries and releases are read from the History, ' +
         'a Transfer signing for the Guild the Hero joins; a founding Contract has no event and is not among the signings. The Days are sampled ' +
-        'once a Day as it begins, on a morning’s Turn before the policy acts: the Heroes of each Guild in play on its Roster, those Out of Contract ' +
-        '(their Contract ended and not renewed) and those Under Offer (at home, an Offer standing, free or priced). An Offer a Rival’s answer ends ' +
-        'before the Day closes is never seen standing. A release’s payout is the Wealth flow of the same name.',
+        'before the policy acts: as a Day begins, on its morning’s Turn, the Heroes of each Guild in play on its Roster and those Out of Contract ' +
+        '(their Contract ended and not renewed); at every Turn, those Under Offer (at home, an Offer standing, free or priced), each Hero and Guild ' +
+        'once a Day. An Offer a Rival answers at once stands at no Turn’s choices and is never seen. A release’s payout is the Wealth flow of the same name.',
       '',
       markdownTable(
         ['Contracts', "Player's", 'a Guild-year', "Rivals'", 'a Guild-year'],
@@ -2338,9 +2339,10 @@ const contractDays: Declared<GameObservations['contractDays'], SweepTotals['cont
   kind: 'play',
   observe() {
     const taken = { player: noContractDays(), rival: noContractDays() };
+    const seen = noUnderOfferSeen();
     return {
       beforeChoices: ({ document }) => {
-        if (document.world.ended === null) observeContractDays(taken, document.world);
+        if (document.world.ended === null) observeContractDays(taken, document.world, seen);
       },
       value: () => taken,
     };

@@ -13,7 +13,7 @@ import { append, makeId } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { counterOf, type Counter } from './counter.js';
-import { noContractDays, noContracts, type ContractDays } from './counters.js';
+import { noContracts, type ContractDays } from './counters.js';
 import { gameCounters } from './game-counters.js';
 import { coreDeps, countGame, observerOf } from './harness.test-support.js';
 
@@ -133,6 +133,9 @@ describe('freeOfferCounters: the Offers made for a Hero Out of Contract', () => 
     renewed(3, b);
     // b again, under a new Contract: an Offer for them is not free.
     offered(4, 3, other, b, 0);
+    // b's new Contract ends too: an Offer for them is free again.
+    expired(5, b);
+    offered(5, 8, other, b, 0);
     // c: Out of Contract, a free Offer taken, its Transfer after.
     expired(5, c);
     offered(6, 4, other, c, 0);
@@ -161,7 +164,7 @@ describe('freeOfferCounters: the Offers made for a Hero Out of Contract', () => 
     expect(sideOf(rival)).not.toBe(sideOf(other));
     expect(freeOffers).toEqual({
       [sideOf(rival)]: { player: { made: 2, renewed: 1, taken: 0 } },
-      [sideOf(other)]: { player: { made: 2, renewed: 0, taken: 1 } },
+      [sideOf(other)]: { player: { made: 3, renewed: 0, taken: 1 } },
     });
   });
 
@@ -206,9 +209,6 @@ describe('observeContractDays: the Heroes Out of Contract and Under Offer, as ea
     document.world.offers[free] = { id: free, kind: 'transfer', fromGuildId: rival.id, toGuildId: other.id, heroId: r.id, fee: 0, years: 2, offeredOnTurn: 29, expiresOnTurn: 35 };
     const observer = observerOf('contractDays');
 
-    document.world.turn = 31; // an afternoon: nothing
-    observer.beforeChoices?.({ document, deps });
-    expect(observer.value()).toEqual({ player: noContractDays(), rival: noContractDays() });
     document.world.turn = 30;
     observer.beforeChoices?.({ document, deps });
 
@@ -234,6 +234,38 @@ describe('observeContractDays: the Heroes Out of Contract and Under Offer, as ea
       guildDaysUnderOffer: 1,
       wages: { 1: { heroDays: rosters('rival'), wage: 20 * (rosters('rival') - 1) + 25 } },
     });
+  });
+
+  test('Under Offer is read at every Turn, each Hero and Guild once a Day, as an Offer a Rival makes in the afternoon stands at the choices; the rest at a morning alone', () => {
+    const { document, player, rival, other } = arranged('contract-days-turns');
+    const [b, d] = player.rosterIds.map((id) => document.world.heroes[id] as Hero);
+    const [o] = other.rosterIds.map((id) => document.world.heroes[id] as Hero);
+    if (b === undefined || d === undefined || o === undefined) throw new Error('Rosters too short');
+    const offer = (n: number, hero: Hero, from: Guild): void => {
+      const id = makeId('offers', n);
+      document.world.offers[id] = { id, kind: 'transfer', fromGuildId: from.id, toGuildId: rival.id, heroId: hero.id, fee: 100, years: 2, offeredOnTurn: 30, expiresOnTurn: 38 };
+    };
+    const observer = observerOf('contractDays');
+    const at = (turn: number): void => {
+      document.world.turn = turn;
+      observer.beforeChoices?.({ document, deps });
+    };
+
+    offer(1, b, player);
+    at(30); // Day 10's morning: b
+    const morning = observer.value();
+    expect(morning.player).toMatchObject({ guildDays: 1, underOfferDays: 1, guildDaysUnderOffer: 1 });
+    expect(morning.rival).toMatchObject({ underOfferDays: 0, guildDaysUnderOffer: 0 });
+    const { heroDays } = morning.player;
+    offer(2, d, player);
+    offer(3, o, other);
+    at(31); // its afternoon: d and o, b counted already this Day
+    at(32); // its night: nobody new
+    expect(observer.value().player).toMatchObject({ guildDays: 1, heroDays, underOfferDays: 2, guildDaysUnderOffer: 1 });
+    expect(observer.value().rival).toMatchObject({ underOfferDays: 1, guildDaysUnderOffer: 1 });
+    at(33); // Day 11's morning: b, d and o again
+    expect(observer.value().player).toMatchObject({ guildDays: 2, heroDays: 2 * heroDays, underOfferDays: 4, guildDaysUnderOffer: 2 });
+    expect(observer.value().rival).toMatchObject({ underOfferDays: 2, guildDaysUnderOffer: 2 });
   });
 
   test('a Guild that has folded is not sampled, and a Hero with no Contract adds no wage', () => {

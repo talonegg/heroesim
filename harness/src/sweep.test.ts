@@ -328,6 +328,9 @@ describe('sweepPlay', () => {
           rival: { signed: { recruited: { 1: 2 }, transferred: { 3: 1 }, renewed: { 2: 4 } }, expired: 5, released: 2 },
         },
         freeOffers: { ambitious: { player: { made: 3, renewed: 2, taken: 1 } } },
+        // The payouts are the Wealth's, the fees the Transfers': a Hero the player bought came in, one a Rival bought went out or between Rivals.
+        wealth: { player: { ...noWealth(), releasePayouts: 150 }, rival: { ...noWealth(), releasePayouts: 400 } },
+        transfers: { in: { transfers: 1, fees: 300 }, out: { transfers: 2, fees: 500 }, 'rival-to-rival': { transfers: 1, fees: 700 } },
       },
       observations: {
         ...game.observations,
@@ -368,9 +371,17 @@ describe('sweepPlay', () => {
     expect(report).toMatch(/\| Signed, of 3 years \| 2 \| [\d.]+ \| 2 \| [\d.]+ \|/);
     expect(report).toMatch(/\| Expired \(`hero.contract-expired`\) \| 6 \| [\d.]+ \| 10 \| [\d.]+ \|/);
     expect(report).toMatch(/\| Released \(`hero.released`\) \| 2 \| [\d.]+ \| 4 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed by a Transfer \(`hero.transferred`, the Guild the Hero joins\) \| 0 \| [\d.]+ \| 2 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed by a renewal \(`hero.contract-renewed`\) \| 6 \| [\d.]+ \| 8 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Release payouts paid \(`hero.released` `payout`\) \| 300 \| [\d.,]+ \| 800 \| [\d.,]+ \|/);
+    expect(report).toContain('| Mean release payout | 150 | 200 |');
+    expect(report).toContain('| Mean Transfer fee paid, a Hero bought | 300 | 400 |');
+    expect(report).toContain('| Guild-Days sampled | 20 | 80 |');
+    expect(report).toContain('| Hero-Days on Rosters | 80 | 400 |');
     expect(report).toContain('| Hero-Days Out of Contract | 16 (20.0%) | 100 (25.0%) |');
     expect(report).toContain('| Guild-Days with at least one Hero Out of Contract | 8 (40.0%) | 40 (50.0%) |');
     expect(report).toContain('| Hero-Days Under Offer | 4 (5.0%) | 20 (5.0%) |');
+    expect(report).toContain('| Guild-Days with at least one Hero Under Offer | 4 (20.0%) | 10 (12.5%) |');
     expect(report).toContain("| `ambitious` to the player's Guild | 6 | 4 | 2 | 0 |");
     expect(report).toContain('| 1 | 60 | 20.0 | 400 | 22.5 |');
     expect(report).toContain('| 2 | 20 | 33.0 | 0 | — |');

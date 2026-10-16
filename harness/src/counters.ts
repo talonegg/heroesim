@@ -1595,7 +1595,7 @@ export interface GameObservations {
   dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
   /** The free Heroes a rest band left out of their Guild's pool, sampled once a Day (`observeRestKept`, DL-290). */
   restKept: Record<ControllerKind, RestKept>;
-  /** The Heroes Out of Contract and Under Offer, and the wages in force by Level, sampled as each Day begins (`observeContractDays`, DL-321). */
+  /** The Heroes Out of Contract and the wages in force by Level, sampled as each Day begins, and those Under Offer at any Turn of it (`observeContractDays`, DL-321). */
   contractDays: Record<ControllerKind, ContractDays>;
 }
 
@@ -2673,9 +2673,8 @@ export function freeOfferCounters(document: WorldDocument): Record<string, Recor
 }
 
 /**
- * A kind of Guild's Roster Heroes sampled once a Day (`observeContractDays`): the Hero-Days, those Out
- * of Contract and those Under Offer, the Guild-Days with at least one of each, and the wage in force
- * by Level.
+ * A kind of Guild's Roster Heroes sampled (`observeContractDays`): the Hero-Days, those Out of Contract
+ * and those Under Offer, the Guild-Days with at least one of each, and the wage in force by Level.
  */
 export interface ContractDays {
   guildDays: number;
@@ -2698,26 +2697,46 @@ export const noContractDays = (): ContractDays => ({
   wages: {},
 });
 
+/** The Day `observeContractDays` reads, and the Heroes and Guilds it has counted Under Offer in it. */
+export interface UnderOfferSeen {
+  day: number;
+  heroes: Set<HeroId>;
+  guilds: Set<GuildId>;
+}
+
+export const noUnderOfferSeen = (): UnderOfferSeen => ({ day: -1, heroes: new Set(), guilds: new Set() });
+
 /**
- * Samples into `taken`, once a Day, each Guild in play as the Day begins, on a morning's Turn before the
- * policy acts (DL-321): its Roster's Heroes, the ones Out of Contract (`outOfContract`) and Under Offer
- * (`underOffer`: at home, an Offer standing, free or priced), and each Contract's wage by the Hero's
- * Level. An Offer a Rival's answer or the afternoon ends before a morning is never seen, so the Days
- * Under Offer are those that stand over a night; any other Turn adds nothing.
+ * Samples into `taken` each Guild in play, before the policy acts (DL-321). As a Day begins, on its
+ * morning's Turn: its Roster's Heroes, the ones Out of Contract (`outOfContract`), and each Contract's
+ * wage by the Hero's Level. At every Turn: the Heroes Under Offer (`underOffer`: at home, an Offer
+ * standing, free or priced), each Hero and Guild counted once a Day (`seen`), since a Rival makes its
+ * Offers in the afternoon and the policy answers them at its next choice. An Offer a Rival answers at
+ * once stands at no choice and is never seen.
  */
-export function observeContractDays(taken: Record<ControllerKind, ContractDays>, world: World): void {
-  if (timeOfDay(world.turn) !== 'morning') return;
+export function observeContractDays(taken: Record<ControllerKind, ContractDays>, world: World, seen: UnderOfferSeen): void {
+  const day = dayOf(world.turn);
+  if (seen.day !== day) {
+    seen.day = day;
+    seen.heroes.clear();
+    seen.guilds.clear();
+  }
   for (const guild of guildsInPlay(world)) {
     const tally = taken[guild.controller.kind];
     const heroes = guild.rosterIds.map((heroId) => world.heroes[heroId] as Hero);
+    for (const hero of heroes) {
+      if (seen.heroes.has(hero.id) || !underOffer(world, hero)) continue;
+      seen.heroes.add(hero.id);
+      tally.underOfferDays += 1;
+      if (!seen.guilds.has(guild.id)) tally.guildDaysUnderOffer += 1;
+      seen.guilds.add(guild.id);
+    }
+    if (timeOfDay(world.turn) !== 'morning') continue;
     const out = heroes.filter((hero) => outOfContract(hero, world.turn)).length;
-    const under = heroes.filter((hero) => underOffer(world, hero)).length;
     tally.guildDays += 1;
     tally.heroDays += heroes.length;
     tally.outOfContractDays += out;
-    tally.underOfferDays += under;
     if (out > 0) tally.guildDaysOutOfContract += 1;
-    if (under > 0) tally.guildDaysUnderOffer += 1;
     for (const hero of heroes) {
       if (hero.contract === null) continue;
       const level = (tally.wages[String(hero.level)] ??= { heroDays: 0, wage: 0 });

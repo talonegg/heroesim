@@ -143,14 +143,15 @@ band; `v1.2.4` proposes any. Each is read from the History or the World State an
 - **Free Offers** (`freeOffers`): the Offers made by a side to a side for a Hero Out of Contract, how many their Guild withdrew
   by renewing them (cause `renewed`) and how many were taken (cause `taken`). An Offer is free when the Hero's last event
   before it is a `hero.contract-expired`, no signing or release since: a priced Offer whose fee reads 0 is not.
-- **Days Out of Contract and Under Offer** (`contractDays`): sampled once a Day, on a morning's Turn before the policy acts,
-  for each Guild in play: the Roster's Heroes (`outOfContract`, `underOffer`) in Hero-Days, and the Guild-Days with at least one.
-  An Offer a Rival's answer ends at once is never standing at a morning, so the Days Under Offer are those over a night.
+- **Days Out of Contract and Under Offer** (`contractDays`): for each Guild in play, before the policy acts, in Hero-Days and
+  the Guild-Days with at least one. The Roster and those Out of Contract (`outOfContract`) are read as each Day begins, on its
+  morning's Turn; those Under Offer (`underOffer`) at every Turn, each Hero and Guild once a Day, since a Rival makes its Offers
+  in the afternoon and the policy answers them at its next choice. An Offer a Rival answers at once is never seen.
 - **The mean wage by Level** (`contractDays`): the wage in force over the Hero-Days of Roster Heroes with a Contract, a Hero Out
   of Contract on the wage repriced.
 
-The shares of the Wealth spent and taken (`wealth`) are rounded by largest remainder, so each side's sum to 100.0% (`shares`,
-`src/report.ts`).
+The shares of the Wealth spent and taken (`wealth`) are rounded by largest remainder, the earlier part first among equal
+remainders, so each side's sum to 100.0% (`shares`, `src/report.ts`).
 
 ## The Gate
 

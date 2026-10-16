@@ -748,16 +748,17 @@ Verified 2026-10-17 at ed9c9a0: claims held, the pin traced to the search; a sur
 2. **`freeOffers`**, from the History, by the side that made the Offer and the side asked: made, withdrawn by a renewal, taken. An
    Offer is free when its Hero's last event before it is `hero.contract-expired` (no signing or release since), the History's order
    standing for `freeOffer`'s Contract read; a priced Offer at a fee of 0 is not free.
-3. **`contractDays`**, observed once a Day on a morning's Turn before the policy acts: Hero-Days and Guild-Days Out of Contract
-   (`outOfContract`) and Under Offer (`underOffer`), and the wage in force by Level over Hero-Days, for the mean wage by Level.
+3. **`contractDays`**, observed before the policy acts: on a morning's Turn, Hero-Days and Guild-Days Out of Contract
+   (`outOfContract`) and the wage in force by Level over Hero-Days, for the mean wage by Level; at every Turn, Under Offer
+   (`underOffer`), each Hero and Guild once a Day.
 4. **The mean Transfer fee** is the existing column's; a row beside the Contracts' repeats it for a Hero bought by each side.
-5. **The shares** of the Wealth spent and taken, `shares` (`report.ts`), by largest remainder in tenths of a percent, earlier first
-   among equals; a whole of nothing reads a dash. A new section, `## Contracts (DL-321)`, holds the lines; no old line moves.
+5. **The shares** of the Wealth spent and taken, `shares` (`report.ts`), by largest remainder in tenths of a percent, the whole
+   remainders compared, earlier first among equals; a whole of nothing reads a dash. A new section, `## Contracts (DL-321)`, holds the lines; no old line moves.
 6. **`outOfContract` and `underOffer`** are exported from the engine's index, the only change to `engine/src/`.
 
 *Judgement calls, for the owner to see.*
-- The Days are sampled at a morning, so an Offer a Rival's answer ends at once is never seen standing: Hero-Days Under Offer read 0
-  in the quick run, where every free Offer was renewed within its Turn.
+- Under Offer is read at every Turn's choices, since a Rival offers in the afternoon and the policy answers at its next choice; an
+  Offer a Rival answers at once is never seen standing, so the Rivals' read 0.
 - The mean wage is the wage in force (a Hero Out of Contract on the repriced wage), not the wage at signing.
 - Arranged for the owner to see (DL-315's note), assertions unchanged: `counters.test.ts`'s hand-built `hero.recruited` and
   `hero.transferred` entries gain the terms (`wage`, `years`, `endDay`) the engine's carry, and `sweep.test.ts`'s fixture a value in
@@ -767,7 +768,8 @@ Verified 2026-10-17 at ed9c9a0: claims held, the pin traced to the search; a sur
 moves 43 paths, all new, and none of the old. The Gate PASS, refusals 0, folds 0.
 - The player signed 23 Contracts (16 recruits, 7 renewals, all of 2 years), the Rivals 62 (42 recruits, 9 Transfers, 11 renewals);
   14 and 83 expired; releases 0. Free Offers 18 (7 to the player), all renewed, none taken, as S7's replay counted.
-- Out of Contract: 17.9% of the player's Hero-Days and 51.2% of the Rivals', nobody renewing but on a free Offer. Under Offer 0.
+- Out of Contract: 17.9% of the player's Hero-Days and 51.2% of the Rivals', nobody renewing but on a free Offer. Under Offer 21
+  of the player's Hero-Days (`v1.2.3-s8v-quick-2026-10-17`, fingerprint the same) and none of the Rivals'.
 - The mean wage by Level, Level 1 to 4: the player 21.7, 23.7, 28.0, 39.8; the Rivals 22.1, 27.5, 38.1, 54.1. The mean Transfer fee
   a Rival paid, 410.
 - Each side's shares sum to 100.0%. Q-M, the owner's "a" (2026-10-17): a Rival in debt releasing down to an empty Roster, kept as
@@ -775,3 +777,4 @@ moves 43 paths, all new, and none of the old. The Gate PASS, refusals 0, folds 0
 
 **Evidence.** This story's commit; `harness/reports/v1.2.3-s8-quick-2026-10-17`; the S8 boxes, both met. Red first: the
 Contracts' and the free Offers' counters, the observer, the report's lines and the shares (9 tests).
+Verified 2026-10-17 at 694302c: the counts re-derived by a replay and the free test found the engine's; Under Offer, read only at a morning, missed the 21 Offers standing at the policy's choices and is now read at every Turn, and equal remainders in the shares now compare equal, test first; two surviving mutations (the payouts doubled, the fee of a Hero sold) closed by tests.

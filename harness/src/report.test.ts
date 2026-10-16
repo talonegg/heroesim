@@ -60,6 +60,8 @@ describe('numbers', () => {
     expect(shares([2, 1])).toEqual(['66.7%', '33.3%']);
     // Each alone is 16.7%, 100.2% in all: four take the tenth up, two do not.
     expect(shares([1, 1, 1, 1, 1, 1])).toEqual(['16.7%', '16.7%', '16.7%', '16.7%', '16.6%', '16.6%']);
+    // 8.333, 8.333, 83.333: equal remainders, the earlier first, though a float's last bits make the largest part's look larger.
+    expect(shares([1, 1, 10])).toEqual(['8.4%', '8.3%', '83.3%']);
     // A whole of nothing has no shares.
     expect(shares([0, 0])).toEqual(['—', '—']);
   });
