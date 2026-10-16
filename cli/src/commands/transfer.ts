@@ -9,6 +9,7 @@
 
 import {
   applyAction,
+  freeOffer,
   offersTo,
   playerGuild,
   type EngineDeps,
@@ -35,7 +36,7 @@ function guildCalled(world: World, guildId: string): string {
 }
 
 /** The lines a successful Transfer prints: each event in the CLI's words, then the Guild's Wealth and Roster. */
-function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
+export function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
   const guild = rowOf(document.world.guilds, guildId);
   return [
     ...events.map((event) => narrateLine(event, deps.content, deps.config)),
@@ -96,6 +97,9 @@ export function renderOffers(document: WorldDocument, deps: EngineDeps): string[
   if (offers.length === 0) return [`No Transfer Offer stands for ${player.name}'s Heroes.`];
   return [
     `Transfer Offers for ${player.name}'s Heroes: ${offers.length}. Answer with accept --offer <id> or decline --offer <id>.`,
+    ...(offers.some((offer) => freeOffer(world, offer))
+      ? ['A free Offer, for a Hero Out of Contract, cannot be declined: answer it with renew --hero <id> --years <years>, or the Hero goes when it expires.']
+      : []),
     '',
     ...table(
       [{ heading: 'Offer' }, { heading: 'From' }, { heading: 'For' }, { heading: 'Fee', align: 'right' }, { heading: 'Until' }],
@@ -103,7 +107,7 @@ export function renderOffers(document: WorldDocument, deps: EngineDeps): string[
         offer.id,
         guildCalled(world, offer.toGuildId),
         heroCalled(world, offer.heroId),
-        coinLetters(offer.fee),
+        freeOffer(world, offer) ? 'Free' : coinLetters(offer.fee),
         renderTime(offer.expiresOnTurn, deps.config),
       ]),
     ),

@@ -259,6 +259,21 @@ describe('parseArgs', () => {
     expect(command('advance', '--until', 'contract-expired')).toEqual({ name: 'advance', save: 'current', until: ['contract-expired'] });
   });
 
+  test('reads renew with its length, and release with or without --confirm (DL-323)', () => {
+    expect(command('renew', '--hero', 'hero-000003', '--years', '2')).toEqual({ name: 'renew', save: 'current', hero: 'hero-000003', years: 2 });
+    expect(command('release', '--hero=hero-000003')).toEqual({ name: 'release', save: 'current', hero: 'hero-000003', confirm: false });
+    expect(command('release', '--hero', 'hero-000003', '--confirm', '--save', 'demo')).toEqual({ name: 'release', save: 'demo', hero: 'hero-000003', confirm: true });
+  });
+
+  test('the usage words renew, release and --confirm, the Contract column of show roster, and what show guilds gives (DL-323)', () => {
+    const said = usage.replace(/\s+/g, ' ');
+    expect(said).toContain('renew --hero <heroId> --years <years>');
+    expect(said).toContain('release --hero <heroId> [--confirm]');
+    expect(said).toContain("each Hero's Morale and Fatigue and who its Captain is, and their Contract");
+    // DL-305's note: show guilds gives each Guild's Upkeep, a month of its costs, and its Heroes Out of Contract.
+    expect(said).toContain("guilds shows every Guild with its Wealth, Fame and Roster, its Upkeep, a month of its wages and its Hall's upkeep, and how many of its Heroes are Out of Contract");
+  });
+
   test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas', () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--modules', 'probe')).toEqual({
       name: 'new',
@@ -349,6 +364,12 @@ describe('parseArgs', () => {
     [['recruit', '--hero', 'hero-000001', '--years', 'two'], '--years needs a whole number of years; got "two"'],
     [['transfer', '--hero', 'hero-000001', '--in'], 'transfer needs --years'],
     [['transfer', '--hero', 'hero-000001', '--to', 'guild-000002', '--years', '2'], 'transfer --to takes no --years'],
+    [['renew', '--hero', 'hero-000001'], 'renew needs --years'],
+    [['renew', '--years', '2'], 'renew needs --hero'],
+    [['renew', '--hero', 'hero-000001', '--years', 'two'], '--years needs a whole number of years; got "two"'],
+    [['release'], 'release needs --hero'],
+    [['release', '--hero', 'brenna'], '--hero needs a Hero id such as hero-000001; got "brenna"'],
+    [['release', '--hero', 'hero-000001', '--years', '2'], 'release takes no flag --years'],
     [['equip', '--hero', 'hero-000001'], 'equip needs --item or --stack, and one of them only'],
     [['equip', '--hero', 'hero-000001', '--stack', 'stack-000001', '--item', 'item-000001'], 'one of them only'],
     [['equip', '--hero', 'hero-000001', '--item', 'stack-000001'], '--item needs an Item id such as item-000001; got "stack-000001"'],

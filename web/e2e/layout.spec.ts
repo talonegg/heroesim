@@ -1029,7 +1029,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
         // The Columns panel open, a group hidden and every column shown again.
         await roster.getByRole('button', { name: 'Columns', exact: true }).click();
         const panel = roster.getByRole('group', { name: 'Columns' });
-        await expect(panel.getByRole('checkbox')).toHaveCount(28);
+        await expect(panel.getByRole('checkbox')).toHaveCount(29);
         await expectNoHorizontalOverflow(page, `the Columns panel, ${at}`);
         await expectTargets(page, `the Columns panel, ${at}`);
         await page.screenshot({ path: test.info().outputPath(`roster-table-${scheme}-${width}.png`), fullPage: true });

@@ -29,6 +29,7 @@ import {
   nextHallUpkeepDay,
   nextImprovement,
   nextWagesDay,
+  outOfContract,
   playerGuild,
   regardBand,
   regardValue,
@@ -178,6 +179,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       { heading: 'Wealth', align: 'right' },
       { heading: 'Fame', align: 'right' },
       { heading: 'Upkeep', align: 'right' },
+      { heading: 'Out of Contract', align: 'right' },
       ...(anyFolded ? [{ heading: 'Folded' }] : []),
     ],
     guilds.map((guild) => [
@@ -192,6 +194,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       coinLetters(guild.wealth),
       String(guild.fame),
       coinLetters(upkeep(guild, world, config, content)),
+      String(guild.rosterIds.filter((id) => outOfContract(rowOf(world.heroes, id) ?? { contract: null }, world.turn)).length),
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on ${dateOfTurn(guild.foldedOnTurn, config)}`] : []),
     ]),
   );
@@ -390,9 +393,10 @@ function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly Her
  */
 export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
   const { world, content } = reading;
-  // The Captain marked beside the others (DL-289), then another Guild's Transfer fee.
+  // The Captain marked beside the others (DL-289), then the Contract (DL-323), then another Guild's Transfer fee.
   const fees: HeroColumn<RosterRowReading>[] = [
     { heading: 'Captain', cell: (row) => (row.captain ? 'Yes' : '') },
+    { heading: 'Contract', cell: (row) => row.contract },
     ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
       : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => (row.transferFee === null ? '' : coinLetters(row.transferFee)) }]),
@@ -460,6 +464,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['XP', String(hero.xp)],
     ['Morale', `${hero.morale}, ${hero.moraleBand}`],
     ['Fatigue', `${hero.fatigue}, ${hero.fatigueBand}`],
+    ...(hero.contract === '' ? [] : [['Contract', hero.contract] as [string, string]]),
     [
       'Injury',
       hero.injury === null

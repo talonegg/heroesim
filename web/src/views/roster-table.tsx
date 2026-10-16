@@ -1,6 +1,6 @@
 // The Roster as a Table (v1.1.5-S12, DL-169 items 7 to 9): Name with the Portrait's thumbnail, pinned
 // as in the Unattached pool; Class, Level and Age; their State, Morale and Fatigue, each with its band
-// (DL-289); the 20 Stats at their effective values; then where the Hero is, Traits and Items, which are long
+// (DL-289), then their Contract, the Days left, Out of Contract or Under Offer (DL-323); the 20 Stats at their effective values; then where the Hero is, Traits and Items, which are long
 // and so stand last, that State shows on a wide screen (the owner's answer (a) to Q21; `rosterTableColumns`). A Stat a
 // source raises is green with a ▲ after it, one lowered red with a ▼, by the net change; its tooltip and the
 // screen reader's words give the base and each source.
@@ -89,6 +89,12 @@ function Cell({ row, column }: { row: RosterRow; column: RosterColumn }) {
           <Chip tone={fatigueTones[row.fatigueBand]}>
             {row.fatigue}, {row.fatigueBand}
           </Chip>
+        </td>
+      );
+    case 'contract':
+      return (
+        <td data-column="contract" className="roster-table__where">
+          {row.contract}
         </td>
       );
     case 'where':

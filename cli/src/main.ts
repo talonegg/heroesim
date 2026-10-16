@@ -40,6 +40,7 @@ import { heroReading, playerReading, readableSeed, rowOf } from '@heroesim/words
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
 import { nameCaptain } from './commands/captain.js';
+import { releaseHero, renewHero } from './commands/contract.js';
 import { equipGear, unequipGear } from './commands/equip.js';
 import { buyItems, renderMarket, sellItems } from './commands/market.js';
 import { recruitHero } from './commands/recruit.js';
@@ -111,6 +112,10 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return 'until' in command ? fastForwardTurns(command, context) : advanceTurns(command.turns, context);
     case 'recruit':
       return recruitHero(command.hero, command.years, context);
+    case 'renew':
+      return act(context, command.name, (document, deps) => renewHero(command, document, deps));
+    case 'release':
+      return act(context, command.name, (document, deps) => releaseHero(command, document, deps));
     case 'preview':
       return look(context, (document, deps) => previewParty(command, document, deps));
     case 'dispatch':

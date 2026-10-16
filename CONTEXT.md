@@ -47,7 +47,7 @@ one cheaper a year (DL-315). A Hero on a Roster holds one; a Hero on no Roster h
 Retirement, a Transfer or their Guild's fold ends it. The Guild may renew it at any time the Hero is
 home, replacing the term at the rule's price with no fee, or release the Hero for most of the wages
 left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6 and its note of
-2026-10-12, DL-316, DL-317; the page and CLI for renewal and release, to be built). Not the module contract
+2026-10-12, DL-316, DL-317; renewed and released from the Hero's page and the CLI, DL-323). Not the module contract
 (ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
 case.
 _Avoid_: Deal, Agreement, Lease

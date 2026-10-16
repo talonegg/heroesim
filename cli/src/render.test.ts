@@ -203,6 +203,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     fatigue: 34,
     fatigueBand: 'weary',
     captain: false,
+    contract: '120 Days left',
     guild: { id: 'guild-000002' as GuildId, name: 'The Ashford Guild' },
     unattached: false,
     injury: { name: 'Deep cut', healsOnTurn: 20 },
@@ -238,6 +239,7 @@ describe("show's layouts of the readings (DL-241)", () => {
       'XP             45',
       'Morale         61, steady',
       'Fatigue        34, weary',
+      'Contract       120 Days left',
       'Injury         Deep cut, healing on the night of Year 1 Day 7 (Turn 20)',
       'Traits         Lame (-2 Dexterity, -1 Endurance)',
       'Biography      Once a drover.',
@@ -320,17 +322,17 @@ describe("show's layouts of the readings (DL-241)", () => {
 
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id) as Guild;
     const roster = renderRoster(reading, rival);
-    expect(roster[2]).toMatch(/\sBackground\s+Captain\s+Transfer fee$/);
+    expect(roster[2]).toMatch(/\sBackground\s+Captain\s+Contract\s+Transfer fee$/);
     for (const row of rosterReading(reading, rival)) {
-      expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.captain ? 'Yes\\s+' : ''}${coinLetters(row.transferFee ?? 0)}$`));
+      expect(rowFor(roster, row.id)).toMatch(new RegExp(`\\s${row.background}\\s+${row.captain ? 'Yes\\s+' : ''}${row.contract}\\s+${coinLetters(row.transferFee ?? 0)}$`));
     }
-    expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground\s+Captain$/);
+    expect(renderRoster(reading, guild)[2]).toMatch(/\sBackground\s+Captain\s+Contract$/);
     // DL-289: the Captain of a Roster is marked in its Captain column, the others left blank.
     guild.captainId = guild.rosterIds[1] as HeroId;
     const captain = rosterReading(playerReading(document, playDeps(document)), guild).filter((row) => row.captain);
     expect(captain).toHaveLength(1);
-    expect(rowFor(renderRoster(reading, guild), (captain[0] as { id: string }).id)).toMatch(/\sYes$/);
-    for (const row of rosterReading(playerReading(document, playDeps(document)), guild).filter((each) => !each.captain)) expect(rowFor(renderRoster(reading, guild), row.id)).toMatch(/\S$/);
+    expect(rowFor(renderRoster(reading, guild), (captain[0] as { id: string }).id)).toMatch(/\sYes\s+\d+ Days left$/);
+    for (const row of rosterReading(playerReading(document, playDeps(document)), guild).filter((each) => !each.captain)) expect(rowFor(renderRoster(reading, guild), row.id)).toMatch(/\s{2,}\d+ Days left$/);
   });
 
   test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {

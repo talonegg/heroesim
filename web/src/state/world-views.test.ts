@@ -19,6 +19,7 @@ import {
   upkeep,
   type Guild,
   type GuildId,
+  type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
 import { facilityDoes, facilityName } from '@heroesim/words';
@@ -74,12 +75,28 @@ describe("the Guilds as one table, the Rankings in it (DL-106; the review's B4)"
         fame: guild.fame,
         wealth: guild.wealth,
         heroes: guild.rosterIds.length,
+        // A Contract ends on the night of its end Day, three Turns to a Day (DL-323).
+        outOfContract: guild.rosterIds.filter((id) => document.world.turn >= (document.world.heroes[id]?.contract?.endDay ?? Infinity) * 3 + 2).length,
         upkeep: upkeep(guild, document.world, defaultConfig, content),
         folded: null,
       });
     }
     expect(table.rows.filter((row) => row.mine).map((row) => row.name)).toEqual(['The Lantern']);
     expect(table.folded).toEqual([]);
+  });
+
+  test("counts each Guild's Heroes Out of Contract, from the night their end Day falls (DL-323)", () => {
+    const document = structuredClone(newDocument('world-views'));
+    const other = rival(document);
+    const [first, second] = other.rosterIds.map((id) => document.world.heroes[id] as Hero) as [Hero, Hero];
+    first.contract = { ...(first.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 1 };
+    document.world.turn = 2;
+
+    const rows = guildsTable(document, 'fame').rows;
+
+    expect(rows.find((row) => row.guildId === other.id)?.outOfContract).toBe(1);
+    expect(rows.find((row) => row.mine)?.outOfContract).toBe(0);
   });
 
   test('Guilds level on Fame share a place; by Wealth, the order and the places are by Wealth, shared too (DL-95, DL-91)', () => {
@@ -483,6 +500,22 @@ describe('guildPage', () => {
     expect(page?.hall.guildId).toBe(other.id);
     expect(page?.guildmaster?.guildName).toBe(other.name);
     expect(guildPage(document, 'guild-999999' as GuildId)).toBeNull();
+  });
+
+  test("gives each Hero's Contract, and whether they are Out of Contract, which is offered for at no fee, not taken in (DL-323)", () => {
+    const document = structuredClone(newDocument('world-views'));
+    const other = rival(document);
+    const [first, second] = other.rosterIds.map((id) => document.world.heroes[id] as Hero) as [Hero, Hero];
+    first.contract = { ...(first.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = 2;
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 5 };
+
+    const roster = guildPage(document, other.id)?.roster ?? [];
+
+    expect(roster.slice(0, 2).map(({ contract, outOfContract }) => ({ contract, outOfContract }))).toEqual([
+      { contract: 'Out of Contract', outOfContract: true },
+      { contract: '5 Days left', outOfContract: false },
+    ]);
   });
 
   test("says whose it is, its Background, Fame and Wealth; the player's own has no fees (the review's B10)", () => {

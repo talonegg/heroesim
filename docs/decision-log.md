@@ -805,3 +805,55 @@ with S8's moving no counter, the Gate PASS, refusals 0. The reports are not comm
 one is Under Offer) and `policy.test.ts` (the same, and the Offer then runs out and is `taken`). Red first: all three, as
 the old order released the Hero Under Offer. The epic's §6 rows Q-N and Q-O; `v1.2.4`'s §0.
 Verified 2026-10-17 at 73e19df: the skip re-derived and its tests bite; the policy read Under Offer from the Offers before its answers, so a Hero whose priced Offer it declined that Turn was not released, and now reads the Offers left standing after them, test first; a test that read the document before the Offer ran out now reads it after; the epic's §7 debt sentence rewritten.
+
+## DL-323 — v1.2.3-S9 built: the Contract on the page and the CLI
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S9)
+
+**Context.** S2 to S8 built the Contract, renewal, release, the free Offer and Under Offer in the engine, with the page and
+the CLI left to S9: the signing's lengths and the pool's wages (DL-315) were already shown. S4's verification found that
+`releaseWarning`'s `covers` reads Wealth after the payout alone, while the night's Hall upkeep (Days 29, 59, …) and the
+pool's refresh come before the "Roster wiped" check. The bundle stood at 890,069 of 900,000 bytes after S6.
+
+**Decision.**
+
+1. **The Hero page** of a Hero on the player's Roster has a Contract part: the wage and what is paid every 10 Days, its end
+   night and the Days left, or since when the Hero is Out of Contract; Renew at a length chosen, the wage at each length
+   listed (`contractTerms`); Release…, which asks first, saying the payout (`releasePayout`, nothing once Out of
+   Contract) and for the last Hero the warning. A Hero away has both disabled, the refusals' sentences describing them.
+2. **The warning is worded as an estimate**, and the engine's `releaseWarning` is unchanged (`releaseWarningWords`, shared by
+   the page and the CLI): "…which covers the cheapest signing fee, … , as an estimate: the night's Hall upkeep and the pool's
+   refresh come before the Roster is checked." Subtracting tonight's Hall charge would still miss the pool's refresh, which
+   moves the cheapest fee, so the estimate stands whichever selector is read. Amends DL-317's warning, not its figures.
+3. **The Roster's Table** has a Contract column: the Days left, Out of Contract, then Under Offer while an Offer stands for
+   a Hero at home. It is drawn right after Fatigue in the wide Table, so Morale and Fatigue stay in view at 1280px (DL-289,
+   Q21 a), and in the Hero tab on a phone; it has no sort. **The Guilds table** ends with a count of each Guild's Heroes Out
+   of Contract; a Guild's page gives each Hero's Contract and, for a Hero Out of Contract, "Offer" (`offerTransfer`, no fee,
+   the length chosen) in place of "Take in", which the engine refuses (`out-of-contract`). So does a Rival Hero's page.
+4. **The Offers:** a free Offer says it offers no fee, that the Hero is Out of Contract, the night it ends and the Days
+   left to renew them; it has Accept… and Renew at a length chosen, and no Decline, which `declineTransfer` refuses.
+5. **Days left** are the Days from today to the end Day, 0 on it (`daysUntil`, `@heroesim/words`), for a Contract and an
+   Offer alike; the Contract cell is `contractWords` on every Hero row (`HeroRow.contract`), once for both front ends.
+6. **The CLI:** `renew --hero --years`; `release --hero [--confirm]`, which for the last Hero prints the warning and
+   releases only with `--confirm`; the Contract in `show roster` and `show hero`; `show guilds`' Out of Contract column;
+   `show offers` marking a free Offer and saying how it is answered; the usage's words for them and for `show guilds`
+   (DL-305's note). No `show treasury` (Q-J): `show` keeps its two charge lines, the wages those of the Contracts.
+7. **The engine** exports `releasePayout` and `releaseWarning`; nothing else in `engine/src/` changes.
+
+*Judgement calls, for the owner to see.*
+- The page asks before every release, as it does before a Transfer, though the epic named the confirmation for the last Hero;
+  the CLI asks (`--confirm`) only there.
+- The CLI cannot make a free Offer: `transfer --in` refuses a Hero Out of Contract, in words that name an Offer the CLI has no
+  command for. S9 lists none; a `transfer --offer` is a small story if the owner wants one.
+- Arranged for the owner to see (DL-315's note), assertions unchanged but for the shape: the tests that list the Roster's columns
+  (`roster.test.tsx`, `selectors.test.ts`, the phone's tab), the Guilds table's and a Guild page's headings
+  (`rankings.test.tsx`), `render.test.ts`'s Roster and Hero layouts, `main.test.ts`'s `show guilds` row and the Roster's help
+  (`Sort … any but Contract, Traits and Items`) gain the Contract. `board.spec.ts`'s `savedContent` moved to `e2e/support.ts`.
+
+**Consequences.** The bundle stays within its budget; its bytes are in the commit. The Roster's wide Table is one column
+wider; the CLI's `show roster` and `show guilds` lines gain a column, so a script reading them by position moves.
+
+**Evidence.** This story's commit; the S9 boxes: the bundle check met, the e2e box met on the machine, its "green on CI"
+half waiting on a push on the owner's word. Tests red first: `contracts.test.ts` (words), the readings' Contract, the Hero
+page's, Roster's, Guilds' and Offers' views, `contract.test.ts` (CLI), `args.test.ts`. The three doctors before and after,
+unchanged. `e2e/contract.spec.ts` at 360, 820 and 1280 wide.

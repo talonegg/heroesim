@@ -30,7 +30,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createItem, nightOf, potentialHints } from '@heroesim/engine/testing';
+import { createItem, makeId, nightOf, potentialHints } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { encounterReadings, shownPercent } from './query.js';
 import {
@@ -443,12 +443,40 @@ describe('the rows of a Roster and of the pool', () => {
         fatigueBand: fatigueBand(hero.fatigue, defaultConfig),
         captain: guild.captainId === hero.id,
         background: content.backgrounds[hero.backgroundKey]?.name,
+        // The first Day: the Days left are the end Day itself.
+        contract: `${hero.contract?.endDay} Days left`,
         transferFee: null,
       });
     }
     expect(rosterReading(reading, rival).map((row) => [row.id, row.transferFee])).toEqual(
       rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, document.world.turn, deps)]),
     );
+  });
+
+  test("gives a Hero's Contract on their row: Out of Contract from the night its end Day falls, and Under Offer while an Offer stands for them at home (DL-323)", () => {
+    const document = newGame();
+    const [first, second, third] = heroes(document) as [Hero, Hero, Hero];
+    const rival = rivalOf(document);
+    first.contract = { ...(first.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 5 };
+    const offerId = makeId('offers', 1);
+    document.world.offers[offerId] = {
+      id: offerId,
+      kind: 'transfer',
+      fromGuildId: player(document).id,
+      toGuildId: rival.id,
+      heroId: second.id,
+      fee: 0,
+      years: 1,
+      offeredOnTurn: 0,
+      expiresOnTurn: nightOf(2),
+    };
+    third.contract = null;
+
+    const rows = rosterReading(playerReading(document, deps), player(document));
+
+    expect(rows.map((row) => row.contract).slice(0, 3)).toEqual(['Out of Contract', '5 Days left, Under Offer', '']);
   });
 
   test("gives another Guild's Hero, on their row and in their reading, the fee of the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {

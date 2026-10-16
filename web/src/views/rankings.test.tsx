@@ -68,6 +68,7 @@ describe("the Guilds and the Rankings as one table (the review's B4)", () => {
       'Wealth',
       'Heroes',
       'Upkeep',
+      'Out of Contract',
     ]);
     expect(within(table()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBe('descending');
     expect(rows().map(({ name, cells: [place] }) => [place, name])).toEqual([
@@ -183,7 +184,7 @@ describe("a Guild's page (the review's B10)", () => {
     expect(document.activeElement).toBe(heading);
     expect(within(page).getByText(/^Rival \(\w+\) · .+$/)).toBeDefined();
     const roster = within(page).getByRole('table', { name: 'The Roster of The Ashford Guild' });
-    expect(within(roster).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Transfer fee', 'Take in']);
+    expect(within(roster).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Contract', 'Transfer fee', 'Take in']);
     const heroes = within(roster).getAllByTestId('guild-hero');
     expect(heroes.length).toBeGreaterThan(0);
     for (const hero of heroes) {
@@ -221,7 +222,7 @@ describe("a Guild's page (the review's B10)", () => {
     const page = within(section('Guilds')).getByRole('article');
     expect(within(page).getByText(/^Yours · .+$/)).toBeDefined();
     const roster = within(page).getByRole('table', { name: 'The Roster of The Lantern' });
-    expect(within(roster).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age']);
+    expect(within(roster).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Contract']);
     expect(within(roster).queryByRole('button', { name: /^Take / })).toBeNull();
     const heroes = within(roster).getAllByTestId('guild-hero');
     expect(heroes.every((hero) => within(hero).queryByTestId('portrait-thumb') !== null)).toBe(true);

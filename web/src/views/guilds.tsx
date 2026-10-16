@@ -13,7 +13,8 @@
 // the Transfer fee your Guild would pay for each Hero and "Take in" (the CLI's `transfer --in`), and
 // its Hall and Guildmaster folded; a Hero's page opens from its Roster, each Hero's thumbnail beside
 // their name (DL-147). A part of the Rankings view.
-// A Guild's page opens the Guild's History, and a Guild's name in the History opens its page here,
+// The table ends with each Guild's Heroes Out of Contract; on a Guild's page a Hero Out of Contract is offered
+// for at no fee, not taken in (DL-323). A Guild's page opens the Guild's History, and a Guild's name in the History opens its page here,
 // the player's Guild's included (M9-S5, DL-105): which Guild is open is then the shell's.
 
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
@@ -129,6 +130,9 @@ function GuildsTableView({
                 {...(column.number ? { className: 'number' } : {})}
               />
             ))}
+            <th scope="col" className="number">
+              Out of Contract
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -171,6 +175,7 @@ function GuildLine({ row, onOpen }: { row: GuildRow; onOpen: (guildId: GuildId) 
       <td className="number">
         <Coins silver={row.upkeep} />
       </td>
+      <td className="number">{row.outOfContract}</td>
     </tr>
   );
 }
@@ -289,6 +294,7 @@ function GuildPage({
                 <th scope="col" className="number">
                   Age
                 </th>
+                <th scope="col">Contract</th>
                 {view.mine ? null : (
                   <>
                     <th scope="col" className="number">
@@ -325,20 +331,21 @@ function GuildPage({
                   <td>{row.className}</td>
                   <td className="number">{row.level}</td>
                   <td className="number">{row.age}</td>
+                  <td>{row.contract}</td>
                   {view.mine ? null : (
                     <>
                       <td className="number" data-testid="fee">
-                        {row.fee === null ? null : <Coins silver={row.fee} />}
+                        {row.fee === null ? null : row.outOfContract ? 'No fee' : <Coins silver={row.fee} />}
                       </td>
                       <td>
                         {row.fee === null ? null : (
                           <SignForLength
                             terms={row.terms}
                             name={row.name}
-                            text="Take in"
-                            label={`Take ${row.name} in`}
+                            text={row.outOfContract ? 'Offer' : 'Take in'}
+                            label={row.outOfContract ? `Offer no fee for ${row.name}` : `Take ${row.name} in`}
                             disabled={busy}
-                            onSign={(years) => play({ kind: 'transferIn', heroId: row.heroId, years })}
+                            onSign={(years) => play({ kind: row.outOfContract ? 'offerTransfer' : 'transferIn', heroId: row.heroId, years })}
                           />
                         )}
                       </td>

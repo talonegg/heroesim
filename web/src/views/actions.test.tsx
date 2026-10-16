@@ -1,8 +1,8 @@
 import { coinWords } from '@heroesim/words';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
-import { changed, holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
-import { coinsPattern, historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, silverOf, silverOfWords, wealth } from './page.test-support';
+import { changed, documentOf, holding, holdingUnique, started, withFreeOffer, withOffer, withOnlyHero, withPartyOut, withRichRivals, withRivalOutOfContract, withWealth } from '../state/game.test-support';
+import { amountPattern, coinsPattern, historyLines, idle, inHistory, openDebugHistory, openFirstHero, renderGame, rosterList, section, sentenceOf, silverOf, silverOfWords, spokenText, wealth } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
@@ -441,5 +441,123 @@ describe('the Captain', () => {
     expect(lockWords.id).not.toBe('');
     expect(within(within(locked).getByRole('list', { name: `${other}'s State` })).queryByText('Captain')).toBeNull();
     logSays(new RegExp(`^The Lantern named ${name} its Captain in place of ${other}; the post cannot change again before Year 1 Day \\d+\\.$`));
+  });
+});
+
+// DL-323: the Contract on a Hero's page and among the Offers, driven through the page's own controls (the
+// CLI's `renew` and `release`): renewed at the length chosen, released after asking, the last Hero warned,
+// a Hero away refused with the reason, and a free Offer answered by a renewal, with no Decline. Each play
+// is the engine's; the page shows what changed and the History narrates it.
+describe('the Contract', () => {
+  /** The wage the page lists for `years` ("3 Years 19 Silver"), in Silver. */
+  function wageFor(page: HTMLElement, years: number): number {
+    const words = spokenText(within(page).getByTestId('wages-by-length'));
+    const found = new RegExp(`${years} Years? (${amountPattern})`).exec(words);
+    if (found === null) throw new Error(`no wage for ${years} in "${words}"`);
+    return silverOfWords(found[1] as string);
+  }
+
+  test('renews at the length chosen, at the wage listed for it, no fee', async () => {
+    const game = started();
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
+    expect(within(page()).getByText(/^Wage .+ every 10 Days, to the night of Year \d+ Day \d+: \d+ Days left\.$/)).toBeDefined();
+    const wage = wageFor(page(), 3);
+    const before = wealth();
+
+    fireEvent.change(within(page()).getByLabelText(`Contract length for ${name}`), { target: { value: '3' } });
+    fireEvent.click(within(page()).getByRole('button', { name: `Renew ${name}` }));
+    await idle();
+
+    // Signed on the first Day for three years: it ends on the night of Year 4 Day 1.
+    expect(within(page()).getByText(new RegExp(`^Wage ${coinsPattern} every 10 Days, to the night of Year 4 Day 1: 1080 Days left\\.$`))).toBeDefined();
+    expect(wealth()).toBe(before);
+    logSays(new RegExp(`^The Lantern signed ${name} again, on a Contract at ${coinWords(wage)} to Year 4 Day 1\\.$`));
+  });
+
+  test('releases after asking, saying the payout; the Hero leaves for the pool and the Guild pays it', async () => {
+    const game = started();
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Release ${name}…` }));
+    const ask = within(page()).getByRole('group', { name: `Release ${name}?` });
+    const sentence = within(ask).getByText(new RegExp(`^Releasing ${name} pays (${amountPattern})\\. They join the Unattached pool\\. Their Gear stays with your Guild`)).textContent ?? '';
+    const payout = silverOfWords(/pays (.+?)\. They/.exec(sentence)?.[1] ?? '');
+    expect(payout).toBeGreaterThan(0);
+    // Not the last Hero: no warning.
+    expect(within(ask).queryByText(/last Hero/)).toBeNull();
+    const before = wealth();
+
+    fireEvent.click(within(ask).getByRole('button', { name: `Release ${name}` }));
+    await idle();
+
+    expect(wealth()).toBe(before - payout);
+    fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
+    expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
+    logSays(new RegExp(`^The Lantern released ${name}, paying ${coinWords(payout)}\\.$`));
+  });
+
+  test("warns when the Hero is the Guild's last, as an estimate, and still releases them once confirmed", async () => {
+    const game = withOnlyHero(started());
+    renderGame(game);
+    const { name, page } = openFirstHero(game);
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Release ${name}…` }));
+    const ask = within(page()).getByRole('group', { name: `Release ${name}?` });
+    expect(within(ask).getByText(new RegExp(`^${name} is your Guild's last Hero\\. Releasing them pays .+, leaving .+, (short of|which covers) the cheapest signing fee, .+`))).toBeDefined();
+
+    fireEvent.click(within(ask).getByRole('button', { name: `Release ${name}` }));
+    await idle();
+
+    logSays(new RegExp(`^The Lantern released ${name}, paying .+\\.$`));
+  });
+
+  test('says why a Hero away cannot be renewed or released, and offers neither', async () => {
+    const game = withPartyOut(started());
+    renderGame(game);
+    const away = Object.values(documentOf(game).world.heroes).find((hero) => hero.partyId !== null);
+    if (away === undefined) throw new Error('no Hero away');
+    fireEvent.click(within(rosterList()).getByRole('button', { name: away.name }));
+    const page = within(section('Roster')).getByRole('article');
+
+    expect(within(page).getByText(`${away.name} is away with a Party; a Hero's Contract is renewed only in the Hall.`)).toBeDefined();
+    expect(within(page).getByText(`${away.name} is away with a Party; a Hero is released only in the Hall.`)).toBeDefined();
+    expect(within(page).getByRole('button', { name: `Renew ${away.name}` }).hasAttribute('disabled')).toBe(true);
+    expect(within(page).getByRole('button', { name: `Release ${away.name}…` }).hasAttribute('disabled')).toBe(true);
+  });
+
+  test('a free Offer says so with its Days left and is answered by Renew, never Decline; the renewal withdraws it', async () => {
+    renderGame(withFreeOffer(started()));
+    const offers = section('Transfer Offers');
+    const sentence = within(offers).getByText(/ offers no fee for .+, who is Out of Contract, until the night of Year 1 Day 3: 2 Days left to renew them\.$/).textContent ?? '';
+    const [, guildName = '', name = ''] = /^(.+) offers no fee for (.+), who is/.exec(sentence) ?? [];
+    expect(within(offers).queryByRole('button', { name: `Decline ${guildName}'s Offer for ${name}` })).toBeNull();
+    expect(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` })).toBeDefined();
+
+    fireEvent.click(within(offers).getByRole('button', { name: `Renew ${name}` }));
+    await idle();
+
+    expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
+    expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
+    logSays(new RegExp(`^The Lantern signed ${name} again, on a Contract at .+\\.$`));
+    expect(inHistory(new RegExp(`^${guildName}'s Offer for ${name} was withdrawn: the Hero's Contract was renewed\\.$`))).toBeDefined();
+  });
+
+  test("offers no fee for a Rival's Hero Out of Contract, in place of Taking them in, and the Rival answers at once", async () => {
+    const { state, guildName, heroName } = withRivalOutOfContract(withRichRivals(started()));
+    renderGame(state);
+    fireEvent.click(within(section('Guilds')).getByRole('button', { name: `Open ${guildName}` }));
+    const row = within(within(section('Guilds')).getByRole('article')).getAllByTestId('guild-hero').find((each) => within(each).getByRole('rowheader').textContent === heroName) as HTMLElement;
+    expect(within(row).getByText('Out of Contract')).toBeDefined();
+    expect(within(row).queryByRole('button', { name: `Take ${heroName} in` })).toBeNull();
+    const before = wealth();
+
+    fireEvent.click(within(row).getByRole('button', { name: `Offer no fee for ${heroName}` }));
+    await idle();
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(wealth()).toBe(before);
+    expect(inHistory(new RegExp(`^The Lantern offered .+ for ${heroName}`))).toBeDefined();
   });
 });

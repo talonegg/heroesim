@@ -37,6 +37,7 @@ import {
   skillsThatHelp,
   statBreakdown,
   transferFee,
+  underOffer,
   unattachedHeroes,
   type BestParty,
   type BestParties,
@@ -60,6 +61,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { fatigueBandNames, gearSlotKeys, type ClassKey, type FatigueBand, type ContentSet, type ItemDefinitionKey, type Sex, type StatKey } from '@heroesim/engine/content';
+import { contractWords } from './contracts.js';
 import { modifierWords, traitEffectWords } from './effects.js';
 import { capitalised, listed, nameIn, rowOf } from './names.js';
 import { encounterReadings, shownPercent, type EncounterReading } from './query.js';
@@ -145,6 +147,8 @@ export interface HeroRow {
   /** Whether they are their Guild's Captain (DL-287); never for an Unattached Hero. */
   captain: boolean;
   background: string;
+  /** Their Contract (`contractWords`): the Days left, Out of Contract, and Under Offer; empty with none (DL-323). */
+  contract: string;
 }
 
 function heroRow({ world, content, calendar, deps }: PlayerReading, hero: Hero): HeroRow {
@@ -163,6 +167,7 @@ function heroRow({ world, content, calendar, deps }: PlayerReading, hero: Hero):
     fatigueBand: fatigueBand(hero.fatigue, deps.config),
     captain: hero.guildId !== null && rowOf(world.guilds, hero.guildId)?.captainId === hero.id,
     background: nameIn(content.backgrounds, hero.backgroundKey),
+    contract: contractWords(hero, world.turn, underOffer(world, hero)),
   };
 }
 

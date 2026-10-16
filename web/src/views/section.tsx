@@ -115,14 +115,14 @@ export const help: Readonly<Record<SectionId, string>> = {
     'look elsewhere, until it is sent, its Quest leaves the Board or another game is started or loaded. ' +
     rivalsReminder,
   roster:
-    'Your Heroes, each with their Class, Level and Age, their Morale and Fatigue and where they are, the Captain marked. Open a Hero’s page for ' +
+    'Your Heroes, each with their Class, Level, Age and Contract, their Morale and Fatigue and where they are, the Captain marked. Open a Hero’s page for ' +
     'their Stats by area, with what Gear adds and a hint of how far each may grow, their Gear and Skills, their ' +
-    'Relationships and their History; from it, put Gear the Guild holds on them, take it off, or transfer them to ' +
-    'another Guild, which asks first, or name them your Guild’s Captain. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
+    'Relationships and their History; from it, put Gear the Guild holds on them, take it off, renew their Contract, ' +
+    'release them or transfer them to another Guild, which ask first, or name them your Guild’s Captain. Show them as Tiles, with their Traits and Items, or as a Table of their Stats ' +
     'as Quests check them, raised by Gear, Traits or your Guildmaster in green with ▲ and lowered in red with ▼; ' +
     'choose its columns under Columns, or by tab on a phone. Show only the Heroes of some Classes, those at the ' +
     'Hall, injured or away, or those of some Morale or Fatigue band, with the chips, one choice or several, each counting the Heroes it would show. ' +
-    'Sort from "Sort by" or by a column’s heading, any but Traits and Items. This browser keeps Tiles or Table, ' +
+    'Sort from "Sort by" or by a column’s heading, any but Contract, Traits and Items. This browser keeps Tiles or Table, ' +
     'the order, the Table’s columns and a phone’s tab; the chips start at All each time.',
   hall:
     'Your Guild’s premises: each Facility’s grade and its upkeep there, what it does, and Build, which raises it one ' +
@@ -159,7 +159,8 @@ export const help: Readonly<Record<SectionId, string>> = {
   offers:
     'A Rival’s bid for one of your Heroes waits here until you accept it, decline it or it expires. Accepting sends ' +
     'the Hero to that Guild for the fee; their Gear stays with you, and the Heroes left behind who held them in high ' +
-    'Regard lose Morale. Accept asks before it lets the Hero go.',
+    'Regard lose Morale. Accept asks before it lets the Hero go. An Offer of no fee, for a Hero Out of Contract, cannot be ' +
+    'declined: renew them before it runs out, or they go.',
   pool:
     'Heroes on no Roster, whom any Guild may sign for a signing fee. A Hero of a higher Level will not sign for a ' +
     'Guild whose Fame is below what their Level asks: their row is set back, and Recruit is disabled. Order the pool ' +
@@ -181,9 +182,9 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Every Guild in one table, yours marked, in the Rankings by Fame at first. A column’s heading orders the table ' +
     'by it: by Fame or by Wealth it is the Rankings, where Guilds level share a place; by any other column the order ' +
     'is for display, and Place still reads by Fame. A Guild’s Upkeep is a month of its costs, its wages and its ' +
-    'Hall’s upkeep. A folded Guild is listed last, with the Day it folded. Open a ' +
-    'Guild for its Roster, with the Transfer fee your Guild would pay to take each Hero in, and its Hall and ' +
-    'Guildmaster.',
+    'Hall’s upkeep. Out of Contract counts its Heroes whose Contracts have ended. A folded Guild is listed last, with the ' +
+    'Day it folded. Open a Guild for its Roster, with each Hero’s Contract and the Transfer fee your Guild would pay to take them in, or an ' +
+    'Offer of no fee for one Out of Contract, and its Hall and Guildmaster.',
   patrons:
     'Those who offer Quests, each of a walk of life: their Regard for your Guild, your Guildmaster’s Regard for them, ' +
     'and their Quests on the Board now. A Patron’s Regard for your Guild rises and falls with how their Quests go, ' +

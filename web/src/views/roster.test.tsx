@@ -345,13 +345,15 @@ const physical = statsOf('physical');
 const mental = statsOf('mental');
 const magical = statsOf('magical');
 const social = statsOf('social');
-const heroColumns = ['Class', 'Level', 'Age', 'Where', 'Traits', 'Items'];
+const heroColumns = ['Class', 'Level', 'Age', 'Contract', 'Where', 'Traits', 'Items'];
 // DL-289: Morale and Fatigue are a group of their own, State, after the Hero's.
 const stateColumns = ['Morale', 'Fatigue'];
 // DL-289, the owner's answer (a) to Q21: in the wide Table State follows the Hero's short columns, and Where,
 // Traits and Items, whose cells are long, follow the areas; the Columns panel and the phone's tabs keep the groups.
 const heroFirstColumns = ['Class', 'Level', 'Age'];
 const heroLastColumns = ['Where', 'Traits', 'Items'];
+// DL-323: the Contract follows Fatigue in the wide Table, so Morale and Fatigue stay in view at 1280px.
+const contractColumn = ['Contract'];
 
 /**
  * A new game whose first Hero is a Warrior carrying an arming sword, holding Lame, Weaponry 10,
@@ -525,7 +527,7 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
     renderGame(withPartyOut(started()));
     showAs('Table');
 
-    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...contractColumn, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
     expect(rosterTable().className).toContain('table--first-sticky');
     for (const name of within(rosterTable()).getAllByRole('rowheader')) {
       expect(within(name).getByTestId('portrait-thumb')).toBeDefined();
@@ -535,6 +537,8 @@ describe("the Roster's Table (DL-169 items 7 to 9)", () => {
     expect(classNames).toContain(cellOf(first ?? '', 'class').textContent);
     expect(cellOf(first ?? '', 'level').textContent).toMatch(/^\d+$/);
     expect(cellOf(first ?? '', 'age').textContent).toMatch(/^\d+$/);
+    // The Contract (DL-323): the Days left; Out of Contract and Under Offer are the selectors' tests.
+    expect(cellOf(first ?? '', 'contract').textContent).toMatch(/^\d+ Days left$/);
     expect(cellOf(first ?? '', 'morale').textContent).toMatch(/^\d+, (wretched|low|steady|high|elated)$/);
     // Where the Hero is, in its full words with the date.
     const where = tableNames().map((name) => cellOf(name, 'where').textContent);
@@ -736,7 +740,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     expect(headings()).not.toContain('Strength');
     expect(headings()).not.toContain('Traits');
     // The columns left keep the wide Table's order, State after Age and Where and Items last (DL-289, Q21 a).
-    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical.filter((stat) => stat !== 'Strength'), ...mental, ...magical, ...social, 'Where', 'Items']);
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...contractColumn, ...physical.filter((stat) => stat !== 'Strength'), ...mental, ...magical, ...social, 'Where', 'Items']);
     expect(localStorage.getItem('heroesim.rosterColumns')).toBe('traits,strength');
 
     fireEvent.click(within(panel).getByRole('button', { name: 'None of the Mental columns' }));
@@ -757,7 +761,7 @@ describe("the Table's Columns panel, on a wide screen (DL-169 item 7)", () => {
     expect(headings()).toEqual(['Name']);
     fireEvent.click(within(section('Roster')).getByRole('button', { name: 'Columns' }));
     fireEvent.click(within(within(section('Roster')).getByRole('group', { name: 'Columns' })).getByRole('button', { name: 'Reset the columns' }));
-    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
+    expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...contractColumn, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
     expect(localStorage.getItem('heroesim.rosterColumns')).toBe('');
   });
 
@@ -778,7 +782,7 @@ describe("the Table's tabs, on a phone (DL-169 item 7)", () => {
       const tabs = within(section('Roster')).getByRole('tablist', { name: 'Columns of the Table' });
       expect(within(tabs).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Hero', 'State', 'Physical', 'Mental', 'Magical', 'Social']);
       expect(within(tabs).getByRole('tab', { name: 'Hero' }).getAttribute('aria-selected')).toBe('true');
-      expect(headings()).toEqual(['Name', 'Class', 'Level', 'Age', 'Where', 'Items']);
+      expect(headings()).toEqual(['Name', 'Class', 'Level', 'Age', 'Contract', 'Where', 'Items']);
       expect(within(section('Roster')).getByRole('tabpanel', { name: 'Hero' }).contains(rosterTable())).toBe(true);
 
       fireEvent.click(within(tabs).getByRole('tab', { name: 'Physical' }));
@@ -824,7 +828,7 @@ describe("the Roster's sort (DL-169 item 10)", () => {
     expect(classes).toEqual(classNames);
   });
 
-  test('says in its help what sorts it: "Sort by", or any heading but Traits and Items, which have no sort (S10, the close review)', () => {
+  test('says in its help what sorts it: "Sort by", or any heading but Contract, Traits and Items, which have no sort (S10, the close review)', () => {
     renderGame(started());
     showAs('Table');
 
@@ -832,9 +836,9 @@ describe("the Roster's sort (DL-169 item 10)", () => {
       .getAllByRole('columnheader')
       .filter((heading) => within(heading).queryByRole('button') === null)
       .map((heading) => heading.textContent);
-    expect(unsorted).toEqual(['Traits', 'Items']);
+    expect(unsorted).toEqual(['Contract', 'Traits', 'Items']);
     expect(help.roster).not.toMatch(/any column/);
-    expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Traits and Items.');
+    expect(help.roster).toContain('Sort from "Sort by" or by a column’s heading, any but Contract, Traits and Items.');
   });
 
   test('says in its help that a Hero shows Morale and Fatigue, the Captain is marked and named from a page, and Morale and Fatigue bands filter (DL-289)', () => {
@@ -1256,7 +1260,7 @@ describe("the Roster's Table as the window crosses 600px (DL-169 item 7)", () =>
 
       resize(false);
       expect(within(section('Roster')).getByRole('button', { name: 'Columns' })).toBeDefined();
-      expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
+      expect(headings()).toEqual(['Name', ...heroFirstColumns, ...stateColumns, ...contractColumn, ...physical, ...mental, ...magical, ...social, ...heroLastColumns]);
 
       expect(listeners.size).toBeGreaterThan(0);
       cleanup();
