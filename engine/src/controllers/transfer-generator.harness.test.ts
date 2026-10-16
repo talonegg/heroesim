@@ -17,11 +17,11 @@ import type { Swept, Tally } from './transfer-generator.sweep.test-support.js';
 // Each seed is a default world, four Rivals dealt the four Dispositions (DL-56), the player idle and
 // rich (its Guildmaster young enough not to retire), played Turn by Turn on the one world, in place,
 // as the Dispositions' and the Rivals' building tests are (DL-56, DL-58), the `transfers` phase
-// watched. The box, with the four seeds of Rivals building and buying beside it, plays its seeds four processes at a time (DL-324) and takes about forty-five
-// minutes alone: a harness run, `npm run harness -- transfer-generator`, which `npm test` never plays
-// (DL-230). A Rival bids only while it would hire (DL-59), which the test content's Rivals seldom
-// would: the Generator dealt in 20 of the 100 seeds, 24 times, so its own count is asserted over the
-// hundred.
+// watched, its seeds shared among four processes side by side (DL-324). The box, with the four seeds of
+// Rivals building and buying beside it, takes about forty-five minutes alone: a harness run,
+// `npm run harness -- transfer-generator`, which `npm test` never plays (DL-230). A Rival bids only
+// while it would hire (DL-59), which the test content's Rivals seldom would: the Generator dealt in 20
+// of the 100 seeds, 24 times, so its own count is asserted over the hundred.
 
 const years = 20;
 const seeds = Array.from({ length: 100 }, (_, index) => `transfer-generator-${index + 1}`);
@@ -44,7 +44,15 @@ function sweepInChild(shared: string[], live: ChildProcess[]): Promise<Swept[]> 
     live.push(sweeper);
     sweeper.stdout.on('data', (chunk: Buffer) => out.push(chunk));
     sweeper.on('error', reject);
-    sweeper.on('exit', (code, signal) => (code === 0 ? resolve(JSON.parse(Buffer.concat(out).toString('utf8')) as Swept[]) : reject(new Error(`A sweep exited with ${signal ?? `code ${code}`}: ${shared[0]}`))));
+    // 'close', not 'exit': the output is read whole only once its stream has closed.
+    sweeper.on('close', (code, signal) => {
+      if (code !== 0) return reject(new Error(`A sweep exited with ${signal ?? `code ${code}`}: ${shared[0]}`));
+      try {
+        resolve(JSON.parse(Buffer.concat(out).toString('utf8')) as Swept[]);
+      } catch (error) {
+        reject(new Error(`A sweep wrote more than its JSON: ${shared[0]}`, { cause: error }));
+      }
+    });
   });
 }
 
@@ -57,13 +65,15 @@ const mean = (values: readonly number[]): number => values.reduce((sum, value) =
 
 describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years`, () => {
   let tallies: Tally[] = [];
-  // The seeds are played in four processes side by side, and each is checked here, named by its seed.
+  // The seeds are played in four processes side by side, every one back in order, and each is checked
+  // here, named by its seed.
   // The limit is an hour: the Rosters Contracts let grow take a seed about 75 s (DL-324).
   beforeAll(async () => {
     const live: ChildProcess[] = [];
     try {
       const size = Math.ceil(seeds.length / processes);
       const swept = (await Promise.all(Array.from({ length: processes }, (_, lane) => sweepInChild(seeds.slice(lane * size, (lane + 1) * size), live)))).flat();
+      expect(swept.map(({ seed }) => seed)).toEqual(seeds);
       for (const { seed, ended, problems } of swept) {
         expect(ended, seed).toBeNull();
         expect(problems, seed).toEqual([]);
