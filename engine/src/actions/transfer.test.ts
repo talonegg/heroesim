@@ -6,6 +6,7 @@ import { contractWage } from '../contract.js';
 import { createWorld } from '../create.js';
 import {
   compareByCodeUnit,
+  type Contract,
   type Guild,
   type GuildId,
   type Guildmaster,
@@ -19,6 +20,7 @@ import {
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
 import { addStack, holdings } from '../items.js';
 import { baseStat, dispositionOf, playerGuild, signingFee, transferFee, wagesLeft } from '../selectors.js';
+import { nightOf } from '../time.js';
 import { testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyAction, type Action } from './action.js';
 import type { ActionResult, Rejection } from './result.js';
@@ -525,6 +527,31 @@ describe('transferFee (INPUTS 7.6, DL-43, DL-57 as amended by DL-318)', () => {
     expect(signingFee(hero, negotiating, shrewd)).toBe(Math.floor(listPrice(hero, config, content) * 0.9));
     const half = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 0.5 });
     expect(transferFee(hero, shrewd, world.turn, half)).toBe(Math.floor(left * 0.5 * 0.9));
+  });
+
+  test("transferIn charges, and offerTransfer offers, the wages left on the Turn it is made, not at the Contract's signing (DL-318)", () => {
+    const document = created('fee-later');
+    document.world.turn = nightOf(99) + 1; // the morning of Day 100, ten wage charges on
+    const guild = player(document.world);
+    guild.wealth = 10_000;
+    const rival = firstRival(document.world);
+    rival.wealth = 10_000;
+    const [hero] = rosterOf(document.world, rival) as [Hero];
+    hero.contract = { ...(hero.contract as Contract), endDay: 1_080 };
+    const buyer = document.world.guildmasters[guild.guildmasterId];
+    const fee = transferFee(hero, buyer, document.world.turn, deps);
+    expect(fee).toBeLessThan(transferFee(hero, buyer, 0, deps));
+
+    const { document: after } = accepted(applyAction(document, { kind: 'transferIn', guildId: guild.id, heroId: hero.id, years: 2 }, deps));
+    expect(guildOf(after.world, guild.id).wealth).toBe(10_000 - fee);
+
+    const [own] = rosterOf(after.world, guildOf(after.world, guild.id)) as [Hero];
+    own.contract = { ...(own.contract as Contract), endDay: 1_080 };
+    const bidder = after.world.guildmasters[rival.guildmasterId];
+    const offeredFee = transferFee(own, bidder, after.world.turn, deps);
+    expect(offeredFee).toBeLessThan(transferFee(own, bidder, 0, deps));
+    const { events } = accepted(applyAction(after, { kind: 'offerTransfer', guildId: rival.id, heroId: own.id, years: 2 }, deps));
+    expect(ofType(events, 'guild.transfer-offered').map((event) => event.payload.fee)).toEqual([offeredFee]);
   });
 });
 

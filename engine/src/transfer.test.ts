@@ -272,6 +272,22 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     expect(heroOf(applied, wanted).guildId).toBe(rival.id);
   });
 
+  test("wants the dearest by the wages left on the Turn it weighs, not at the Contracts' signing (DL-318)", () => {
+    const deps = testDeps(pins, dealing);
+    const { world, rival, other } = scene('rival-later', deps);
+    const [ending, long] = other.rosterIds as [HeroId, HeroId];
+    // At Turn 0 the Contract ending on Day 400 is the dearer (200 × 40 charges against 40 × 108); on Day 380,
+    // with 2 charges left against 70, the long one is.
+    dearest(heroOf(world, ending), 200);
+    (heroOf(world, ending).contract as Contract).endDay = 400;
+    dearest(heroOf(world, long), 40);
+    world.turn = nightOf(379) + 1; // the morning of Day 380
+    const guildmaster = guildmasterOf(rival, world);
+    expect(transferFee(heroOf(world, ending), guildmaster, 0, deps)).toBeGreaterThan(transferFee(heroOf(world, long), guildmaster, 0, deps));
+
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: long, years: 3 }]);
+  });
+
   test("makes an offer for a Hero of a Guild that answers for itself, and no other while it stands", () => {
     const deps = testDeps(pins, dealing);
     const { world, rival, guild } = scene('rival-offer', deps);
@@ -463,6 +479,23 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     const fee = transferFee(heroOf(world, leaving), world.guildmasters[taker.guildmasterId], world.turn, deps);
     expect(applyGuildAction(world, choices[0] as never, deps)).toMatchObject({ ok: true });
     expect(guildOf(world, rival.id).wealth).toBe(-100 + fee);
+  });
+
+  test("in debt, lets go its dearest by the wages left on the Turn it sells, not at the Contracts' signing (DL-318)", () => {
+    const deps = testDeps(pins, dealing);
+    const { world, rival } = scene('rival-debt-later', deps);
+    rival.wealth = -100;
+    rival.belowFloorSince = 0;
+    const [, ending, long] = rival.rosterIds as [HeroId, HeroId, HeroId];
+    // As for the Rivals' search: the Contract ending on Day 400 is the dearer at Turn 0, the long one on Day 380.
+    dearest(heroOf(world, ending), 200);
+    (heroOf(world, ending).contract as Contract).endDay = 400;
+    dearest(heroOf(world, long), 40);
+    world.turn = nightOf(379) + 1; // the morning of Day 380
+    for (const other of rivals(world)) if (other.id !== rival.id) other.wealth = 10_000;
+    expect(transferFee(heroOf(world, ending), undefined, 0, deps)).toBeGreaterThan(transferFee(heroOf(world, long), undefined, 0, deps));
+
+    expect(rivalChoices(world, rival, deps)).toEqual([expect.objectContaining({ kind: 'transferOut', guildId: rival.id, heroId: long })]);
   });
 
   test('over twenty Days of Rivals dealing whenever they would hire, every choice is accepted and every document valid', () => {

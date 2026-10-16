@@ -1505,6 +1505,22 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     );
   });
 
+  test("prices each Guild's fee for the player's Hero by the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 1_080 };
+    document.world.turn = nightOf(99) + 1; // the morning of Day 100, ten wage charges on
+
+    const page = heroPage(document, hero.id);
+
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    const { transferTo } = page.actions;
+    const at = (turn: number) => transferTo.map(({ guildId }) => transferFee(hero, guildmasterOf(document.world.guilds[guildId] as never, document.world), turn, deps));
+    expect(transferTo.map(({ fee }) => fee)).toEqual(at(document.world.turn));
+    expect(transferTo.map(({ fee }) => fee)).not.toEqual(at(0));
+  });
+
   test("gives a Unique Item's content key, carried or held, so its picture stands beside its name (DL-125 item 8)", () => {
     const document = structuredClone(newDocument('selectors'));
     const guild = playerOf(document);

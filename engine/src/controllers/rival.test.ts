@@ -4,7 +4,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, makeId, type Contract, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
@@ -800,8 +800,10 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     const reserve = dealing.config.rivalHireReserveUpkeeps * upkeep(rival, world, dealing.config, dealing.content);
     const other = rivalsOf(world).find((guild) => guild.id !== rival.id) as Guild;
     const [dearest] = other.rosterIds as [HeroId];
-    for (const key of Object.keys(heroOf(world, dearest).stats)) heroOf(world, dearest).stats[key] = 20;
+    // The dearest by the wages left on a long Contract, which the fee reads, not the Stats (DL-318).
+    heroOf(world, dearest).contract = { ...(heroOf(world, dearest).contract as Contract), wage: 100, endDay: 1_080 };
     const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), world.turn, dealing);
+    expect(Math.max(...other.rosterIds.map((id) => transferFee(heroOf(world, id), guildmasterOf(rival, world), world.turn, dealing)))).toBe(fee);
     // Enough for the dearest Hero's fee, but not with the reserve kept.
     rival.wealth = fee + reserve - 1;
 

@@ -451,6 +451,20 @@ describe('the rows of a Roster and of the pool', () => {
     );
   });
 
+  test("gives another Guild's Hero, on their row and in their reading, the fee of the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
+    const document = newGame();
+    const rival = rivalOf(document);
+    const buyer = guildmasterOf(player(document), document.world);
+    const hero = document.world.heroes[rival.rosterIds[0] as HeroId] as Hero;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 1_080 };
+    document.world.turn = nightOf(99) + 1; // the morning of Day 100, ten wage charges on
+    const fee = transferFee(hero, buyer, document.world.turn, deps);
+    expect(fee).toBeLessThan(transferFee(hero, buyer, 0, deps));
+
+    expect(rosterReading(playerReading(document, deps), rival).find((row) => row.id === hero.id)?.transferFee).toBe(fee);
+    expect(read(document, hero).transferFee).toBe(fee);
+  });
+
   test('names the bands a row puts a Hero in, lowest first, so that a front end offers them without the engine', () => {
     expect(moraleBandNames).toEqual(['wretched', 'low', 'steady', 'high', 'elated']);
     expect(fatigueBandNames).toEqual(['fresh', 'weary', 'tired', 'exhausted']);
