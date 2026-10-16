@@ -23,6 +23,7 @@ import {
   type Hero,
   type HeroId,
   type Quest,
+  type TransferOffer,
   type WorldDocument,
 } from '@heroesim/engine';
 import { createItem, makeId, marketHolder } from '@heroesim/engine/testing';
@@ -1088,8 +1089,9 @@ describe('automaticPolicy', () => {
 
         const actions = automaticPolicy(document, deps, policy);
         expect(releases(actions)).toEqual([{ kind: 'release', guildId: guild.id, heroId: next }]);
-        expect(runOut(applied(document, actions)).causes).toEqual(['taken']);
-        expect(document.world.heroes[offered]?.guildId).toBe(guild.id);
+        const ended = runOut(applied(document, actions));
+        expect(ended.causes).toEqual(['taken']);
+        expect(ended.document.world.heroes[offered]?.guildId).not.toBe(guild.id);
       });
 
       test('releases none when the only Hero Out of Contract is Under Offer: the Offer is taken, not ended by a release (Q-N, DL-322)', () => {
@@ -1100,6 +1102,25 @@ describe('automaticPolicy', () => {
         const ended = runOut(applied(document, actions));
         expect(ended.causes).toEqual(['taken']);
         expect(ended.document.world.heroes[offered]?.guildId).not.toBe(guild.id);
+      });
+
+      test('releases a Hero whose priced Offer it declines this Turn: no longer Under Offer once declined (DL-322)', () => {
+        const { document, guild } = indebted('policy-debt-declined');
+        const [declined] = guild.rosterIds as [HeroId];
+        const rival = Object.values(document.world.guilds).find((row) => row.id !== guild.id) as Guild;
+        rival.wealth = 1_000_000;
+        const made = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: declined, years: 2 }, deps);
+        if (!made.ok) throw new Error(`Refused: ${JSON.stringify(made.rejection)}`);
+        // Made while the Contract ran, so priced, and the Contract ended since.
+        const offer = Object.values(made.document.world.offers)[0] as TransferOffer;
+        offer.offeredOnTurn = 0;
+        expire(made.document, declined, 1);
+        expect(offer.fee).toBeGreaterThan(0);
+
+        const actions = automaticPolicy(made.document, deps, noBuilding);
+        expect(actions[0]).toEqual({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id });
+        expect(releases(actions)).toEqual([{ kind: 'release', guildId: guild.id, heroId: declined }]);
+        applied(made.document, actions);
       });
 
       test('releases no Hero it sends on a Quest this Turn', () => {

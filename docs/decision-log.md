@@ -804,3 +804,4 @@ with S8's moving no counter, the Gate PASS, refusals 0. The reports are not comm
 **Evidence.** This story's commit. Tests: `rival.test.ts` (a Hero Under Offer skipped, the next released, none when the only
 one is Under Offer) and `policy.test.ts` (the same, and the Offer then runs out and is `taken`). Red first: all three, as
 the old order released the Hero Under Offer. The epic's §6 rows Q-N and Q-O; `v1.2.4`'s §0.
+Verified 2026-10-17 at 73e19df: the skip re-derived and its tests bite; the policy read Under Offer from the Offers before its answers, so a Hero whose priced Offer it declined that Turn was not released, and now reads the Offers left standing after them, test first; a test that read the document before the Offer ran out now reads it after; the epic's §7 debt sentence rewritten.

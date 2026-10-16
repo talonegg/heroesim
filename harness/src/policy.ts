@@ -192,9 +192,10 @@ export function automaticPolicy(
   // DL-301: sell surplus outside the afternoon's one purchase
   const surplus = surplusChoices(world, guild, keeping(policy), deps, actions);
   actions.push(...surplus);
-  // DL-320: in debt, the Holding sold, one Hero Out of Contract is released, free, as a Rival does; not one sent or renewed above.
+  // DL-320: in debt, the Holding sold, one Hero Out of Contract is released, free, as a Rival does; not one sent or renewed above,
+  // nor one Under Offer once the answers above are applied (DL-322).
   const committed = new Set<HeroId>(actions.flatMap((action) => (action.kind === 'dispatch' ? action.heroIds : action.kind === 'renew' ? [action.heroId] : [])));
-  const release = surplus.length > 0 ? null : debtRelease(world, guild, committed);
+  const release = surplus.length > 0 ? null : debtRelease({ heroes: world.heroes, offers: answers.standing, turn: world.turn }, guild, committed);
   if (release !== null) actions.push(release);
 
   const purchase =
