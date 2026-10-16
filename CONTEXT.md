@@ -47,15 +47,15 @@ one cheaper a year (DL-315). A Hero on a Roster holds one; a Hero on no Roster h
 Retirement, a Transfer or their Guild's fold ends it. The Guild may renew it at any time the Hero is
 home, replacing the term at the rule's price with no fee, or release the Hero for most of the wages
 left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6 and its note of
-2026-10-12; renewal, release and expiry to be built). Not the module contract
+2026-10-12, DL-316; release, and renewal's page and CLI, to be built). Not the module contract
 (ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
 case.
 _Avoid_: Deal, Agreement, Lease
 
 **Out of Contract**:
 A Hero whose Contract has ended: still on their Guild's Roster and playing, at a wage repriced at
-expiry with a premium over the one-year rate (DL-311 item 1), and open to a free Offer that their
-Guild can answer only by renewing (DL-294 item 6, to be built).
+expiry with a premium over the one-year rate (DL-311 item 1, DL-316), and open to a free Offer that
+their Guild can answer only by renewing (DL-294 item 6; the free Offer to be built).
 _Avoid_: Expired, Lapsed (of the Hero; a Contract, a Quest or an Offer expires)
 
 **Party**:
@@ -696,7 +696,7 @@ _Avoid_: Skip, Auto-play, Simulate
 **Fast-forward stop**:
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
-and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
+a Contract of its Heroes ending (DL-316) and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
 DL-101). Both staffing stops read its rested Heroes, the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
@@ -791,7 +791,7 @@ _Avoid_: Bank, Coffers, Vault
 The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
 upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). Each wage is
 the one its Hero's Contract sets (DL-315), repriced Out of Contract and still charged (DL-294 item 6,
-DL-311 item 1; the repricing to be built).
+DL-311 item 1, DL-316).
 One Upkeep, as a measure, is a month of them: three charges of wages and one of the Hall's, and
 every reading of the Guild's reserves in Upkeeps counts so (DL-300).
 _Avoid_: Wages (alone), Salary, Running costs

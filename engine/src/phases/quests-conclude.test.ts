@@ -1137,11 +1137,13 @@ describe('the Quest named on what its return causes', () => {
     // Guild's Wealth and gear; and the Contract's wage, set at signing from the Level and Stats and
     // fixed for its term, charged in place of a wage by Level (DL-315; ce0f9958…, c7cff6d6… and
     // 1e05000c…), which moves every Guild's Wealth from the first wage Day, with no other event before
-    // it, and so its purchases, Parties and Quests.
+    // it, and so its purchases, Parties and Quests; and a Contract's end, its wage repriced Out of
+    // Contract with a premium (DL-316; 99268a02… and 53958f27…, the first game's unchanged, no
+    // Contract on a Roster ending in its 120 Days), which moves its Guild's Wealth from that night.
     expect(fingerprints).toEqual([
       '8c9d6cd530847d2464fb1d97af81c110c790d9550aa39dfbc94862a83b92a989',
-      '99268a020974f4f699b0d17e4ba035aeeb14238046a5aebfe841e5d9d8bb3fc4',
-      '53958f27b6e7ae48b2f7191d4658594d1121a05c692dc4e30444c8e9ff904b50',
+      '31e1bd8f0616224c6fa4f1e3b3d18b600efdac1e2f72396e898bc0fe3bbfb0bd',
+      'a831d2085e6524d28e1559abbae51072b98ccb2c4c717bd85e05d843135bb7a3',
     ]);
   });
 

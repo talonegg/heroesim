@@ -204,3 +204,26 @@ describe('the views', () => {
     expect(rankings(world, 'fame').at(-1)?.guildId).toBe(rankings(world, 'wealth')[0]?.guildId);
   });
 });
+
+describe('a Contract ending', () => {
+  // The one stop a Contract makes, at its end (DL-316): a founding Contract set to end on Day 1.
+  test('fast forward stops with contract-expired, naming the Hero Out of Contract and the command to show the Roster', () => {
+    newWorld();
+    edit((edited) => {
+      const player = playerGuild(edited.world);
+      const heroId = player?.rosterIds[0];
+      const hero = heroId === undefined ? undefined : edited.world.heroes[heroId];
+      if (hero?.contract == null) throw new Error('No Contract to end');
+      hero.contract.endDay = 1;
+    });
+
+    // A decision is needed before the night: play on past it, as a player would.
+    let run = play(['advance', '--until', 'contract-expired', '--max', '360']);
+    for (let tries = 0; tries < 10 && !run.out.includes('Stopped: a Contract'); tries += 1) run = play(['advance', '--until', 'contract-expired', '--max', '360']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const stop = run.out.split('\n').find((line) => line.startsWith('Stopped:')) ?? '';
+    expect(stop).toMatch(/^Stopped: a Contract ended: .+ \(hero-\d+\) of The Test is Out of Contract \(show roster\)\.$/);
+    expect(run.out).toContain('Out of Contract, their wage is now');
+  });
+});

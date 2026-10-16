@@ -237,3 +237,44 @@ test("a Party's return stops a fast forward at its Quest report on Guild › Hom
   await expect(stop.getByRole('button', { name: 'Read what happened' })).toHaveCount(0);
   await expectNoHorizontalOverflow(page, 'a fast forward stopped at the Quest report');
 });
+
+/** Exports the game in hand and writes it back with the first Hero of the player's Roster on a Contract that ends on Day 1. */
+async function withAContractEnding(page: Page, testInfo: TestInfo): Promise<string> {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click(),
+  ]);
+  const exported = testInfo.outputPath('a-game.json');
+  await download.saveAs(exported);
+  const save = JSON.parse(readFileSync(exported, 'utf8')) as SaveFile;
+  const player = Object.values(save.world.guilds).find((guild) => guild.controller.kind === 'player');
+  const hero = save.world.heroes[player?.rosterIds[0] ?? ''];
+  if (hero === undefined || hero.contract === null) throw new Error("the save has no Contract on the player's Roster");
+  Object.assign(hero.contract as object, { endDay: 1 });
+  const made = testInfo.outputPath('a-contract-ending.json');
+  writeFileSync(made, JSON.stringify(save));
+  return made;
+}
+
+test("a Contract's end stops a fast forward unasked, and the stop goes to the Roster (DL-316)", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-contract' });
+  const save = await withAContractEnding(page, testInfo);
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
+  await expect(page.getByTestId('time')).toHaveText('Year 1 Day 1, morning');
+  await expect(page.getByRole('dialog', { name: 'Game' })).toHaveCount(0);
+
+  // A decision may stop it first: play on, as a player would, until the Contract's stop.
+  const time = statusBar(page).getByRole('group', { name: 'Time' });
+  const stop = page.getByTestId('stop');
+  const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
+  for (let tries = 0; tries < 10 && !/Contracts? ended/.test(await stopped()); tries += 1) {
+    await playTurns(page, time.getByRole('button', { name: 'Fast forward', exact: true }));
+  }
+  await expect(stop.locator('p').first()).toHaveText(/^Stopped: a Contract ended: .+ of The Lantern is Out of Contract\.$/);
+  await expectNoHorizontalOverflow(page, 'the Contract stop');
+
+  await stop.getByRole('button', { name: 'Open the Roster' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Roster', exact: true })).toBeFocused();
+});

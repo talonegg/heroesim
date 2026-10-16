@@ -147,7 +147,7 @@ describe('parseArgs', () => {
 
   test("the usage names every --until word, and says which stop without being named", () => {
     const fastForward = usage.slice(usage.indexOf('  advance --until'), usage.indexOf('  recruit '));
-    for (const word of ['party-returns', 'decision', 'staffable', 'transfer-offer', 'below-floor', 'ended', 'pool-refreshed']) {
+    for (const word of ['party-returns', 'decision', 'staffable', 'transfer-offer', 'contract-expired', 'below-floor', 'ended', 'pool-refreshed']) {
       expect(fastForward).toContain(word);
     }
     expect(fastForward).toMatch(/falls below the\s+Bankruptcy floor/);
@@ -256,6 +256,7 @@ describe('parseArgs', () => {
     expect(command('decline', '--offer=offer-000002')).toEqual({ name: 'decline', save: 'current', offer: 'offer-000002' });
     expect(command('show', 'offers')).toEqual({ name: 'show', save: 'current', view: { kind: 'offers' } });
     expect(command('advance', '--until', 'transfer-offer')).toEqual({ name: 'advance', save: 'current', until: ['transfer-offer'] });
+    expect(command('advance', '--until', 'contract-expired')).toEqual({ name: 'advance', save: 'current', until: ['contract-expired'] });
   });
 
   test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas', () => {
@@ -320,7 +321,7 @@ describe('parseArgs', () => {
     [['advance', 'three'], 'does not take "three"'],
     [['advance', '--turns', '2', '--until', 'ended'], 'advance takes --turns, or --until and --max, not both'],
     [['advance', '--turns', '2', '--max', '5'], 'not both'],
-    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, staffable, transfer-offer, below-floor, ended, pool-refreshed, joined by commas; got "party-returned"'],
+    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, staffable, transfer-offer, contract-expired, below-floor, ended, pool-refreshed, joined by commas; got "party-returned"'],
     [['advance', '--until', 'ended,,decision'], 'got ""'],
     [['advance', '--until', 'ended,ended'], '--until names ended twice'],
     [['advance', '--until', 'ended', '--max', '0'], '--max needs a whole number from 1; got "0"'],

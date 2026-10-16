@@ -229,8 +229,9 @@ Loot and Campaigns are kept as features serving Reputation and History.
 - R45. A Guild may renew a Hero's Contract at any time the Hero is home, at the rule's price and
   with no fee, which replaces its term. When the end Day passes, the Hero is Out of Contract: still
   on the Roster and playing, at a wage repriced with a premium, and open to a free Offer that the
-  Guild may answer only by renewing (DL-294 item 6 and its note of 2026-10-12, DL-311 item 1; to be
-  built).
+  Guild may answer only by renewing (DL-294 item 6 and its note of 2026-10-12, DL-311 item 1,
+  DL-316; the free Offer and renewal's page and CLI to be built). The end stops a fast forward for
+  the player's Hero.
 - R46. A Guild may release a Hero from their Contract, its last Hero too, with the game's warning
   first. The payout is most of the wages left, and nothing once the Contract has ended; the Hero
   joins the Unattached pool with no Contract (DL-294 item 6, its note of 2026-10-12; to be built).

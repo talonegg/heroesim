@@ -81,10 +81,11 @@ Commands:
       what happened. These always stop it: the player's Guild falls below the
       Bankruptcy floor, a Party of the player's comes home, a decision is needed (no Party
       is out, and a Quest the Guild's rested Heroes could take reaches the Board), a
-      Rival makes a Transfer Offer for one of the player's Heroes, an installed module
-      asks to stop, and the game ends.
+      Rival makes a Transfer Offer for one of the player's Heroes, a Contract of the
+      player's Heroes ends (contract-expired: they are Out of Contract), an installed
+      module asks to stop, and the game ends.
       <stops> names any of party-returns, decision, staffable, transfer-offer,
-      below-floor, ended and pool-refreshed, joined by commas. Two stop it only when named:
+      contract-expired, below-floor, ended and pool-refreshed, joined by commas. Two stop it only when named:
       staffable (a Quest the rested Heroes at home could take reaches the Board, even
       with a Party out) and pool-refreshed (new Heroes in the Unattached pool). --max
       caps the Turns played: one year of Turns unless given.
@@ -329,6 +330,8 @@ const untilWords: Readonly<Record<string, StopCondition>> = Object.freeze({
   // M9-S1: a Quest the Heroes at home can staff (opt-in), and the Bankruptcy floor (always on).
   staffable: 'quest-staffable',
   'transfer-offer': 'transfer-offer',
+  // DL-316: a Contract of the player's Heroes ended (always on).
+  'contract-expired': 'contract-expired',
   'below-floor': 'below-floor',
   ended: 'ended',
   'pool-refreshed': 'pool-refreshed',

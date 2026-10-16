@@ -521,7 +521,7 @@ describe("a Guildmaster's Regard names whom it is for by what they are (DL-209, 
   });
 });
 
-describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', () => {
+describe('why a fast forward stopped, ten sentences (DL-209, DL-206 item 2)', () => {
   const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
   const world = {
     guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
@@ -558,6 +558,14 @@ describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', (
     [
       { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
       `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 4 Gold 20 Silver for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
+    ],
+    [
+      { kind: 'contract-expired', guildId, heroIds: [heroId] },
+      `Stopped: a Contract ended: ${brenna} of ${kest} is Out of Contract<command:show-roster>.`,
+    ],
+    [
+      { kind: 'contract-expired', guildId, heroIds: [heroId, 'hero-000008' as HeroId] },
+      `Stopped: Contracts ended: ${brenna} and <hero:hero-000008> of ${kest} are Out of Contract<command:show-roster>.`,
     ],
     [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe Module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],

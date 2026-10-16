@@ -268,6 +268,19 @@ describe('why time stopped, with a button to what it names', () => {
     }
   });
 
+  test("a Contract's end goes to the Roster, where the Heroes Out of Contract are (DL-316)", () => {
+    const state = started();
+    const guildId = 'guild-000001' as GuildId;
+    const heroIds = (state.document?.world.guilds[guildId]?.rosterIds ?? []).slice(0, 2);
+    render(<App initial={{ ...state, stoppedBecause: { kind: 'contract-expired', guildId, heroIds } }} />);
+    openView('Guild');
+
+    const stop = screen.getByTestId('stop');
+    expect(stop.textContent).toMatch(/^Stopped: Contracts ended: .+ and .+ of The Lantern are Out of Contract\./);
+    fireEvent.click(within(stop).getByRole('button', { name: 'Open the Roster' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Roster' }));
+  });
+
   test("a module's stop is said, and goes to what happened, where a module's own event reads as one", () => {
     const state = started();
     // A module's event naming the player's Guild, appended to the History as the engine appends each of a play's.

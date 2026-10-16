@@ -633,7 +633,9 @@ export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'her
     }
     case 'contract-expired':
       // DL-316: the Heroes whose Contracts ended tonight, Out of Contract until renewed.
-      return say`Stopped: a Contract ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} ${stop.heroIds.length === 1 ? 'is' : 'are'} Out of Contract${next('show-roster')}.`;
+      return stop.heroIds.length === 1
+        ? say`Stopped: a Contract ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} is Out of Contract${next('show-roster')}.`
+        : say`Stopped: Contracts ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} are Out of Contract${next('show-roster')}.`;
     case 'module':
       // M8-S2: an installed module's hook asked for the stop.
       return say`Stopped: the ${stop.moduleId} Module asked to stop.`;

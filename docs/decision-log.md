@@ -466,3 +466,45 @@ traced to play, not a bug, and listed in the commit and the entry for the owner 
 **Evidence.** Commits `7be4ecb` and this story's; `harness/reports/v1.2.3-s2-quick-2026-10-16` (fingerprint
 `cd75566d…`) against `v1.2.3-s1-baseline-quick-2026-10-16`; the epic's S2 boxes and Q-K.
 Verified 2026-10-16 at d354646: the wage rule, the record, the charge, every signing and end, and the founding draws held (each created world as at `ef266aa` on five seeds, Contracts aside), the quick run's lower wages are wages fixed at Level 1 (every founding Hero Level 1; validated every advance, each wage Day charging every living Roster Hero, none nothing) and the History pin parts at the first wage Day; fixed: Year written lower case in the Pool, the length's choice and the refusal (`ui-text.md` rule 2), DL-36's record quoting no words of this entry, the data model's year as `÷ 3`, a test helper's comment out of place; the Consequences' red tests now pass, re-recorded and arranged in `d354646`.
+
+## DL-316 — v1.2.3-S3 built: renewal, and the Contract's end
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** an agent (the epic's S3)
+
+**Context.** A Contract is to end, and its Guild to renew it (DL-294 item 6, DL-311, Q-A, Q-D). S3 builds
+renewal and the end in the engine, and says the stop on the page and the CLI.
+
+**Decision.**
+
+1. **`renew`** `{ guildId, heroId, years }`: the Hero is signed again at `contractWage` now, no fee, a new
+   term from that Day and the old one's rest dropped. Refused, in order: `length-not-offered`,
+   `hero-not-on-roster`, `hero-in-party` (Q-A). `hero.contract-renewed`, its wage in `moneyFields`.
+2. **The end.** On the night of its end Day, inside the Guild State Engine and before that Guild's wages,
+   the Hero's wage is repriced and `hero.contract-expired` is emitted, a Milestone for every Guild.
+3. **Out of Contract** is the selector `outOfContract(hero, turn)`, not a stored state: the Contract row is
+   kept, its wage repriced by `outOfContractWage`, one core with `contractWage`, rounded down once.
+   `outOfContractPremium` 0.1 (config 36).
+4. **The stop** `contract-expired`, always on, after `transfer-offer` and before `module`. The CLI's
+   `--until contract-expired` and the narration ("Stopped: a Contract ended: …" or "Contracts ended: …",
+   each "is" or "are" Out of Contract) are one for the page and the CLI; the card's button opens the Roster.
+5. **Nobody renews yet.** No Rival or policy renews until S6.
+
+*Judgement calls, for the owner to see.*
+- "The 1-year factor" is the shortest length offered's, so a config with no 1-year length never fails.
+- Expiry runs inside `guild-state` before the wages, so a wage Day on the end Day charges the repriced wage.
+- Renewal is a Milestone, as every signing is; a dead or retired Hero is refused as `hero-not-on-roster`.
+- Re-recorded or arranged, for the owner to see (DL-315's note): `world-copy.test.ts`'s setup
+  (`bankruptcyFloor`) and `fast-forward.test.ts`'s `created` (end Days moved on), assertions unchanged;
+  the History pin in `quests-conclude.test.ts`, re-recorded on the owner's word ("a", 2026-10-16) after the
+  permission system refused the builder's edit: named-b first diverges at event 448, Turn 44 (a repricing
+  24 → 27), named-c at event 204, Turn 29 (22 → 26), their old values in its comment.
+
+**Consequences.** Quick run, 2 years (`v1.2.3-s3-quick-2026-10-16`, fingerprint `452b483e…`) against S2's:
+wages the player 49,887 → 70,977 (+42%), the Rivals 252,423 → 291,865 (+16%). Quick run, 4 years
+(`v1.2.3-s3-quick4-2026-10-16`, `f613da04…`) against S1's 4×4 baseline: wages the player 352,420 → 260,813
+(−26%), the Rivals 1,072,520 → 1,090,154 (+1.6%); Rival folds 4 → 0; Rival-to-Rival Transfers 0 → 45;
+refusals and stopped games 0. Q-K reads the wages again here: in the 4-year run the player's are still 26% below S1's, the
+Rivals' within 10%. In those four seeds' 4 years, replayed with the policy: 223 `hero.contract-expired`
+(seed-0001 37, seed-0002 59, seed-0003 89, seed-0004 38; the player's 8 in each), `hero.contract-renewed` 0.
+
+**Evidence.** Commits `f930e13` and this story's; the two reports; the epic's S3 boxes, all three met.
