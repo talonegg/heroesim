@@ -1902,6 +1902,30 @@ describe("the Targets' counters (DL-259)", () => {
     expect(short.value()).toBe(1);
   });
 
+  test("a release on the Turn takes the Hero off their Guild's Roster, as a Retirement does (DL-317)", () => {
+    const { document, rivals } = fixture('counters-short-release');
+    const [a, b] = rivals;
+    const min = shortYears.config.rivalRosterMin;
+    const before = structuredClone(document);
+    const bGuild = before.world.guilds[b.id] as Guild;
+    bGuild.rosterIds = bGuild.rosterIds.slice(0, min + 1);
+    const [k1, k2] = bGuild.rosterIds;
+    if (k1 === undefined || k2 === undefined) throw new Error('A Roster too small');
+    const short = observerOf('transfersShort');
+
+    advanced(
+      short,
+      document,
+      [
+        event(5, 'hero.released', [k2, b.id], { heroId: k2, guildId: b.id, payout: 100 }),
+        event(5, 'hero.transferred', [k1, b.id, a.id], { heroId: k1, fromGuildId: b.id, toGuildId: a.id, fee: 100, offerId: null }), // B, 5 - 1 - 1: below
+      ],
+      before,
+    );
+
+    expect(short.value()).toBe(1);
+  });
+
   test("a recruit and a Retirement on the Turn move the seller's Roster, and the player's Guild as seller is not counted", () => {
     const { document, player, rivals } = fixture('counters-short-moves');
     const [a, b] = rivals;

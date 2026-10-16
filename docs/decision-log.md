@@ -560,3 +560,4 @@ counters moved, 606 the same, saves +208 bytes. The payout reads 0 on its own li
 
 **Evidence.** Commit of this story; the S4 quick report; the epic's S4 boxes, all three met. Tests:
 `release.test.ts`, `selectors.test.ts`, the Treasury's and the counters'.
+Verified 2026-10-16 at 3a5e22c: the wages left re-derived against the wage Days and the night's expiry (the end Day's charge out, tonight's in until played, `>=` for `>` equivalent), the payout, the refusals, the effects' order, the warning, the floor the same night, no `hero.left-guild` reader missing a release, nobody releasing and play unchanged (`compare`: 0 counters moved); 27 mutations, 25 red, the Rival-seller count's reading of `hero.released` red only after a test was added; fixed: that test, and the harness README's recovery line.
