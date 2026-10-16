@@ -458,6 +458,11 @@ of 86c7afa" (a deliberate pin of play, whose three fingerprints moved from the f
 the owner may overrule. Rival folds 1 → 0, Rival Transfers 0 → 30 and Offers to the player 0 → 14, all
 declined. The Pool's table is wider, scrolling in its box on a phone.
 
+*Note, 2026-10-16 (the owner's "a"): both changes confirmed, and made the standing practice
+(`delivery.md` rule 4): a pin of play a story moves on purpose is re-recorded, its old values in its
+comment, and a test whose setup rests on play has its setup arranged, its assertions unchanged; each is
+traced to play, not a bug, and listed in the commit and the entry for the owner to see.*
+
 **Evidence.** Commits `7be4ecb` and this story's; `harness/reports/v1.2.3-s2-quick-2026-10-16` (fingerprint
 `cd75566d…`) against `v1.2.3-s1-baseline-quick-2026-10-16`; the epic's S2 boxes and Q-K.
 Verified 2026-10-16 at d354646: the wage rule, the record, the charge, every signing and end, and the founding draws held (each created world as at `ef266aa` on five seeds, Contracts aside), the quick run's lower wages are wages fixed at Level 1 (every founding Hero Level 1; validated every advance, each wage Day charging every living Roster Hero, none nothing) and the History pin parts at the first wage Day; fixed: Year written lower case in the Pool, the length's choice and the refusal (`ui-text.md` rule 2), DL-36's record quoting no words of this entry, the data model's year as `÷ 3`, a test helper's comment out of place; the Consequences' red tests now pass, re-recorded and arranged in `d354646`.

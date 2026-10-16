@@ -45,7 +45,10 @@ name its path, or use `rg -u`.
    - an assessment of its design, with a recommended fix.
 
    Take the owner's answer before changing it. A test that reads `configVersion` from the config
-   is fine.
+   is fine. A pin of play that a story moves on purpose is re-recorded, its old values in its
+   comment, and a test whose setup merely rests on play has its setup arranged, its assertions
+   unchanged; each is traced to play, not a bug, and listed for the owner in the commit and the
+   entry (DL-315's note).
 5. **Saves** need no backward compatibility until the owner says otherwise: no migrations, no
    loading tests of old saves. `schemaVersion` is raised only when the document's shape changes.
 6. **Sweeps** (`npm run harness -- …`) run one at a time, alone, nothing else running.
