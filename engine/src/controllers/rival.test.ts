@@ -1614,6 +1614,29 @@ describe('a Rival in debt releases its Heroes Out of Contract before its debt sa
     expect(releases(rivalChoices(world, rival, deps))).toEqual([{ kind: 'release', guildId: rival.id, heroId: home.id }]);
   });
 
+  test('releases no Hero Under Offer: the next Hero Out of Contract goes, and none when the only one is Under Offer (Q-N, DL-322)', () => {
+    const { world, rival } = indebted('debt-order-offer');
+    const [offered, next] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero];
+    expire(offered, 1);
+    expire(next, 2);
+    const buyer = rivalsOf(world).find((other) => other.id !== rival.id) as Guild;
+    world.offers[makeId('offers', 1)] = {
+      id: makeId('offers', 1),
+      kind: 'transfer',
+      fromGuildId: rival.id,
+      toGuildId: buyer.id,
+      heroId: offered.id,
+      fee: 0,
+      years: 2,
+      offeredOnTurn: world.turn,
+      expiresOnTurn: world.turn + 100,
+    };
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([{ kind: 'release', guildId: rival.id, heroId: next.id }]);
+
+    next.contract = { ...(next.contract as Contract), endDay: 1_000 };
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([]);
+  });
+
   test('releases no Hero it sends on a Quest this afternoon', () => {
     const { world, rival } = indebted('debt-order-sent', true);
     for (const heroId of rival.rosterIds) expire(heroOf(world, heroId), 1);

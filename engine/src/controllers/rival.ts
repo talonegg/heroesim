@@ -75,7 +75,7 @@ import {
  *    `rivalHealItemStock` of each and every other consumable, and Loot-only Items; in debt, its whole
  *    holding; never what the equips and the dispatch above take;
  * 3b. in debt, with nothing left in its holding to sell, release one Hero Out of Contract, free, the
- *    lowest Level first (`debtRelease`, DL-320), before any debt sale;
+ *    lowest Level first, not one Under Offer (`debtRelease`, DL-320, DL-322), before any debt sale;
  * 4. make one purchase, the first of these that applies, tried in the Disposition's `purchaseOrder`
  *    (`purchaseSteps`' order when it has none, as here, v1.1.6-S16, DL-202):
  *    - build the next grade of the first Facility of its Hall, in its `buildOrder` (content's order
@@ -340,13 +340,14 @@ function dearestWanted(
  * A release a Guild in debt makes once its holding is sold (Q15, DL-294 item 5, DL-320), or `null`: its
  * Hero Out of Contract at home with the lowest Level, the lowest Hero id among equals, not among
  * `excluded` (the Heroes it sends on a Quest, or renews, this afternoon). Free, since a Contract that has
- * ended pays no payout; one Hero a step, so that the next step weighs the Guild's debt again. It leaves a
+ * ended pays no payout; never one Under Offer (`underOffer`, DL-322), whom a free Offer stands for and
+ * the Guild lets run out; one Hero a step, so that the next step weighs the Guild's debt again. It leaves a
  * Roster as small as the Heroes under Contract, none at all if every Hero is Out of Contract: the Guild
  * is in debt, and a Hero it keeps costs it a wage. The rule a Rival's afternoon and the harness's policy
  * share. Reads, never writes, and draws nothing.
  */
 export function debtRelease(
-  world: Pick<World, 'heroes' | 'turn'>,
+  world: Pick<World, 'heroes' | 'offers' | 'turn'>,
   guild: Pick<Guild, 'id' | 'rosterIds' | 'belowFloorSince'>,
   excluded: ReadonlySet<HeroId>,
 ): ReleaseAction | null {
@@ -354,7 +355,7 @@ export function debtRelease(
   let lowest: Hero | null = null;
   for (const heroId of guild.rosterIds) {
     const hero = rowOf(world.heroes, heroId);
-    if (hero === undefined || hero.partyId !== null || excluded.has(heroId) || !outOfContract(hero, world.turn)) continue;
+    if (hero === undefined || hero.partyId !== null || excluded.has(heroId) || !outOfContract(hero, world.turn) || underOffer(world, hero)) continue;
     if (lowest === null || hero.level < lowest.level || (hero.level === lowest.level && compareByCodeUnit(hero.id, lowest.id) < 0)) lowest = hero;
   }
   return lowest === null ? null : { kind: 'release', guildId: guild.id, heroId: lowest.id };

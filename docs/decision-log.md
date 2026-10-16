@@ -694,6 +694,7 @@ owner kept the answer rule as set; `v1.2.4` tunes its threshold.
    afternoon. A release pays 0 once the Contract has ended (DL-317) and moves no Wealth, so it is no purchase
    and stands beside the sales; the debt sale (`debtTransfer`) waits an afternoon in which a Hero was released.
    One Hero a step, the shape of `surplusChoices` and `debtTransfer`: each afternoon reads the debt again.
+   *Superseded in part by DL-322 item 1, 2026-10-17: the release skips a Hero Under Offer. The record: [superseded/DL-320.md](decisions/archive/superseded/DL-320.md).*
 2. **The policy** (`harness/src/policy.ts`) sells its Holding, then releases by the same function, never a Hero
    it sends or renews that Turn. It has no debt sale.
 3. **The search.** A Rival's Transfer step seeks only Heroes under Contract (`transferChoice`, `priced`). Its
@@ -778,3 +779,28 @@ moves 43 paths, all new, and none of the old. The Gate PASS, refusals 0, folds 0
 **Evidence.** This story's commit; `harness/reports/v1.2.3-s8-quick-2026-10-17`; the S8 boxes, both met. Red first: the
 Contracts' and the free Offers' counters, the observer, the report's lines and the shares (9 tests).
 Verified 2026-10-17 at 694302c: the counts re-derived by a replay and the free test found the engine's; Under Offer, read only at a morning, missed the 21 Offers standing at the policy's choices and is now read at every Turn, and equal remainders in the shares now compare equal, test first; two surviving mutations (the payouts doubled, the fee of a Hero sold) closed by tests.
+
+## DL-322 — v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner (Q-N, Q-O)
+
+**Context.** S7's verification found the policy in debt could release a Hero a free Offer stood for, which it meant to
+let run out, so the Offer ended `hero-left` instead of `taken` (Q-N). Its 12-year replay on four seeds also found the
+Rivals' debt sale (`debtTransfer`, DL-301) never fires in play: 225 Rival afternoons in debt, no debt sale, since the
+releases come first (Q-O).
+
+**Decision.**
+
+1. **The release skips a Hero Under Offer** (Q-N, a). `debtRelease` (`controllers/rival.ts`) passes over a Hero
+   `underOffer` (DL-319), for the policy and the Rivals alike: one rule. A Rival answers a free Offer at once, so it
+   rarely matters there. Amends DL-320 item 1; item 2's policy takes it through the same function.
+2. **The debt sale is left as built** (Q-O, a). `v1.2.4`'s economy pass judges it with Q-M's guard (DL-320), in its
+   epic's §0.
+
+**Consequences.** Play is unchanged where the debt order is unreached. Quick runs, 2 years (`v1.2.3-qn-quick`,
+fingerprint `387107e0…`, S8's) and 4 years (`v1.2.3-qn-quick4`, `c2806185…`, S7's): both fingerprints the same, `compare`
+with S8's moving no counter, the Gate PASS, refusals 0. The reports are not committed.
+
+**Evidence.** This story's commit. Tests: `rival.test.ts` (a Hero Under Offer skipped, the next released, none when the only
+one is Under Offer) and `policy.test.ts` (the same, and the Offer then runs out and is `taken`). Red first: all three, as
+the old order released the Hero Under Offer. The epic's §6 rows Q-N and Q-O; `v1.2.4`'s §0.

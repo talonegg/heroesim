@@ -130,8 +130,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   on, consumables above `consumableStock` of each, what its Parties carry counted, and Loot-only
  *   Items; in debt, its whole holding; never what the equips and dispatches above take.
  * - **Release a Hero Out of Contract** in debt, once its holding is sold, as a Rival does (the engine's
- *   `debtRelease`, DL-320): one a Turn, the lowest Level first, free, never one it sends or renews that
- *   Turn. It has no debt sale beyond it, since it never transfers.
+ *   `debtRelease`, DL-320, DL-322): one a Turn, the lowest Level first, free, never one it sends or renews that
+ *   Turn, nor one Under Offer. It has no debt sale beyond it, since it never transfers.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the next grade of the healing Facility, the first in content's order with the
  *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times

@@ -1055,6 +1055,53 @@ describe('automaticPolicy', () => {
         applied(offered.document, actions);
       });
 
+      /**
+       * A free Offer from a Rival for the first Hero of the Roster at Level 1, Out of Contract, which the policy lets run out:
+       * its Roster is above a floor of 0 and every other Hero is at Level 5. `next` is the Roster's second Hero.
+       */
+      function offeredFor(seed: string) {
+        const { document: scened, guild } = indebted(seed);
+        const [offered, next] = guild.rosterIds as [HeroId, HeroId];
+        for (const heroId of guild.rosterIds) (scened.world.heroes[heroId] as Hero).level = 5;
+        expire(scened, offered, 1);
+        const rival = Object.values(scened.world.guilds).find((row) => row.id !== guild.id) as Guild;
+        const made = applyAction(scened, { kind: 'offerTransfer', guildId: rival.id, heroId: offered, years: 2 }, deps);
+        if (!made.ok) throw new Error(`Refused: ${JSON.stringify(made.rejection)}`);
+        return { document: made.document, guild, offered, next, policy: { ...noBuilding, rosterFloor: 0 } };
+      }
+
+      /** `document` run until its Offers have ended: the causes they ended for, and the document then. */
+      function runOut(document: WorldDocument): { causes: string[]; document: WorldDocument } {
+        const causes: string[] = [];
+        let current = document;
+        for (let nights = 0; nights < 20 && Object.keys(current.world.offers).length > 0; nights += 1) {
+          const result = advance(current, deps);
+          current = result.document;
+          for (const event of result.events) if (event.type === 'guild.transfer-offer-expired') causes.push(event.payload.cause);
+        }
+        return { causes, document: current };
+      }
+
+      test('releases no Hero Under Offer (Q-N, DL-322): the next Hero Out of Contract goes, and the Offer runs out and is taken', () => {
+        const { document, guild, offered, next, policy } = offeredFor('policy-debt-offer');
+        expire(document, next, 2);
+
+        const actions = automaticPolicy(document, deps, policy);
+        expect(releases(actions)).toEqual([{ kind: 'release', guildId: guild.id, heroId: next }]);
+        expect(runOut(applied(document, actions)).causes).toEqual(['taken']);
+        expect(document.world.heroes[offered]?.guildId).toBe(guild.id);
+      });
+
+      test('releases none when the only Hero Out of Contract is Under Offer: the Offer is taken, not ended by a release (Q-N, DL-322)', () => {
+        const { document, guild, offered, policy } = offeredFor('policy-debt-offer-only');
+
+        const actions = automaticPolicy(document, deps, policy);
+        expect(releases(actions)).toEqual([]);
+        const ended = runOut(applied(document, actions));
+        expect(ended.causes).toEqual(['taken']);
+        expect(ended.document.world.heroes[offered]?.guildId).not.toBe(guild.id);
+      });
+
       test('releases no Hero it sends on a Quest this Turn', () => {
         const { document, guild, quests } = indebted('policy-debt-sent', true);
         openBoard(quests, 1);
