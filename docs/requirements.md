@@ -47,6 +47,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
 | Recruitment from the Unattached pool | Yes | Scouting and hidden information |
 | Transfers with Rivals | Yes | Poaching |
+| Contracts: a wage set at signing, a length chosen, renewal, release, the free Offer and Under Offer | No (DL-294 item 6, DL-311) | — |
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
@@ -220,6 +221,22 @@ Loot and Campaigns are kept as features serving Reputation and History.
   untouched (pre-M0 review D5).
 - R29. The player sees the Stats of every Hero, in any Guild or the pool; only Potential is hidden
   (R17). Scouting and hidden information are deferred.
+- R44. A Hero on a Roster holds a Contract: a wage set at signing from their Level and Stats and
+  fixed for its term, paid every 10 Days, and a length of 1, 2 or 3 years that the signer chooses,
+  a longer one cheaper a year. A Hero on no Roster holds none (DL-294 item 6; to be built).
+- R45. A Guild may renew a Hero's Contract at any time, at the rule's price and with no fee, which
+  replaces its term. When the end Day passes, the Hero is Out of Contract: still on the Roster and
+  playing, at a wage repriced with a premium, and open to a free Offer that the Guild may answer
+  only by renewing (DL-294 item 6, DL-311 item 1; to be built).
+- R46. A Guild may release a Hero from their Contract, its last Hero too, with the game's warning
+  first. The payout is most of the wages left, and nothing once the Contract has ended; the Hero
+  joins the Unattached pool with no Contract (DL-294 item 6, its note of 2026-10-12; to be built).
+- R47. An Offer for a Hero Out of Contract is free: it costs no fee and stands for a set number of
+  Days, after which the Hero moves to the offering Guild unless their Guild has renewed them in
+  that time (DL-294 item 6; to be built).
+- R48. A Hero a Transfer Offer stands for, free or priced, is Under Offer: no Party may take them
+  until the Offer ends, by decline, expiry, renewal or transfer. An Offer may be made for a Hero
+  away on a Quest, who is Under Offer from their return (DL-311 item 4; to be built).
 
 ### 3.6 Items and Market
 

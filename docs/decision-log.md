@@ -369,3 +369,38 @@ GitHub retires the 24.04 image.
 
 **Evidence.** The five workflows; `docs/planning/epics/v1.2.4-release.md` §0; run 38849530300's
 annotations.
+
+## DL-314 — v1.2.3-S1 built: the Contract's words, and the baselines
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** an agent (the epic's S1)
+
+**Context.** `v1.2.3` builds Contracts (DL-294 item 6, DL-311). Its first story changes no play: it
+writes the words the later stories build to, in `CONTEXT.md` and `docs/requirements.md`, and records
+the two quick runs every later story's `compare` reads.
+
+**Decision.**
+
+1. **New terms.** **Contract**, **Out of Contract** and **Under Offer** enter the glossary (DL-294
+   item 6, DL-311 item 4). The Contract's entry says the module contract (ADR-0005) is no term and
+   stays lower case, as Effect's does a Trait's effect. "Contract" leaves the Quest's _Avoid_ list.
+2. **Rewritten** in `CONTEXT.md`: Transfer, Transfer Offer, Upkeep, Unattached Hero, Treasury and
+   Market, each as the rule it will be once built, marked "to be built" with its entry. The Transfer
+   Generator's entry is unchanged; S6 changes it.
+3. **Requirements.** R44 to R48 in `docs/requirements.md` §3.5 (the Contract, renewal and expiry,
+   release, the free Offer, Under Offer), and a §2 scope row, all to be built.
+4. **Baselines.** Two quick runs, each alone, for the later stories' `compare`: four seeds of two years
+   and four of four years. Committed with `git add -f` in this story's commit.
+
+*Judgement calls, for the owner to see.*
+- The Contract's _Avoid_ list is "Deal, Agreement, Lease", words the page does not use; the epic named
+  none.
+- The Transfer Offer and Upkeep entries name `transferOfferDays` and "the wages the Contracts set", and
+  no figure: the values stay in config.
+
+**Consequences.** The glossary and §3.5 state the Contract's rules before the code has them. No page
+text names a Contract, so no view changes. S2 to S8 `compare` against the two reports.
+
+**Evidence.** `harness/reports/v1.2.3-s1-baseline-quick-2026-10-16.md` and `.json` (fingerprint
+`93c75e85…`) and `harness/reports/v1.2.3-s1-baseline-quick4-2026-10-16.md` and `.json` (fingerprint
+`8e5f31e3…`), committed in this story's commit; the doctors' and checks' readings in that message; the
+epic's S1 boxes.
