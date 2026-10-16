@@ -905,3 +905,4 @@ push and CI for S9's e2e box; the Generator box's limit; the baseline; the relea
 
 **Evidence.** This commit; the Gate report, committed; the epic's S10 boxes, the third waiting on the playtest; the
 checks' counts, the e2e by spec, the doctors and the sweeps' timings in the commit message.
+Verified 2026-10-17 at 70a2cd4: the two fixes bite (the pool's help, and each of the policy line's three new clauses, red when undone), the Gate's lines, S8's and Q21's re-derived from the reports; the Generator box is slow, not hung (six seeds alone 50 to 92 s, a mean 75 s, about 7,550 s for the hundred; its synchronous hook ended at 7,756 s); `transferOut` of a Hero Out of Contract is reachable only from the player's page and CLI, for no fee, left to the owner; the epic's box note names the policy line.
