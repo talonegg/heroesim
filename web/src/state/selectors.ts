@@ -1331,7 +1331,7 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading, docume
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
       .map((other) => {
-        const fee = transferFee(hero, guildmasterOf(other, world), deps);
+        const fee = transferFee(hero, guildmasterOf(other, world), world.turn, deps);
         const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
         return { guildId: other.id, name: other.name, fee, sentence };
       }),

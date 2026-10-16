@@ -59,7 +59,7 @@ export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
  * Hero Stats through `baseStat`, so a Stat content no longer defines is ignored and one the row
  * lacks reads as the content's default (data-model rule 5).
  *
- * The one place a fee is computed, so every caller pays the same price (R8): `recruit` and
+ * The one place a signing fee is computed, so every caller pays the same price (R8): `recruit` and
  * `cheapestUnattached` pass the buying Guild's Guildmaster as `buyer`, and so do the front ends
  * when they show the player a fee. With no `buyer` it is the list price, which no Guild pays.
  */
@@ -68,41 +68,38 @@ export function signingFee(
   deps: Pick<EngineDeps, 'config' | 'content'>,
   buyer?: Pick<Guildmaster, 'stats'>,
 ): number {
-  return heroFee(hero, 1, deps, buyer);
-}
-
-/**
- * What `buyer`'s Guild pays another Guild to take `hero` from its Roster (M6-S2, R28, INPUTS 7.6,
- * DL-57): the Hero's signing fee before Negotiation times `transferFeeFactor`, times the buying
- * Guildmaster's Negotiation exactly as `signingFee` applies it (DL-43), rounded down once, at the
- * end. The one core both fees share (`heroFee`), so a Transfer is priced by the rule a signing is.
- *
- * `transferIn`, `transferOut` and a Rival's Transfer Offer pass the buying Guild's Guildmaster; with
- * no `buyer` it is the list price, which no Guild pays.
- */
-export function transferFee(
-  hero: Pick<Hero, 'level' | 'stats'>,
-  buyer: Pick<Guildmaster, 'stats'> | undefined,
-  deps: Pick<EngineDeps, 'config' | 'content'>,
-): number {
-  return heroFee(hero, deps.config.transferFeeFactor, deps, buyer);
-}
-
-/**
- * The one fee core (DL-43, DL-57): `signingFeeBase`, plus `signingFeePerLevel` for each Level, plus
- * the sum of the Hero's base Stats over `signingFeeStatDivisor`, times `factor` (1 for a signing,
- * `transferFeeFactor` for a Transfer), times the buyer's Negotiation (1 − `negotiation`), rounded
- * down once, at the end.
- */
-function heroFee(
-  hero: Pick<Hero, 'level' | 'stats'>,
-  factor: number,
-  deps: Pick<EngineDeps, 'config' | 'content'>,
-  buyer: Pick<Guildmaster, 'stats'> | undefined,
-): number {
   const { config, content } = deps;
   const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + heroStatSum(hero, content) / config.signingFeeStatDivisor;
-  return Math.floor(list * factor * feeFactor(buyer, content, config));
+  return Math.floor(list * feeFactor(buyer, content, config));
+}
+
+/**
+ * What `buyer`'s Guild pays another Guild to take `hero` from its Roster at `turn` (Q11, DL-294 item 6,
+ * DL-318; R28): the wages left on the Hero's Contract (`wagesLeft`) times `transferFeeFactor`, times
+ * `1 +` the premium (`transferPremium`), times the buying Guildmaster's Negotiation exactly as
+ * `signingFee` applies it (DL-43), rounded down once, at the end; 0 once the Contract has ended. The
+ * Hero's Level and Stats are in it only through the wage they signed for.
+ *
+ * `transferIn`, `transferOut` and a Rival's Transfer Offer pass the buying Guild's Guildmaster and the
+ * world's Turn; with no `buyer` it is the fee before Negotiation, which no Guild pays.
+ */
+export function transferFee(
+  hero: Pick<Hero, 'id' | 'contract'>,
+  buyer: Pick<Guildmaster, 'stats'> | undefined,
+  turn: Turn,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): number {
+  const { config, content } = deps;
+  return Math.floor(wagesLeft(hero, turn, config) * config.transferFeeFactor * (1 + transferPremium(hero)) * feeFactor(buyer, content, config));
+}
+
+/**
+ * The premium on a Hero's Transfer fee (Q11, DL-318): a rule for each Hero, nothing stored on them,
+ * giving 0 for now and ready for a mechanic to set it (DL-294's judgement call). `transferFee` adds it to 1.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the rule is per Hero, though none reads them yet
+export function transferPremium(_hero: Pick<Hero, 'id'>): number {
+  return 0;
 }
 
 /**

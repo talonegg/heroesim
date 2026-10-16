@@ -4175,6 +4175,7 @@ offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTra
    paying Guildmaster's Negotiation (DL-43), rounded down once. `buyer` is the paying Guild's
    Guildmaster, as `signingFee`'s is; `signingFee`'s results are unchanged (× 1 is exact). An offer's
    fee is fixed when it is made and is what `acceptTransfer` pays.
+   *Superseded in part by DL-318 item 1, 2026-10-16: The fee's core, the list price (DL-27) × `transferFeeFactor` 2 shared with the signing fee; now the Contract's wages left × `transferFeeFactor` × (1 + the premium), the signing fee alone keeping the list price. The record: [superseded/DL-57.md](superseded/DL-57.md).*
 3. **Consent is the other Guild's controller's choice** (`transferAnswer(world, guild, side, deps)`,
    `controllers/rival.ts`). A Guild with a Disposition answers by its row, one rule for every row:
    it deals only while **the Heroes it keeps through the deal × `transferAppetite` ≥ 1** (its Roster

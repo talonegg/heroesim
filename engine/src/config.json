@@ -1,5 +1,5 @@
 {
-  "version": 37,
+  "version": 38,
   "changelog": [
     "2 from M2-S12's first balance pass (DL-35).",
     "3 from M3's wage for Levels (DL-36).",
@@ -37,7 +37,8 @@
     "34 from v1.2.2-S6 (DL-301): lootOnlyPrice removed, each loot-only Item carries its own value.",
     "35 from v1.2.3-S2, which sets each Hero's wage at signing by a Contract's wage rule: it adds `wageBase`, 0, `wageStatDivisor`, 40, `wageFameFactor`, 0, `contractLengthsYears`, [1, 2, 3], and `contractWageFactors`, [1, 0.95, 0.9], beside `wagePerLevel`, 20 (DL-294 item 6, DL-315).",
     "36 from v1.2.3-S3, which reprices a Contract's wage on the night it ends: it adds `outOfContractPremium`, 0.1, the wage rule at the shortest length's factor × 1.1 Out of Contract (DL-311 item 1, DL-316).",
-    "37 from v1.2.3-S4, which lets a Guild release a Hero for a payout: it adds `releasePayoutFactor`, 0.8, the share of the wages left on the Contract that the Guild pays (Q10, DL-294 item 6, DL-317)."
+    "37 from v1.2.3-S4, which lets a Guild release a Hero for a payout: it adds `releasePayoutFactor`, 0.8, the share of the wages left on the Contract that the Guild pays (Q10, DL-294 item 6, DL-317).",
+    "38 from the Transfer fee from the wages left, unfitted until v1.2.4 (DL-318): transferFeeFactor 2 to 0.3."
   ],
   "sections": {
     "world": {
@@ -212,7 +213,7 @@
       "guildmasterRegardOnHeroFailure": -1
     },
     "transfers": {
-      "transferFeeFactor": 2,
+      "transferFeeFactor": 0.3,
       "transferMoraleCost": -15,
       "transferRegardBand": "warm",
       "guildmasterRegardPerTransferDeal": 2,

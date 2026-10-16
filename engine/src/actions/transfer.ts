@@ -250,9 +250,9 @@ function locked<Action extends Kind>(
   return lock === null ? null : { action, reason: 'recently-transferred', heroId: hero.id, ...lock };
 }
 
-/** The fee `to` pays for `hero`: `transferFee` at its Guildmaster's Negotiation. */
-function feeFor(world: Pick<World, 'guildmasters'>, hero: Hero, to: Guild, deps: EngineDeps): number {
-  return transferFee(hero, guildmasterOf(to, world), deps);
+/** The fee `to` pays for `hero` tonight: `transferFee` at its Guildmaster's Negotiation. */
+function feeFor(world: Pick<World, 'guildmasters' | 'turn'>, hero: Hero, to: Guild, deps: EngineDeps): number {
+  return transferFee(hero, guildmasterOf(to, world), world.turn, deps);
 }
 
 // ── transferIn ───────────────────────────────────────────────────────────────────────────────

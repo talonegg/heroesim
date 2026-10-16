@@ -8,6 +8,7 @@ import { createWorld } from './create.js';
 import {
   compareByCodeUnit,
   takeId,
+  type Contract,
   type Guild,
   type GuildId,
   type Hero,
@@ -25,7 +26,7 @@ import { next } from './rng.js';
 import { playerGuild, transferFee, upkeep } from './selectors.js';
 import { transferOfferStop } from './stops.js';
 import { dayOf, nightOf, timeOfDay } from './time.js';
-import { deepFreeze, heroStatKeys, testDeps, thriftyRivals, withDispositions, withValid } from './world.test-support.js';
+import { deepFreeze, testDeps, thriftyRivals, withDispositions, withValid } from './world.test-support.js';
 
 // Transfers beyond the actions (actions/transfer.test.ts, DL-57): Transfer Offers expiring at night and lapsing
 // when their Hero or a Guild goes, the fold withdrawing them, fast forward's `transfer-offer` stop,
@@ -35,7 +36,7 @@ import { deepFreeze, heroStatKeys, testDeps, thriftyRivals, withDispositions, wi
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** The config the tests rely on, pinned; a lock of five Days, so that twenty Days see Heroes move more than once. */
-const pins: Partial<GameConfig> = { negotiationRange: 0, marketSize: 0, transferFeeFactor: 2, transferOfferDays: 3, transferLockDays: 5 };
+const pins: Partial<GameConfig> = { negotiationRange: 0, marketSize: 0, transferFeeFactor: 0.3, transferOfferDays: 3, transferLockDays: 5 };
 
 /** Rivals who deal whenever they would hire, and would hire at any Wealth: every weighing a Transfer. */
 // Every Disposition signs for 3 years, so a Rival's choice of length shows (DL-315).
@@ -76,9 +77,12 @@ function heroOf(world: World, heroId: HeroId): Hero {
 const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
-/** Makes `hero` the dearest Hero in any Transfer: every base Stat at the top of its range. */
-function dearest(hero: Hero): void {
-  for (const key of heroStatKeys) hero.stats[key] = 20;
+/**
+ * Makes `hero` the dearest Hero in any Transfer: the highest wage on the longest Contract, since the fee reads
+ * the wages left and nothing of the Hero's Stats (DL-318). `wage` 100 on the Day 1,080 end beats any founding Contract.
+ */
+function dearest(hero: Hero, wage = 100): void {
+  hero.contract = { ...(hero.contract as Contract), wage, endDay: 1_080 };
 }
 
 /** `rival`'s offer for `heroId`, applied to `world` in place; its id. */
@@ -327,8 +331,8 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
       guildmaster.stats['negotiation'] = negotiation;
       const [wanted] = other.rosterIds as [HeroId];
       dearest(heroOf(world, wanted));
-      const own = transferFee(heroOf(world, wanted), guildmaster, negotiating);
-      const list = transferFee(heroOf(world, wanted), undefined, negotiating);
+      const own = transferFee(heroOf(world, wanted), guildmaster, world.turn, negotiating);
+      const list = transferFee(heroOf(world, wanted), undefined, world.turn, negotiating);
       expect(own === list).toBe(false);
       // Exactly its own price when that is below the list price; exactly the list price when its own is above.
       rival.wealth = Math.min(own, list);
@@ -365,7 +369,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     rival.belowFloorSince = 0;
     const [, bought, next] = rival.rosterIds as [HeroId, HeroId, HeroId];
     dearest(heroOf(world, bought));
-    for (const key of heroStatKeys) heroOf(world, next).stats[key] = 19;
+    dearest(heroOf(world, next), 90);
     for (const other of rivals(world)) if (other.id !== rival.id) other.wealth = 10_000;
     // Bought this Turn: held, so the next dearest goes.
     heroOf(world, bought).transferredOnTurn = world.turn;
@@ -390,7 +394,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     const [buyer] = rivals(world).filter((guild) => guild.id !== rival.id) as [Guild];
     for (const heroId of buyer.rosterIds.splice(3)) heroOf(world, heroId).diedOnTurn = world.turn;
     const reserve = deps.config.rivalHireReserveUpkeeps * upkeep(buyer, world, deps.config, deps.content);
-    const fee = transferFee(heroOf(world, leaving), guildmasterOf(buyer, world), deps);
+    const fee = transferFee(heroOf(world, leaving), guildmasterOf(buyer, world), world.turn, deps);
 
     buyer.wealth = fee + reserve;
     expect(rivalChoices(structuredClone(world), rival, deps)).toEqual([{ kind: 'transferOut', guildId: rival.id, heroId: leaving, toGuildId: buyer.id }]);
@@ -456,7 +460,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     const choices = rivalChoices(world, rival, deps);
 
     expect(choices).toEqual([{ kind: 'transferOut', guildId: rival.id, heroId: leaving, toGuildId: taker.id }]);
-    const fee = transferFee(heroOf(world, leaving), world.guildmasters[taker.guildmasterId], deps);
+    const fee = transferFee(heroOf(world, leaving), world.guildmasters[taker.guildmasterId], world.turn, deps);
     expect(applyGuildAction(world, choices[0] as never, deps)).toMatchObject({ ok: true });
     expect(guildOf(world, rival.id).wealth).toBe(-100 + fee);
   });
@@ -467,7 +471,8 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     // The player's Heroes the cheapest in the world, so that the Rivals want one another's: a Rival
     // with an offer standing for the player's weighs no other Transfer until it goes.
     for (const heroId of player(document.world).rosterIds) {
-      for (const key of heroStatKeys) heroOf(document.world, heroId).stats[key] = 1;
+      const hero = heroOf(document.world, heroId);
+      hero.contract = { ...(hero.contract as Contract), wage: 1 };
     }
     document = withValid(document, deps);
     const events: TurnEvent[] = [];

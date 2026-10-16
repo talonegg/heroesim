@@ -133,8 +133,8 @@ Commands:
       Items, to the Market for what show market says each sells for. An Item a Hero carries
       is unequipped first. The Market's stock is drawn afresh each morning.
   transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in --years <years>
-      Transfer a Hero for a fee, twice their signing fee at the buying Guildmaster's
-      Negotiation. --to sends one of the player's Heroes to another Guild, which pays; --in
+      Transfer a Hero for a fee, the wages left on their Contract times the Transfer fee
+      factor at the buying Guildmaster's Negotiation; none once it has ended. --to sends one of the player's Heroes to another Guild, which pays; --in
       takes a Hero from another Guild's Roster on a Contract of --years years (a length the
       rules offer), and the player's Guild pays the fee show roster <guildId> and
       show hero <heroId> give for them; the other Guild's Disposition chooses the length of

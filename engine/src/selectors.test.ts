@@ -19,6 +19,8 @@ import {
   releaseWarning,
   signingFee,
   signingRefusal,
+  transferFee,
+  transferPremium,
   unattachedHeroes,
   unsignableHeroes,
   hallUpkeepParts,
@@ -648,6 +650,51 @@ describe('offeredQuests (DL-38)', () => {
 
     expect(offeredQuests(world).map((quest) => quest.id)).toEqual([third, second, ...rest]);
     expect(offeredQuests({ board: [], quests: world.quests })).toEqual([]);
+  });
+});
+
+// DL-318 (Q11): the Transfer fee is the wages left × transferFeeFactor × (1 + the premium) × (1 − Negotiation), rounded down once.
+describe('transferFee and transferPremium (Q11, DL-318)', () => {
+  // Wage Days 9, 19, 29, ...; a Contract of 360 Days is charged on 36 of them: 22 × 36 = 792 left at Turn 0.
+  const deps = testDeps({ upkeepEveryDays: 10, transferFeeFactor: 0.3, negotiationRange: 0.1 });
+  const hero = (endDay: number, wage = 22) => ({ id: makeId('heroes', 1), contract: { wage, signedOnTurn: 0, years: 1, endDay } });
+  const [shrewd, soft, middling] = [{ stats: { negotiation: 20 } }, { stats: { negotiation: 1 } }, { stats: { negotiation: 10.5 } }];
+
+  test('is the wages left × transferFeeFactor, rounded down once, at the end', () => {
+    // 792 × 0.3 = 237.6.
+    expect(transferFee(hero(360), undefined, 0, deps)).toBe(237);
+    expect(transferFee(hero(360, 30), undefined, 0, deps)).toBe(324); // 30 × 36 × 0.3
+    const half = testDeps({ upkeepEveryDays: 10, transferFeeFactor: 0.5, negotiationRange: 0.1 });
+    expect(transferFee(hero(360), undefined, 0, half)).toBe(396);
+  });
+
+  test("is times the buying Guildmaster's Negotiation as signingFee applies it, still rounded down once", () => {
+    expect(transferFee(hero(360), shrewd, 0, deps)).toBe(213); // 237.6 × 0.9 = 213.84
+    expect(transferFee(hero(360), soft, 0, deps)).toBe(261); // 237.6 × 1.1 = 261.36
+    expect(transferFee(hero(360), middling, 0, deps)).toBe(237);
+  });
+
+  test('falls as the wages are charged, and is 0 once the Contract has ended or for a Hero with none', () => {
+    expect(transferFee(hero(360), undefined, 30, deps)).toBe(231); // 22 × 35 × 0.3
+    expect(transferFee(hero(19), undefined, 0, deps)).toBe(6); // one charge left: 22 × 0.3 = 6.6
+    expect(transferFee(hero(100), undefined, nightOf(100), deps)).toBe(0);
+    expect(transferFee(hero(100), shrewd, nightOf(100) + 500, deps)).toBe(0);
+    expect(transferFee({ id: makeId('heroes', 1), contract: null }, undefined, 0, deps)).toBe(0);
+  });
+
+  test("does not read the Hero's Level or Stats, only their Contract", () => {
+    const { world } = createWorld('fee-level', setup, deps).document;
+    const [row] = Object.values(world.heroes) as [Hero];
+    const contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 360 };
+    const low = { ...row, level: 1, contract };
+    const high = { ...row, level: 8, contract };
+    expect(transferFee(high, undefined, 0, deps)).toBe(transferFee(low, undefined, 0, deps));
+    expect(transferFee(high, undefined, 0, deps)).toBe(237);
+  });
+
+  test('the premium is a rule for each Hero giving 0, nothing stored on them', () => {
+    expect(transferPremium(hero(360))).toBe(0);
+    expect(transferPremium({ id: makeId('heroes', 2) })).toBe(0);
   });
 });
 

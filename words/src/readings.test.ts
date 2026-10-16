@@ -377,9 +377,9 @@ describe("a Hero's reading", () => {
     for (const rival of Object.values(document.world.guilds).filter((guild) => guild.id !== player(document).id)) {
       for (const heroId of rival.rosterIds) {
         const hero = document.world.heroes[heroId] as Hero;
-        const fee = transferFee(hero, buyer, deps);
+        const fee = transferFee(hero, buyer, document.world.turn, deps);
         expect(read(document, hero)).toMatchObject({ transferFee: fee, signing: null, guild: { id: rival.id, name: rival.name } });
-        if (transferFee(hero, guildmasterOf(rival, document.world), deps) !== fee) seller += 1;
+        if (transferFee(hero, guildmasterOf(rival, document.world), document.world.turn, deps) !== fee) seller += 1;
       }
     }
     expect(seller).toBeGreaterThan(0);
@@ -447,7 +447,7 @@ describe('the rows of a Roster and of the pool', () => {
       });
     }
     expect(rosterReading(reading, rival).map((row) => [row.id, row.transferFee])).toEqual(
-      rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, deps)]),
+      rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, document.world.turn, deps)]),
     );
   });
 

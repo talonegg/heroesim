@@ -179,7 +179,7 @@ export function rosterReading(reading: PlayerReading, guild: Guild): RosterRowRe
   return guild.rosterIds.flatMap((id) => {
     const hero = rowOf(world.heroes, id);
     if (hero === undefined) return [];
-    return [{ ...heroRow(reading, hero), transferFee: theirs ? transferFee(hero, guildmaster, deps) : null }];
+    return [{ ...heroRow(reading, hero), transferFee: theirs ? transferFee(hero, guildmaster, world.turn, deps) : null }];
   });
 }
 
@@ -293,7 +293,7 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
     injury: hero.injury === null ? null : { name: nameIn(content.injuries, hero.injury.typeKey), healsOnTurn: hero.injury.healsOnTurn },
     traits: heroTraits(content, hero),
     texts: heroAttributes.flatMap((attribute) => (hero[attribute] === '' ? [] : [{ label: descriptiveAttributeLabels[attribute], words: hero[attribute] }])),
-    transferFee: theirs ? transferFee(hero, guildmaster, deps) : null,
+    transferFee: theirs ? transferFee(hero, guildmaster, world.turn, deps) : null,
     signing: signs === null ? null : { fee: signingFee(hero, deps, guildmaster), signs },
     partyId: hero.partyId,
     died: hero.diedOnTurn,

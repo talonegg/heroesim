@@ -1499,7 +1499,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     ]);
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
-        const fee = transferFee(hero, guildmasterOf(other, document.world), deps);
+        const fee = transferFee(hero, guildmasterOf(other, document.world), document.world.turn, deps);
         return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`) };
       }),
     );
@@ -1555,7 +1555,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
 
     // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
     const termsOf = (hero: Hero) => defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, deps) }));
-    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, deps), terms: termsOf(theirs) });
+    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, document.world.turn, deps), terms: termsOf(theirs) });
     const refusal = signingRefusal(guild, pooled, defaultConfig);
     expect(heroPage(document, pooled.id)?.actions).toEqual({
       kind: 'pool',
@@ -1577,7 +1577,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const heroId = rival?.rosterIds[0];
     if (heroId === undefined) throw new Error('no Rival Hero');
     const page = heroPage(document, heroId);
-    const fee = transferFee(document.world.heroes[heroId] as Hero, buyer, deps);
+    const fee = transferFee(document.world.heroes[heroId] as Hero, buyer, document.world.turn, deps);
 
     expect(page?.fee).toBe(fee);
     expect(page?.actions).toMatchObject({ kind: 'rival', fee });

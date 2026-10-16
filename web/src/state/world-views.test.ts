@@ -467,7 +467,7 @@ describe('guildPage', () => {
 
     expect(page?.name).toBe(other.name);
     expect(page?.roster.map((row) => ({ heroId: row.heroId, fee: row.fee }))).toEqual(
-      other.rosterIds.map((heroId) => ({ heroId, fee: transferFee(document.world.heroes[heroId] as never, buyer, deps) })),
+      other.rosterIds.map((heroId) => ({ heroId, fee: transferFee(document.world.heroes[heroId] as never, buyer, document.world.turn, deps) })),
     );
     // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
     const player = playerOf(document);

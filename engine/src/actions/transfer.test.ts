@@ -18,7 +18,7 @@ import {
 } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
 import { addStack, holdings } from '../items.js';
-import { baseStat, dispositionOf, playerGuild, signingFee, transferFee } from '../selectors.js';
+import { baseStat, dispositionOf, playerGuild, signingFee, transferFee, wagesLeft } from '../selectors.js';
 import { testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { applyAction, type Action } from './action.js';
 import type { ActionResult, Rejection } from './result.js';
@@ -35,7 +35,7 @@ const pins: Partial<GameConfig> = {
   negotiationRange: 0,
   marketSize: 0,
   startingRosterSize: 4,
-  transferFeeFactor: 2,
+  transferFeeFactor: 0.3,
   transferMoraleCost: -15,
   transferRegardBand: 'warm',
   guildmasterRegardPerTransferDeal: 2,
@@ -180,7 +180,7 @@ describe('a Transfer out', () => {
     rival.wealth = 10_000;
     const [hero] = rosterOf(document.world, guild);
     if (hero === undefined) throw new Error('No Hero');
-    const fee = transferFee(hero, document.world.guildmasters[rival.guildmasterId], deps);
+    const fee = transferFee(hero, document.world.guildmasters[rival.guildmasterId], document.world.turn, deps);
     const wealth = { leaving: guild.wealth, joining: rival.wealth, total: totalWealth(document.world) };
 
     const { document: after, events } = accepted(applyAction(document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, deps));
@@ -269,7 +269,7 @@ describe('a Transfer out', () => {
       action: 'transferOut',
       reason: 'insufficient-wealth',
       guildId: rival.id,
-      fee: transferFee(hero, world.guildmasters[rival.guildmasterId], deps),
+      fee: transferFee(hero, world.guildmasters[rival.guildmasterId], world.turn, deps),
       wealth: 1,
     });
     rival.foldedOnTurn = 0;
@@ -288,7 +288,7 @@ describe('a Transfer in', () => {
     const [hero, friend] = rosterOf(document.world, rival) as [Hero, Hero];
     regardFor(friend, hero.id, 12);
     friend.morale = 50;
-    const fee = transferFee(hero, document.world.guildmasters[guild.guildmasterId], deps);
+    const fee = transferFee(hero, document.world.guildmasters[guild.guildmasterId], document.world.turn, deps);
     const wealth = { joining: guild.wealth, leaving: rival.wealth, total: totalWealth(document.world) };
 
     const { document: after, events } = accepted(applyAction(document, { kind: 'transferIn', guildId: guild.id, heroId: hero.id, years: 2 }, deps));
@@ -507,22 +507,24 @@ describe('a Hero just transferred is held on their new Roster for transferLockDa
   });
 });
 
-describe('transferFee (INPUTS 7.6, DL-43, DL-57)', () => {
-  test("is the signing fee's list price times transferFeeFactor, times the paying Guildmaster's Negotiation exactly as signingFee, rounded down once", () => {
-    const negotiating = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 2 });
+describe('transferFee (INPUTS 7.6, DL-43, DL-57 as amended by DL-318)', () => {
+  test("is the wages left on the Hero's Contract times transferFeeFactor, times the paying Guildmaster's Negotiation exactly as signingFee, rounded down once", () => {
+    const negotiating = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 0.3 });
     const { world } = created('fee', negotiating);
     const [hero] = rosterOf(world, firstRival(world)) as [Hero];
-    const list = listPrice(hero, negotiating.config, negotiating.content);
+    const { config, content } = negotiating;
+    const left = wagesLeft(hero, world.turn, config);
+    expect(left).toBeGreaterThan(0);
     const [shrewd, soft, middling] = [{ stats: { negotiation: 20 } }, { stats: { negotiation: 1 } }, { stats: { negotiation: 10.5 } }];
 
-    expect(transferFee(hero, undefined, negotiating)).toBe(Math.floor(list * 2));
-    expect(transferFee(hero, shrewd, negotiating)).toBe(Math.floor(list * 2 * 0.9));
-    expect(transferFee(hero, soft, negotiating)).toBe(Math.floor(list * 2 * 1.1));
-    expect(transferFee(hero, middling, negotiating)).toBe(Math.floor(list * 2));
-    // The signing fee shares the core and is what it was: the list price, the same Negotiation.
-    expect(signingFee(hero, negotiating, shrewd)).toBe(Math.floor(list * 0.9));
-    const triple = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 3 });
-    expect(transferFee(hero, shrewd, triple)).toBe(Math.floor(list * 3 * 0.9));
+    expect(transferFee(hero, undefined, world.turn, negotiating)).toBe(Math.floor(left * 0.3));
+    expect(transferFee(hero, shrewd, world.turn, negotiating)).toBe(Math.floor(left * 0.3 * 0.9));
+    expect(transferFee(hero, soft, world.turn, negotiating)).toBe(Math.floor(left * 0.3 * 1.1));
+    expect(transferFee(hero, middling, world.turn, negotiating)).toBe(Math.floor(left * 0.3));
+    // The signing fee stays the list price (Q12), the same Negotiation: no Contract in it.
+    expect(signingFee(hero, negotiating, shrewd)).toBe(Math.floor(listPrice(hero, config, content) * 0.9));
+    const half = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 0.5 });
+    expect(transferFee(hero, shrewd, world.turn, half)).toBe(Math.floor(left * 0.5 * 0.9));
   });
 });
 
@@ -545,8 +547,8 @@ describe("the fee every action charges is at the paying Guildmaster's Negotiatio
     for (const each of [guild, rival, other]) each.wealth = 100_000;
     /** The fee `payer` would pay for `hero`, having checked it differs from the payee's price and the list price. */
     const priced = (hero: Hero, payer: Guild, payee: Guild): number => {
-      const fee = transferFee(hero, gm(payer), negotiating);
-      expect(new Set([fee, transferFee(hero, gm(payee), negotiating), transferFee(hero, undefined, negotiating)]).size).toBe(3);
+      const fee = transferFee(hero, gm(payer), world.turn, negotiating);
+      expect(new Set([fee, transferFee(hero, gm(payee), world.turn, negotiating), transferFee(hero, undefined, world.turn, negotiating)]).size).toBe(3);
       return fee;
     };
     const [theirs] = rosterOf(world, rival) as [Hero];
@@ -613,7 +615,7 @@ describe('Transfer Offers (data-model §3.2)', () => {
 
   test('a Guild offers a fee for a Hero of a Guild that answers for itself: the row, standing through its third night, and nothing paid', () => {
     const { document, events, guild, rival, hero, offerId } = offered('offer');
-    const fee = transferFee(hero, document.world.guildmasters[rival.guildmasterId], deps);
+    const fee = transferFee(hero, document.world.guildmasters[rival.guildmasterId], document.world.turn, deps);
 
     expect(document.world.offers[offerId]).toEqual({
       id: offerId,
@@ -658,9 +660,9 @@ describe('Transfer Offers (data-model §3.2)', () => {
   test('accepted, the offering Guild pays the fee it offered, though the Hero would cost more now (DL-57 item 2)', () => {
     const { document, guild, rival, hero, offerId } = offered('accept-fixed');
     const fee = document.world.offers[offerId]?.fee ?? Number.NaN;
-    // The Hero gains Levels while the offer stands, so that their price today is dearer than the one offered.
-    heroOf(document.world, hero.id).level += 3;
-    const today = transferFee(heroOf(document.world, hero.id), document.world.guildmasters[rival.guildmasterId], deps);
+    // The Hero's wage rises while the offer stands (a renewal, DL-316), so that their price today is dearer than the one offered.
+    (heroOf(document.world, hero.id).contract as { wage: number }).wage += 10;
+    const today = transferFee(heroOf(document.world, hero.id), document.world.guildmasters[rival.guildmasterId], document.world.turn, deps);
     expect(today).toBeGreaterThan(fee);
     const wealth = { asked: guildOf(document.world, guild.id).wealth, offering: guildOf(document.world, rival.id).wealth };
 

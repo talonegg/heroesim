@@ -561,3 +561,51 @@ counters moved, 606 the same, saves +208 bytes. The payout reads 0 on its own li
 **Evidence.** Commit of this story; the S4 quick report; the epic's S4 boxes, all three met. Tests:
 `release.test.ts`, `selectors.test.ts`, the Treasury's and the counters'.
 Verified 2026-10-16 at 3a5e22c: the wages left re-derived against the wage Days and the night's expiry (the end Day's charge out, tonight's in until played, `>=` for `>` equivalent), the payout, the refusals, the effects' order, the warning, the floor the same night, no `hero.left-guild` reader missing a release, nobody releasing and play unchanged (`compare`: 0 counters moved); 27 mutations, 25 red, the Rival-seller count's reading of `hero.released` red only after a test was added; fixed: that test, and the harness README's recovery line.
+
+## DL-318 — v1.2.3-S5 built: the Transfer fee from the wages left
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** an agent (the epic's S5); the owner, the factor unfitted (DL-312)
+
+**Context.** The Transfer fee is to be the wages left on the Hero's Contract, not twice the signing fee's list
+price (DL-294 item 6, Q11, Q12), and `transferFeeFactor` takes its new meaning at 0.3, unfitted until `v1.2.4`
+(Q-F, DL-312). S5 builds it test first and moves every caller.
+
+**Decision.**
+
+1. **`transferFee`** `(hero, buyer, turn, deps)`: `wagesLeft` (DL-317) × `transferFeeFactor` × (1 +
+   `transferPremium`) × (1 − the buyer's Negotiation, read by `feeFactor` as `signingFee` reads it), floored once;
+   0 once expired or with no Contract. Level and Stats are in it only through the wage signed. Supersedes DL-57
+   item 2 in part (its core; the Negotiation, the rounding and an offer's fee fixed when made stand).
+2. **`transferPremium(hero)`**: a rule for each Hero giving 0, nothing stored, ready for a mechanic to set it.
+3. **Every caller on it**, each passing `world.turn`: `feeFor` (`transferIn`, `transferOut`, `offerTransfer`),
+   `dearestWanted` (the Rivals' search and the Generator's `transferBid`), `debtTransfer`, `rosterReading` and
+   `heroReading` (the CLI's and the page's readings), the page's `transferTo`. `acceptTransfer` pays the fee the
+   Offer fixed. The CLI's usage for `transfer` says the wages left, no longer twice the signing fee.
+4. **The signing fee stays** (Q12): `signingFee` holds the list price; the shared `heroFee` is gone.
+5. **`transferFeeFactor` 0.3** (from 2) through `config set` and `config finish`: config 37 → 38.
+
+*Judgement calls, for the owner to see.*
+- `turn` is the third argument, beside `releasePayout`'s; `heroFee` was inlined into `signingFee`, its one use left.
+- A Hero Out of Contract costs 0, so a Rival's search and the Generator may bid for one for nothing (a priced
+  `transferIn`, as for any Hero) until S6 builds the free Offer.
+- Arranged (DL-315's note), assertions unchanged: `transfer.test.ts`'s `dearest` made by the wage and the longest
+  Contract, not by Stats; the pins of `transferFeeFactor: 2` in `transfer.test.ts`, `actions/transfer.test.ts` and
+  `phases/transfers.test.ts` now 0.3; `accept-fixed` dears the Hero by a wage rise, not Levels. Rewritten to the
+  new rule: `actions/transfer.test.ts`'s fee test. Also arranged: `cli/src/commands/transfer.test.ts`'s offer
+  test (the dearest wage, not Stats) and `web/e2e/layout.spec.ts`'s Rival Roster check, which now picks a fee
+  with both Gold and Silver, a fee being under a Gold at times. Re-recorded, old values in its comment:
+  `quests-conclude.test.ts`'s three fingerprints, moved by each Transfer's new fee. The citations baseline
+  1,481 → 1,480, a story line rewritten (`tools/decisions/story-citations.json`).
+
+**Consequences.** Config 38: every game's fingerprint moves (the config in each save). Quick run, 2 years
+(`v1.2.3-s5-quick-2026-10-16`, `9de5a850…`) against S4's (`8a58f74a…`), refusals 0, the Gate PASS:
+- Rival-to-Rival Transfers 10 → 7, their fees 3,625 → 1,442 (a mean 363 → 206).
+- Offers to the player (all declined by the policy) 7 → 11, their fees 2,470 → 1,311 (a mean 353 → 119).
+- Rival folds 0 → 0; no game ended, 4 of 4 survived.
+- Wages: the player's 70,977 → 70,977, the Rivals' 291,865 → 299,935 (+2.8%, the Rivals' larger Rosters).
+- A fee at 0.3 is cheaper than the old twice-list-price at two years in, so the Rivals buy fewer Heroes, hire
+  more from the pool (Rival signing 3,097 → 5,749) and spend more on Items. Unfitted (DL-312): `v1.2.4` tunes it.
+
+**Evidence.** Commit of this story; the S5 quick report; the epic's S5 boxes, all three met. The fee's tests were
+written first and red against the old code (`selectors.test.ts` 5 failed, `actions/transfer.test.ts` 1), then
+green. Tests: `selectors.test.ts`, `actions/transfer.test.ts`, `transfer.test.ts` and the callers'.

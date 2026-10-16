@@ -23,7 +23,7 @@ import { transfers } from './transfers.js';
 const pins: Partial<GameConfig> = {
   negotiationRange: 0,
   marketSize: 0,
-  transferFeeFactor: 2,
+  transferFeeFactor: 0.3,
   transferGeneratorEveryDays: 7,
   transferGeneratorChance: 1,
   rivalRosterMin: 0,
@@ -115,7 +115,7 @@ function dearest(world: World, bidder: Guild, seller: Guild, with_: EngineDeps):
   const offers = seller.rosterIds
     .map((heroId) => heroOf(world, heroId))
     .filter((hero) => hero.partyId === null && hero.transferredOnTurn === null)
-    .map((hero) => ({ heroId: hero.id, fee: transferFee(hero, guildmaster, with_) }))
+    .map((hero) => ({ heroId: hero.id, fee: transferFee(hero, guildmaster, world.turn, with_) }))
     .filter(({ fee }) => fee <= bidder.wealth)
     .sort((a, b) => b.fee - a.fee || compareByCodeUnit(a.heroId, b.heroId));
   const [first] = offers;
@@ -362,7 +362,7 @@ describe('when there is no bid', () => {
     const with_ = deps({}, withDispositions({ recruitThreshold: 0 }, heavy));
     expect(deals('pay', with_, () => undefined)).toBe(true);
     expect(deals('poor', with_, (world, ambitious, miserly) => {
-      const cheapest = Math.min(...miserly.rosterIds.map((heroId) => transferFee(heroOf(world, heroId), guildmasterOf(ambitious, world), with_)));
+      const cheapest = Math.min(...miserly.rosterIds.map((heroId) => transferFee(heroOf(world, heroId), guildmasterOf(ambitious, world), world.turn, with_)));
       ambitious.wealth = cheapest - 1;
     })).toBe(false);
     expect(deals('home', with_, (world, _ambitious, miserly) => {

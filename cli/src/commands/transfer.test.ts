@@ -91,7 +91,7 @@ describe('transfer', () => {
     writeFileSync(current(), serialise(edited));
     const [heroId] = guildOf(edited.world, reckless).rosterIds as [HeroId];
     const [ownId] = player.rosterIds as [HeroId];
-    const listPrice = transferFee(heroOf(edited.world, heroId), undefined, { config: { ...defaultConfig, ...edited.meta.config }, content });
+    const listPrice = transferFee(heroOf(edited.world, heroId), undefined, edited.world.turn, { config: { ...defaultConfig, ...edited.meta.config }, content });
 
     const roster = play(['show', 'roster', reckless]).out.split(/\r?\n/);
     // The Transfer fee column, in letters (`5g 20s`), back to Silver.
@@ -233,7 +233,7 @@ describe('Transfer Offers', () => {
   // Fast forwards up to twenty runs of thirty Turns: a long play beside the whole suite's other workers (DL-304).
   test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', { timeout: 30_000 }, () => {
     newWorld((world) => {
-      // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
+      // A rich ambitious Rival, and one of the player's Heroes the dearest in the world (by wage): when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
       // the tries), it offers for them. Its Hall is built and its Heroes are outfitted, since it
       // builds and buys gear before it weighs a Transfer (DL-58).
@@ -247,7 +247,8 @@ describe('Transfer Offers', () => {
       }
       const [heroId] = thePlayer(world).rosterIds as [HeroId];
       const hero = heroOf(world, heroId);
-      for (const key of Object.keys(hero.stats)) hero.stats[key] = 20;
+      // The fee reads the wages left on the Contract (DL-318): the dearest wage, on the longest Contract.
+      hero.contract = { wage: 100, signedOnTurn: 0, years: 3, endDay: 1_080 };
     });
 
     let stop = '';

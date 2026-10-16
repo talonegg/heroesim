@@ -872,8 +872,9 @@ for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-2
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
-Moving a Hero between Guilds for a fee, in either direction: the fee is read from the wages left on
-the Hero's Contract, and a Hero Out of Contract moves for no fee (DL-294 item 6, to be built).
+Moving a Hero between Guilds for a fee, in either direction: the fee is the wages left on the Hero's
+Contract times a factor, at the buyer's Negotiation, so a Hero Out of Contract costs none (DL-294 item 6,
+DL-318; the free Offer for them is to be built).
 Transferring out a Hero costs the Morale of each Hero who stays and held them in high Regard (R28,
 pre-M0 review D5); by DL-82 it also lowers those Heroes' Regard for the Guildmaster, and by DL-85
 Heroes content or close with their Roster refuse to leave (both to be built).

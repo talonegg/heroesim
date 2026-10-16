@@ -581,9 +581,9 @@ export interface GameConfig {
 
   // ── `transfers`: Transfers (R28, INPUTS 7.6, pre-M0 review D5, DL-57) ─────────────────────────
   /**
-   * A Transfer fee is the Hero's signing fee before Negotiation (`signingFee`'s list price) times
-   * this, times the buying Guildmaster's Negotiation, rounded down once (`transferFee`; INPUTS 7.6:
-   * two signing fees).
+   * A Transfer fee is the wages left on the Hero's Contract (`wagesLeft`) times this, times the
+   * buying Guildmaster's Negotiation, rounded down once (`transferFee`; Q11, DL-318). Unfitted until
+   * `v1.2.4` tunes it with the wages (DL-312).
    */
   transferFeeFactor: number;
   /**

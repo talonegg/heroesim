@@ -296,7 +296,7 @@ function dearestWanted(
   let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
   for (const { guild, byOffer } of sellers) {
     for (const hero of transferable(world, guild, deps.config)) {
-      const fee = transferFee(hero, guildmaster, deps);
+      const fee = transferFee(hero, guildmaster, world.turn, deps);
       if (fee > budget) continue;
       if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
         wanted = { hero, fee, byOffer };
@@ -368,7 +368,7 @@ function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId
     if (budget === null || !transferAnswer(world, other, 'in', deps).consents) continue;
     const guildmaster = guildmasterOf(other, world);
     for (const hero of heroes) {
-      const fee = transferFee(hero, guildmaster, deps);
+      const fee = transferFee(hero, guildmaster, world.turn, deps);
       if (fee > budget) continue;
       if (best === null || fee > best.fee || (fee === best.fee && compareByCodeUnit(hero.id, best.heroId) < 0)) {
         best = { heroId: hero.id, toGuildId: other.id, fee };

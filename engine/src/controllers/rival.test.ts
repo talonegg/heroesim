@@ -801,7 +801,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     const other = rivalsOf(world).find((guild) => guild.id !== rival.id) as Guild;
     const [dearest] = other.rosterIds as [HeroId];
     for (const key of Object.keys(heroOf(world, dearest).stats)) heroOf(world, dearest).stats[key] = 20;
-    const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), dealing);
+    const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), world.turn, dealing);
     // Enough for the dearest Hero's fee, but not with the reserve kept.
     rival.wealth = fee + reserve - 1;
 

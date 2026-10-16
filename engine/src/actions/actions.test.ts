@@ -156,7 +156,7 @@ describe('applyActions', () => {
     /** The Guild's Wealth one short of the Transfer fee its Guildmaster's Negotiation sets for `heroId`. */
     const shortOfFee = (world: World, guildId: GuildId, heroId: HeroId): void => {
       const guild = world.guilds[guildId] as Guild;
-      guild.wealth = transferFee(world.heroes[heroId] as Hero, world.guildmasters[guild.guildmasterId], deps) - 1;
+      guild.wealth = transferFee(world.heroes[heroId] as Hero, world.guildmasters[guild.guildmasterId], world.turn, deps) - 1;
     };
     const cases: [GuildAction, string, ((world: World) => void)?][] = [
       [{ kind: 'dispatch', guildId: player, questId: ids.offeredQuest, heroIds: [idle] }, 'requirement-unmet'],
