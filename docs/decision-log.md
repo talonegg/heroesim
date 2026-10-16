@@ -404,3 +404,4 @@ text names a Contract, so no view changes. S2 to S8 `compare` against the two re
 `93c75e85…`) and `harness/reports/v1.2.3-s1-baseline-quick4-2026-10-16.md` and `.json` (fingerprint
 `8e5f31e3…`), committed in this story's commit; the doctors' and checks' readings in that message; the
 epic's S1 boxes.
+Verified 2026-10-16 at 0367bf5: the reports' fingerprints recompute and every claim held but these, fixed in `CONTEXT.md` and `requirements.md`: unbuilt rules stated with no "to be built" (Contract, Under Offer, Upkeep, Treasury, an Offer's new ends), renewal at any time without Q-A's "once home" (the Contract, R45), the Transfer fee called the wages left rather than read from them, the Market's rule cited to DL-305 for DL-301 (and built, not to be built as item 2 says), four _Avoid_ words unqualified that the page uses for Offers, Quests and Items, and §2's row naming no backlog.

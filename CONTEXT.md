@@ -44,17 +44,18 @@ _Avoid_: Team, Squad, Stable
 A Hero's term with their Guild: a wage charged every 10 Days, set at signing from the Hero's Level
 and Stats and fixed for the term, and a length of 1, 2 or 3 years that the signer chooses, a longer
 one cheaper a year. A Hero on a Roster holds one; a Hero on no Roster holds none. The Guild may
-renew it at any time, replacing the term at the rule's price with no fee, or release the Hero for
-most of the wages left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6, to be
-built). Not the module contract (ADR-0005, `engine/src/modules.ts`), the interface a Module keeps,
-which is no term and stays lower case.
+renew it at any time the Hero is home, replacing the term at the rule's price with no fee, or
+release the Hero for most of the wages left; once its end Day passes, the Hero is Out of Contract
+(DL-294 item 6 and its note of 2026-10-12, the whole entry to be built). Not the module contract
+(ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
+case.
 _Avoid_: Deal, Agreement, Lease
 
 **Out of Contract**:
 A Hero whose Contract has ended: still on their Guild's Roster and playing, at a wage repriced at
 expiry with a premium over the one-year rate (DL-311 item 1), and open to a free Offer that their
 Guild can answer only by renewing (DL-294 item 6, to be built).
-_Avoid_: Expired, Lapsed
+_Avoid_: Expired, Lapsed (of the Hero; a Contract, a Quest or an Offer expires)
 
 **Party**:
 The Heroes a Guild assigns to one Quest, existing for that Quest's duration: no fewer than its
@@ -779,16 +780,17 @@ _Avoid_: Copper, Penny, Cent
 **Treasury**:
 The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
 History; a part of the Guild's view (DL-111, DL-116). Each change stands on a line of income (Quest
-rewards, Item sales and Transfers out) or of expenses (wages, release payouts, the Hall's upkeep, the
-Improvements' upkeep, Item purchases, Improvements, signing fees and Transfers in), or on Other, a
-module's; the Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302).
-A release's payout has a line of its own (DL-311 item 6, to be built).
+rewards, Item sales and Transfers out) or of expenses (wages, the Hall's upkeep, the Improvements'
+upkeep, Item purchases, Improvements, signing fees and Transfers in), or on Other, a module's; the
+Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302). A release's
+payout is an expense line of its own (DL-311 item 6, to be built).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
-The recurring cost of keeping a Guild: the wages the Contracts set, charged every 10 Days, and the
-Hall's upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). Out of
-Contract, a Hero's wage is repriced and still counts (DL-294 item 6, DL-311 item 1, to be built).
+The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
+upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). Each wage is
+the one its Hero's Contract sets, repriced Out of Contract and still charged (DL-294 item 6, DL-311
+item 1, to be built).
 One Upkeep, as a measure, is a month of them: three charges of wages and one of the Hall's, and
 every reading of the Guild's reserves in Upkeeps counts so (DL-300).
 _Avoid_: Wages (alone), Salary, Running costs
@@ -818,7 +820,7 @@ _Avoid_: Staff, Employee, NPC, Hireling
 
 **Market**:
 Where the Guild buys and sells Items. An Item sells for less than it costs to buy; a loot-only Item,
-which has no price to buy at, sells at its value when its Guild folds (DL-294 item 5, DL-305's note).
+which has no price to buy at, sells at its value when its Guild folds (DL-294 item 5, DL-301).
 _Avoid_: Shop, Store, Exchange, Bazaar
 
 **Market Engine**:
@@ -870,27 +872,27 @@ built).
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
-Moving a Hero between Guilds for a fee, in either direction: the fee is the wages left on the
-Hero's Contract, and a Hero Out of Contract moves for no fee (DL-294 item 6, to be built).
+Moving a Hero between Guilds for a fee, in either direction: the fee is read from the wages left on
+the Hero's Contract, and a Hero Out of Contract moves for no fee (DL-294 item 6, to be built).
 Transferring out a Hero costs the Morale of each Hero who stays and held them in high Regard (R28,
 pre-M0 review D5); by DL-82 it also lowers those Heroes' Regard for the Guildmaster, and by DL-85
 Heroes content or close with their Roster refuse to leave (both to be built).
 _Avoid_: Sell, Buy, Trade, Signing, Poach (until poaching is a distinct thing)
 
 **Transfer Offer**:
-A pending bid for a Hero, held until accepted, declined, expired, renewed or taken. A priced Offer
-costs the Transfer fee; a free one, at no fee, is made for a Hero Out of Contract and stands for
-`transferOfferDays` Days, and the Hero is taken when it ends unless their Guild has renewed them
-(DL-294 item 6, to be built). A Rival answers a bid at once and the player's Guild through Transfer
-Offers: a difference of controller, not a rule about the player's Guild (DL-57, DL-85). On the page,
-Offer alone is short for it (DL-125).
+A pending bid for a Hero, held until accepted, declined, expired, or (to be built) renewed or
+taken. A priced Offer costs the Transfer fee; a free one, at no fee, is made for a Hero Out of
+Contract and stands for `transferOfferDays` Days, and the Hero is taken when it ends unless their
+Guild has renewed them (DL-294 item 6, to be built). A Rival answers a bid at once and the player's
+Guild through Transfer Offers: a difference of controller, not a rule about the player's Guild
+(DL-57, DL-85). On the page, Offer alone is short for it (DL-125).
 _Avoid_: Bid, Request
 
 **Under Offer**:
 A Hero a Transfer Offer stands for, free or priced, and so kept from every Party until the Offer
-ends (DL-311 item 4). A Hero away on a Quest may be the subject of one; they are Under Offer from
-their return, the Offer's Days counted from then (DL-311 item 4, to be built).
-_Avoid_: Reserved, Pending, Held
+ends (DL-311 item 4, to be built). A Hero away on a Quest may be the subject of one; they are Under
+Offer from their return, the Offer's Days counted from then (to be built).
+_Avoid_: Reserved, Pending, Held (of the Hero; an Offer is pending, an Item held)
 
 **Transfer lock**:
 The Days after a Transfer during which that Hero cannot be transferred again: 90, the same for
