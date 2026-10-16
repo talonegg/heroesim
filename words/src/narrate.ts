@@ -19,6 +19,7 @@
 import {
   compareByCodeUnit,
   encounterForm,
+  freeOffer,
   isId,
   isModuleEvent,
   parseId,
@@ -118,6 +119,7 @@ export interface CommandSlot {
     | 'show-board'
     | 'show-pool'
     | 'answer-offer'
+    | 'answer-free-offer'
     | 'show-roster'
     | 'show-rosters'
     | 'show-market'
@@ -629,13 +631,17 @@ export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'her
       // M9-S1: `--until staffable`, whether or not a Party is out.
       return say`Stopped: a Quest to staff: ${guild(stop.guildId)}'s Heroes at home could go on ${quests(stop.questIds)}${next('show-board')}.`;
     case 'transfer-offer': {
-      // M6-S2: each Offer that arrived, who made it, for whom and until when.
-      const offers = stop.offerIds.map((offerId): Sentence => {
-        const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
+      // M6-S2: each Offer that arrived, who made it, for whom and until when; a free Offer is answered by
+      // renewing, never declined (DL-319, DL-323).
+      const standing = stop.offerIds.map((offerId) => (Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined));
+      const offers = stop.offerIds.map((offerId, index): Sentence => {
+        const offer = standing[index];
         if (offer === undefined) return [{ kind: 'offer', id: offerId, withdrawn: true }];
-        return say`${guild(offer.toGuildId)} offers ${coinWords(offer.fee)} for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
+        const fee = freeOffer(world, offer) ? 'no fee' : coinWords(offer.fee);
+        return say`${guild(offer.toGuildId)} offers ${fee} for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
       });
-      return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next('answer-offer')}`;
+      const allFree = standing.every((offer) => offer === undefined || freeOffer(world, offer)) && standing.some((offer) => offer !== undefined);
+      return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next(allFree ? 'answer-free-offer' : 'answer-offer')}`;
     }
     case 'contract-expired':
       // DL-316: the Heroes whose Contracts ended tonight, Out of Contract until renewed.

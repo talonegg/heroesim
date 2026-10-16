@@ -287,10 +287,16 @@ describe('offersView', () => {
       free: true,
       fee: 0,
       sentence: `${rival.name} offers no fee for ${hero.name}, who is Out of Contract, until ${nightOfTurn(offer.expiresOnTurn, defaultConfig)}: 2 Days left to renew them.`,
+      // Accepting lets the Hero go at once (DL-319's judgement call), not when the Offer runs out.
+      confirm: expect.stringMatching(new RegExp(`^Accepting sends ${hero.name} to ${rival.name} now, for no fee, rather than when the Offer runs out\\. Their Gear stays`)),
     });
     expect(row?.terms).toEqual(
       defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(offered.document.world, hero, guild, years, deps) })),
     );
+
+    // On its last Day it can still be answered, until that night: never "0 Days left".
+    const lastDay = { ...offered.document, world: { ...offered.document.world, turn: offer.expiresOnTurn - 2 } };
+    expect(offersView(lastDay)?.offers[0]?.sentence).toMatch(/: the last Day to renew them\.$/);
   });
 
   test('reads the calendar once, however many Offers stand (DL-214)', () => {

@@ -87,8 +87,7 @@ import {
   dateOfDay,
   dateOfTurn,
   consumableEffectWords,
-  daysUntil,
-  daysWords,
+  daysLeftWords,
   endedSentence,
   fatigueBandNames,
   formEffectWords,
@@ -1387,7 +1386,7 @@ function contractOf(hero: Hero, player: Guild, reading: PageReading, document: W
     const paid = `${coinWords(wage)} every ${config.upkeepEveryDays} Days`;
     words = outOfContract(hero, world.turn)
       ? `Out of Contract since ${nightOfDay(endDay, config)}: wage ${paid}.`
-      : `Wage ${paid}, to ${nightOfDay(endDay, config)}: ${daysWords(daysUntil(world.turn, endDay))} left.`;
+      : `Wage ${paid}, to ${nightOfDay(endDay, config)}: ${daysLeftWords(world.turn, endDay)}.`;
   }
   const warning = releaseWarning(world, deps, player, hero);
   const payout = releasePayout(hero, world.turn, config);

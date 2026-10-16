@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs';
-import { coinWords } from '@heroesim/words';
+import { coinWords, silverPerGold } from '@heroesim/words';
 import { applyAction, createWorld, defaultConfig, serialise, turnsPerDay, type Guild, type Hero, type HeroId, type WorldDocument } from '@heroesim/engine';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
@@ -163,7 +163,10 @@ test('a Hero is renewed for three years from their page, the Roster’s Table gi
   await ask.getByRole('button', { name: `Release ${released}`, exact: true }).click();
   await idle(page);
   expect(payout).not.toBe('');
-  expect(await wealthOf(page)).toBeLessThan(before);
+  // The Wealth falls by the payout the page asked with, in whole Silver.
+  const paid = Number(/(\d+) Gold/.exec(payout)?.[1] ?? 0) * silverPerGold + Number(/(\d+) Silver/.exec(payout)?.[1] ?? 0);
+  expect(paid).toBeGreaterThan(0);
+  await expectWealth(page, before - paid);
   await page2.getByRole('button', { name: 'Back to the Roster' }).click();
   await expect((await rosterList(page)).getByRole('button', { name: released, exact: true })).toHaveCount(0);
   await expect(historyText(await history(page), new RegExp(`^The Lantern released ${escaped(released)}, paying ${amountPattern}\\.$`))).toHaveCount(1);
@@ -192,6 +195,7 @@ test('a free Offer for a Hero Out of Contract says so with its Days left, has no
   await expect(offers.getByText(new RegExp(`^${escaped(bidderName)} offers no fee for ${escaped(name)}, who is Out of Contract, until the night of Year 1 Day \\d+: 2 Days left to renew them\\.$`))).toBeVisible();
   await expect(offers.getByRole('button', { name: `Decline ${bidderName}'s Offer for ${name}` })).toHaveCount(0);
   await expect(offers.getByRole('button', { name: `Accept ${bidderName}'s Offer for ${name}…` })).toBeVisible();
+  await expect(offers.getByTestId('wages-by-length')).toContainText(/^Contract wage by length: 1 Year .+, 2 Years .+, 3 Years .+\.$/);
   await expectNoHorizontalOverflow(page, 'a free Offer');
   await expectTargets(page, 'a free Offer');
 

@@ -1766,6 +1766,9 @@ describe('the Contract on the Roster and on a Hero’s page (DL-323)', () => {
     expect(page(second).words).toBe(
       `Out of Contract since ${nightOfDay(0, defaultConfig)}: wage ${coinWords((second.contract as NonNullable<Hero['contract']>).wage)} ${every}.`,
     );
+    // The end Day's morning: the Contract stands until that night, its last Day, never "0 Days left".
+    document.world.turn = 0;
+    expect(page(second).words).toMatch(new RegExp(`, to ${nightOfDay(0, defaultConfig)}: the last Day\\.$`));
   });
 
   test("gives the renewal's wage at each length the config offers, by the rule the player's Guild signs by", () => {

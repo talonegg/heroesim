@@ -27,6 +27,7 @@ const commands: Readonly<Record<CommandSlot['command'], string>> = {
   'show-board': ' (show board)',
   'show-pool': ' (show pool)',
   'answer-offer': ' Answer with accept --offer <id> or decline --offer <id> (show offers).',
+  'answer-free-offer': ' Answer with renew --hero <id> --years <years>, or accept --offer <id>: a free Offer is not declined (show offers).',
   'show-roster': ' (show roster)',
   'show-rosters': ' (show roster <guildId>)',
   'show-market': ' (show market)',

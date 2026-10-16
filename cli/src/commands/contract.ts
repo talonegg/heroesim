@@ -33,12 +33,13 @@ export function releaseHero(command: Extract<Command, { name: 'release' }>, docu
   const setting = { world, content: deps.content, calendar: deps.config };
   const player = playerGuild(world);
   if (player === undefined) return { ok: false, problem: refusalLine({ action: 'release', reason: 'no-player-guild' }, setting) };
+  const result = applyAction(document, { kind: 'release', guildId: player.id, heroId: command.hero }, deps);
+  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
+  // Warned only for a release the engine would make, so that --confirm is never asked for one it refuses.
   const hero = rowOf(world.heroes, command.hero);
   const warning = hero === undefined || command.confirm ? null : releaseWarning(world, deps, player, hero);
   if (hero !== undefined && warning !== null) {
     return { ok: false, problem: `${releaseWarningWords(`${hero.name} (${hero.id})`, warning)} Add --confirm to release them.` };
   }
-  const result = applyAction(document, { kind: 'release', guildId: player.id, heroId: command.hero }, deps);
-  if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }

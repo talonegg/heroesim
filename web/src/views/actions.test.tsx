@@ -527,20 +527,24 @@ describe('the Contract', () => {
     expect(within(page).getByRole('button', { name: `Release ${away.name}…` }).hasAttribute('disabled')).toBe(true);
   });
 
-  test('a free Offer says so with its Days left and is answered by Renew, never Decline; the renewal withdraws it', async () => {
+  test('a free Offer says so with its Days left and the wage at each length, and is answered by Renew at the length chosen, never Decline; the renewal withdraws it', async () => {
     renderGame(withFreeOffer(started()));
     const offers = section('Transfer Offers');
     const sentence = within(offers).getByText(/ offers no fee for .+, who is Out of Contract, until the night of Year 1 Day 3: 2 Days left to renew them\.$/).textContent ?? '';
     const [, guildName = '', name = ''] = /^(.+) offers no fee for (.+), who is/.exec(sentence) ?? [];
     expect(within(offers).queryByRole('button', { name: `Decline ${guildName}'s Offer for ${name}` })).toBeNull();
     expect(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` })).toBeDefined();
+    // The renewal's wage at each length, as on the Hero's page.
+    const wage = wageFor(offers, 3);
 
+    fireEvent.change(within(offers).getByLabelText(`Contract length for ${name}`), { target: { value: '3' } });
     fireEvent.click(within(offers).getByRole('button', { name: `Renew ${name}` }));
     await idle();
 
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
-    logSays(new RegExp(`^The Lantern signed ${name} again, on a Contract at .+\\.$`));
+    // Renewed on Year 1 Day 1 for the three years chosen, at the wage listed for them.
+    logSays(new RegExp(`^The Lantern signed ${name} again, on a Contract at ${coinWords(wage)} to Year 4 Day 1\\.$`));
     expect(inHistory(new RegExp(`^${guildName}'s Offer for ${name} was withdrawn: the Hero's Contract was renewed\\.$`))).toBeDefined();
   });
 

@@ -274,6 +274,17 @@ describe('parseArgs', () => {
     expect(said).toContain("guilds shows every Guild with its Wealth, Fame and Roster, its Upkeep, a month of its wages and its Hall's upkeep, and how many of its Heroes are Out of Contract");
   });
 
+  test('the usage promises nothing the CLI lacks: no wage show hero does not give, no Hero Out of Contract taken in; its lines wrapped (DL-323)', () => {
+    const said = usage.replace(/\s+/g, ' ');
+    // show hero gives the Days left, not the wage a renewal would sign at; the History says it once signed.
+    expect(said).not.toContain('the wage show hero gives');
+    // transfer --in refuses a Hero Out of Contract (out-of-contract), and the CLI makes no free Offer.
+    expect(said).toContain('--in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI does not make');
+    // Gear and the Holding are glossary terms (ui-text.md).
+    expect(said).toContain("their Gear goes back to the Guild's Holding");
+    expect(usage.split('\n').filter((line) => line.length > 100)).toEqual([]);
+  });
+
   test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas', () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--modules', 'probe')).toEqual({
       name: 'new',

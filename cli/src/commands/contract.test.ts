@@ -8,6 +8,7 @@ import { nightOf } from '@heroesim/engine/testing';
 import { coinWords } from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
 import { exitCodes, playground, rowOf, thePlayer } from '../play.test-support.js';
+import { releaseHero } from './contract.js';
 
 const content = loadContent();
 
@@ -136,6 +137,18 @@ describe('release', () => {
     const done = play(['release', '--hero', first, '--confirm']);
     expect(done).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(thePlayer(document().world).rosterIds).toEqual([]);
+  });
+
+  test("the Guild's last Hero away is refused as away, with no warning asking for --confirm", () => {
+    const { first } = newWorld();
+    onlyHero(first);
+    const away = structuredClone(document());
+    (away.world.heroes[first] as Hero).partyId = 'party-000001' as never;
+
+    const outcome = releaseHero({ name: 'release', save: 'current', hero: first, confirm: false }, away, { config: { ...defaultConfig, ...away.meta.config }, content });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.ok ? '' : outcome.problem).toMatch(/is away with a Party \(party-000001\); a Hero is released only in the Hall\.$/);
   });
 
   test('--confirm is harmless where there is no warning, and a Hero of no Roster is refused in the refusals’ words', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { contractWords, daysUntil, releaseWarningWords } from './contracts.js';
+import { contractWords, daysLeftWords, daysUntil, releaseWarningWords } from './contracts.js';
 
 // A Contract as a table cell and a sentence read it (DL-323): the Days left, Out of Contract, Under
 // Offer, and the release warning said as an estimate. A Day is three Turns.
@@ -13,6 +13,12 @@ describe('the Days left', () => {
     expect(daysUntil(3 * 360, 360)).toBe(0);
     expect(daysUntil(3 * 400, 360)).toBe(0);
   });
+
+  test('in words: the Days left, or the last Day on the end Day, whose night still counts (DL-323)', () => {
+    expect(daysLeftWords(0, 360)).toBe('360 Days left');
+    expect(daysLeftWords(3 * 359, 360)).toBe('1 Day left');
+    expect(daysLeftWords(3 * 360 + 2, 360)).toBe('the last Day');
+  });
 });
 
 describe("a Hero's Contract as a cell", () => {
@@ -21,8 +27,9 @@ describe("a Hero's Contract as a cell", () => {
     expect(contractWords(contract(360), 3 * 359, false)).toBe('1 Day left');
   });
 
-  test('says Out of Contract from the night of the end Day, not before', () => {
-    expect(contractWords(contract(10), 3 * 10, false)).toBe('0 Days left');
+  test('says Out of Contract from the night of the end Day, not before, the end Day itself the last', () => {
+    expect(contractWords(contract(10), 3 * 10, false)).toBe('The last Day');
+    expect(contractWords(contract(10), 3 * 10 + 1, true)).toBe('The last Day, Under Offer');
     expect(contractWords(contract(10), 3 * 10 + 2, false)).toBe('Out of Contract');
     expect(contractWords(contract(10), 3 * 30, false)).toBe('Out of Contract');
   });

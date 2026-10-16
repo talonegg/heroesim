@@ -67,8 +67,9 @@ Commands:
       and what the next grade costs and its upkeep; pool marks the Heroes who will not yet
       sign for the player's Guild's Fame; patrons shows each Patron's Regard for the
       player's Guild; board shows the Quests on offer, each with its Tier and whether it is
-      Deadly, each Encounter's Checks and what they read, and the best Party of your rested Heroes, those free at home whom
-      your rest band does not keep there, with its chance; rankings orders the Guilds in play
+      Deadly, each Encounter's Checks and what they read, and the best Party of your rested
+      Heroes, those free at home whom your rest band does not keep there, with its chance;
+      rankings orders the Guilds in play
       by Fame, or by Wealth with --by wealth; guildmaster shows the player's
       Guildmaster, or another Guild's, with their Stats, Traits and Regard; market shows
       what the Market has for sale and at what price, and what the player's Guild holds
@@ -98,13 +99,14 @@ Commands:
       names them), and print the fee and the new Roster size.
   renew --hero <heroId> --years <years>
       Sign one of the player's Heroes at home again, at any time, on a Contract of --years
-      years, a length the rules offer (a refusal names them), at the wage show hero gives
-      for it and with no fee. The new Contract starts now and the old one's rest is dropped;
-      a Hero Out of Contract is under Contract again, and a free Offer for them is withdrawn.
+      years, a length the rules offer (a refusal names them), at the wage the rules give them
+      now, said once signed, and with no fee. The new Contract starts now and the old one's
+      rest is dropped; a Hero Out of Contract is under Contract again, and a free Offer for
+      them is withdrawn.
   release --hero <heroId> [--confirm]
       Let one of the player's Heroes at home go to the Unattached pool. During their Contract
       the Guild pays part of the wages left on it (a payout, none once it has ended), and
-      their gear goes back to the Guild's holding. If they are the Guild's last Hero the
+      their Gear goes back to the Guild's Holding. If they are the Guild's last Hero the
       command says what releasing them would leave, as an estimate, and does it only with
       --confirm.
   preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
@@ -152,8 +154,9 @@ Commands:
       one of the player's Heroes to another Guild, which pays; --in takes a Hero from
       another Guild's Roster on a Contract of --years years (a length the rules offer), and
       the player's Guild pays the fee show roster <guildId> and show hero <heroId> give for
-      them; the other Guild's Disposition chooses the length of a Hero --to sends. The
-      other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
+      them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI
+      does not make. The other Guild's Disposition chooses the length of a Hero --to sends.
+      The other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
       and, to buy, its Wealth. The Hero must be at the Hall; their gear stays with the Guild
       they leave, and the Heroes left behind who held them in high Regard lose Morale.
   accept --offer <offerId>      decline --offer <offerId>

@@ -356,6 +356,11 @@ describe("the CLI's Namer", () => {
     ['the Board to look at', { kind: 'command', command: 'show-board' }, ' (show board)'],
     ['the pool to look at', { kind: 'command', command: 'show-pool' }, ' (show pool)'],
     ['an Offer to answer', { kind: 'command', command: 'answer-offer' }, ' Answer with accept --offer <id> or decline --offer <id> (show offers).'],
+    [
+      'a free Offer to answer, which is not declined (DL-323)',
+      { kind: 'command', command: 'answer-free-offer' },
+      ' Answer with renew --hero <id> --years <years>, or accept --offer <id>: a free Offer is not declined (show offers).',
+    ],
     // Every other command a refusal points to (DL-240), which the refusals' table holds in words alone (DL-248).
     ["another Guild's Roster to look at", { kind: 'command', command: 'show-rosters' }, ' (show roster <guildId>)'],
     ['the Market to look at', { kind: 'command', command: 'show-market' }, ' (show market)'],

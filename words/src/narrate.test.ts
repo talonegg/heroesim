@@ -529,7 +529,7 @@ describe('why a fast forward stopped, ten sentences (DL-209, DL-206 item 2)', ()
   const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
   const world = {
     guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
-    heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
+    heroes: { [heroId]: { name: 'Brenna Ashcombe', contract: null } },
     offers: { [offerId]: offer },
   } as unknown as Pick<World, 'guilds' | 'heroes' | 'offers'>;
   const kest = `<name:${guildId}|The Kestrel Guild>`;
@@ -576,6 +576,14 @@ describe('why a fast forward stopped, ten sentences (DL-209, DL-206 item 2)', ()
     [{ kind: 'pool-refreshed', heroIds: [heroId, 'hero-000008' as HeroId] }, `Stopped: new in the Unattached pool: ${brenna} and <hero:hero-000008><command:show-pool>.`],
   ])('puts %j in words', (stop, line) => {
     expect(sentenceText(narrateStop(stop, world, 1080, calendar), shown)).toBe(line);
+  });
+
+  test('a free Offer offers no fee, and the CLI points to renew where every Offer is free, a free Offer not being declined (DL-319, DL-323)', () => {
+    const expired = { contract: { wage: 22, signedOnTurn: 0, years: 1, endDay: 4 } };
+    const free = { ...world, heroes: { [heroId]: { name: 'Brenna Ashcombe', ...expired } }, offers: { [offerId]: { ...offer, fee: 0 } } } as unknown as typeof world;
+    expect(sentenceText(narrateStop({ kind: 'transfer-offer', guildId, offerIds: [offerId] }, free, 1080, calendar), shown)).toBe(
+      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers no fee for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-free-offer>`,
+    );
   });
 
   test('a Guild whose row is gone is a name slot with no label', () => {

@@ -25,7 +25,7 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, coinWords, daysUntil, daysWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
+import { capitalised, coinWords, daysLeftWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
 import { content } from '../content';
 import { contractTerms, type ContractTerm } from './contract-terms';
 import { kindFacet, type Facets } from './facets';
@@ -261,19 +261,22 @@ export function offersView(document: WorldDocument): { guildName: string; offers
       const hero = heroRow?.name ?? 'a Hero';
       const free = freeOffer(world, offer);
       const until = nightOfTurn(offer.expiresOnTurn, calendar);
-      const left = daysWords(daysUntil(world.turn, dayOf(offer.expiresOnTurn)));
+      const left = daysLeftWords(world.turn, dayOf(offer.expiresOnTurn));
       return {
         offerId: offer.id,
         heroId: offer.heroId,
         free,
         terms: free && heroRow !== undefined ? contractTerms(reading, heroRow) : [],
         sentence: free
-          ? `${bidder} offers no fee for ${hero}, who is Out of Contract, until ${until}: ${left} left to renew them.`
+          ? `${bidder} offers no fee for ${hero}, who is Out of Contract, until ${until}: ${left} to renew them.`
           : `${bidder} offers ${coinWords(offer.fee)} for ${hero}, until ${until}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,
-        confirm: `Accepting sends ${hero} to ${bidder} for ${coinWords(offer.fee)}. ${transferCostWords}`,
+        // Accepting a free Offer lets the Hero go at once (DL-319's judgement call).
+        confirm: free
+          ? `Accepting sends ${hero} to ${bidder} now, for no fee, rather than when the Offer runs out. ${transferCostWords}`
+          : `Accepting sends ${hero} to ${bidder} for ${coinWords(offer.fee)}. ${transferCostWords}`,
       };
     }),
   };

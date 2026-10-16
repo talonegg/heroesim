@@ -832,8 +832,8 @@ pool's refresh come before the "Roster wiped" check. The bundle stood at 890,069
    the length chosen) in place of "Take in", which the engine refuses (`out-of-contract`). So does a Rival Hero's page.
 4. **The Offers:** a free Offer says it offers no fee, that the Hero is Out of Contract, the night it ends and the Days
    left to renew them; it has Accept… and Renew at a length chosen, and no Decline, which `declineTransfer` refuses.
-5. **Days left** are the Days from today to the end Day, 0 on it (`daysUntil`, `@heroesim/words`), for a Contract and an
-   Offer alike; the Contract cell is `contractWords` on every Hero row (`HeroRow.contract`), once for both front ends.
+5. **Days left** are the Days from today to the end Day, the end Day itself "the last Day", its night still counting
+   (`daysLeftWords`, `@heroesim/words`), for a Contract and an Offer alike; the Contract cell is `contractWords` on every Hero row (`HeroRow.contract`), once for both front ends.
 6. **The CLI:** `renew --hero --years`; `release --hero [--confirm]`, which for the last Hero prints the warning and
    releases only with `--confirm`; the Contract in `show roster` and `show hero`; `show guilds`' Out of Contract column;
    `show offers` marking a free Offer and saying how it is answered; the usage's words for them and for `show guilds`
@@ -857,3 +857,4 @@ wider; the CLI's `show roster` and `show guilds` lines gain a column, so a scrip
 half waiting on a push on the owner's word. Tests red first: `contracts.test.ts` (words), the readings' Contract, the Hero
 page's, Roster's, Guilds' and Offers' views, `contract.test.ts` (CLI), `args.test.ts`. The three doctors before and after,
 unchanged. `e2e/contract.spec.ts` at 360, 820 and 1280 wide.
+Verified 2026-10-17 at 9616ae3: the wages, payout, Days left and counts re-derived against the engine, 16 mutations red but the free Offer's length (closed by a test); fixed, test first: "0 Days left" on a last Day still open to renewal, now "the last Day"; a free Offer's card without its wages and its Accept saying "for 0 Silver"; the CLI's stop pointing a free Offer to decline, `release` asking --confirm for a Hero away, and usage promising a wage `show hero` lacks and a Hero Out of Contract taken in.

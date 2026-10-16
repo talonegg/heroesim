@@ -4,6 +4,7 @@
 
 import { dayOf, outOfContract, type Hero, type ReleaseWarning, type Turn } from '@heroesim/engine';
 import { coinWords } from './coins.js';
+import { capitalised } from './names.js';
 
 /** The Days from the Day of `turn` to `day`: 0 on `day` itself and once it has passed. A Contract or an Offer ends on the night of its last Day. */
 export function daysUntil(turn: Turn, day: number): number {
@@ -11,18 +12,28 @@ export function daysUntil(turn: Turn, day: number): number {
 }
 
 /** `1 Day`, `3 Days`: Day is a glossary term (ui-text.md). */
-export function daysWords(days: number): string {
+function daysWords(days: number): string {
   return `${days} ${days === 1 ? 'Day' : 'Days'}`;
 }
 
 /**
- * A Hero's Contract as a cell reads it at `turn`: `120 Days left`, or `Out of Contract` from the night
+ * The Days left before the night of `day` ends a Contract or an Offer: `3 Days left`, or `the last Day`
+ * on `day` itself, whose night still counts, so that nothing says "0 Days left" while a renewal is still
+ * open (DL-323).
+ */
+export function daysLeftWords(turn: Turn, day: number): string {
+  const days = daysUntil(turn, day);
+  return days === 0 ? 'the last Day' : `${daysWords(days)} left`;
+}
+
+/**
+ * A Hero's Contract as a cell reads it at `turn`: `120 Days left`, `The last Day`, or `Out of Contract` from the night
  * its end Day falls, then `, Under Offer` while an Offer stands for them at home (DL-319). Empty for a
  * Hero with no Contract, the pool's.
  */
 export function contractWords(hero: Pick<Hero, 'contract'>, turn: Turn, underOffer: boolean): string {
   if (hero.contract === null) return '';
-  const standing = outOfContract(hero, turn) ? 'Out of Contract' : `${daysWords(daysUntil(turn, hero.contract.endDay))} left`;
+  const standing = outOfContract(hero, turn) ? 'Out of Contract' : capitalised(daysLeftWords(turn, hero.contract.endDay));
   return underOffer ? `${standing}, Under Offer` : standing;
 }
 
