@@ -99,9 +99,9 @@ export function makeTransfer(world: World, deal: Deal, deps: Pick<EngineDeps, 'c
  * `transferMoraleCost`, held inside `moraleMin` to `moraleMax`. A Hero who held the transferred Hero
  * in lower Regard, or held none, is untouched, as is the transferred Hero's own Regard for them:
  * Regard is held one way. Emits `hero.morale-changed` (`transfer`) only for a Hero whose band the cost
- * crossed, as the epic asks of this cost.
+ * crossed, as the epic asks of this cost. A release costs its teammates the same (DL-317).
  */
-function transferMoraleCost(
+export function transferMoraleCost(
   world: Pick<World, 'heroes'>,
   from: Pick<Guild, 'rosterIds'>,
   heroId: HeroId,

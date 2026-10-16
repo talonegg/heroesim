@@ -326,6 +326,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [decision-log](../decision-log.md) |
 | DL-315 | 2026-10-16 | v1.2.3-S2 built: the Contract and its wage |  | [decision-log](../decision-log.md) |
 | DL-316 | 2026-10-16 | v1.2.3-S3 built: renewal, and the Contract's end |  | [decision-log](../decision-log.md) |
+| DL-317 | 2026-10-16 | v1.2.3-S4 built: release, with a payout |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

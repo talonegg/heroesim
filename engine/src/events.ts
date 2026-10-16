@@ -175,6 +175,13 @@ export type HeroContractRenewed = Entry<'hero.contract-renewed', { heroId: HeroI
 export type HeroContractExpired = Entry<'hero.contract-expired', { heroId: HeroId; guildId: GuildId; wage: number }>;
 
 /**
+ * A Guild released a Hero of its Roster through `release`: they join the Unattached pool with no Contract,
+ * and `payout` is what the Guild paid, `releasePayoutFactor` of the wages left, 0 once their Contract has
+ * ended (Q10, DL-317). A Milestone, naming the Hero and the Guild.
+ */
+export type HeroReleased = Entry<'hero.released', { heroId: HeroId; guildId: GuildId; payout: number }>;
+
+/**
  * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
  * Hero, whose row is then removed unless an entry names them (data-model rule 8); recorded only
  * then (DL-211).
@@ -339,7 +346,7 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 /**
  * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
  * Morale consequences of a Quest's Encounters, summed (M4-S2), a Hero they held in high Regard
- * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, a module's
+ * transferred away from their Roster (M6-S2, DL-57) or released (DL-317), emitted only on a band crossing, a module's
  * `adjustMorale` effect (M8-S2, DL-77), another Hero named Captain in their place (`captain-changed`),
  * or coming home with their Guild's Captain (`captain-homecoming`; DL-287).
  */
@@ -644,9 +651,9 @@ export type ItemUnequipped = Entry<'item.unequipped', GearMove>;
  * Why gear went back from a Hero to their Guild's holding without an `unequip` (DL-49): the Hero
  * died or retired (the night's `gearReturn`), or the Guild folded (its gear is back before the
  * fold does anything with the Guild's holding), or the Hero was transferred to another Guild, whose
- * gear stays with the Guild they leave (M6-S2, DL-49 item 8, DL-57).
+ * gear stays with the Guild they leave (M6-S2, DL-49 item 8, DL-57), or their Guild released them (DL-317).
  */
-export type GearReturnCause = 'died' | 'retired' | 'guild-folded' | 'transferred';
+export type GearReturnCause = 'died' | 'retired' | 'guild-folded' | 'transferred' | 'released';
 
 /**
  * Gear a Hero carried went back to their Guild's holding, for `cause`, one entry per Item. Names the
@@ -772,6 +779,7 @@ export type EngineEvent =
   | HeroRecruited
   | HeroContractRenewed
   | HeroContractExpired
+  | HeroReleased
   | HeroLeftPool
   | QuestOffered
   | QuestExpired
@@ -838,6 +846,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.recruited': true,
   'hero.contract-renewed': true,
   'hero.contract-expired': true,
+  'hero.released': true,
   'hero.left-pool': false,
   'quest.offered': false,
   'quest.expired': false,

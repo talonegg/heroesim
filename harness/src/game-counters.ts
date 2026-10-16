@@ -1251,7 +1251,7 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
     ];
     const totalSales = (flows: WealthFlows): number => sum(saleCauses.map((cause) => flows.sales[cause]));
     const spent = (flows: WealthFlows): number =>
-      flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.wages + flows.hallUpkeep + flows.improvementUpkeep;
+      flows.signing + flows.transferFeesPaid + flows.releasePayouts + flows.items + flows.improvements + flows.wages + flows.hallUpkeep + flows.improvementUpkeep;
     const taken = (flows: WealthFlows): number => flows.questRewards + flows.transferFeesTaken + totalSales(flows);
     const spentShares = controllerKinds.flatMap((kind) => {
       const flows = totals.wealth[kind];
@@ -1260,7 +1260,7 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
         `${kindLabel(kind)}: wages ${percent(flows.wages, all)}, Hall upkeep ${percent(flows.hallUpkeep, all)}, ` +
           `Improvements’ upkeep ${percent(flows.improvementUpkeep, all)}, Items ${percent(flows.items, all)}, ` +
           `Improvements ${percent(flows.improvements, all)}, signing ${percent(flows.signing, all)}, ` +
-          `Transfers ${percent(flows.transferFeesPaid, all)}`,
+          `Transfers ${percent(flows.transferFeesPaid, all)}, release payouts ${percent(flows.releasePayouts, all)}`,
       ];
     });
     const takenShares = controllerKinds.flatMap((kind) => {
@@ -1280,6 +1280,7 @@ const wealth: Declared<GameCounters['wealth'], SweepTotals['wealth']> = {
         [
           flowRow('Spent: signing fees (`hero.recruited` `fee`)', (flows) => flows.signing),
           flowRow('Spent: Transfers (`hero.transferred` `fee`, the buying Guild)', (flows) => flows.transferFeesPaid),
+          flowRow('Spent: release payouts (`hero.released` `payout`)', (flows) => flows.releasePayouts),
           flowRow('Spent: Items (`item.bought` `cost`)', (flows) => flows.items),
           flowRow('Spent: Improvements (`guild.improved` `cost`)', (flows) => flows.improvements),
           flowRow('Spent: Upkeep, the wages (`guild.wages-paid` `amount`)', (flows) => flows.wages),

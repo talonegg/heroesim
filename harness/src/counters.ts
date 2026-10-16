@@ -461,7 +461,7 @@ export function moduleCounters(document: WorldDocument): Pick<GameCounters, 'mod
 export const saleCauses = ['sale', 'fold'] as const satisfies readonly ItemSaleCause[];
 
 /** Why gear went back to a Guild without an `unequip` (M5-S2, DL-49), or to the selling Guild with a transferred Hero (M6-S2, DL-57). */
-export const gearReturnCauses = ['died', 'retired', 'guild-folded', 'transferred'] as const satisfies readonly GearReturnCause[];
+export const gearReturnCauses = ['died', 'retired', 'guild-folded', 'transferred', 'released'] as const satisfies readonly GearReturnCause[];
 
 /** What a consumable did when it was expended (M5-S3, DL-50). */
 export const consumableEffects = ['bonus', 'reroll', 'heal'] as const;
@@ -470,7 +470,8 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 
 /**
  * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
- * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
+ * (`hero.transferred`'s `fee`, for the buying Guild, M6), release payouts (`hero.released`'s `payout`, DL-317),
+ * Items bought from the Market
  * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
  * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), split
  * between the Hall's and the Improvements' by `hallUpkeepSplit`, as the Treasury splits it (DL-298,
@@ -481,6 +482,8 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 export interface WealthFlows {
   signing: number;
   transferFeesPaid: number;
+  /** The release payouts (`hero.released`), a line of their own and never among the other expenses (Q19, DL-317). */
+  releasePayouts: number;
   items: number;
   /** The Items `item.bought` moved, summed over its `quantity`. */
   itemsBought: number;
@@ -545,6 +548,7 @@ export const difficultyBandWidth = 10;
 export const noWealth = (): WealthFlows => ({
   signing: 0,
   transferFeesPaid: 0,
+  releasePayouts: 0,
   items: 0,
   itemsBought: 0,
   improvements: 0,
@@ -566,7 +570,7 @@ export const noConsumables = (): ConsumableTally => ({
   byDefinition: {},
 });
 
-export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0, transferred: 0 } });
+export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0, transferred: 0, released: 0 } });
 
 export const noDifficulty = (): DifficultyTally => ({ quests: 0, difficulty: 0, strong: 0, loot: 0, unique: 0 });
 
@@ -1061,6 +1065,9 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
   };
   each('hero.recruited', (into, entry, what) => {
     into.signing += numberField(entry, 'fee', what);
+  });
+  each('hero.released', (into, entry, what) => {
+    into.releasePayouts += numberField(entry, 'payout', what);
   });
   each('item.bought', (into, entry, what) => {
     into.items += numberField(entry, 'cost', what);
@@ -2250,7 +2257,7 @@ export function transfersShort(before: World, events: readonly Entry[], config: 
     if (entry.type === 'hero.recruited') {
       move(payloadField(entry, 'guildId'), 1);
       movedTo.set(payloadField(entry, 'heroId'), payloadField(entry, 'guildId'));
-    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') move(payloadField(entry, 'guildId'), -1);
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild' || entry.type === 'hero.released') move(payloadField(entry, 'guildId'), -1);
     else if (entry.type === 'hero.died') move(heroGuild(payloadField(entry, 'heroId')), -1);
     else if (entry.type === 'hero.transferred') {
       move(payloadField(entry, 'toGuildId'), 1);
@@ -2406,11 +2413,11 @@ interface Spell {
 
 /**
  * The Days Heroes take to recover at home (DL-290), from `hero.fatigue-changed` (the band a Hero is
- * in, which a night records only on crossing one), `quest.taken`, `quest.resolved`, `hero.retired` and
- * `hero.left-guild`, in the order of the History. A recovery begins when a Hero comes home alive from a
+ * in, which a night records only on crossing one), `quest.taken`, `quest.resolved`, `hero.retired`,
+ * `hero.left-guild` and `hero.released`, in the order of the History. A recovery begins when a Hero comes home alive from a
  * Quest in a band at or past the one it ends below, for the Guild that sent them; it ends when a night
  * takes them below it, or is cut short when they are sent again, or ends as left when they leave every
- * Roster, retired or sent to the pool at a fold, where no night moves their Fatigue (DL-291), or is left
+ * Roster, retired, released or sent to the pool at a fold, where no night moves their Fatigue (DL-291), or is left
  * open at the game's end. The two bands are the Guild's
  * rest band (`restBandOf`; a Guild with none begins none) and fresh. The Days are the Turns between
  * the Quest's return and the night that ends it, over `turnsPerDay`: 0 for a night the Hero fell on
@@ -2418,7 +2425,7 @@ interface Spell {
  */
 export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps, 'config' | 'content'>): Record<ControllerKind, Recovery> {
   const counts = { player: noRecovery(), rival: noRecovery() };
-  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved', 'hero.retired', 'hero.left-guild'] as const)
+  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved', 'hero.retired', 'hero.left-guild', 'hero.released'] as const)
     .flatMap((type) => positionedEntriesOf(document, type))
     .sort((a, b) => a.position - b.position);
   const bands = new Map<string, number>();
@@ -2438,7 +2445,7 @@ export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps,
         return false;
       });
       running.set(heroId, left);
-    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') {
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild' || entry.type === 'hero.released') {
       const heroId = payloadField(entry, 'heroId');
       if (typeof heroId !== 'string') throw new Error(`${what} has no heroId`);
       for (const spell of running.get(heroId) ?? []) spell.tally.left += 1;

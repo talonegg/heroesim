@@ -164,6 +164,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   contractLengthsYears: { refused: [[], [0, 1, 2], [1, 1, 2], [1, 1.5, 2], [1, '2', 3], 1], allowed: [[1, 2, 3], [2, 4, 6], [3, 1, 2]] },
   contractWageFactors: { refused: [[1, 0.95], [1, 0.95, 0.9, 0.85], [1, 0, 1], [1, -1, 1], [1, Number.NaN, 1], [1, '1', 1], 1], allowed: [[1, 1, 1], [0.5, 2, 0.01]] },
   outOfContractPremium: finiteFrom(0),
+  releasePayoutFactor: { refused: [-0.01, 1.01, Number.NaN], allowed: [0, 0.8, 1] },
   // DL-298: the Hall's upkeep, its Days, its base, its Heroes' curve and its grades' factor.
   hallUpkeepEveryDays: wholeFrom(1),
   hallBaseUpkeep: wholeFrom(0),

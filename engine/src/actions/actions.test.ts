@@ -14,6 +14,7 @@ import { applyRecruit } from './recruit.js';
 import { applySell } from './sell.js';
 import { applyAcceptTransfer, applyDeclineTransfer, applyOfferTransfer, applyTransferIn, applyTransferOut } from './transfer.js';
 import { applyNameCaptain } from './captain.js';
+import { applyRelease } from './release.js';
 import { applyRenew } from './renew.js';
 import type { WorldActionResult } from './result.js';
 
@@ -330,6 +331,7 @@ describe('applyAction', () => {
     declineTransfer: row((ids) => ({ kind: 'declineTransfer', guildId: ids.rivalGuild, offerId: ids.offer }), applyDeclineTransfer),
     nameCaptain: row((ids) => ({ kind: 'nameCaptain', guildId: player(ids), heroId: idle(ids) }), applyNameCaptain),
     renew: row((ids) => ({ kind: 'renew', guildId: player(ids), heroId: idle(ids), years: 3 }), applyRenew),
+    release: row((ids) => ({ kind: 'release', guildId: player(ids), heroId: idle(ids) }), applyRelease),
   };
 
   test.each(Object.keys(rows))('%s is its rule run on a copy of the world: the same world and events, the input left as it was, meta and the History shared', (kind) => {

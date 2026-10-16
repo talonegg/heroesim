@@ -96,6 +96,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110, wage: 22, years: 2, endDay: 400 }),
   'hero.contract-renewed': event('hero.contract-renewed', [heroId, guildId], { heroId, guildId, wage: 22, years: 2, endDay: 400 }),
   'hero.contract-expired': event('hero.contract-expired', [heroId, guildId], { heroId, guildId, wage: 25 }),
+  'hero.released': event('hero.released', [heroId, guildId], { heroId, guildId, payout: 633 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),

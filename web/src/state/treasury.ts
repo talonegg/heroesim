@@ -50,7 +50,8 @@ export type ExpenseLine =
   | 'item-purchases'
   | 'improvements'
   | 'signing-fees'
-  | 'transfers-in';
+  | 'transfers-in'
+  | 'release-payouts';
 
 /**
  * The ledger's lines (DL-302, Q19, superseding DL-111 item 5's and DL-112 item 6's categories): income and
@@ -70,6 +71,7 @@ export const expenseLines: readonly ExpenseLine[] = [
   'improvements',
   'signing-fees',
   'transfers-in',
+  'release-payouts',
 ];
 
 /** All ledger lines in the order the Treasury names them. */
@@ -87,6 +89,7 @@ export const lineWords: Readonly<Record<LedgerLine, string>> = Object.freeze({
   improvements: 'Improvements',
   'signing-fees': 'Signing fees',
   'transfers-in': 'Transfers in',
+  'release-payouts': 'Release payouts',
   other: 'Other',
 });
 
@@ -133,6 +136,8 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   // A renewal pays no fee, and an expiry only reprices the wages the wage Days charge (DL-316).
   'hero.contract-renewed': null,
   'hero.contract-expired': null,
+  // The payout is a line of its own, never Other (Q19, DL-317); none once the Contract had ended.
+  'hero.released': (payload, guildId) => when(payload.guildId === guildId, 'release-payouts', -payload.payout),
   'hero.left-pool': null,
   'quest.offered': null,
   'quest.expired': null,

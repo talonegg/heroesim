@@ -47,7 +47,7 @@ one cheaper a year (DL-315). A Hero on a Roster holds one; a Hero on no Roster h
 Retirement, a Transfer or their Guild's fold ends it. The Guild may renew it at any time the Hero is
 home, replacing the term at the rule's price with no fee, or release the Hero for most of the wages
 left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6 and its note of
-2026-10-12, DL-316; release, and renewal's page and CLI, to be built). Not the module contract
+2026-10-12, DL-316, DL-317; the page and CLI for renewal and release, to be built). Not the module contract
 (ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
 case.
 _Avoid_: Deal, Agreement, Lease
@@ -784,7 +784,7 @@ History; a part of the Guild's view (DL-111, DL-116). Each change stands on a li
 rewards, Item sales and Transfers out) or of expenses (wages, the Hall's upkeep, the Improvements'
 upkeep, Item purchases, Improvements, signing fees and Transfers in), or on Other, a module's; the
 Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302). A release's
-payout is an expense line of its own (DL-311 item 6, to be built).
+payout is an expense line of its own, Release payouts (DL-311 item 6, DL-317).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
@@ -868,8 +868,7 @@ _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:
 A Hero on no Roster, in a pool the Heroes Generator refreshes and every Guild recruits from
-for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-294 item 6, to be
-built).
+for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-294 item 6, DL-317).
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:

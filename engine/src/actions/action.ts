@@ -4,7 +4,7 @@
 // action's file defines its action, its rejection and its rule; a story adding an action adds the
 // first two to the unions here and a case to `applyGuildAction` (M2-S4 `dispatch`, M2-S8 `recruit`,
 // M3-S6 `build`, M5-S2 `equip` and `unequip`, M5-S4 `buy` and `sell`, M6-S2 the five Transfer
-// actions, `nameCaptain` by DL-287, `renew` by DL-316). A Guild's list of actions in a Turn, the harness's policy's and a Rival's, is applied
+// actions, `nameCaptain` by DL-287, `renew` by DL-316, `release` by DL-317). A Guild's list of actions in a Turn, the harness's policy's and a Rival's, is applied
 // on one copy through `applyActions` and `applyGuildActions` (DL-238).
 
 import type { EngineDeps } from '../config.js';
@@ -25,6 +25,7 @@ import {
 } from './equip.js';
 import { rebase, type RebaseAction, type RebaseRejection } from './rebase.js';
 import { applyRecruit, type RecruitAction, type RecruitRejection } from './recruit.js';
+import { applyRelease, type ReleaseAction, type ReleaseRejection } from './release.js';
 import { applyRenew, type RenewAction, type RenewRejection } from './renew.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 import { applySell, type SellAction, type SellRejection } from './sell.js';
@@ -50,7 +51,8 @@ export type Action =
   | SellAction
   | TransferAction
   | NameCaptainAction
-  | RenewAction;
+  | RenewAction
+  | ReleaseAction;
 
 export type ActionKind = Action['kind'];
 
@@ -66,7 +68,8 @@ export type ActionRejection =
   | SellRejection
   | TransferRejection
   | NameCaptainRejection
-  | RenewRejection;
+  | RenewRejection
+  | ReleaseRejection;
 
 /**
  * The actions a Guild takes in the world, which a controller chooses (M2-S9): every action but
@@ -82,7 +85,8 @@ export type GuildAction =
   | SellAction
   | TransferAction
   | NameCaptainAction
-  | RenewAction;
+  | RenewAction
+  | ReleaseAction;
 
 /** Every way a Guild's action can be refused. */
 export type GuildActionRejection =
@@ -95,7 +99,8 @@ export type GuildActionRejection =
   | SellRejection
   | TransferRejection
   | NameCaptainRejection
-  | RenewRejection;
+  | RenewRejection
+  | ReleaseRejection;
 
 /** The ways `action` can be refused: the rejections whose `action` is its `kind`. */
 export type RejectionOf<A extends Action> = Extract<ActionRejection, Rejection<A['kind']>>;
@@ -162,7 +167,7 @@ export function applyGuildActions(
 /**
  * Applies a Guild's `action` to `world` in place through its rule (`applyDispatch`, `applyRecruit`,
  * `applyBuild`, `applyEquip`, `applyUnequip`, `applyBuy`, `applySell`, the Transfer rules,
- * `applyNameCaptain` and `applyRenew`),
+ * `applyNameCaptain`, `applyRenew` and `applyRelease`),
  * returning the events without appending them: what `applyAction` runs on a copy of a document's
  * world, and what `applyGuildActions` runs for each action of a list (DL-238), on a document's
  * copy or on the Turn's (the Rival controllers, DL-30). A refusal changes nothing.
@@ -201,5 +206,7 @@ export function applyGuildAction(
       return applyNameCaptain(world, action, deps);
     case 'renew':
       return applyRenew(world, action, deps);
+    case 'release':
+      return applyRelease(world, action, deps);
   }
 }

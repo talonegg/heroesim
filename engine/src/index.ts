@@ -94,6 +94,7 @@ export type {
   RecruitRejection,
   SigningRefusedRejection,
 } from './actions/recruit.js';
+export type { ReleaseAction, ReleaseHeroInParty, ReleaseHeroNotOnRoster, ReleaseRejection } from './actions/release.js';
 export type { RenewAction, RenewHeroInParty, RenewHeroNotOnRoster, RenewRejection } from './actions/renew.js';
 export type { ActionResult, Rejection, WorldActionResult } from './actions/result.js';
 export type {
@@ -407,6 +408,7 @@ export {
   type Ranking,
   type RankingMeasure,
   type RankingPlace,
+  type ReleaseWarning,
   type SigningRefusal,
   type StatBreakdown,
   type StatParts,

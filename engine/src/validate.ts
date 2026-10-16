@@ -1430,6 +1430,7 @@ const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
   'hero.recruited': ['fee', 'wage'],
   'hero.contract-renewed': ['wage'],
   'hero.contract-expired': ['wage'],
+  'hero.released': ['payout'],
   'guild.improved': ['cost'],
   'item.bought': ['unitPrice', 'cost'],
   'item.sold': ['unitPrice', 'proceeds'],

@@ -5,6 +5,7 @@ import {
   availableHeroes,
   bestParties,
   createWorld,
+  dayOf,
   defaultConfig,
   holdings,
   marketStock,
@@ -140,6 +141,13 @@ describe('wealthChangeOf: each line takes exactly its events', () => {
     expect(wealthChangeOf(transferred, ashford)).toEqual({ category: 'transfers-out', amount: 180 });
   });
 
+  test('a release takes its payout on a line of its own, Release payouts, never Other (Q19, DL-317); none once the Contract had ended gives no row', () => {
+    const released = (payout: number) => entry('hero.released', { heroId: hero, guildId: lantern, payout }, [hero, lantern]);
+    expect(wealthChangeOf(released(633), lantern)).toEqual({ category: 'release-payouts', amount: -633 });
+    expect(wealthChangeOf(released(633), ashford)).toBeNull();
+    expect(wealthChangeOf(released(0), lantern)).toBeNull();
+  });
+
   test("Other takes a module's change of Wealth, either way", () => {
     expect(wealthChangeOf(entry('guild.wealth-changed', { guildId: lantern, moduleId: 'probe', before: 100, after: 125 }), lantern)).toEqual({
       category: 'other',
@@ -175,6 +183,7 @@ describe('the lines (DL-302)', () => {
       improvements: 'Improvements',
       'signing-fees': 'Signing fees',
       'transfers-in': 'Transfers in',
+      'release-payouts': 'Release payouts',
       other: 'Other',
     });
   });
@@ -193,7 +202,7 @@ describe('the lines (DL-302)', () => {
     expect(totals.sections.income).toEqual({ total: 420, lines: { 'quest-rewards': 300, 'item-sales': 0, 'transfers-out': 80, other: 40 } });
     expect(totals.sections.expense).toEqual({
       total: -210,
-      lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0, other: -25 },
+      lines: { wages: -120, 'hall-upkeep': -35, 'improvement-upkeep': -30, 'item-purchases': 0, improvements: 0, 'signing-fees': 0, 'transfers-in': 0, 'release-payouts': 0, other: -25 },
     });
     expect(Object.keys(totals)).toEqual(['income', 'expense', 'net', 'sections']);
     expect(Object.keys(totals.sections)).toEqual(['income', 'expense']);
@@ -264,6 +273,15 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
         }
         if (sold) break;
       }
+    }
+  }
+  // A release (DL-317), the player's and a Rival's: no Rival controller releases yet, so the game arranges one for the
+  // Rival's side, a Hero at home whose Contract still has wages left.
+  if (month === 4) {
+    const rival = Object.values(next.world.guilds).find((other) => other.id !== guildId && other.foldedOnTurn === null && other.rosterIds.length > 2);
+    for (const owner of [guild(), rival]) {
+      const leaving = owner === undefined ? undefined : availableHeroes(next.world, owner).find((h) => (h.contract?.endDay ?? 0) > dayOf(next.world.turn) + defaultConfig.upkeepEveryDays);
+      if (owner !== undefined && leaving !== undefined) next = tried(next, applyAction(next, { kind: 'release', guildId: owner.id, heroId: leaving.id }, deps));
     }
   }
   return next;
@@ -576,6 +594,7 @@ describe("The Treasury: the ledger's filters, totals and pages", () => {
             improvements: 0,
             'signing-fees': -fee,
             'transfers-in': 0,
+            'release-payouts': 0,
             other: 0,
           },
         },

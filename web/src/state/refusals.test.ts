@@ -233,6 +233,8 @@ const samples: Samples = {
   'renew length-not-offered': { action: 'renew', reason: 'length-not-offered', years: 4, offered: [1, 2, 3] },
   'renew hero-not-on-roster': { action: 'renew', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
   'renew hero-in-party': { action: 'renew', reason: 'hero-in-party', ...heroInParty },
+  'release hero-not-on-roster': { action: 'release', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
+  'release hero-in-party': { action: 'release', reason: 'hero-in-party', ...heroInParty },
 };
 
 const kinds = Object.keys(samples) as (keyof Samples)[];
@@ -372,6 +374,8 @@ const exactly: Record<keyof Samples, string> = {
   'renew length-not-offered': 'A Contract is 1, 2 or 3 Years long; 4 is not.',
   'renew hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
   'renew hero-in-party': `${hero.name} is away with a Party; a Hero's Contract is renewed only in the Hall.`,
+  'release hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
+  'release hero-in-party': `${hero.name} is away with a Party; a Hero is released only in the Hall.`,
 };
 
 /**

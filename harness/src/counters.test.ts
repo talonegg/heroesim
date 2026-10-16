@@ -791,6 +791,13 @@ describe("M5's counters, from the History", () => {
     };
     sold(13, player, 'sale', 2, 60);
     sold(14, rivals[1], 'fold', 1, 300);
+    // A release's payout is a line of its own, by the Guild that pays it; one with none (Out of Contract) adds nothing (DL-317).
+    const releasedBy = (turn: number, guild: Guild, payout: number): void => {
+      add(document, turn, 'hero.released', [guild.id], { heroId: makeId('heroes', 1), guildId: guild.id, payout });
+    };
+    releasedBy(15, player, 633);
+    releasedBy(16, player, 0);
+    releasedBy(17, rivals[0], 100);
     document.world.turn = 20;
 
     const { wealth } = countGame(document, shortYears);
@@ -799,6 +806,7 @@ describe("M5's counters, from the History", () => {
       player: {
         signing: 120,
         transferFeesPaid: 0,
+        releasePayouts: 633,
         items: 200,
         itemsBought: 3,
         improvements: 200,
@@ -813,6 +821,7 @@ describe("M5's counters, from the History", () => {
       rival: {
         signing: 80,
         transferFeesPaid: 0,
+        releasePayouts: 100,
         items: 0,
         itemsBought: 0,
         improvements: 200,
@@ -991,11 +1000,13 @@ describe("M5's counters, from the History", () => {
     move(10, 'item.returned', rivals[1], 'guild-folded');
     // A Hero's gear goes back to the selling Guild with them transferred (DL-57; the merge, DL-63).
     move(11, 'item.returned', rivals[0], 'transferred');
+    // And back to the releasing Guild with them released (DL-317).
+    move(12, 'item.returned', player, 'released');
     document.world.turn = 20;
 
     expect(countGame(document, shortYears).gear).toEqual({
-      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0, transferred: 0 } },
-      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2, transferred: 1 } },
+      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0, transferred: 0, released: 1 } },
+      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2, transferred: 1, released: 0 } },
     });
   });
 

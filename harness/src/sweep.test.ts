@@ -1022,7 +1022,7 @@ describe('sweepPlay', () => {
       expect(text).toContain('| Spent in all | 3,120 | 3,120.0 | 12,540 | 3,135.0 |');
       expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
-      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%;");
+      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%, release payouts 0.0%;");
       expect(text).toContain("Shares of the Wealth taken: The player's Guild: Quest rewards 76.3%, Item sales 0.0%, Transfers 23.7%;");
       // The Upkeep's two charges by line, the Hall's as its own part and the Improvements', each of the whole (DL-298, DL-302).
       expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');

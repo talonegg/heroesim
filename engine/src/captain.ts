@@ -85,7 +85,7 @@ export function captainLock(
 /**
  * Takes `hero` off `guild`'s Roster, ends their Contract (DL-315), and empties the post when they held
  * it (DL-280: a post left by a Death, a Retirement or a departure is filled free): the one way a Hero
- * leaves a Roster, for a Death, a Retirement and a Transfer. The lock is left as it was; it never holds
+ * leaves a Roster, for a Death, a Retirement, a Transfer and a release (DL-317). The lock is left as it was; it never holds
  * a vacancy.
  */
 export function leaveRoster(guild: Guild, hero: Hero): void {

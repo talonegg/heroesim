@@ -171,6 +171,11 @@ export interface GameConfig {
    */
   outOfContractPremium: number;
   /**
+   * The share of the wages left on a Contract that its Guild pays to release the Hero during the term, at
+   * most all of them; nothing is owed once it has ended (Q10, DL-294 item 6, DL-317).
+   */
+  releasePayoutFactor: number;
+  /**
    * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
    * are (DL-26), a month by default (DL-294 item 4, DL-298).
    */

@@ -158,6 +158,8 @@ const samples: Samples = {
   'renew length-not-offered': { action: 'renew', reason: 'length-not-offered', years: 4, offered: [1, 2, 3] },
   'renew hero-not-on-roster': { action: 'renew', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
   'renew hero-in-party': { action: 'renew', reason: 'hero-in-party', heroId, partyId },
+  'release hero-not-on-roster': { action: 'release', reason: 'hero-not-on-roster', heroId: rivalHero.id, guildId },
+  'release hero-in-party': { action: 'release', reason: 'hero-in-party', heroId, partyId },
 };
 
 const kinds = Object.keys(samples) as RefusalKind[];
@@ -316,6 +318,8 @@ const exactly: Record<RefusalKind, string> = {
   'renew length-not-offered': 'A Contract is 1, 2 or 3 Years long; 4 is not.',
   'renew hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
   'renew hero-in-party': `${brenna} is away with a Party<ids:${partyId}>; a Hero's Contract is renewed only in the Hall.`,
+  'release hero-not-on-roster': `${stranger} is not on ${lantern}'s Roster<command:show-roster>.`,
+  'release hero-in-party': `${brenna} is away with a Party<ids:${partyId}>; a Hero is released only in the Hall.`,
 };
 
 describe('the refusals', () => {

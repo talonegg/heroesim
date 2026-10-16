@@ -192,9 +192,10 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'guild.below-floor': null,
   'guild.floor-recovered': null,
   'hero.recruited': null,
-  // DL-316: Milestones, so never routine.
+  // DL-316, DL-317: Milestones, so never routine.
   'hero.contract-renewed': null,
   'hero.contract-expired': null,
+  'hero.released': null,
   'hero.left-pool': null,
   'quest.offered': null,
   'quest.expired': null,
@@ -299,6 +300,7 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'hero.recruited': false,
   'hero.contract-renewed': false,
   'hero.contract-expired': false,
+  'hero.released': false,
   'hero.left-pool': false,
   'quest.offered': false,
   'quest.expired': false,

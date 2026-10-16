@@ -358,6 +358,12 @@ const sentences: Sentences = {
   // The owner's Q-A: renewed once home, as a Transfer waits.
   'renew hero-in-party': ({ heroId, partyId }, setting) =>
     say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero's Contract is renewed only in the Hall.`,
+
+  // A release (DL-317).
+  'release hero-not-on-roster': ({ heroId, guildId }, setting) =>
+    say`${hero(setting, heroId)} is not on ${guild(setting, guildId)}'s Roster${command('show-roster')}.`,
+  'release hero-in-party': ({ heroId, partyId }, setting) =>
+    say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero is released only in the Hall.`,
 };
 
 /** Every kind the table has a sentence for: the test holds it to the union. */

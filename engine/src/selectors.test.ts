@@ -15,6 +15,8 @@ import {
   playerGuild,
   rankingPlaces,
   rankings,
+  releasePayout,
+  releaseWarning,
   signingFee,
   signingRefusal,
   unattachedHeroes,
@@ -26,6 +28,7 @@ import {
   upkeep,
   wageBill,
   wages,
+  wagesLeft,
 } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
@@ -645,5 +648,98 @@ describe('offeredQuests (DL-38)', () => {
 
     expect(offeredQuests(world).map((quest) => quest.id)).toEqual([third, second, ...rest]);
     expect(offeredQuests({ board: [], quests: world.quests })).toEqual([]);
+  });
+});
+
+// DL-317: the wages left on a Contract, the one count the release payout reads (and the Transfer fee after it).
+describe('wagesLeft, releasePayout and releaseWarning (DL-317)', () => {
+  // Wage Days 9, 19, 29, ...; a Contract of 360 Days is charged on 36 of them.
+  const config = { upkeepEveryDays: 10 } as const;
+  const contract = (endDay: number, wage = 22) => ({ contract: { wage, signedOnTurn: 0, years: 1, endDay } });
+
+  test('is the wage × the wage charges whose night falls before the end Day: a charge on the end Day itself is the repriced wage, not the Contract\'s', () => {
+    expect(wagesLeft(contract(360), 0, config)).toBe(22 * 36);
+    // Day 349 is the last charge before Day 360; Day 359 is not a wage Day.
+    expect(wagesLeft(contract(350), 0, config)).toBe(22 * 35);
+    expect(wagesLeft(contract(349), 0, config)).toBe(22 * 34);
+    expect(wagesLeft(contract(19), 0, config)).toBe(22);
+    expect(wagesLeft(contract(9), 0, config)).toBe(0);
+  });
+
+  test("counts tonight's charge until the night has been played, then the next", () => {
+    // Turn 27 is the morning of Day 9, whose night (Turn 29) charges the wages; Turn 30 is Day 10's.
+    expect(wagesLeft(contract(360), 27, config)).toBe(22 * 36);
+    expect(wagesLeft(contract(360), 28, config)).toBe(22 * 36);
+    expect(wagesLeft(contract(360), 30, config)).toBe(22 * 35);
+  });
+
+  test('is 0 once the Contract has ended (Out of Contract), for a Hero with none, and never negative', () => {
+    expect(wagesLeft(contract(100), nightOf(100), config)).toBe(0);
+    expect(wagesLeft(contract(100), nightOf(100) + 500, config)).toBe(0);
+    expect(wagesLeft({ contract: null }, 0, config)).toBe(0);
+  });
+
+  test('follows upkeepEveryDays, not a constant', () => {
+    expect(wagesLeft(contract(360), 0, { upkeepEveryDays: 30 })).toBe(22 * 12);
+  });
+
+  test('the release payout is releasePayoutFactor × the wages left, rounded down once, at the end; 0 once expired', () => {
+    // 22 × 36 = 792; × 0.8 = 633.6.
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 0.8 })).toBe(633);
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 1 })).toBe(792);
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 0 })).toBe(0);
+    expect(releasePayout(contract(100), nightOf(100), { ...config, releasePayoutFactor: 0.8 })).toBe(0);
+    expect(releasePayout({ contract: null }, 0, { ...config, releasePayoutFactor: 0.8 })).toBe(0);
+  });
+
+  describe('releaseWarning', () => {
+    // A Guild of one Hero, a pool of four, no Negotiation: every Hero's fee is the list price.
+    const deps = testDeps({ startingRosterSize: 1, unattachedPoolSize: 4, negotiationRange: 0, upkeepEveryDays: 10, releasePayoutFactor: 0.8 });
+
+    function lone() {
+      const { world } = createWorld('release-warning', setup, deps).document;
+      const guild = playerGuild(world) as Guild;
+      const hero = world.heroes[guild.rosterIds[0] as HeroId] as Hero;
+      hero.contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 360 };
+      const pool = unattachedHeroes(world);
+      return { world, guild, hero, pool };
+    }
+
+    test('is null for a Hero who is not the Roster\'s last, and for one not on it', () => {
+      const { world, guild, hero, pool } = lone();
+      expect(releaseWarning(world, deps, guild, pool[0] as Hero)).toBeNull();
+      const other = { ...hero, id: 'hero-999999' as HeroId };
+      guild.rosterIds.push(other.id);
+      world.heroes[other.id] = other;
+      expect(releaseWarning(world, deps, guild, hero)).toBeNull();
+    });
+
+    test('for the last Hero names the payout, the Wealth after it and the cheapest fee, and says whether the Wealth covers it', () => {
+      const { world, guild, hero, pool } = lone();
+      const cheapest = Math.min(...pool.map((each) => signingFee(each, deps)), signingFee(hero, deps));
+      guild.wealth = cheapest + 633 - 1;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 633, wealthAfter: cheapest - 1, cheapestFee: cheapest, covers: false });
+      guild.wealth = cheapest + 633;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 633, wealthAfter: cheapest, cheapestFee: cheapest, covers: true });
+    });
+
+    test('counts the released Hero among the pool they would join, as tonight\'s ending does', () => {
+      const { world, guild, hero, pool } = lone();
+      for (const each of pool) {
+        each.level = 9;
+        each.stats = Object.fromEntries(Object.keys(each.stats).map((key) => [key, 50]));
+      }
+      guild.wealth = 700;
+      expect(releaseWarning(world, deps, guild, hero)?.cheapestFee).toBe(signingFee(hero, deps));
+    });
+
+    test('with nobody in the pool and the Hero released, they are the only one to sign; an empty pool and an expired Contract still name the case', () => {
+      const { world, guild, hero, pool } = lone();
+      for (const each of pool) delete world.heroes[each.id];
+      hero.contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 5 };
+      world.turn = nightOf(5) + 3;
+      guild.wealth = signingFee(hero, deps) - 1;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 0, wealthAfter: guild.wealth, cheapestFee: signingFee(hero, deps), covers: false });
+    });
   });
 });

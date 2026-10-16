@@ -440,6 +440,64 @@ export function nextHallUpkeepDay(turn: Turn, config: Pick<GameConfig, 'hallUpke
   return nextDayOfEvery(turn, config.hallUpkeepEveryDays);
 }
 
+/**
+ * The wages left on `hero`'s Contract at `turn` (DL-317): its wage × the wage charges whose night is still
+ * to come and falls before its end Day, since the night of the end Day reprices the wage and charges that
+ * (`outOfContractWage`, DL-316). 0 once the Contract has ended, and for a Hero with none. Counted by
+ * `nextWagesDay`, so a charge due tonight is still left until the night has been played. Whole Silver, as
+ * the wage is. The one count the release payout reads (`releasePayout`), and the Transfer fee after it.
+ */
+export function wagesLeft(hero: Pick<Hero, 'contract'>, turn: Turn, config: Pick<GameConfig, 'upkeepEveryDays'>): number {
+  if (hero.contract === null) return 0;
+  const first = nextWagesDay(turn, config);
+  const { wage, endDay } = hero.contract;
+  return first >= endDay ? 0 : wage * (Math.floor((endDay - 1 - first) / config.upkeepEveryDays) + 1);
+}
+
+/**
+ * What a Guild pays to release `hero` at `turn` (Q10, DL-294 item 6, DL-317): `releasePayoutFactor` × the
+ * wages left (`wagesLeft`), rounded down once, at the end, to whole Silver as a Market sale is (`sellPrice`);
+ * 0 once the Contract has ended. The one price the `release` action charges and the front ends show.
+ */
+export function releasePayout(
+  hero: Pick<Hero, 'contract'>,
+  turn: Turn,
+  config: Pick<GameConfig, 'upkeepEveryDays' | 'releasePayoutFactor'>,
+): number {
+  return Math.floor(config.releasePayoutFactor * wagesLeft(hero, turn, config));
+}
+
+/**
+ * What releasing the Guild's last Hero would leave (the owner, Q-B, DL-317): the payout, the Wealth after
+ * it, the cheapest signing fee the Guild would then meet and whether that Wealth covers it. The Roster
+ * would be empty with Wealth short of every fee in the pool, which is the "Roster wiped" ending
+ * (`endings`): for the player's Guild the game ends. The pool counts the released Hero, who joins it
+ * tonight, and not the Fame a Hero asks (DL-38), as the ending reads it. `null` unless `hero` is the
+ * Guild's only Hero on the Roster. A warning only: the engine refuses nothing for it, and a Rival's or the
+ * policy's release is made without asking it.
+ */
+export interface ReleaseWarning {
+  payout: number;
+  wealthAfter: number;
+  cheapestFee: number;
+  covers: boolean;
+}
+
+/** `hero`'s release as a warning, or `null` when they are not the Guild's last Hero (`ReleaseWarning`). */
+export function releaseWarning(
+  world: Pick<World, 'heroes' | 'guildmasters' | 'turn'>,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+  guild: Pick<Guild, 'rosterIds' | 'wealth' | 'fame' | 'guildmasterId'>,
+  hero: Pick<Hero, 'id' | 'contract' | 'level' | 'stats'>,
+): ReleaseWarning | null {
+  if (guild.rosterIds.length !== 1 || guild.rosterIds[0] !== hero.id) return null;
+  const payout = releasePayout(hero, world.turn, deps.config);
+  const wealthAfter = guild.wealth - payout;
+  const pooled = cheapestUnattached(world, deps, guild, false)?.fee ?? Number.POSITIVE_INFINITY;
+  const cheapestFee = Math.min(pooled, signingFee(hero, deps, guildmasterOf(guild, world)));
+  return { payout, wealthAfter, cheapestFee, covers: wealthAfter >= cheapestFee };
+}
+
 /** What moves a Hero's Stat from its base (v1.1.6-S13), in the order `statBreakdown` adds them. */
 export type StatSource = 'classBonus' | 'gear' | 'traits';
 

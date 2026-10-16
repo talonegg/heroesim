@@ -277,6 +277,7 @@ const gearReturnWords: Readonly<Record<GearReturnCause, string>> = {
   retired: ', who retired',
   'guild-folded': ' as the Guild folded',
   transferred: ', who was transferred',
+  released: ', who was released',
 };
 
 /** What became of a Transfer Offer that went unanswered (M6-S2), after the Offer. */
@@ -348,6 +349,9 @@ const sentences: Sentences = {
     say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} again${contractWords(event.payload, calendar)}.`,
   'hero.contract-expired': (event) =>
     say`${hero(event, event.payload.heroId)}'s Contract with ${called(event, event.payload.guildId)} ended: Out of Contract, their wage is now ${coinWords(event.payload.wage)}.`,
+  // DL-317: a release, its payout; none once the Contract had ended.
+  'hero.released': (event) =>
+    say`${called(event, event.payload.guildId)} released ${hero(event, event.payload.heroId)}${event.payload.payout > 0 ? say`, paying ${coinWords(event.payload.payout)}` : say`, with no payout`}.`,
   'hero.left-pool': (event) => say`${hero(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, content) => {
     const { patronId, templateKey, questId } = event.payload;

@@ -510,3 +510,53 @@ within 10%. In those four seeds' 4 years, replayed with the policy: 223 `hero.co
 
 **Evidence.** Commits `f930e13` and this story's; the two reports; the epic's S3 boxes, all three met.
 Verified 2026-10-16 at 686900b: the price, the term, the refusals, the night's expiry before the wages for every Guild, once, the repricing (§2's 25), the stop in every map, nobody renewing, and 223 expired and 0 renewed replayed, wages as the report's; the History pin's move is the expiry alone (old values with it off), the arranged setups needed; 21 mutations red, two only after a test of the refusals' order was added; fixed: Q-K's 2-year reading here, the requirements' scope row.
+
+## DL-317 — v1.2.3-S4 built: release, with a payout
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** an agent (the epic's S4)
+
+**Context.** A Guild is to let a Hero go before the end of their Contract, for most of the wages left, and
+may release its last Hero (DL-294 item 6, DL-311, Q10, Q-B). S4 builds it in the engine, its ledger line
+and its counter; the page and the CLI reach it at S9.
+
+**Decision.**
+
+1. **`wagesLeft`** `(hero, turn, config)`: the Contract's wage × the wage charges whose night is still to
+   come and falls before the end Day, 0 once expired or with no Contract. The end Day's own night is not
+   counted, since it charges the repriced wage (DL-316). One selector, for S5's fee as well.
+2. **`release`** `{ guildId, heroId }`: the Guild pays `releasePayout` = `releasePayoutFactor` × `wagesLeft`,
+   rounded down once, as a Market sale is; 0 once expired. The gear goes back to the holding
+   (`item.returned`, cause `released`); the Hero leaves the Roster by `leaveRoster`, joins the pool as of this
+   Turn with no Contract; each teammate warm or better loses `transferMoraleCost` (`transferMoraleCost`,
+   exported from `transfer.ts` and reused); any Offer for them lapses `hero-left`. Refused, in order:
+   `hero-not-on-roster`, `hero-in-party`. `hero.released` `{ heroId, guildId, payout }`, a Milestone, its
+   payout in `moneyFields`, placed in every map keyed by event type.
+3. **`releasePayoutFactor`** 0.8 (config 37; a rule of 0 to 1), added by hand as `config.md` says.
+4. **The last Hero** (Q-B) may be released. `releaseWarning(world, deps, guild, hero)` is `null` unless they
+   are the Roster's only Hero, else `{ payout, wealthAfter, cheapestFee, covers }`. Nothing is refused for
+   it: a Guild short of every fee meets "Roster wiped" that night, and the game ends (tested). The ending
+   still reads the signing fee.
+5. **A payout may take Wealth below the floor**; nothing refuses it, and the night's floor test reads it
+   the same night (tested, with and without a grace).
+6. **The ledger**: the Treasury's expense line "Release payouts", never Other; the harness's `WealthFlows`
+   `releasePayouts`, its own row and a share, in Spent in all. No Rival or policy releases yet (S7).
+
+*Judgement calls, for the owner to see.*
+- The gear's return has a cause of its own, `released`, so that the History says ", who was released";
+  the teammates' Morale event keeps the cause `transfer`, the cost being the Transfer's, and is not narrated.
+- The Hero's departure is `hero.released` alone, not also `hero.left-guild`; the harness's two readers of
+  a Hero leaving a Roster (the Rival-seller count, the recoveries) read it too.
+- `releaseWarning` counts the released Hero in the pool they would join, as tonight's ending does, so its
+  `cheapestFee` is always a number; Fame is not asked (DL-38).
+- `wagesLeft`, `releasePayout` and `releaseWarning` are not exported from the engine's index until S9's
+  page and CLI use them (`testing.test.ts` holds exports to what production takes).
+- Arranged for the owner to see (DL-315's note), assertions unchanged: `web/src/state/treasury.test.ts`'s
+  game (`playersMonth`) now has the player and a Rival each release a Hero in month 4, as no Rival releases
+  until S7 and the test holds that every line comes up on both sides.
+
+**Consequences.** Quick run, 2 years (`v1.2.3-s4-quick-2026-10-16`): fingerprint `8a58f74a…` against S3's
+`452b483e…`, moved by the config alone (36 → 37, `releasePayoutFactor` in every save): `compare` shows 0
+counters moved, 606 the same, saves +208 bytes. The payout reads 0 on its own line. Bundle 887,196 bytes.
+
+**Evidence.** Commit of this story; the S4 quick report; the epic's S4 boxes, all three met. Tests:
+`release.test.ts`, `selectors.test.ts`, the Treasury's and the counters'.
