@@ -17,7 +17,8 @@ permissions:
 
 jobs:
   cloudflare:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest, so no runner image change lands mid-release (DL-313).
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     environment:
       name: production
@@ -42,7 +43,7 @@ jobs:
   report:
     needs: [cloudflare]
     if: always() && contains(needs.*.result, 'failure')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       issues: write
     steps:

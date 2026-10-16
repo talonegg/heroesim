@@ -346,3 +346,26 @@ Gate's 10% aim covers the wages only.
 
 **Evidence.** The epic `docs/planning/epics/v1.2.3-release.md`: the Gate, S5, §2, §4 and §6's Q-F;
 `docs/planning/epics/v1.2.4-release.md` S5; the record `superseded/DL-311.md`.
+
+## DL-313 — CI's runner pinned to `ubuntu-24.04` for `v1.2.3`
+
+**Status:** Accepted · **Date:** 2026-10-16 · **Decided by:** the owner
+
+**Context.** GitHub's annotations on run 38849530300 say `ubuntu-latest` starts moving to Ubuntu 26
+on 2026-10-19, during `v1.2.3`'s first stories. Every job in the five workflows ran on
+`ubuntu-latest`. The phone layout spec has failed on Linux fonts before (DL-310), and `v1.2.3`'s S9
+needs its e2e green on CI as on the machine.
+
+**Decision.**
+
+1. **Pinned** (the owner's "a"). Every job's `runs-on` in `check.yml`, `deploy.yml`, `release.yml`,
+   `release-pr.yml` and `watch.yml` (`.github/workflows/`) is `ubuntu-24.04`, the image `v1.2.2` was
+   checked and deployed on, so no image change lands in the middle of a release.
+2. **Moved on purpose** in `v1.2.4` (its §0): to the current image, in a commit of its own, its CI
+   read before the next story.
+
+**Consequences.** A red run in `v1.2.3` is the code's, not the image's. The pin must move before
+GitHub retires the 24.04 image.
+
+**Evidence.** The five workflows; `docs/planning/epics/v1.2.4-release.md` §0; run 38849530300's
+annotations.

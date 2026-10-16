@@ -322,6 +322,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … | item 3 by DL-312; item call 5 in part by DL-312 | [decision-log](../decision-log.md) |
 | DL-312 | 2026-10-16 | `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4` |  | [decision-log](../decision-log.md) |
+| DL-313 | 2026-10-16 | CI's runner pinned to `ubuntu-24.04` for `v1.2.3` |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 
