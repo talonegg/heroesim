@@ -1,12 +1,8 @@
-import { afterEach, beforeAll, describe, expect, test } from 'vitest';
-import type { GuildId, Guild, WorldDocument } from '../document.js';
-import { append } from '../history.js';
-import { phaseContext } from '../phases/phase.js';
-import { runTurn } from '../pipeline.js';
-import { dispositionOf } from '../selectors.js';
-import { validate } from '../validate.js';
-import { createWorld } from '../create.js';
-import { deps, newWatch, rivalsInPlay, ruleProblems, setup, stillPlayer, unwatchPhase, watchPhase, type Watch } from './transfer-generator.test-support.js';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { beforeAll, describe, expect, test } from 'vitest';
+import { deps, ruleProblems } from './transfer-generator.test-support.js';
+import type { Swept, Tally } from './transfer-generator.sweep.test-support.js';
 
 // The first of two acceptance boxes (DL-59): over 100 seeds × 20 years, Rival-to-Rival Transfers occur,
 // and the Roster-size distribution across Rivals stays within the range a Rival is generated with
@@ -21,7 +17,7 @@ import { deps, newWatch, rivalsInPlay, ruleProblems, setup, stillPlayer, unwatch
 // Each seed is a default world, four Rivals dealt the four Dispositions (DL-56), the player idle and
 // rich (its Guildmaster young enough not to retire), played Turn by Turn on the one world, in place,
 // as the Dispositions' and the Rivals' building tests are (DL-56, DL-58), the `transfers` phase
-// watched. The box, with the four seeds of Rivals building and buying beside it, takes about fifty
+// watched. The box, with the four seeds of Rivals building and buying beside it, plays its seeds four processes at a time (DL-324) and takes about forty-five
 // minutes alone: a harness run, `npm run harness -- transfer-generator`, which `npm test` never plays
 // (DL-230). A Rival bids only while it would hire (DL-59), which the test content's Rivals seldom
 // would: the Generator dealt in 20 of the 100 seeds, 24 times, so its own count is asserted over the
@@ -30,47 +26,26 @@ import { deps, newWatch, rivalsInPlay, ruleProblems, setup, stillPlayer, unwatch
 const years = 20;
 const seeds = Array.from({ length: 100 }, (_, index) => `transfer-generator-${index + 1}`);
 
-afterEach(() => {
-  unwatchPhase();
-});
+const sweepModule = new URL('./transfer-generator.sweep.test-support.ts', import.meta.url).href;
+const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
+/** The processes the seeds are shared among, in runs of consecutive seeds (DL-324). */
+const processes = 4;
+/** A child under tsx: it plays the seeds given and writes what it swept, as JSON, to its output. */
+const child = [
+  'const { sweep } = await import(process.argv[1]);',
+  'process.stdout.write(JSON.stringify(process.argv.slice(3).map((seed) => sweep(seed, Number(process.argv[2])))));',
+].join('\n');
 
-/** What a seed's twenty years showed. */
-interface Tally extends Watch {
-  /** Every Rival-to-Rival Transfer, of either kind: the afternoon's and the Generator's. */
-  rivalToRival: number;
-  /** The Roster size of each Rival in play at each year's end, by year from 1. */
-  yearEnds: number[][];
-}
-
-/** Plays `seed` for twenty years in place, watching the phase, and validates the end. */
-function sweep(seed: string): Tally {
-  const document: WorldDocument = createWorld(seed, setup, deps).document;
-  const { world } = document;
-  stillPlayer(world, deps);
-  const tally = watchPhase<Tally>({ ...newWatch(seed, world), rivalToRival: 0, yearEnds: [] });
-  const turns = years * deps.config.turnsPerYear;
-  let lastYearFrom = 0;
-  try {
-    while (world.turn < turns && world.ended === null) {
-      if (world.turn === turns - deps.config.turnsPerYear) lastYearFrom = document.history.entries.length;
-      world.turn += 1;
-      for (const event of runTurn(world, phaseContext(world, deps, document.history))) {
-        append(document.history, event);
-        if (event.type !== 'hero.transferred') continue;
-        const { fromGuildId, toGuildId } = event.payload;
-        const rival = (id: GuildId) => dispositionOf(world.guilds[id] as Guild) !== null;
-        if (rival(fromGuildId) && rival(toGuildId)) tally.rivalToRival += 1;
-      }
-      if (world.turn % deps.config.turnsPerYear === 0) tally.yearEnds.push(rivalsInPlay(world).map((guild) => guild.rosterIds.length));
-    }
-  } finally {
-    unwatchPhase();
-  }
-  expect(world.ended, seed).toBeNull();
-  // The World State in full and the last year's History (DL-34), neither refused nor warned about.
-  const validated = validate(document, deps, { historyFrom: lastYearFrom });
-  expect(validated.ok ? validated.warnings : validated.failures, seed).toEqual([]);
-  return tally;
+/** Plays `shared` seeds in a child process and returns what it swept. */
+function sweepInChild(shared: string[], live: ChildProcess[]): Promise<Swept[]> {
+  return new Promise((resolve, reject) => {
+    const sweeper = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', child, sweepModule, String(years), ...shared], { cwd: repositoryRoot, stdio: ['ignore', 'pipe', 'inherit'] });
+    const out: Buffer[] = [];
+    live.push(sweeper);
+    sweeper.stdout.on('data', (chunk: Buffer) => out.push(chunk));
+    sweeper.on('error', reject);
+    sweeper.on('exit', (code, signal) => (code === 0 ? resolve(JSON.parse(Buffer.concat(out).toString('utf8')) as Swept[]) : reject(new Error(`A sweep exited with ${signal ?? `code ${code}`}: ${shared[0]}`))));
+  });
 }
 
 const median = (values: readonly number[]): number => {
@@ -82,9 +57,22 @@ const mean = (values: readonly number[]): number => values.reduce((sum, value) =
 
 describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years`, () => {
   let tallies: Tally[] = [];
-  beforeAll(() => {
-    tallies = seeds.map(sweep);
-  }, 7_200 * 1000);
+  // The seeds are played in four processes side by side, and each is checked here, named by its seed.
+  // The limit is an hour: the Rosters Contracts let grow take a seed about 75 s (DL-324).
+  beforeAll(async () => {
+    const live: ChildProcess[] = [];
+    try {
+      const size = Math.ceil(seeds.length / processes);
+      const swept = (await Promise.all(Array.from({ length: processes }, (_, lane) => sweepInChild(seeds.slice(lane * size, (lane + 1) * size), live)))).flat();
+      for (const { seed, ended, problems } of swept) {
+        expect(ended, seed).toBeNull();
+        expect(problems, seed).toEqual([]);
+      }
+      tallies = swept.map(({ tally }) => tally);
+    } finally {
+      for (const running of live) running.kill();
+    }
+  }, 3_600 * 1000);
 
   test('Rival-to-Rival Transfers occur; those the Generator makes go to the more transferAppetite-heavy Rival', () => {
     expect(tallies.reduce((sum, tally) => sum + tally.rivalToRival, 0)).toBeGreaterThan(0);
