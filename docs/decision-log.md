@@ -308,6 +308,8 @@ unseen (DL-310), Q-I. The owner answered on 2026-10-16 and chose to apply the fi
 - The fit's box test reports both rules' means and pins no default (`docs/agents/config.md`).
   *Superseded in part by DL-312 item 1, 2026-10-16: the fit's box test; now no fit, and no box test for it. The record: [superseded/DL-311.md](decisions/archive/superseded/DL-311.md).*
 - `show treasury` is put to the owner before S9 (Q-J).
+  *Note, 2026-10-16 (the owner's "a"): no `show treasury`; "wages are aggregated in treasury,
+  contract updates will not impact the summary of wages" (the epic's S9 and §6).*
 - The config version rises at S3, for `outOfContractPremium`, and not at S6, which adds no engine
   setting.
 
