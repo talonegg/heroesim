@@ -335,6 +335,9 @@ matching `v1.2.2`'s fee is about 0.28 for a Level 1 Hero and 0.11 for a Level 8 
    the wages and the rest of the economy. Supersedes DL-311 item 3 in full and its judgement call on
    the fit's box test.
 
+*Note, 2026-10-16 (the owner's "a"): with §2's wage rounded down once, at the end, a Level 1 Hero's
+wage is 22 and the matching factor about 0.27, not 0.28; the epic's §2 corrected.*
+
 **Consequences.** Until `v1.2.4` a high-Level Hero's fee runs up to about three times `v1.2.2`'s, and
 the Rivals' buying and debt sales move with it; `v1.2.3`'s close reports the fee, not blocking. The
 Gate's 10% aim covers the wages only.
