@@ -66,7 +66,7 @@ describe('recruit', () => {
 
     const refused = play(['recruit', '--hero', hero.id, '--years', '5']);
 
-    expect(refused).toMatchObject({ code: exitCodes.refused, err: expect.stringContaining('A Contract is 1, 2 or 3 years long; 5 is not.') });
+    expect(refused).toMatchObject({ code: exitCodes.refused, err: expect.stringContaining('A Contract is 1, 2 or 3 Years long; 5 is not.') });
     expect(saved()).toBe(before);
     expect(play(['recruit', '--hero', hero.id, '--years', '3']).code).toBe(exitCodes.ok);
     expect(document().world.heroes[hero.id]?.contract?.years).toBe(3);

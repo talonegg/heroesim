@@ -32,6 +32,14 @@ function rivals(document: WorldDocument): Guild[] {
  * (DL-135 item 4), so a change to one Guildmaster may change the pictures of those after, and with
  * them their Appearance and Biography, while every draw of every stream is the same.
  */
+function picturesAside(document: WorldDocument): WorldDocument {
+  const copy = structuredClone(document);
+  for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
+  // A Hero's too: the test content's one Hero picture fits a female Warrior.
+  for (const hero of Object.values(copy.world.heroes)) Object.assign(hero, { portraitKey: null, appearance: '', biography: '' });
+  return copy;
+}
+
 /**
  * `chosen` with its Heroes' Contract wages set to `drawn`'s: a founding wage reads the Guildmaster's
  * Negotiation (DL-315), so the player's Stats chosen move it, though no draw.
@@ -41,14 +49,6 @@ function wagesAside(chosen: WorldDocument, drawn: WorldDocument): void {
     const was = drawn.world.heroes[hero.id]?.contract;
     if (hero.contract !== null && was !== null && was !== undefined) hero.contract.wage = was.wage;
   }
-}
-
-function picturesAside(document: WorldDocument): WorldDocument {
-  const copy = structuredClone(document);
-  for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
-  // A Hero's too: the test content's one Hero picture fits a female Warrior.
-  for (const hero of Object.values(copy.world.heroes)) Object.assign(hero, { portraitKey: null, appearance: '', biography: '' });
-  return copy;
 }
 
 function tally(keys: string[]): Record<string, number> {

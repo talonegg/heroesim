@@ -301,7 +301,7 @@ describe("another Guild's Roster", () => {
     const [row] = within(within(section('Guilds')).getByRole('article')).getAllByTestId('guild-hero');
     if (row === undefined) throw new Error('an empty Roster');
     const name = within(row).getByRole('rowheader').textContent ?? '';
-    expect(within(row).getAllByRole('option').map((option) => option.textContent)).toEqual(['1 year', '2 years', '3 years']);
+    expect(within(row).getAllByRole('option').map((option) => option.textContent)).toEqual(['1 Year', '2 Years', '3 Years']);
 
     fireEvent.change(within(row).getByLabelText(`Contract length for ${name}`), { target: { value: '2' } });
     fireEvent.click(within(row).getByRole('button', { name: `Take ${name} in` }));

@@ -243,7 +243,7 @@ describe("the Unattached pool as rows (the review's B8)", () => {
     renderGame(state);
     const table = within(section('Unattached pool')).getByRole('table', { name: 'Heroes in the Unattached pool' });
 
-    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', '1-year Contract', '2-year Contract', '3-year Contract', 'Signs', 'Recruit']);
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age', 'Background', 'Fee', '1-Year Contract', '2-Year Contract', '3-Year Contract', 'Signs', 'Recruit']);
     const all = rows();
     expect(all.length).toBeGreaterThan(3);
     for (const { name, cells: [kind, level, age, , , , , , signs], row } of all) {

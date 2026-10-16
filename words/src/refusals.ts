@@ -162,7 +162,7 @@ function inParty({ heroId, partyId }: Extract<ActionRejection, { reason: 'hero-i
 
 /** A signing for a length the config does not offer (DL-315): the lengths it does. */
 function lengthNotOffered({ years, offered }: Extract<ActionRejection, { reason: 'length-not-offered' }>): Sentence {
-  return say`A Contract is ${listed(offered.map(String), 'or')} years long; ${years} is not.`;
+  return say`A Contract is ${listed(offered.map(String), 'or')} Years long; ${years} is not.`;
 }
 
 function notFound({ offerId }: Extract<ActionRejection, { reason: 'offer-not-found' }>, setting: RefusalSetting): Sentence {

@@ -6,12 +6,12 @@ import { useState } from 'react';
 import type { ContractTerm } from '../state/contract-terms';
 import { Coins } from './coins';
 
-/** `1 year`, `2 years`. */
+/** `1 Year`, `2 Years`: Year is a glossary term (ui-text.md). */
 export function yearsWords(years: number): string {
-  return `${years} ${years === 1 ? 'year' : 'years'}`;
+  return `${years} ${years === 1 ? 'Year' : 'Years'}`;
 }
 
-/** The first wage at each length, as a sentence: `Contract wage by length: 1 year 20 Silver, 2 years …`. */
+/** The first wage at each length, as a sentence: `Contract wage by length: 1 Year 20 Silver, 2 Years …`. */
 export function WagesByLength({ terms }: { terms: ContractTerm[] }) {
   if (terms.length === 0) return null;
   return (

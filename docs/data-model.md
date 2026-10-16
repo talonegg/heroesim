@@ -204,8 +204,9 @@ contract:       { wage, signedOnTurn, years, endDay } | null
                                             Silver each wage Day, set at signing by the wage rule
                                             (`contractWage`) and fixed for the term; `years` one of
                                             contractLengthsYears; `endDay` the signing Day plus the
-                                            years' Days (turnsPerYear ÷ 3), or for a founding
-                                            Contract a Day drawn over its term on `contracts`
+                                            years' Days (turnsPerYear ÷ turnsPerDay), or for a
+                                            founding Contract a Day drawn over its term on
+                                            `contracts`
 ```
 A Hero's Gear is not on the Hero: it is the Items, a Unique Item or a stack of one, that the Hero
 holds in a slot (§3.3).

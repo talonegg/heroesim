@@ -95,7 +95,7 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                 {/* The first wage at each length, the same lengths on every row. */}
                 {(view.rows[0]?.terms ?? []).map(({ years }) => (
                   <th key={years} scope="col" className="number">
-                    {years}-year Contract
+                    {years}-Year Contract
                   </th>
                 ))}
                 <th scope="col">Signs</th>
