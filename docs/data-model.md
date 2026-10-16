@@ -286,10 +286,15 @@ fromGuildId, toGuildId, heroId
 fee
 years                                       the length of the Contract the offering Guild would
                                             sign the Hero for, its choice when it offers (DL-315)
-offeredOnTurn, expiresOnTurn
+offeredOnTurn, expiresOnTurn                expiresOnTurn the night of its transferOfferDays-th
+                                            Day; for a Hero away when made, counted from their
+                                            Party's returnsOnTurn, stored then (DL-319)
 ```
-A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster; rule 8 says when its row goes,
-and the History keeps its record.
+A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster, and Under Offer while home: no
+Party takes them (a selector, rule 1). One made while its Hero was Out of Contract, its fee 0, is a
+free Offer, read from the Hero's Contract and never stored: it is not declined, and its Hero is
+taken on its last night unless their Guild has renewed them (DL-319). Rule 8 says when its row
+goes, and the History keeps its record.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
@@ -414,7 +419,8 @@ reads its counters through `byType`, or observes them in play
    and the harness can check determinism by byte equality.
 8. **Row lifecycle.** A Quest's row is removed when it expires, resolves or is abandoned by a
    folding Guild; a Party's when it comes home or its Guild folds; a Transfer Offer's when it is
-   answered or withdrawn (its night passed, its Hero gone from the Roster, a Guild folded); a
+   answered or withdrawn (its night passed, its Hero gone from the Roster, a Guild folded, a free
+   Offer's Hero renewed or taken); a
    stack's when it empties, the Market's at each Market refresh, and a folding Guild's when it is
    discarded. The History keeps their records; unique Items, Patrons, Guilds and Guildmasters keep
    their rows. Dead and retired Heroes keep their rows, with their State. A Hero leaves the

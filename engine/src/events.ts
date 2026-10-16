@@ -744,9 +744,12 @@ export type GuildTransferOfferDeclined = Entry<'guild.transfer-offer-declined', 
 /**
  * Why a Transfer Offer was removed unanswered: its time ran out (`expired`, the night of its last
  * Day), its Hero left the Roster it was made for (`hero-left`: transferred, dead or retired), or one
- * of the two Guilds folded (`guild-folded`).
+ * of the two Guilds folded (`guild-folded`). A free Offer, made for a Hero Out of Contract, ends too
+ * when their Guild renews them (`renewed`), or when the Hero is taken (`taken`): its time run out for
+ * a Guild that answers through Offers, or at once by a Rival's answer, the `hero.transferred` that
+ * follows naming the Offer (Q8, Q15, DL-319).
  */
-export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded';
+export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded' | 'renewed' | 'taken';
 
 /**
  * A Transfer Offer was removed unanswered, for `cause`. Names the offer, the Hero and both Guilds.

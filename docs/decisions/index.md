@@ -66,9 +66,9 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-54 | 2026-09-26 | Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not … | item 3 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-55 | 2026-09-26 | M4 close: M3's verification merged (`configVersion` 6), the M4 counters, and the M4 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-56 | 2026-09-26 | Named Dispositions: four rows of weights, one rule, a round-robin deal, and a replacement that … | item 4 in part by DL-69 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-57 | 2026-09-26 | Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and … | item 3 in part by DL-83; item 2 in part by DL-318 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-57 | 2026-09-26 | Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and … | item 3 in part by DL-83; item 2 in part by DL-318; item 1 in part by DL-319; item 6 in part by DL-319 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-58 | 2026-09-26 | Rivals build every facility and buy gear, armour first; one gear-buying rule with the policy … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-59 | 2026-09-26 | The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-59 | 2026-09-26 | The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range … | item 6 by DL-319; item 3 in part by DL-319 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-60 | 2026-09-27 | M6 verification: a Rival below `rivalRosterMin` hires by need, a Transfer holds its Hero for … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-61 | 2026-09-26 | Merging the main line's M4 close into M5: `configVersion` 7, content version 11 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-62 | 2026-09-26 | M5 close: the M5 counters, the policy's consumables, Loot for hard Quests (`configVersion` 8 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -328,6 +328,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-316 | 2026-10-16 | v1.2.3-S3 built: renewal, and the Contract's end |  | [decision-log](../decision-log.md) |
 | DL-317 | 2026-10-16 | v1.2.3-S4 built: release, with a payout |  | [decision-log](../decision-log.md) |
 | DL-318 | 2026-10-16 | v1.2.3-S5 built: the Transfer fee from the wages left |  | [decision-log](../decision-log.md) |
+| DL-319 | 2026-10-17 | v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

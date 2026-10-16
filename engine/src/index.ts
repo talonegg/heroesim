@@ -187,6 +187,7 @@ export {
 } from './content-types.js';
 export { availableHeroes, bestParties, partyPool, restBandOf, type BestParties, type BestParty } from './best-party.js';
 export {
+  renewsOnOffer,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
@@ -419,7 +420,7 @@ export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReaso
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, turnsPerDay, yearOf, type Aged, type TimeOfDay } from './time.js';
 export { bestFourLevel, boardTopTier, difficultyBand, isDeadly, offeredTiers, tierFigures, unlockedTier } from './tiers.js';
 export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
-export { offersTo } from './transfer.js';
+export { freeOffer, offersTo } from './transfer.js';
 export {
   validate,
   type RefusalCheck,

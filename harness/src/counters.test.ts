@@ -1197,14 +1197,20 @@ describe("M6's counters, from the History", () => {
     ended(11, 3, b, p3, 100, 'expired');
     ended(11, 4, a, p4, 220, 'hero-left');
     ended(11, 5, b, p1, 90, 'guild-folded');
+    // Two free Offers (DL-319): one taken, its Transfer naming it and not counted accepted; one withdrawn by a renewal.
+    offered(12, 7, b, p2, 0);
+    ended(12, 7, b, p2, 0, 'taken');
+    transferred(document, 12, p2, player, b, 0, makeId('offers', 7));
+    offered(12, 8, a, p3, 0);
+    ended(12, 8, a, p3, 0, 'renewed');
     offered(13, 6, a, p2, 150); // still standing when the game stops
     document.world.turn = 15;
 
     const { offers } = countGame(document, shortYears);
 
     expect(offers).toEqual({
-      ambitious: { player: { made: 4, fees: 750, accepted: 1, declined: 1, ended: { expired: 0, 'hero-left': 1, 'guild-folded': 0 } } },
-      miserly: { player: { made: 2, fees: 190, accepted: 0, declined: 0, ended: { expired: 1, 'hero-left': 0, 'guild-folded': 1 } } },
+      ambitious: { player: { made: 5, fees: 750, accepted: 1, declined: 1, ended: { expired: 0, 'hero-left': 1, 'guild-folded': 0, renewed: 1, taken: 0 } } },
+      miserly: { player: { made: 3, fees: 190, accepted: 0, declined: 0, ended: { expired: 1, 'hero-left': 0, 'guild-folded': 1, renewed: 0, taken: 1 } } },
     });
   });
 

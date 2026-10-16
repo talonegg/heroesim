@@ -644,7 +644,7 @@ describe('the Party builder (DL-104)', () => {
       { name: 'Ragnvald Brackenridge', why: 'in-party', unavailable: 'Away with a Party, back on the night of Year 1 Day 6', chip: 'Away' },
       { name: 'Cenric Yarrow', why: 'injured', unavailable: 'Injured, healing on the night of Year 1 Day 7', chip: 'Injured' },
     ]);
-    for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
+    for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero, document.world));
     // The full words as the Roster words them; only the Board's chip is short (DL-169 item 2).
     const roster = sortedRoster(rosterRows(document));
     for (const row of rows?.slice(2) ?? []) expect(row.unavailable).toBe(roster.find((each) => each.heroId === row.heroId)?.whereabouts);

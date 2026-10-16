@@ -737,13 +737,7 @@ describe('Transfer Offers (data-model §3.2)', () => {
     heroOf(document.world, hero.id).partyId = 'party-000099' as PartyId;
     expect(refused(document, () => applyAction(document, { kind: 'acceptTransfer', guildId: guild.id, offerId }, deps))).toMatchObject({ reason: 'hero-in-party' });
     expect(document.world.offers[offerId]).toBeDefined();
-    // Nor is an offer made for a Hero away.
-    expect(refused(document, () => applyAction(document, { kind: 'offerTransfer', guildId: other.id, heroId: hero.id, years: 2 }, deps))).toEqual({
-      action: 'offerTransfer',
-      reason: 'hero-in-party',
-      heroId: hero.id,
-      partyId: 'party-000099',
-    });
+    // An offer may be made for a Hero away, its Days counted from their return (Q-H, DL-319): free-offer.test.ts.
   });
 
   test('every Transfer action is an Action value a front end or controller applies alike', () => {

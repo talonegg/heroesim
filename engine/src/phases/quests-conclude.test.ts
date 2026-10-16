@@ -1142,11 +1142,14 @@ describe('the Quest named on what its return causes', () => {
     // Contract on a Roster ending in its 120 Days), which moves its Guild's Wealth from that night; and
     // the Transfer fee, the wages left × `transferFeeFactor` 0.3 in place of twice the list price
     // (DL-318; 8c9d6cd5…, 31e1bd8f… and a831d208…), which moves each Transfer's fee, so the Wealth of
-    // the Guilds that deal and what they then buy, and who is wanted.
+    // the Guilds that deal and what they then buy, and who is wanted; and the free Offer, the Transfer
+    // Generator's pairs holding the player's Guild (DL-319; 4a418501…, e8fd9edb… and a6ed48bb…), which
+    // moves `rivals` from the Generator's first night and so a Rival's Quest drawn, first on Turns 31,
+    // 34 and 79.
     expect(fingerprints).toEqual([
-      '4a418501ac586ae95edccee7cd38b090edc9ddfa891b0d7cb2d34c909c9cdb2c',
-      'e8fd9edb68ed74f06b21f4ef1e046a8a54e5753e936dd42c10c639731d686f02',
-      'a6ed48bb3c82d697540f3c5e9828b41f4470081b0b941da147fbe2ea47e5357c',
+      '1bfb02769cb602971daa805e5cd4022af784b11bb2bad024a3a40a6e6461a8b7',
+      'c1594279f3b2aaa608a23858e4326b9a1b0de62937301fe48494537d4d660305',
+      '0dae286f4e9c7b82bfdfb4112c9a13e98a05675d8992799f93f54dc67295a31e',
     ]);
   });
 

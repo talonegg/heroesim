@@ -23,7 +23,7 @@
     },
     "stopped": {
       "max": 0,
-      "source": "M6-S3's harness assertion (DL-59, DL-69): no hero.transferred names the player's Guild; 0 at v1.2.0's closing full gate (DL-274)"
+      "source": "M6-S3's harness assertion (DL-59, DL-69, DL-319): no hero.transferred names the player's Guild but the taking of a free Offer on a Hero Out of Contract that the policy let run out; 0 at v1.2.0's closing full gate (DL-274)"
     },
     "unfinished": {
       "max": 0,

@@ -281,8 +281,9 @@ describe('dispatch', () => {
       const folded = structuredClone(document);
       const rival = folded.world.guilds[ids.rivalGuild] as Guild;
       rival.foldedOnTurn = fixtureTurn - 1;
-      // Its Roster is left in place, so that the first request would otherwise be accepted.
-      const pair = rival.rosterIds.slice(0, 2);
+      // Its Roster is left in place, so that the first request would otherwise be accepted: two of its
+      // Heroes no Offer stands for, the fixture's Offer holding its first (Under Offer, DL-319).
+      const pair = rival.rosterIds.filter((heroId) => !Object.values(folded.world.offers).some((offer) => offer.heroId === heroId)).slice(0, 2);
       const refusal = { action: 'dispatch', reason: 'guild-folded', guildId: ids.rivalGuild };
 
       expect(rejected(folded, { guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair })).toEqual(refusal);

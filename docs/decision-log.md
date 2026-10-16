@@ -610,3 +610,67 @@ price (DL-294 item 6, Q11, Q12), and `transferFeeFactor` takes its new meaning a
 written first and red against the old code (`selectors.test.ts` 5 failed, `actions/transfer.test.ts` 1), then
 green. Tests: `selectors.test.ts`, `actions/transfer.test.ts`, `transfer.test.ts` and the callers'.
 Verified 2026-10-16 at f7a4a63: the fee re-derived (§2's Level 1 Hero, 22 × 36 charges × 0.3 = 237, 213 at the best Negotiation), the premium, the signing fee the same for every Hero of five worlds at every Guildmaster, every caller, config 38, the History pin's three games traced to their first change (each a Transfer the fee moved), and a Hero Out of Contract at 0 reaching the player's Guild only by an Offer the policy declines (stopped games 0); 20 mutations, 19 red, the six callers' Turn red only after tests were added, the premium's `1 +` equivalent while it is 0; fixed: those five tests, `rival.test.ts`'s need-budget Hero made dearest by Stats, the CLI usage's wrap and `superseded/DL-57.md`'s quote.
+
+## DL-319 — v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S6); the owner, Q-C, Q-G, Q-H
+
+**Context.** A Hero Out of Contract is to be open to a free Offer their Guild answers only by renewing, and a
+Hero any Offer stands for kept from every Party (DL-294 item 6, DL-311, Q8, Q15, Q-C, Q-G, Q-H). S6 builds both
+in the engine, the Rivals' and the policy's answer, and restates ADR-0002.
+
+**Decision.**
+
+1. **The free Offer** (Q8). `offerTransfer` for a Hero Out of Contract on any Guild's Roster, at the fee of 0
+   their Contract's end leaves; `freeOffer(world, offer)` reads the Hero's Contract at `offeredOnTurn`, nothing
+   stored. Two new ends of `guild.transfer-offer-expired`: `renewed` (`renew` withdraws each free Offer for the
+   Hero) and `taken` (on its last night, `takeOffer`: the end, then `makeTransfer` naming the Offer, with the
+   Transfer's Morale cost, Regard and lock). `declineTransfer` refuses one, `free-offer`; `transferIn` refuses a
+   Hero Out of Contract, `out-of-contract`, so the free Offer is the one way to take them (S5's gap closed).
+2. **A Rival's answer, at once** (Q15). `renewsOnOffer(world, guild, hero, floor)`: Level at or above the median
+   Level of the Roster, the Hero among it, or the Roster at or below the floor; a Rival's floor `rivalRosterMin`,
+   its length its `contractYears` (`freeOfferRenewal`). Renewed or taken inside `offerTransfer`; for a Hero away,
+   the night they come home (`offerTonight`, the night sweep's one rule).
+3. **Under Offer** (Q-G). `underOffer(world, hero)`, a selector. `unavailability(hero, world)` gives
+   `under-offer` after `in-party`: `dispatch` refuses `hero-unavailable`, and `availableHeroes`, `partyPool`, the
+   preview, the page and the Rivals' search pass over them. Words: "is Under Offer", the chip "Under Offer".
+4. **An Offer for a Hero away** (Q-H): `offerTransfer`'s `hero-in-party` goes; `expiresOnTurn` is the night of their return Day + `transferOfferDays`, stored when made (`offerExpiresOnTurn`); `acceptTransfer` still waits for them home. Supersedes DL-57 items 1 and 6 in part.
+5. **Who bids** (Q-C). `dearestWanted` weighs a Hero Out of Contract on every Roster, at their fee of 0, by a
+   free Offer, beside the Heroes under Contract it weighed, the dearest wanted as before. The Generator pairs every Guild in play, one draw a pair; the player's Guild never bids, and its Heroes under Contract are never bid for (ADR-0002, exception 3, now in `transferBid` through `chooser`): the phase reads no controller. Supersedes DL-59 item 6 in full, item 3 in part, and its context's box in part.
+6. **The policy** declines every priced Offer and answers a free one by `renewsOnOffer` at its `rosterFloor` 4, a
+   harness setting, renewing for `contractYears` once the Hero is home; its Parties are chosen from the Heroes
+   its answers leave free.
+7. **ADR-0002 restated**, its three amendment notes folded in and its old wording archived; exception 3 narrowed
+   to Heroes under Contract. With it: `controller-reads.test.ts` (the phase's entry gone, `chooser`'s naming the
+   bid), the glossary, `gate.json`'s `stopped` wording, its limit unchanged, and the harness assertion, which
+   allows a Transfer naming the player's Guild only as a `taken` free Offer, for no fee. The counters' Offer
+   ends gain `renewed` and `taken`; a taken Offer is not counted accepted.
+
+*Judgement calls, for the owner to see.*
+- A free Offer cannot be declined (Q8, "only by renewing") but can be accepted: the Hero goes at once.
+- A Hero Out of Contract is weighed at their fee of 0, so wanted only when no dearer Hero is: wanting them
+  first, tried, spent each Rival's Transfer step on free Offers the seller renewed (Rival-to-Rival
+  Transfers 7 → 0 in the quick run); S7 makes a free Hero preferred.
+- An Offer for a Hero away counts from the morning after their return: they stand its Days at home.
+- The Generator's pairs hold the player's Guild, so `rivals` moves from its first night; DL-59 item 3 is
+  superseded in part for it, beyond the epic's list.
+- A Rival's search passes over a Hero Under Offer, so a Hero meets one Rival's Offer at a time.
+- Re-recorded (DL-315's note), old values in its comment: `quests-conclude.test.ts`'s History pin (named-a,
+  named-b and named-c part at Turns 31, 34 and 79, a Rival's Quest drawn from `rivals`, which the new pairs
+  moved). Arranged, assertions unchanged: `dispatch.test.ts`'s pair off the fixture's Offer. Rewritten to the
+  new rule: the Generator's draw counts and player tests, the Offer refusals' "a Hero away".
+
+**Consequences.** Every game's play moves from the Generator's first night (its new pairs draw `rivals`).
+- Quick run, 2 years (`v1.2.3-s6-quick-2026-10-17`, `6acd20e1…`) against S5's: refusals 0, stopped 0, the Gate
+  PASS; Rival-to-Rival Transfers 7 → 7, fees 1,442 → 2,364; Offers to the player 11, all priced, declined;
+  free Offers 2, Rival to Rival, both renewed.
+- Quick run, 4 years (`v1.2.3-s6-quick4-2026-10-17`, `d41f33a7…`) against S3's: refusals 0, stopped 0, the Gate
+  PASS; Rival-to-Rival Transfers 45 → 30; free Offers to the player 5, each withdrawn by the policy's renewal,
+  none taken; Rival to Rival 5, each renewed at once, none taken; 228 Contracts expired (the player's 32).
+  Both answers renew nearly every Hero: Levels tie at the median in a young Roster.
+- Q-K's wages a Guild-year: 2 years against S1's, the player −49.5%, the Rivals −27.0%; 4 years against S1's
+  4×4, the player −25.9%, the Rivals +9.0% (against S3's, +0.2% and +7.8%).
+
+**Evidence.** Commit of this story; the two S6 quick reports; ADR-0002 and its archive; the epic's S6 boxes,
+all five met. The new tests (`free-offer.test.ts`, the Generator's, the policy's, the assertion's) were red
+first; the free moves counted by replaying the four seeds, each save the report's.

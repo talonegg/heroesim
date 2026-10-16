@@ -11,6 +11,7 @@ export const unavailableWords: Readonly<Record<Unavailability, string>> = Object
   dead: 'is dead',
   retired: 'has retired',
   'in-party': 'is away with a Party',
+  'under-offer': 'is Under Offer',
 });
 
 /**
@@ -26,6 +27,7 @@ export const unavailableChipWords: Readonly<Record<Unavailability, string>> = Ob
   dead: 'dead',
   retired: 'retired',
   'in-party': 'away',
+  'under-offer': 'Under Offer',
 });
 
 /** Why a Hero's Gear cannot be changed, after their name (`equip`, `unequip`). */

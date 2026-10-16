@@ -2,11 +2,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 
-// No engine rule asks whether a Guild is the player's (ADR-0002), except the three the owner
-// accepted on 2026-09-25 (listed in ADR-0002): the player's ending ends the game while a Rival's folds it;
+// No engine rule asks whether a Guild is the player's (ADR-0002), except the exceptions the owner
+// accepted (listed in ADR-0002): the player's ending ends the game while a Rival's folds it;
 // on the Board the player's controller acts before the Rivals', the player's choices
 // being the player's and a Rival's its Disposition's; and the Transfer Generator never
-// takes from the player's Guild (M6). The M2 epic's risk table asks for a test that greps for
+// takes a Hero under Contract from the player's Guild (DL-319). The M2 epic's risk table asks for a test that greps for
 // them: this one finds every read of a Guild's `controller.kind` in the engine's source and holds
 // each file to the reads listed below (DL-28, DL-30).
 //
@@ -32,19 +32,15 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
       "`unknownDisposition`: warns when a Guild's Disposition key is not content the game knows; reads " +
       "whether the Guild has one at all to know what to check, not which Guild kind it is",
   },
-  'phases/transfers.ts': {
-    reads: 1,
-    why:
-      "ADR-0002's exception 3: the Transfer Generator iterates only the Guilds whose " +
-      "controller is a Rival's, so it never takes from the player's Guild (DL-59)",
-  },
   'controllers/chooser.ts': {
     reads: 1,
     why:
       "`chooser`: reads a Guild's Disposition to run its rule (`rivalChoices`), to set the margin of its " +
       "Best Party (DL-175) and to answer a Transfer asked of it (`transferAnswer`, DL-57): a Guild's consent is its choice, which comes from its " +
       "Disposition or, for a Guild with none, from its controller through an offer — the same read " +
-      "`selectors.ts`'s own docstring names as the Rival controllers' (DL-30)",
+      "`selectors.ts`'s own docstring names as the Rival controllers' (DL-30); and ADR-0002's exception 3, " +
+      "the Transfer Generator's bid (`transferBid`): a Guild with none is never the bidder, and its Heroes under " +
+      "Contract are never bid for, its Heroes Out of Contract by a free Offer only (DL-319)",
   },
 };
 

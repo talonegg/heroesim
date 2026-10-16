@@ -716,6 +716,56 @@ describe('automaticPolicy', () => {
     expect(current.world.guilds[guild.id]?.rosterIds).toEqual(expect.arrayContaining(guild.rosterIds));
   });
 
+  describe('answers a free Offer for its Hero Out of Contract as a Rival does (Q15, DL-319)', () => {
+    // A new Guild's Roster is 4, the floor's default: the floor is set below it where the median is the test.
+    const below: PolicyConfig = { ...noBuilding, rosterFloor: 3 };
+
+    /** A free Offer from a Rival for the player's Hero `index`, its Roster's Levels set to `levels`, and the policy's answer. */
+    function freeOffered(seed: string, levels: readonly number[], index: number, policy: PolicyConfig = noBuilding) {
+      const { document, guild, quests } = scene(seed);
+      openBoard(quests);
+      const { world } = document;
+      guild.rosterIds.forEach((id, at) => {
+        (world.heroes[id] as Hero).level = levels[at] ?? 1;
+      });
+      const hero = world.heroes[guild.rosterIds[index] as HeroId] as Hero;
+      world.turn = 9;
+      hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 2 };
+      const rival = Object.values(world.guilds).find((row) => row.id !== guild.id) as Guild;
+      const result = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: hero.id, years: 2 }, deps);
+      if (!result.ok) throw new Error(`Refused: ${JSON.stringify(result.rejection)}`);
+      const [offerId] = Object.keys(result.document.world.offers);
+      return { document: result.document, guild, hero, offerId, actions: automaticPolicy(result.document, deps, policy) };
+    }
+
+    test("renews, at its length, a Hero at or above its Roster's median Level, first; the Hero then free to be sent", () => {
+      const { document, guild, hero, actions } = freeOffered('policy-free-renews', [4, 1, 1, 1, 1, 1, 1, 1], 0, below);
+      expect(actions[0]).toEqual({ kind: 'renew', guildId: guild.id, heroId: hero.id, years: defaultPolicyConfig.contractYears });
+      expect(actions.some((action) => action.kind === 'declineTransfer')).toBe(false);
+      let current = document;
+      for (const action of actions) {
+        const result = applyAction(current, action, deps);
+        expect(result.ok, `${action.kind}: ${result.ok ? '' : JSON.stringify(result.rejection)}`).toBe(true);
+        if (result.ok) current = result.document;
+      }
+      expect(current.world.offers).toEqual({});
+    });
+
+    test('lets a Hero below the median run out, its Roster above the floor: no answer, and the Hero kept home', () => {
+      const { guild, hero, actions } = freeOffered('policy-free-lets-go', [1, 4, 4, 4, 4, 4, 4, 4], 0, below);
+      expect(guild.rosterIds.length).toBeGreaterThan(below.rosterFloor);
+      expect(actions.filter((action) => action.kind === 'renew' || action.kind === 'declineTransfer')).toEqual([]);
+      expect(actions.flatMap((action) => (action.kind === 'dispatch' ? action.heroIds : []))).not.toContain(hero.id);
+    });
+
+    test('renews a Hero below the median when its Roster is at the floor, rosterFloor (4)', () => {
+      expect(defaultPolicyConfig.rosterFloor).toBe(4);
+      const { guild, hero, actions } = freeOffered('policy-free-floor', [1, 4, 4, 4, 4, 4, 4, 4], 0);
+      expect(guild.rosterIds).toHaveLength(4);
+      expect(actions[0]).toEqual({ kind: 'renew', guildId: guild.id, heroId: hero.id, years: defaultPolicyConfig.contractYears });
+    });
+  });
+
   describe('carries and buys consumables (the M5 close, DL-62)', () => {
     test('each Party carries one of each consumable held that serves its Quest, never more than the Guild holds that Turn', () => {
       const scened = scene('policy-consumables');

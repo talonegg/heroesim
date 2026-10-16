@@ -50,6 +50,7 @@ const whereIcons: Readonly<Record<Unavailability, IconName>> = {
   'in-party': 'travel',
   dead: 'alert',
   retired: 'alert',
+  'under-offer': 'guild',
 };
 
 const whereTones: Readonly<Record<Unavailability, Tone>> = {
@@ -57,6 +58,7 @@ const whereTones: Readonly<Record<Unavailability, Tone>> = {
   'in-party': 'accent',
   dead: 'bad',
   retired: 'plain',
+  'under-offer': 'warn',
 };
 
 export function HeroPage({

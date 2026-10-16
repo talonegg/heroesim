@@ -178,14 +178,14 @@ function better(chance: Chance, hero: Hero, otherChance: Chance, other: Hero): b
 
 /**
  * The Heroes of `guild` free to go on a Quest, in Roster order: on the Roster and neither dead,
- * retired, injured nor away in a Party, by `dispatch`'s own test (`unavailability`). What a Guild may
- * send; what it chooses to send from is its pool (`partyPool`).
+ * retired, injured, away in a Party nor Under Offer, by `dispatch`'s own test (`unavailability`,
+ * DL-319). What a Guild may send; what it chooses to send from is its pool (`partyPool`).
  */
-export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
+export function availableHeroes(world: Pick<World, 'heroes' | 'offers'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
   const heroes: Hero[] = [];
   for (const heroId of guild.rosterIds) {
     const hero = rowOf(world.heroes, heroId);
-    if (hero !== undefined && unavailability(hero) === null) heroes.push(hero);
+    if (hero !== undefined && unavailability(hero, world) === null) heroes.push(hero);
   }
   return heroes;
 }
@@ -199,7 +199,7 @@ export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild,
  * cannot staff from it: a Rival's choice of Quest, `staffableQuests`, the harness's policy and the
  * Board's best Party. Reads, never writes, and draws nothing.
  */
-export function partyPool(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'controller' | 'rosterIds'>, deps: Pick<EngineDeps, 'config' | 'content'>): Hero[] {
+export function partyPool(world: Pick<World, 'heroes' | 'offers'>, guild: Pick<Guild, 'controller' | 'rosterIds'>, deps: Pick<EngineDeps, 'config' | 'content'>): Hero[] {
   const available = availableHeroes(world, guild);
   const restBand = restBandOf(guild, deps);
   if (restBand === null) return available;

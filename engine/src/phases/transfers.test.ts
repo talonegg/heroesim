@@ -161,8 +161,8 @@ describe('the Transfer Generator runs weekly', () => {
   });
 });
 
-describe('one draw from rivals for each pair of Rivals in play', () => {
-  test('six draws for four Rivals, whatever they hold, and no other stream moves', () => {
+describe('one draw from rivals for each pair of Guilds in play (DL-319)', () => {
+  test('ten draws for four Rivals and the player, whatever they hold, and no other stream moves', () => {
     for (const [chance, content] of [
       [0, eager],
       [1, eager],
@@ -175,12 +175,12 @@ describe('one draw from rivals for each pair of Rivals in play', () => {
       run(world, with_);
 
       for (const [name, state] of Object.entries(world.rng)) {
-        expect(state, `${name} at chance ${chance}`).toEqual(name === 'rivals' ? drawn(before.rivals, 6) : before[name as keyof typeof before]);
+        expect(state, `${name} at chance ${chance}`).toEqual(name === 'rivals' ? drawn(before.rivals, 10) : before[name as keyof typeof before]);
       }
     }
   });
 
-  test("the player's Guild is in no pair and a folded Rival leaves play: three Rivals, three draws", () => {
+  test("the player's Guild is in the pairs and a folded Rival leaves play: three Rivals and the player, six draws", () => {
     const with_ = deps();
     const { world } = created('folded', with_);
     const player = playerGuild(world) as Guild;
@@ -190,8 +190,8 @@ describe('one draw from rivals for each pair of Rivals in play', () => {
 
     const events = run(world, with_);
 
-    // Five Guilds, four of them Rivals and one folded: the pairs are those of the three in play.
-    expect(world.rng.rivals).toEqual(drawn(before, 3));
+    // Five Guilds, four of them Rivals and one folded: the pairs are those of the four in play.
+    expect(world.rng.rivals).toEqual(drawn(before, 6));
     for (const event of transferred(events)) {
       expect([event.payload.fromGuildId, event.payload.toGuildId]).not.toContain(player.id);
       expect([event.payload.fromGuildId, event.payload.toGuildId]).not.toContain(folded.id);
@@ -324,7 +324,8 @@ describe('when there is no bid', () => {
     change(world, ambitious, miserly);
     const before = structuredClone(world.rng.rivals);
     const events = run(world, with_);
-    expect(world.rng.rivals).toEqual(drawn(before, 1));
+    // Two Rivals and the player: three pairs, three draws.
+    expect(world.rng.rivals).toEqual(drawn(before, 3));
     return transferred(events).length > 0;
   }
   const heavy = withAppetites({ ambitious: 1, miserly: 0.5 });
@@ -379,7 +380,7 @@ describe('when there is no bid', () => {
     }
   });
 
-  test('transferBid names no bid for a pair with the player in it', () => {
+  test("transferBid names no bid for the player's Heroes under Contract, whichever way the pair is given (ADR-0002, exception 3)", () => {
     const with_ = deps();
     const { world } = created('player-pair', with_);
     const player = playerGuild(world) as Guild;
@@ -392,7 +393,7 @@ describe('when there is no bid', () => {
 });
 
 describe("the player's Roster", () => {
-  test("is never a source: with every Rival eager and rich, the player's Guild, Guildmaster and Heroes are untouched", () => {
+  test("is never a source of a Hero under Contract: with every Rival eager and rich, the player's Guild, Guildmaster and Heroes are untouched", () => {
     const with_ = deps();
     const document = created('untouched', with_);
     const { world } = document;
@@ -407,6 +408,31 @@ describe("the player's Roster", () => {
     expect(transferred(events).length).toBeGreaterThan(0);
     expect(snapshot()).toBe(before);
     for (const event of events) expect(event.participants, event.type).not.toContain(player.id);
+    withValid({ ...document, world }, with_);
+  });
+
+  test("its Heroes Out of Contract are bid for by a free Offer, the player's to answer, its rows untouched by the phase (Q-C)", () => {
+    const with_ = deps();
+    const document = created('free-offer', with_);
+    const { world } = document;
+    const player = playerGuild(world) as Guild;
+    for (const rival of rivals(world)) rival.wealth = 1_000_000;
+    const [expired, kept] = player.rosterIds.map((heroId) => heroOf(world, heroId)) as [Hero, Hero];
+    // Ended on Day 5: Out of Contract on the Generator's night, Day 6's.
+    expired.contract = { ...(expired.contract as NonNullable<Hero['contract']>), endDay: 5 };
+    const snapshot = () =>
+      JSON.stringify([player, world.guildmasters[player.guildmasterId], player.rosterIds.map((heroId) => heroOf(world, heroId))]);
+    const before = snapshot();
+
+    const events = run(world, with_);
+
+    const offered = events.filter((event): event is EngineEventOf<'guild.transfer-offered'> => event.type === 'guild.transfer-offered');
+    expect(offered.filter((event) => event.payload.fromGuildId === player.id).map((event) => [event.payload.heroId, event.payload.fee])).toEqual([
+      [expired.id, 0],
+    ]);
+    expect(offered.map((event) => event.payload.heroId)).not.toContain(kept.id);
+    expect(snapshot()).toBe(before);
+    for (const event of transferred(events)) expect([event.payload.fromGuildId, event.payload.toGuildId]).not.toContain(player.id);
     withValid({ ...document, world }, with_);
   });
 });

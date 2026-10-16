@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { gzip, gzipSync } from 'node:zlib';
 import {
+  advance,
   applyAction,
   createWorld,
   defaultConfig,
@@ -15,7 +16,9 @@ import {
   type Guild,
   type GuildAction,
   type GuildId,
+  type Hero,
   type HeroId,
+  type OfferId,
   type WorldDocument,
 } from '@heroesim/engine';
 import { append } from '@heroesim/engine/testing';
@@ -502,10 +505,34 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
   });
 });
 
-describe('the harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
+describe('the harness assertion (DL-69, DL-319): no hero.transferred names the player\'s Guild but a free Offer\'s taking', () => {
   test('holds under the automatic policy', () => {
     expect(bare.assertion).toBeNull();
     expect(playerTransferred(bare.document)).toBeNull();
+  });
+
+  test('allows a free Offer on a Hero Out of Contract that the policy let run out, and only that (DL-319)', () => {
+    const document = createWorld('play-free', harnessSetup, deps).document;
+    const guild = playerGuild(document.world) as Guild;
+    const rival = Object.values(document.world.guilds).find((other) => other.id !== guild.id) as Guild;
+    const hero = document.world.heroes[guild.rosterIds[0] as HeroId] as Hero;
+    document.world.turn = 9;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 2 };
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(JSON.stringify(offered.rejection));
+    const [offerId] = Object.keys(offered.document.world.offers) as [OfferId];
+
+    // Accepted, it is the policy's choice, which the policy never makes: the assertion fires.
+    const accepting = structuredClone(offered.document);
+    const accept = applyAction(accepting, { kind: 'acceptTransfer', guildId: guild.id, offerId }, deps);
+    if (!accept.ok) throw new Error(JSON.stringify(accept.rejection));
+    expect(playerTransferred(accept.document)).toMatchObject({ check: 'player-transferred' });
+
+    // Let run out, the Hero is taken that night: allowed.
+    let current = structuredClone(offered.document);
+    while (current.world.offers[offerId] !== undefined) current = advance(current, deps).document;
+    expect(current.world.heroes[hero.id]?.guildId).toBe(rival.id);
+    expect(playerTransferred(current)).toBeNull();
   });
 
   test("fires on a Transfer into the player's Guild, stopping the game as a validator refusal does, and the report lists it", async () => {

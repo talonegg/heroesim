@@ -55,7 +55,7 @@ _Avoid_: Deal, Agreement, Lease
 **Out of Contract**:
 A Hero whose Contract has ended: still on their Guild's Roster and playing, at a wage repriced at
 expiry with a premium over the one-year rate (DL-311 item 1, DL-316), and open to a free Offer that
-their Guild can answer only by renewing (DL-294 item 6; the free Offer to be built).
+their Guild can answer only by renewing (DL-294 item 6, DL-319).
 _Avoid_: Expired, Lapsed (of the Hero; a Contract, a Quest or an Offer expires)
 
 **Party**:
@@ -108,7 +108,7 @@ _Avoid_: AI, Personality, Strategy
 What makes a Guild's choices: the player for the player's Guild, a Disposition for a Rival. It
 is the only difference between Guilds (ADR-0002). No rule asks which controller a Guild has,
 save the accepted exceptions ADR-0002 lists: the game ends when the player's Guild ends, the
-Transfer Generator never takes from it, its controller acts first on the Board, and Random
+Transfer Generator never takes a Hero under Contract from it, its controller acts first on the Board, and Random
 Events befall it alone (DL-82).
 _Avoid_: AI, Brain, Owner
 
@@ -873,26 +873,27 @@ _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
 Moving a Hero between Guilds for a fee, in either direction: the fee is the wages left on the Hero's
-Contract times a factor, at the buyer's Negotiation, so a Hero Out of Contract costs none (DL-294 item 6,
-DL-318; the free Offer for them is to be built).
+Contract times a factor, at the buyer's Negotiation (DL-294 item 6, DL-318). A Hero Out of Contract
+moves only by a free Offer, for no fee (DL-319).
 Transferring out a Hero costs the Morale of each Hero who stays and held them in high Regard (R28,
 pre-M0 review D5); by DL-82 it also lowers those Heroes' Regard for the Guildmaster, and by DL-85
 Heroes content or close with their Roster refuse to leave (both to be built).
 _Avoid_: Sell, Buy, Trade, Signing, Poach (until poaching is a distinct thing)
 
 **Transfer Offer**:
-A pending bid for a Hero, held until accepted, declined, expired, or (to be built) renewed or
-taken. A priced Offer costs the Transfer fee; a free one, at no fee, is made for a Hero Out of
-Contract and stands for `transferOfferDays` Days, and the Hero is taken when it ends unless their
-Guild has renewed them (DL-294 item 6, to be built). A Rival answers a bid at once and the player's
-Guild through Transfer Offers: a difference of controller, not a rule about the player's Guild
-(DL-57, DL-85). On the page, Offer alone is short for it (DL-125).
+A pending bid for a Hero, held until accepted, declined, expired, renewed or taken. A priced Offer
+costs the Transfer fee; a free one, at no fee, is made for a Hero Out of Contract on any Guild's
+Roster and stands for `transferOfferDays` Days, and the Hero is taken when it ends unless their
+Guild has renewed them; it cannot be declined (DL-294 item 6, DL-319). A Rival answers a bid at
+once, a free one by renewing a Hero at or above its Roster's median Level or with its Roster at its
+floor, and the player's Guild through Transfer Offers: a difference of controller, not a rule about
+the player's Guild (DL-57, DL-85, DL-319). On the page, Offer alone is short for it (DL-125).
 _Avoid_: Bid, Request
 
 **Under Offer**:
 A Hero a Transfer Offer stands for, free or priced, and so kept from every Party until the Offer
-ends (DL-311 item 4, to be built). A Hero away on a Quest may be the subject of one; they are Under
-Offer from their return, the Offer's Days counted from then (to be built).
+ends (DL-311 item 4, DL-319). A Hero away on a Quest may be the subject of one; they are Under
+Offer from their return, the Offer's Days counted from then (DL-319).
 _Avoid_: Reserved, Pending, Held (of the Hero; an Offer is pending, an Item held)
 
 **Transfer lock**:
@@ -901,8 +902,9 @@ every Guild (DL-60, DL-69; confirmed by DL-85).
 _Avoid_: Cooldown, Embargo
 
 **Transfer Generator**:
-The weekly night rule by which Rivals bid for one another's Heroes. It never takes from the
-player's Guild, an accepted exception to ADR-0002 (listed there, DL-59). Its own bids keep both Rosters
+The weekly night rule by which Rivals bid for Heroes of the other Guilds. It bids for a Hero Out of
+Contract on any Roster, the player's included, by a free Offer, and never for a Hero under Contract
+of the player's Guild, an accepted exception to ADR-0002 (listed there, DL-59, DL-319). Its own bids keep both Rosters
 within the range a Rival is generated with: a bound on the Generator alone, not a cap on any Roster,
 kept for now only to constrain testing load and to be removed (DL-185, in the backlog).
 _Avoid_: Transfer window, Trade market

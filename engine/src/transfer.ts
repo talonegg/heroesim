@@ -1,13 +1,14 @@
 // Transfers (M6-S2, R28, INPUTS 7.6, pre-M0 review D5, DL-57): a Hero moving from one Guild's Roster
 // to another's for a fee, and the Transfer Offers that wait for an answer. What a Transfer does is
-// here, once, for every way one is made — `transferIn`, `transferOut`, `acceptTransfer` — and for
-// every Guild alike (ADR-0002); the actions (actions/transfer.ts) check whether it may be made, and
-// the Rival controllers (controllers/rival.ts) say whether a Guild consents to one.
+// here, once, for every way one is made — `transferIn`, `transferOut`, `acceptTransfer`, a free Offer
+// taken (DL-319) — and for every Guild alike (ADR-0002); the actions (actions/transfer.ts) check
+// whether it may be made, and the Rival controllers (controllers/rival.ts) say whether a Guild
+// consents to one.
 //
 // Nothing here draws a random number or reads the History.
 
 import { leaveRoster } from './captain.js';
-import { signContract } from './contract.js';
+import { outOfContract, signContract } from './contract.js';
 import { regardBandNames, type EngineDeps, type GameConfig } from './config.js';
 import {
   compareByCodeUnit,
@@ -162,10 +163,35 @@ export function offersTo(world: Pick<World, 'offers'>, guildId: Guild['id']): Tr
 
 /**
  * The night a Transfer Offer made on `turn` expires: that of its `transferOfferDays`-th Day, the Day
- * it is made counted as the first (`transferOfferDays` from 1).
+ * it is made counted as the first (`transferOfferDays` from 1). For a Hero away, `returnsOnTurn` their
+ * Party's return night: the Days are counted from that night, so they stand `transferOfferDays` Days
+ * at home Under Offer (Q-H, DL-319). The Offer stores it when made, since `dispatch` sets the return
+ * and nothing moves it.
  */
-export function offerExpiresOnTurn(turn: Turn, config: Pick<GameConfig, 'transferOfferDays'>): Turn {
-  return nightOf(dayOf(turn) + Math.max(1, config.transferOfferDays) - 1);
+export function offerExpiresOnTurn(turn: Turn, config: Pick<GameConfig, 'transferOfferDays'>, returnsOnTurn: Turn | null = null): Turn {
+  const days = Math.max(1, config.transferOfferDays);
+  return returnsOnTurn === null ? nightOf(dayOf(turn) + days - 1) : nightOf(dayOf(returnsOnTurn) + days);
+}
+
+/**
+ * Whether `hero` is Under Offer: at home, and a Transfer Offer stands for them, free or priced (Q-G,
+ * Q-H, DL-319). A state read from the Offers, never stored (data-model rule 1): `dispatch` refuses
+ * such a Hero, and no Party is chosen with them. A Hero away an Offer stands for is Under Offer from
+ * their return.
+ */
+export function underOffer(world: Pick<World, 'offers'>, hero: Pick<Hero, 'id' | 'partyId'>): boolean {
+  return hero.partyId === null && Object.values(world.offers).some((offer) => offer.heroId === hero.id);
+}
+
+/**
+ * Whether `offer` is a free Offer: made for a Hero Out of Contract, at a fee of 0, which their Guild
+ * answers only by renewing them (Q8, DL-319). Read from the Hero's Contract as it stood when the Offer
+ * was made, which nothing changes while it stands: a renewal withdraws it, and a Transfer or a
+ * release of the Hero ends it.
+ */
+export function freeOffer(world: Pick<World, 'heroes'>, offer: Pick<TransferOffer, 'heroId' | 'offeredOnTurn'>): boolean {
+  const hero = rowOf(world.heroes, offer.heroId);
+  return hero !== undefined && outOfContract(hero, offer.offeredOnTurn);
 }
 
 /**
@@ -188,11 +214,16 @@ export function offerParticipants(offer: TransferOffer): [OfferId, HeroId, Guild
   return [offer.id, offer.heroId, offer.fromGuildId, offer.toGuildId];
 }
 
+/** `guild.transfer-offer-expired` for `offer`, ended for `cause`, made while its row stands (an event names only rows the world has). */
+function offerEnded(offer: TransferOffer, cause: TransferOfferEndCause, emit: Emit): EngineEvent {
+  return emit({ type: 'guild.transfer-offer-expired', participants: offerParticipants(offer), payload: { ...offerTerms(offer), cause } });
+}
+
 /**
  * Removes every pending offer for which `why` names a cause, in id order, each with its
- * `guild.transfer-offer-expired` made before its row goes (an event names only rows the world has).
- * The one way an offer ends unanswered: its night comes (`expired`), its Hero leaves the Roster
- * (`hero-left`), or a Guild folds (`guild-folded`).
+ * `guild.transfer-offer-expired` made before its row goes. The way an offer ends unanswered: its night
+ * comes (`expired`), its Hero leaves the Roster (`hero-left`), a Guild folds (`guild-folded`), or,
+ * for a free Offer, their Guild renews them (`renewed`, DL-319).
  */
 export function withdrawOffers(
   world: Pick<World, 'offers'>,
@@ -203,18 +234,30 @@ export function withdrawOffers(
   for (const offer of pendingOffers(world)) {
     const cause = why(offer);
     if (cause === null) continue;
-    events.push(
-      emit({ type: 'guild.transfer-offer-expired', participants: offerParticipants(offer), payload: { ...offerTerms(offer), cause } }),
-    );
+    events.push(offerEnded(offer, cause, emit));
     delete world.offers[offer.id];
   }
   return events;
 }
 
 /**
+ * The Hero of the free Offer `offer` taken for its fee of 0 (Q8, DL-319): `guild.transfer-offer-expired`
+ * for `taken`, then the Transfer (`makeTransfer`), on a Contract of the Offer's length, its
+ * `hero.transferred` naming the Offer, which it removes. The caller has checked that the Offer stands,
+ * its Guilds are in play and the Hero is home on the Roster it was made for.
+ */
+export function takeOffer(world: World, offer: TransferOffer, deps: Pick<EngineDeps, 'config' | 'content'>, emit: Emit): EngineEvent[] {
+  const hero = rowOf(world.heroes, offer.heroId) as Hero;
+  const from = rowOf(world.guilds, offer.fromGuildId) as Guild;
+  const to = rowOf(world.guilds, offer.toGuildId) as Guild;
+  const ended = offerEnded(offer, 'taken', emit);
+  return [ended, ...makeTransfer(world, { hero, from, to, fee: offer.fee, years: offer.years, offerId: offer.id }, deps, emit)];
+}
+
+/**
  * Why `offer` can no longer stand in `world`, or `null` while it can: one of its Guilds has folded,
  * or its Hero is no longer on the Roster it was made for (dead, retired or gone). The night's sweep
- * (`offerExpiry`) removes such an offer beside the expired ones.
+ * (`offerTonight`) removes such an offer before it reads any other end.
  */
 export function offerLapse(world: Pick<World, 'guilds'>, offer: TransferOffer): TransferOfferEndCause | null {
   const from = rowOf(world.guilds, offer.fromGuildId);

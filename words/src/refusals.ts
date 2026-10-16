@@ -305,6 +305,8 @@ const sentences: Sentences = {
   'transferIn same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
   'transferIn hero-in-party': inParty,
   'transferIn recently-transferred': locked,
+  'transferIn out-of-contract': ({ heroId }, setting) =>
+    say`${hero(setting, heroId)} is Out of Contract: a Guild takes them only by a free Offer, which their Guild answers.`,
   'transferIn transfer-refused': refused,
   'transferIn insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
@@ -322,7 +324,6 @@ const sentences: Sentences = {
   'offerTransfer length-not-offered': lengthNotOffered,
   'offerTransfer hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
   'offerTransfer same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
-  'offerTransfer hero-in-party': inParty,
   'offerTransfer recently-transferred': locked,
   'offerTransfer no-offer-needed': ({ guildId }, setting) =>
     say`${guild(setting, guildId)} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
@@ -339,6 +340,11 @@ const sentences: Sentences = {
   'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
   'declineTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'declineTransfer offer-not-found': notFound,
+  'declineTransfer free-offer': ({ offerId }, setting) => {
+    const offer = rowOf(setting.world?.offers, offerId);
+    const who = offer === undefined ? 'that Hero' : hero(setting, offer.heroId);
+    return say`The Offer${ids(offerId)} is free, ${who} being Out of Contract: it is answered only by renewing them, or it runs out and they go.`;
+  },
 
   // The Captain (DL-287).
   'nameCaptain guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and names no Captain.`,

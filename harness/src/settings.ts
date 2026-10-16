@@ -254,7 +254,7 @@ function configOf(env: Env): Partial<GameConfig> {
 }
 
 /** The policy's values that count things, and so are whole numbers. */
-const wholePolicyKeys: ReadonlySet<string> = new Set<keyof PolicyConfig>(['rosterLimit', 'consumableStock', 'contractYears']);
+const wholePolicyKeys: ReadonlySet<string> = new Set<keyof PolicyConfig>(['rosterLimit', 'consumableStock', 'contractYears', 'rosterFloor']);
 
 /**
  * `HEROESIM_POLICY` (DL-186 item 13): the automatic policy's values played in place of its defaults, as

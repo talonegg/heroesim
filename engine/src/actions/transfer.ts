@@ -5,7 +5,8 @@
 // - `transferIn`: a Guild takes a Hero from another Guild's Roster, if that Guild consents now;
 // - `transferOut`: a Guild sends one of its Heroes to another Guild, if that Guild consents now;
 // - `offerTransfer`: a Guild offers a fee for a Hero of a Guild that answers for itself, writing a
-//   Transfer Offer (data-model §3.2) that waits for an answer;
+//   Transfer Offer (data-model §3.2) that waits for an answer, or a fee of 0 for a Hero Out of
+//   Contract on any Guild's Roster, a free Offer, which a Rival answers at once (DL-319);
 // - `acceptTransfer` and `declineTransfer`: the Guild asked answers an offer.
 //
 // Whether a Guild consents now is its controller's choice (`transferAnswer`, controllers/rival.ts):
@@ -17,8 +18,8 @@
 // `transferOut` the length the taking Guild's Disposition signs for (`contractYearsOf`).
 
 import type { EngineDeps } from '../config.js';
-import { lengthNotOffered, type LengthNotOffered } from '../contract.js';
-import { contractYearsOf, transferAnswer, type TransferRefusalReason, type TransferSide } from '../controllers/rival.js';
+import { lengthNotOffered, outOfContract, type LengthNotOffered } from '../contract.js';
+import { contractYearsOf, freeOfferRenewal, transferAnswer, type TransferRefusalReason, type TransferSide } from '../controllers/rival.js';
 import {
   rowOf,
   takeId,
@@ -35,7 +36,20 @@ import {
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { transferFee } from '../selectors.js';
-import { makeTransfer, offerExpiresOnTurn, offerParticipants, offerTerms, transferLock } from '../transfer.js';
+import type { EngineEvent } from '../events.js';
+import {
+  freeOffer,
+  makeTransfer,
+  offerExpiresBy,
+  offerExpiresOnTurn,
+  offerLapse,
+  offerParticipants,
+  offerTerms,
+  takeOffer,
+  transferLock,
+  withdrawOffers,
+} from '../transfer.js';
+import { applyRenew } from './renew.js';
 import type { Rejection, WorldActionResult } from './result.js';
 
 // ── Actions ──────────────────────────────────────────────────────────────────────────────────
@@ -131,6 +145,16 @@ export interface TransferHeroRecentlyTransferred<Action extends Kind = Kind> ext
   untilTurn: Turn;
 }
 
+/** The Hero is Out of Contract: a Guild takes them only by a free Offer, which their Guild answers (Q8, DL-319). */
+export interface TransferHeroOutOfContract extends Rejection<'transferIn', 'out-of-contract'> {
+  heroId: HeroId;
+}
+
+/** The Offer is free, for a Hero Out of Contract: their Guild answers it only by renewing them (Q8, DL-319). */
+export interface FreeOfferDeclined extends Rejection<'declineTransfer', 'free-offer'> {
+  offerId: OfferId;
+}
+
 /**
  * The other Guild does not consent now (`transferAnswer`): it names the Guild, the side it was asked
  * to take, and why: its Roster too small for its appetite, its Wealth too low to hire, a Disposition
@@ -176,6 +200,7 @@ export type TransferInRejection =
   | TransferSameGuild<'transferIn'>
   | TransferHeroInParty<'transferIn'>
   | TransferHeroRecentlyTransferred<'transferIn'>
+  | TransferHeroOutOfContract
   | TransferRefused<'transferIn'>
   | TransferInsufficientWealth<'transferIn'>;
 
@@ -196,7 +221,6 @@ export type OfferTransferRejection =
   | LengthNotOffered<'offerTransfer'>
   | TransferHeroNotOnRoster<'offerTransfer'>
   | TransferSameGuild<'offerTransfer'>
-  | TransferHeroInParty<'offerTransfer'>
   | TransferHeroRecentlyTransferred<'offerTransfer'>
   | NoOfferNeeded
   | OfferPending
@@ -211,7 +235,7 @@ export type AcceptTransferRejection =
   | TransferInsufficientWealth<'acceptTransfer'>;
 
 /** Why `declineTransfer` was refused. */
-export type DeclineTransferRejection = TransferGuildFolded<'declineTransfer'> | OfferNotFound<'declineTransfer'>;
+export type DeclineTransferRejection = TransferGuildFolded<'declineTransfer'> | OfferNotFound<'declineTransfer'> | FreeOfferDeclined;
 
 /** Every way a Transfer action can be refused. */
 export type TransferRejection =
@@ -265,6 +289,7 @@ function feeFor(world: Pick<World, 'guildmasters' | 'turn'>, hero: Hero, to: Gui
  *
  * Refused, changing nothing: `guild-folded`, `length-not-offered`, `hero-not-on-roster` (on no other Guild's Roster),
  * `same-guild` (the Guild's own Hero), `hero-in-party`, `recently-transferred` (`transferLock`),
+ * `out-of-contract` (a Hero Out of Contract is taken only by a free Offer, DL-319),
  * `transfer-refused` (the other Guild does not consent, or answers only offers),
  * `insufficient-wealth`, in that order. Throws only on a Guild id the world does not hold.
  *
@@ -288,6 +313,7 @@ export function applyTransferIn(
   if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
   const lockedIn = locked(action, hero, world, deps);
   if (lockedIn !== null) return { ok: false, rejection: lockedIn };
+  if (outOfContract(hero, world.turn)) return { ok: false, rejection: { action, reason: 'out-of-contract', heroId } };
   const answer = transferAnswer(world, from, 'out', deps);
   if (!answer.consents) {
     return { ok: false, rejection: { action, reason: 'transfer-refused', guildId: from.id, heroId, side: 'out', because: answer.because } };
@@ -355,16 +381,24 @@ export function applyTransferOut(
 // ── offerTransfer ────────────────────────────────────────────────────────────────────────────
 
 /**
- * `guildId` offers `transferFee`, at its Guildmaster's Negotiation, for `heroId`, on the Roster of
- * a Guild whose controller answers for itself (`transferAnswer`: `answers-offers`): a Transfer
- * Offer in `world.offers` (data-model §3.2), standing through the night of its
- * `transferOfferDays`-th Day (`offerExpiresOnTurn`), with `guild.transfer-offered`. The fee and the
- * Contract's length, `years`, are fixed when offered; nothing is paid until the offer is accepted.
+ * `guildId` offers `transferFee`, at its Guildmaster's Negotiation, for `heroId`: a Transfer Offer in
+ * `world.offers` (data-model §3.2), standing through the night of its `transferOfferDays`-th Day
+ * (`offerExpiresOnTurn`), with `guild.transfer-offered`. The fee and the Contract's length, `years`,
+ * are fixed when offered; nothing is paid until the offer is accepted or, free, taken.
  *
- * Refused, changing nothing: `guild-folded`, `length-not-offered`, `hero-not-on-roster`, `same-guild`, `hero-in-party`,
+ * - A Hero under Contract is offered for only on the Roster of a Guild whose controller answers for
+ *   itself (`transferAnswer`: `answers-offers`); a Rival's is asked by `transferIn`.
+ * - A Hero Out of Contract is offered for on any Guild's Roster, at the fee of 0 their Contract's end
+ *   leaves: a free Offer (Q8, Q-C, DL-319). A Guild that answers through Offers has its Days to renew
+ *   them; a Rival answers at once (`answerAtOnce`, DL-57's difference of controller).
+ * - A Hero away may be offered for (Q-H): they are Under Offer from their return, and the Offer's Days
+ *   are counted from that night, their Party's `returnsOnTurn`, stored now (`offerExpiresOnTurn`). A
+ *   Rival answers it the night they come home (`offerTonight`).
+ *
+ * Refused, changing nothing: `guild-folded`, `length-not-offered`, `hero-not-on-roster`, `same-guild`,
  * `recently-transferred`, `no-offer-needed` (the Hero's Guild answers at once, by its Disposition:
- * `transferIn` asks it), `offer-pending` (the Guild's own offer for the Hero stands),
- * `insufficient-wealth`, in that order.
+ * `transferIn` asks it, or it has a Disposition content does not define), `offer-pending` (the Guild's
+ * own offer for the Hero stands), `insufficient-wealth`, in that order.
  *
  * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
  * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
@@ -383,13 +417,12 @@ export function applyOfferTransfer(
   if (found === undefined) return { ok: false, rejection: { action, reason: 'hero-not-on-roster', heroId } };
   const { hero, guild: from } = found;
   if (from.id === to.id) return { ok: false, rejection: { action, reason: 'same-guild', guildId } };
-  if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
   const lockedOffer = locked(action, hero, world, deps);
   if (lockedOffer !== null) return { ok: false, rejection: lockedOffer };
   const answer = transferAnswer(world, from, 'out', deps);
-  if (answer.consents || answer.because !== 'answers-offers') {
-    return { ok: false, rejection: { action, reason: 'no-offer-needed', guildId: from.id } };
-  }
+  const throughOffers = !answer.consents && answer.because === 'answers-offers';
+  const atOnce = outOfContract(hero, world.turn) && contractYearsOf(from, deps.content) !== null;
+  if (!throughOffers && !atOnce) return { ok: false, rejection: { action, reason: 'no-offer-needed', guildId: from.id } };
   const pending = Object.values(world.offers).find((offer) => offer.toGuildId === guildId && offer.heroId === heroId);
   if (pending !== undefined) return { ok: false, rejection: { action, reason: 'offer-pending', offerId: pending.id } };
   const fee = feeFor(world, hero, to, deps);
@@ -406,7 +439,7 @@ export function applyOfferTransfer(
     fee,
     years,
     offeredOnTurn: world.turn,
-    expiresOnTurn: offerExpiresOnTurn(world.turn, deps.config),
+    expiresOnTurn: offerExpiresOnTurn(world.turn, deps.config, hero.partyId === null ? null : (rowOf(world.parties, hero.partyId)?.returnsOnTurn ?? null)),
   };
   world.offers[offer.id] = offer;
   const offered = eventEmitter(world)({
@@ -414,7 +447,43 @@ export function applyOfferTransfer(
     participants: offerParticipants(offer),
     payload: { ...offerTerms(offer), expiresOnTurn: offer.expiresOnTurn },
   });
-  return { ok: true, events: [offered] };
+  return { ok: true, events: [offered, ...(atOnce && hero.partyId === null ? answerAtOnce(world, offer, deps) : [])] };
+}
+
+/**
+ * A Rival's answer, at once, to the free Offer `offer` for its Hero at home (Q15, DL-319): renewed at
+ * its length when it keeps them (`freeOfferRenewal`; `renew` withdraws the Offer, `renewed`), else
+ * taken for no fee (`takeOffer`). The same rule as the player's renewal and the Offer's running out,
+ * so the History reads the same either way; only the time of the answer is the controller's.
+ */
+function answerAtOnce(world: World, offer: TransferOffer, deps: EngineDeps): EngineEvent[] {
+  const hero = rowOf(world.heroes, offer.heroId) as Hero;
+  const renewal = freeOfferRenewal(world, guildOf(world, offer.fromGuildId), hero, deps);
+  const renewed = renewal === null ? null : applyRenew(world, renewal, deps);
+  return renewed?.ok === true ? renewed.events : takeOffer(world, offer, deps, eventEmitter(world));
+}
+
+/**
+ * What becomes of the pending `offer` on the night `turn`, its events (data-model §3.2, DL-57 item 6,
+ * DL-319), the night's sweep's one rule (`offerExpiry`):
+ *
+ * 1. it lapses, `guild-folded` or `hero-left`, when it can stand no longer (`offerLapse`);
+ * 2. a free Offer for a Hero now home of a Guild that answers at once, made while they were away, is
+ *    answered (`answerAtOnce`);
+ * 3. on its last night, a free Offer for a Hero at home is taken (`takeOffer`), their Guild not having
+ *    renewed them; any other Offer expires, `expired`.
+ *
+ * Changes `world` in place.
+ */
+export function offerTonight(world: World, offer: TransferOffer, turn: Turn, deps: EngineDeps): EngineEvent[] {
+  const emit = eventEmitter(world);
+  const lapse = offerLapse(world, offer);
+  if (lapse !== null) return withdrawOffers(world, (each) => (each.id === offer.id ? lapse : null), emit);
+  const hero = rowOf(world.heroes, offer.heroId) as Hero;
+  const home = hero.partyId === null && freeOffer(world, offer);
+  if (home && contractYearsOf(guildOf(world, offer.fromGuildId), deps.content) !== null) return answerAtOnce(world, offer, deps);
+  if (!offerExpiresBy(offer, turn)) return [];
+  return home ? takeOffer(world, offer, deps, emit) : withdrawOffers(world, (each) => (each.id === offer.id ? 'expired' : null), emit);
 }
 
 // ── acceptTransfer and declineTransfer ───────────────────────────────────────────────────────
@@ -470,7 +539,8 @@ export function applyAcceptTransfer(
 /**
  * `guildId` declines the Transfer Offer `offerId`: the offer is removed with
  * `guild.transfer-offer-declined`, and nothing else changes. Refused, changing nothing:
- * `guild-folded`, `offer-not-found` (no such offer pending, or one asking another Guild).
+ * `guild-folded`, `offer-not-found` (no such offer pending, or one asking another Guild), `free-offer`
+ * (a free Offer is answered only by renewing the Hero, Q8, DL-319), in that order.
  *
  * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
  * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
@@ -486,6 +556,7 @@ export function applyDeclineTransfer(
   if (guild.foldedOnTurn !== null) return { ok: false, rejection: { action, reason: 'guild-folded', guildId } };
   const offer = offerTo(world, guildId, offerId);
   if (offer === undefined) return { ok: false, rejection: { action, reason: 'offer-not-found', offerId } };
+  if (freeOffer(world, offer)) return { ok: false, rejection: { action, reason: 'free-offer', offerId } };
   const declined = eventEmitter(world)({
     type: 'guild.transfer-offer-declined',
     participants: offerParticipants(offer),

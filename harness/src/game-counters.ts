@@ -1509,9 +1509,10 @@ const transfers: Declared<GameCounters['transfers'], SweepTotals['transfers']> =
     const playerTransfers = totals.transfers.in.transfers + totals.transfers.out.transfers;
     return [
       `The M6-S3 harness assertion: \`hero.transferred\` entries naming the player's Guild, ${whole(playerTransfers)}; ` +
-        `games it stopped, ${whole(totals.assertionGames)}. The automatic policy declines every Transfer Offer and never ` +
-        'transfers, and the Transfer Generator never takes from the player, so any such entry is a harness failure: it ' +
-        'stops its game and is listed under "Harness assertions broken", as a validator refusal is under its own heading.',
+        `games it stopped, ${whole(totals.assertionGames)}. The automatic policy declines every priced Transfer Offer and never ` +
+        'transfers, and nothing takes a Hero under Contract from the player, so any such entry but the taking of a free Offer ' +
+        'the policy let run out (DL-319) is a harness failure: it stops its game and is listed under "Harness assertions ' +
+        'broken", as a validator refusal is under its own heading.',
       '',
       'Transfers by direction:',
       '',

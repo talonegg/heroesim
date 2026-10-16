@@ -591,7 +591,7 @@ export type TransferDirection = (typeof transferDirections)[number];
 
 /**
  * How a Transfer between two Rivals happened, as far as the History and the play loop tell (DL-69).
- * `accepted-offer`: the entry names the offer (`offerId`). `generator`: on a night, when only the
+ * `accepted-offer`: the entry names the offer (`offerId`), accepted or, free, taken (DL-319). `generator`: on a night, when only the
  * Transfer Generator moves Heroes (DL-59; Rivals choose in the afternoon). The afternoon's are the
  * buyer's `transferChoice` or the seller's `debtTransfer` (DL-57 item 5), and no entry says which
  * action made a Transfer: `afternoon-seller-in-debt` when the play loop saw the seller in debt as the
@@ -610,14 +610,15 @@ export interface TransferTally {
 
 export const noTransfers = (): TransferTally => ({ transfers: 0, fees: 0 });
 
-/** Why a Transfer Offer ended unanswered (DL-57 item 6). */
-export const offerEndCauses = ['expired', 'hero-left', 'guild-folded'] as const satisfies readonly TransferOfferEndCause[];
+/** Why a Transfer Offer ended unanswered (DL-57 item 6): a free Offer by a renewal or taken too (DL-319). */
+export const offerEndCauses = ['expired', 'hero-left', 'guild-folded', 'renewed', 'taken'] as const satisfies readonly TransferOfferEndCause[];
 
 /**
  * Transfer Offers from one side to another: made (`guild.transfer-offered`), with the fees offered
- * summed; accepted (a `hero.transferred` naming the offer); declined (`guild.transfer-offer-declined`);
- * and ended unanswered (`guild.transfer-offer-expired`) by its `cause`. What none of these counts was
- * still standing when the game stopped.
+ * summed; accepted (a `hero.transferred` naming the offer, but a free Offer's taking); declined
+ * (`guild.transfer-offer-declined`); and ended unanswered (`guild.transfer-offer-expired`) by its
+ * `cause`, a free Offer's taking among them. What none of these counts was still standing when the
+ * game stopped.
  */
 export interface OfferTally {
   made: number;
@@ -627,7 +628,7 @@ export interface OfferTally {
   ended: Record<TransferOfferEndCause, number>;
 }
 
-export const noOffers = (): OfferTally => ({ made: 0, fees: 0, accepted: 0, declined: 0, ended: { expired: 0, 'hero-left': 0, 'guild-folded': 0 } });
+export const noOffers = (): OfferTally => ({ made: 0, fees: 0, accepted: 0, declined: 0, ended: { expired: 0, 'hero-left': 0, 'guild-folded': 0, renewed: 0, taken: 0 } });
 
 /** One Disposition's Rivals: what the balance pass reads its character by (DL-69). */
 export interface DispositionTally {
@@ -1333,15 +1334,18 @@ export function offerCounters(document: WorldDocument): Record<string, Record<st
   entriesOf(document, 'guild.transfer-offer-declined').forEach((entry, index) => {
     tallyOf(entry, `guild.transfer-offer-declined entry ${index}`).declined += 1;
   });
+  const taken = new Set<unknown>();
   entriesOf(document, 'guild.transfer-offer-expired').forEach((entry, index) => {
     const what = `guild.transfer-offer-expired entry ${index}`;
     const cause = payloadField(entry, 'cause');
     if (!isOfferEndCause(cause)) throw new Error(`${what} has no cause`);
     tallyOf(entry, what).ended[cause] += 1;
+    if (cause === 'taken') taken.add(payloadField(entry, 'offerId'));
   });
   entriesOf(document, 'hero.transferred').forEach((entry, index) => {
     const what = `hero.transferred entry ${index}`;
-    if ((payloadField(entry, 'offerId') ?? null) !== null) tallyOf(entry, what).accepted += 1;
+    const offerId = payloadField(entry, 'offerId') ?? null;
+    if (offerId !== null && !taken.has(offerId)) tallyOf(entry, what).accepted += 1;
   });
   return offers;
 }

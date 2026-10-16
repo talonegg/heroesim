@@ -285,6 +285,8 @@ const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
   expired: 'expired unanswered',
   'hero-left': 'lapsed: the Hero left that Roster',
   'guild-folded': 'lapsed as a Guild folded',
+  renewed: "was withdrawn: the Hero's Contract was renewed",
+  taken: 'was taken up: the Hero went for no fee',
 };
 
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */

@@ -8,6 +8,7 @@ import type { EngineDeps } from '../config.js';
 import { lengthNotOffered, signContract, type LengthNotOffered } from '../contract.js';
 import { rowOf, type GuildId, type HeroId, type PartyId, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
+import { freeOffer, withdrawOffers } from '../transfer.js';
 import type { Rejection, WorldActionResult } from './result.js';
 
 export interface RenewAction {
@@ -38,7 +39,8 @@ export type RenewRejection = LengthNotOffered<'renew'> | RenewHeroNotOnRoster | 
 /**
  * `guildId` signs `heroId`, of its Roster, on a new Contract of `years` from now (`signContract`): the
  * wage by the rule today, no fee, the old term dropped. Emits `hero.contract-renewed`, a Milestone
- * naming the Hero and the Guild, with the new terms.
+ * naming the Hero and the Guild, with the new terms; then each free Offer for the Hero is withdrawn,
+ * `renewed`, the one answer their Guild has to it (Q8, DL-319). A priced Offer stands.
  *
  * Refused, changing nothing: `length-not-offered`, `hero-not-on-roster` (a folded Guild's Roster is
  * empty, and a dead or retired Hero is on none), `hero-in-party`, in that order. Throws only on a Guild
@@ -58,11 +60,14 @@ export function applyRenew(world: World, { guildId, heroId, years }: Omit<RenewA
   }
   if (hero.partyId !== null) return { ok: false, rejection: { action: 'renew', reason: 'hero-in-party', heroId, partyId: hero.partyId } };
 
+  // Read before the new term is signed: a free Offer is one made while the Hero was Out of Contract.
+  const free = new Set(Object.values(world.offers).filter((offer) => offer.heroId === heroId && freeOffer(world, offer)));
   const { wage, endDay } = signContract(world, hero, guild, years, deps);
-  const renewed = eventEmitter(world)({
+  const emit = eventEmitter(world);
+  const renewed = emit({
     type: 'hero.contract-renewed',
     participants: [heroId, guildId],
     payload: { heroId, guildId, wage, years, endDay },
   });
-  return { ok: true, events: [renewed] };
+  return { ok: true, events: [renewed, ...withdrawOffers(world, (offer) => (free.has(offer) ? 'renewed' : null), emit)] };
 }

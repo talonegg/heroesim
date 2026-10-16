@@ -916,7 +916,7 @@ describe('sweepPlay', () => {
         fees,
         accepted,
         declined,
-        ended: { expired, 'hero-left': left, 'guild-folded': folded },
+        ended: { expired, 'hero-left': left, 'guild-folded': folded, renewed: 0, taken: 0 },
       });
       const disposition = (k: number): DispositionTally => ({
         guilds: 1,
@@ -1048,8 +1048,8 @@ describe('sweepPlay', () => {
       expect(text).toContain('| `ambitious` | 3 | 0 | 0 | 9 | 0 |');
       expect(text).toContain('| `reckless` | 0 | 0 | 0 | 0 | 6 |');
       // Offers: made, mean fee, accepted, declined, ended by cause, standing.
-      expect(text).toContain("| `ambitious` to the player's Guild | 18 | 217 | 3 | 6 | 3 | 3 | 0 | 3 |");
-      expect(text).toContain("| `reckless` to the player's Guild | 6 | 250 | 0 | 3 | 0 | 0 | 3 | 0 |");
+      expect(text).toContain("| `ambitious` to the player's Guild | 18 | 217 | 3 | 6 | 3 | 3 | 0 | 0 | 0 | 3 |");
+      expect(text).toContain("| `reckless` to the player's Guild | 6 | 250 | 0 | 3 | 0 | 0 | 3 | 0 | 0 | 0 |");
       // Market purchases a Guild-year: the player's over its own Guild-years.
       expect(text).toContain("| The player's Guild | 12 | 12.00 | 18 | 1,200 | 100 |");
       expect(text).toContain('| The Rivals, `ambitious` | 3 | 0.75 | 3 | 300 | 100 |');

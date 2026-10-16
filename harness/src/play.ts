@@ -8,10 +8,11 @@
 // watches what it probes (the Succession probe, `succession.ts`). A game played with no observer is
 // played bare, as the replay is (DL-189): the same game, with nothing gathered about it.
 //
-// One harness assertion is checked after every `advance` (M6-S3, DL-59, DL-69): under the automatic
-// policy, which declines every Transfer Offer and never transfers, no `hero.transferred` may name the
-// player's Guild, since the Transfer Generator never takes from it. A breach stops the game and is
-// reported as a validator's refusal is.
+// One harness assertion is checked after every `advance` (M6-S3, DL-59, DL-69, DL-319): under the
+// automatic policy, which declines every priced Transfer Offer and never transfers, no
+// `hero.transferred` may name the player's Guild but the taking of a free Offer on a Hero Out of
+// Contract that the policy let run out, since nothing takes a Hero under Contract from it. A breach
+// stops the game and is reported as a validator's refusal is.
 //
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
@@ -183,7 +184,7 @@ export interface Invalid {
 /**
  * A harness assertion a game broke (DL-59, DL-69), in a validator failure's shape: the Turn of the
  * offending entry, the assertion (`player-transferred`: a `hero.transferred` naming the player's
- * Guild), the entry's place in the History, and prose.
+ * Guild but a free Offer's taking, DL-319), the entry's place in the History, and prose.
  */
 export interface AssertionFailure {
   turn: number;
@@ -194,21 +195,30 @@ export interface AssertionFailure {
 
 /**
  * The first `hero.transferred` entry from the `from`th of its type on (`history.byType`) that names
- * the player's Guild, as an `AssertionFailure`; `null` when none does.
+ * the player's Guild, as an `AssertionFailure`; `null` when none does. A Transfer out of it is allowed
+ * when, and only when, it is the taking of a free Offer on a Hero Out of Contract that the policy let
+ * run out: the entry names an Offer that ended `taken`, for no fee (DL-319).
  */
 export function playerTransferred(document: WorldDocument, from = 0): AssertionFailure | null {
   const guildId = playerGuild(document.world)?.id;
   if (guildId === undefined) return null;
-  const positions = document.history.byType['hero.transferred'] ?? [];
+  const { byType, entries } = document.history;
+  const positions = byType['hero.transferred'] ?? [];
+  const taken = (offerId: unknown): boolean =>
+    (byType['guild.transfer-offer-expired'] ?? []).some((position) => {
+      const payload = entries[position]?.payload as { offerId?: unknown; cause?: unknown } | undefined;
+      return payload?.offerId === offerId && payload?.cause === 'taken';
+    });
   for (const position of positions.slice(from)) {
-    const entry = document.history.entries[position];
-    const payload = entry?.payload as { fromGuildId?: unknown; toGuildId?: unknown } | undefined;
+    const entry = entries[position];
+    const payload = entry?.payload as { fromGuildId?: unknown; toGuildId?: unknown; fee?: unknown; offerId?: unknown } | undefined;
     if (entry === undefined || (payload?.fromGuildId !== guildId && payload?.toGuildId !== guildId)) continue;
+    if (payload?.fromGuildId === guildId && payload.fee === 0 && payload.offerId != null && taken(payload.offerId)) continue;
     return {
       turn: entry.turn,
       check: 'player-transferred',
       id: `$.history.entries[${position}]`,
-      detail: `A Hero was transferred ${payload?.toGuildId === guildId ? 'into' : 'out of'} the player's Guild, which the policy never does`,
+      detail: `A Hero was transferred ${payload?.toGuildId === guildId ? 'into' : 'out of'} the player's Guild, and not by a free Offer the policy let run out`,
     };
   }
   return null;

@@ -1243,7 +1243,11 @@ function offerHeroNotOnRoster({ world }: WorldDocument): ValidationFailure[] {
   return failures;
 }
 
-/** No offer is past its expiry: it is live through `expiresOnTurn` and removed that night. */
+/**
+ * No offer is past its expiry: it is live through `expiresOnTurn` and removed that night, its Hero
+ * taken if it is free. For a Hero away when it was made, `expiresOnTurn` counts its Days from their
+ * Party's return, so it may stand longer than `transferOfferDays` from `offeredOnTurn` (Q-H, DL-319).
+ */
 function offerExpired({ world }: WorldDocument): ValidationFailure[] {
   return Object.entries(world.offers)
     .filter(([, offer]) => offer.expiresOnTurn < world.turn)

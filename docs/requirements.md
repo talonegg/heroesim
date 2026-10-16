@@ -47,7 +47,7 @@ Loot and Campaigns are kept as features serving Reputation and History.
 | Board and Patrons | Yes | Patrons approaching the Guild; Patron visits; Factions |
 | Recruitment from the Unattached pool | Yes | Scouting and hidden information |
 | Transfers with Rivals | Yes | Poaching |
-| Contracts: a wage set at signing, a length chosen, renewal, release, the free Offer and Under Offer | The wage set at signing and the length chosen (DL-315); the end, and renewal in the engine (DL-316); release in the engine (DL-317); the Transfer fee from the wages left (DL-318); the free Offer and Under Offer not yet (DL-294 item 6, DL-311) | Wages and lengths negotiated; a Hero rejecting an Offer (DL-294 item 8, DL-311 item 4) |
+| Contracts: a wage set at signing, a length chosen, renewal, release, the free Offer and Under Offer | The wage set at signing and the length chosen (DL-315); the end, and renewal in the engine (DL-316); release in the engine (DL-317); the Transfer fee from the wages left (DL-318); the free Offer and Under Offer in the engine (DL-319); the page and the CLI not yet (DL-294 item 6, DL-311) | Wages and lengths negotiated; a Hero rejecting an Offer (DL-294 item 8, DL-311 item 4) |
 | Items, Loot, Market | Yes | — |
 | Hall Improvements | Three grades of each Facility | Workers; grades 4 to 6 as late-game Wealth sinks with Upkeep (DL-83) |
 | Gold and Silver: Wealth held in whole Silver, 100 Silver a Gold, shown in both | Yes (DL-294, DL-296) | Borrowing and debt (DL-294) |
@@ -238,10 +238,11 @@ Loot and Campaigns are kept as features serving Reputation and History.
   joins the Unattached pool with no Contract (DL-294 item 6, its note of 2026-10-12, DL-317; the page and the CLI to be built).
 - R47. An Offer for a Hero Out of Contract is free: it costs no fee and stands for a set number of
   Days, after which the Hero moves to the offering Guild unless their Guild has renewed them in
-  that time (DL-294 item 6; to be built).
+  that time; a Rival answers at once, renewing a Hero at or above its Roster's median Level or with
+  its Roster at its floor (DL-294 item 6, DL-319; the page and the CLI to be built).
 - R48. A Hero a Transfer Offer stands for, free or priced, is Under Offer: no Party may take them
   until the Offer ends, by decline, expiry, renewal or transfer. An Offer may be made for a Hero
-  away on a Quest, who is Under Offer from their return (DL-311 item 4; to be built).
+  away on a Quest, who is Under Offer from their return (DL-311 item 4, DL-319).
 
 ### 3.6 Items and Market
 

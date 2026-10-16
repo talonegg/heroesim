@@ -4170,6 +4170,7 @@ offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTra
    `declineTransfer` — `guild-folded`, `offer-not-found`. A Guild id the world lacks throws (the CLI
    checks `--to` first). `transfer-refused` names the Guild asked, the `side` (`out`, a Hero leaving it;
    `in`, one joining it) and `because`.
+   *Superseded in part by DL-319 item 4, 2026-10-17: `offerTransfer`'s refusal `hero-in-party`; now an Offer may be made for a Hero away, who is Under Offer from their return. The record: [superseded/DL-57.md](superseded/DL-57.md).*
 2. **One fee core.** `signingFee` and the new `transferFee(hero, buyer, deps)` (`selectors.ts`) share
    `heroFee`: the list price (DL-27) × a factor (1, or **`transferFeeFactor` 2**, INPUTS 7.6) × the
    paying Guildmaster's Negotiation (DL-43), rounded down once. `buyer` is the paying Guild's
@@ -4237,6 +4238,7 @@ offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTra
    next night, so a hand-made expiry on a morning (the M1 fixture's) never outlives the validator's
    `offer-expired`. `declineTransfer` emits **`guild.transfer-offer-declined`** (not in the epic's list;
    data-model rule 10). Every offer event names the offer, the Hero and both Guilds.
+   *Superseded in part by DL-319 item 4, 2026-10-17: An offer's Days counted from the Day it is made, for a Hero away; now from their Party's return night, stored when it is made. The record: [superseded/DL-57.md](superseded/DL-57.md).*
 7. **The fold** (DL-54 item 1) gains a step 5, before its Heroes are released and `guild.folded`:
    every offer naming the folding Guild, made by it or asking it, is withdrawn (`guild-folded`), in id
    order. The steps after it are renumbered 6 and 7; nothing else in DL-54's order changes.
@@ -4413,6 +4415,8 @@ taking a Hero in must be (DL-57 item 3); what "stays within the generation range
 rules already move single Rosters out of it (DL-58: 39% below and 20% above at the years' ends); and
 how a test of 100 seeds × 20 years fits `npm test`.
 
+*Note, 2026-10-17 (DL-319 item 5).* The box "the player's Roster is never changed by the phase" holds for the player's Heroes under Contract only: the phase bids for a Hero Out of Contract on any Roster by a free Offer, the player's included (the owner, Q-C). The record: [superseded/DL-59.md](superseded/DL-59.md).
+
 **Decision.**
 
 1. **The phase** (`phases/transfers.ts`) runs at night right after the Guild State Engine, so a bidder's
@@ -4430,6 +4434,7 @@ how a test of 100 seeds × 20 years fits `npm test`.
    when the draw falls under the chance, is applied by `applyTransferIn` on the world the pairs before it
    left. A refusal would be dropped, as the Rival controllers drop theirs (DL-30); the bid names only
    what `transferIn` accepts.
+   *Superseded in part by DL-319 item 5, 2026-10-17: The pairs, the Rivals in play alone; now every Guild in play, the player's never the bidder, one draw a pair. The record: [superseded/DL-59.md](superseded/DL-59.md).*
 4. **The bidder** (`transferBid`, `controllers/rival.ts`) is the Rival of the pair whose Disposition has the
    greater `transferAppetite`; of two alike, the one with fewer Heroes, then the lower Guild id. It bids
    for the **dearest Hero of the other it can pay for**, at home, the lowest Hero id among equal fees:
@@ -4450,9 +4455,7 @@ how a test of 100 seeds × 20 years fits `npm test`.
    the bidder in each of its pairs, took Heroes it would not have hired: its folds rose from 45 to 75–84
    in 100 games, and its mean Roster to the range's top or above. Also not taken: no range check, under
    which the Generator took `reckless` down to two Heroes for `ambitious`, the moves the box is about.
-6. **The player.** The phase's filter is the third accepted read of `controller.kind` (`plan.md` §1);
-   `controller-reads.test.ts` allows it in `phases/transfers.ts`, naming the exception. `transferBid`
-   also names no bid for a pair with a Guild that has no Disposition, so the player is excluded twice.
+6. **The player.** *Superseded by DL-319 item 5, 2026-10-17; its text is in [superseded/DL-59.md](superseded/DL-59.md).*
 7. **What the boxes read.** "Rival-to-Rival Transfers occur": the Generator's own Transfers, and those of
    the afternoon (M6-S2), in play. "The distribution stays within the generation range": each of the
    Generator's Transfers leaves both Rosters within `rivalRosterMin` to `rivalRosterMax`, and at every
