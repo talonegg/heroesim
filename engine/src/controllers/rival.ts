@@ -143,8 +143,8 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
     recruit: () => transferChoice(world, guild, disposition, deps, 'free') ?? cheapestHire(world, guild, disposition, deps),
     debt: () => (surplus.length > 0 || release !== null ? null : debtTransfer(world, guild, dispatched, deps)),
   };
-  // Each step is tried only when the ones before it made nothing, so that the draw `transfer` takes is
-  // taken only then.
+  // Each step is tried only when the ones before it made nothing, so that the draws `transfer` and
+  // `recruit` take are taken only then (DL-320).
   for (const step of disposition.purchaseOrder ?? purchaseSteps) {
     const purchase = attempts[step]();
     if (purchase !== null) {

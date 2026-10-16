@@ -4229,7 +4229,7 @@ offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTra
      `recruitingDeps`, which M6-S1's third box's test uses, so that its one-draw-per-dispatch count
      stands. `transfer.test.ts` shows the Transfer's own draw is one, from `rivals`, and nothing else
      moves; `controllers/dispositions.test.ts` (M6-S1's 100 seeds) passes unchanged.
-   *Superseded in part by DL-320 item 3, 2026-10-17: A Rival's search sought only a Hero of a Guild that would let one go or answers offers, one purchase of build, else `transferChoice`, else recruit, else `debtTransfer`; now a Hero Out of Contract is sought on any Roster whatever the seller says, by a free Offer its Guild answers, in the hiring step before the pool, and in debt the Heroes Out of Contract are released before `debtTransfer`. The record: [superseded/DL-57.md](superseded/DL-57.md).*
+   *Superseded in part by DL-320 items 1 and 3, 2026-10-17: A Rival's search sought only a Hero of a Guild that would let one go or answers offers, one purchase of build, else `transferChoice`, else recruit, else `debtTransfer`; now a Hero Out of Contract is sought on any Roster whatever the seller says, by a free Offer its Guild answers, in the hiring step before the pool, and in debt the Heroes Out of Contract are released before `debtTransfer`. The record: [superseded/DL-57.md](superseded/DL-57.md).*
 6. **Offers** (data-model §3.2): an offer stands through the night of its **`transferOfferDays`
    (3)**-th Day, the Day it is made the first (a new config field, the agent's, mirroring
    `questOfferDays`; `offerExpiresOnTurn`), and is removed by a new night phase **`offerExpiry`**, after

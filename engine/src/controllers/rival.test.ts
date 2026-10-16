@@ -17,6 +17,7 @@ import { applyAction, applyGuildAction, type GuildAction } from '../actions/acti
 import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
 import { rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
+import { nightOf } from '../time.js';
 
 // DL-175: a test may name the chance of success by the size of the Party, in place of
 // the estimate, to set a gain exactly; none set, `partyEstimator` is the real one. `asked` counts the
@@ -1648,6 +1649,36 @@ describe('a Rival in debt releases its Heroes Out of Contract before its debt sa
     expect(rival.rosterIds).not.toContain(hero.id);
     expect(hero.guildId).toBeNull();
     expect(hero.contract).toBeNull();
+  });
+
+  test('with every Hero Out of Contract, releases down to an empty Roster, one an afternoon, and folds that night, Roster wiped: no guard (Q-B, DL-320)', () => {
+    let { document } = createWorld('debt-order-wiped', setup, deps);
+    const { world } = document;
+    const [rival] = rivalsOf(world).filter((guild) => dispositionOf(guild) === 'ambitious') as [Guild];
+    world.board = [];
+    world.turn = 9;
+    rival.wealth = -2000;
+    rival.belowFloorSince = 0;
+    for (const heroId of rival.rosterIds) expire(heroOf(world, heroId), 1);
+    const roster = rival.rosterIds.length;
+
+    let released = 0;
+    for (let afternoon = 0; afternoon < 2 * roster && rival.rosterIds.length > 0; afternoon += 1) {
+      const choices = rivalChoices(world, rival, deps);
+      expect(releases(choices).length).toBeLessThanOrEqual(1);
+      released += releases(choices).length;
+      for (const action of choices) expect(applyGuildAction(world, action, deps), action.kind).toMatchObject({ ok: true });
+    }
+    expect(released).toBe(roster);
+    expect(rival.rosterIds).toEqual([]);
+
+    const events: TurnEvent[] = [];
+    while (document.world.turn < nightOf(3)) {
+      const result = advance(document, deps);
+      document = result.document;
+      events.push(...result.events);
+    }
+    expect(events).toContainEqual(expect.objectContaining({ type: 'guild.folded', payload: { guildId: rival.id, reason: 'roster-wiped' } }));
   });
 });
 

@@ -730,3 +730,5 @@ owner kept the answer rule as set; `v1.2.4` tunes its threshold.
 `transfer.test.ts`, `policy.test.ts`. Red first: the debt order's six, the policy's four and the second draw; the
 budget's two and the free step's other six held on the old code. The releases and free moves were counted by
 replaying the four seeds.
+
+Verified 2026-10-17 at ed9c9a0: claims held, the pin traced to the search; a surviving mutation (the policy releasing a Hero it sends) closed by a stronger test, a test added of a Rival releasing to an empty Roster and folding, Roster wiped; DL-57's note names items 1 and 3; a 12-year replay reached the order, 28 releases, all free and in order, one Rival wiped.

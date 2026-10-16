@@ -1060,15 +1060,18 @@ describe('automaticPolicy', () => {
         openBoard(quests, 1);
         // One Quest and the fewest Heroes it will do with (`fewest`), so that some Heroes stay home.
         document.world.board = document.world.board.slice(0, 1);
-        for (const heroId of guild.rosterIds) expire(document, heroId, 1);
+        // Who goes, read with no one Out of Contract: a Contract's end changes no Party.
+        const sent = dispatches(automaticPolicy(document, fewest, noBuilding)).flatMap((action) => action.heroIds);
+        expect(sent.length).toBeGreaterThan(0);
+        // The Party at Level 1 and one Hero at home at Level 2, Out of Contract: those sent come first by Level, so
+        // only their exclusion keeps the release from them. The same Party goes (below).
+        const [home] = guild.rosterIds.filter((heroId) => !sent.includes(heroId)) as [HeroId];
+        for (const heroId of sent) expire(document, heroId, 1);
+        expire(document, home, 2);
 
         const actions = automaticPolicy(document, fewest, noBuilding);
-        const sent = dispatches(actions).flatMap((action) => action.heroIds);
-        expect(sent.length).toBeGreaterThan(0);
-        expect(sent.length).toBeLessThan(guild.rosterIds.length);
-        const [release] = releases(actions);
-        expect(release).toMatchObject({ kind: 'release', guildId: guild.id });
-        expect(sent).not.toContain((release as { heroId: HeroId }).heroId);
+        expect(dispatches(actions).flatMap((action) => action.heroIds)).toEqual(sent);
+        expect(releases(actions)).toEqual([{ kind: 'release', guildId: guild.id, heroId: home }]);
         applied(document, actions);
       });
     });
