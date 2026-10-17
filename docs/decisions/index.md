@@ -337,6 +337,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-327 | 2026-10-17 | CI watched by the orchestrator, one `check` per commit, no browser specs for docs, one record pull … |  | [decision-log](../decision-log.md) |
+| DL-328 | 2026-10-17 | `v1.2.4` replanned: Plunder, the owner's starting point, and four rule changes before the pass |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

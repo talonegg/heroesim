@@ -84,10 +84,13 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy is
 redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294).
 
-- **Now: [`v1.2.4`, the economy pass](./planning/epics/v1.2.4-release.md)** (#51; DL-294 item 7), not
-  started, on `v1.2.4-dev`, cut from `v1.2.3`'s record, deferred by the owner (DL-293) and placed here
-  by DL-294: Guilds that can live with `v1.2.1`'s Fatigue and form and the redesign's rules, each
-  setting changed measured alone in a full Gate against the bands the owner approves first and
+- **Now: [`v1.2.4`, the economy rebased](./planning/epics/v1.2.4-release.md)** (#51; DL-294 item 7,
+  DL-328), not started, on `v1.2.4-dev`, cut from `v1.2.3`'s record, deferred by the owner (DL-293)
+  and placed here by DL-294: four rule changes first (Plunder, the Wealth an Encounter yields on top of
+  the Patron's reward; the Quest reward by Tier as a range; one Level curve for wages and signing fees,
+  reading a Hero's Calibre; Loot drop rates) with the content Plunder needs; then the owner's revised
+  starting point as one package; then Guilds that can live with `v1.2.1`'s Fatigue and form, each
+  change measured alone in a full Gate against the bands the owner approves and
   [the outcomes](./planning/epics/gate-outcomes-monitoring.md). It restores the player's solvency
   (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the Rivals' failed Quests (22.3% against
   5.6%), their recruiting (2.56 Heroes a game against 85.6) and their folds (10.94 a game against
@@ -101,7 +104,9 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
 - **Short term: choices that cost something.** `v1.2.5`, Rivals who compete, and Fame raising the
   stakes. It takes in #21, the rest of #25 (gear upgraded) and #51's Rival income.
 - **Medium term: the management core,** in this order:
-  - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
+  - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35). A
+    Hero's Calibre, which their wage and signing fee read, drawn from their current Stats and their
+    Potential, so that Heroes of one Level differ in worth (DL-328).
   - Scouting and a deeper Unattached pool: Heroes of every age and Level, and hidden information.
     The Outing limit comes with scouting and applies to every Guild (R4, pre-M0 review
     B1, DL-89). It takes in the Guildmaster Trait that sharpens Potential hints (requirements §2,
@@ -152,6 +157,12 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
     Roster cap while its Wealth exceeds its Disposition's `recruitThreshold` Upkeeps (R1, DL-270,
     DL-274).
   - Taken into the release that touches their code: #16, #41, #46 and #52.
+  - The Quest rework (DL-328): many more Quest templates and Encounters, and Quest and Encounter
+    mechanics refined, replacing `v1.2.4`'s placeholders, the Quest reward's range by Tier and
+    Plunder's figures by Tier and Degree.
+  - More Items, to fill the Market's price range the owner's starting point set (Consumables 15 to
+    75 Silver, Common gear 20 to 300; DL-328).
+  - The Quest Board's mechanics, unless `v1.2.4`'s Quests-a-Year story needs them first (DL-328).
   - A Healer's relief of the hurt growing with their Field surgery rating, with the Development
     release's Skill growth (DL-280).
   - The Transfer Generator's Roster bound removed: its own bids keep a Rival's Roster at or below

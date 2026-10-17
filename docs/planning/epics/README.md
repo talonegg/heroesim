@@ -30,7 +30,7 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
-| `v1.2.4` | [The economy pass](./v1.2.4-release.md) | Every line of `gate.json`, the save after 20 years included; the bands the owner approves at S1 met or accepted; each change measured alone; the owner's playtest | 10–14 | `v1.2.3` (DL-294) |
+| `v1.2.4` | [The economy rebased](./v1.2.4-release.md) | Every line of `gate.json`, the save after 20 years included; the bands the owner approves at S8 met or accepted; from the starting point (S7), each change measured alone | 21–25 | `v1.2.3` (DL-294, DL-328) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in
 [the archive](../archive/README.md).

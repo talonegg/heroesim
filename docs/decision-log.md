@@ -318,3 +318,65 @@ way. Only a CI run proves the workflow, after the owner's word to push.
 Verified 2026-10-17 at 4875a57: the duplicate, the fail-safes, the outputs' wiring and a diff over a fetched base with no history between held; found the Consequences' gap real and wider (a docs push after a run cancelled by the next push, or red, made a green run with no specs, which a duplicate on the release branch and the deploy's `tested.mjs` then took for passed) and item 3's list short of `cli/` (`e2e/journey.spec.ts` loads the export with the CLI, so the judgement call's "neither the page nor its specs import them" is untrue of it); so `browser=false` now also needs a passed push run of `check` on the base, each green run standing on one with the same page back to one that ran the specs, and `cli/` is on the list, test first; 16 mutations red, the all-zero base's only after a test was added.
 
 *Note, 2026-10-17 (the owner's answers on the review's items 3, 8 and 9, and release step 4).* Item 3, "a" with mitigation "A": the builder's Check runs `--changed` tests from the last verified commit, then whole the project of each file read from disk that changed (a second command: `--project` beside `--changed` narrows to that project's changed tests), or the full `npm test` where the test setup, `engine/src/` or `content/src/` changed; the full `npm test` runs once, in the verifier's step (`delivery.md`, A story). Item 9, "a": a story touching neither `engine/src/` nor `content/src/` runs no doctors. Release step 4, "B": the new dev branch and the release branch are pushed together, once. Item 8, "c": the long runs stay as they are.
+
+## DL-328 — `v1.2.4` replanned: Plunder, the owner's starting point, and four rule changes before the pass
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner (a grilling of 52 questions on
+the epic, the `v1.2.3` close's economics baseline and the owner's revised starting point, 2026-10-17);
+Claude (the proposals, the facts, the order)
+
+**Context.** The epic planned a settings-only pass from `v1.2.3`'s close. The owner modelled a revised
+starting point with the estimate model (`v1.2.4-economics-model-2026-10-17-213616.md`): costs about 1.5
+to 10 times today's, Quest rewards about 4 to 7 times, and a new Wealth from Encounters on top of the
+Patron's reward. Today's rules cannot reach it: a straight-line wage and signing fee cannot meet the
+revised Level ranges, a Quest's reward spread is fixed by its Tier's difficulty band, an Encounter's
+`wealth` consequence only scales the reward of a Quest that succeeds, and Loot has no drop rate. The
+balance holds only near 60 Quests a Year on a Roster of about 12, against 130.7 on 8 at the close.
+
+**Decision.**
+
+1. **The scope** (Q1). Everything stays in `v1.2.4`, Fatigue's tuning included: 15 stories, 21 to 25
+   sessions; no playtest (Q42).
+2. **Four rule changes, a closed list, built first** (Q2, Q19), each with neutral defaults where it
+   can and a quick run against the story before:
+   - **Plunder** (Q13 to Q17, Q22 to Q26, Q35 to Q38): the Wealth a Party gains or loses in an
+     Encounter, on top of the Patron's reward, kept whatever the band, never negotiated. Content
+     decides which Encounters yield it, a `plunder` consequence with a weight and a line: a gain on
+     Success or Triumph, a loss on Failure at `plunderLossChance` 0.15, at the Tier's `plunderGain`
+     and `plunderLoss`. It replaces the `wealth` consequence and the reward factor. A Treasury line
+     each way and a harness counter of its own.
+   - **The Quest reward by Tier** (Q7, Q21, Q34): a range, `rewardMin` to `rewardMax`, the Quest
+     placed by its difficulty, × the template's `rewardMultiplier` (from `rewardPerDifficulty`); a
+     placeholder for the Quest rework.
+   - **One Level curve** for the wage and the signing fee (Q5, Q6, Q20, Q33): base + per Level +
+     curve × Level ^ exponent + Calibre ÷ divisor, Calibre a Hero's measure, today the Stat sum.
+   - **Loot drop rates** (Q43): `lootChance` by Tier and band, templates able to override it.
+3. **Content for Plunder** (Q36, Q46 to Q50): Plunder on 17 of the 29 Encounters; 4 new Encounters and
+   2 new Quest templates (Church, Villages) where Quests rarely meet coin; a Loot table for every
+   template (Q44).
+4. **The starting point** (Q3, Q4, Q8 to Q11): the export's values, mapped in the epic's §2a, land as
+   one package with one full `gate` against `v1.2.3`'s close. Facility upkeep 30 at the 1.73 factor;
+   a Unique Item 50,000; the Rivals' starting Wealth 3,000 to 7,000; Market prices unchanged.
+5. **Two new bands** (Q12, Q27): the player's Quests a Guild-year, 50 to 70, and Roster at year 5,
+   10 to 14, for the owner's approval at S8 with the rest.
+6. **Quest volume** (Q30 to Q32, Q39): the player policy loses `rosterLimit`, recruiting while Wealth
+   is above `recruitWealthMultiple` (1) Upkeeps; then Quest Days, the Party's size and the Board's
+   settings, with `xpFactor` holding the Level bands; Fatigue's settings at S14.
+7. **The backlog** (Q29): Calibre from current Stats and Potential; the Quest rework replacing the
+   reward ranges and Plunder's figures; more Items across the price range; the Board's mechanics.
+
+*Judgement calls, for the owner to see:*
+- **`rosterLimit` leaves at S9, not with the package,** so that its effect on the Roster is measured
+  alone; S7's Gate therefore reads the player richer than the model.
+- **The reward ranges built neutral:** each Tier's range drawn through today's line at its ends keeps
+  every reward as it is, so S4's quick run must be unchanged.
+- **The 17 Encounters** leave out the-restless-dead and short-of-supplies, whose scenes clash with a
+  find.
+
+**Consequences.** The pass is no longer settings-only: S1 to S6 change rules and content, S7 to S14
+settings, rows and the harness's policy. `schemaVersion` rises where a save's shape changes, without
+migration. Each story's own entry supersedes what it replaces: S1 the `wealth` consequence, S4 the
+reward's rule, S5 the wage's and the signing fee's rules (DL-315), S6 `lootOnBands`.
+
+**Evidence.** `docs/planning/epics/v1.2.4-release.md` (§0, §1, §2, §2a, §6 with the answers);
+`v1.2.4-starting-economics-baseline.md`; the owner's export; `plan.md` §3.
