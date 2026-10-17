@@ -320,7 +320,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
-| DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … | item 3 by DL-312; item call 5 in part by DL-312 | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
+| DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … | item 3 by DL-312; item call 5 in part by DL-312; item 5 in part by DL-327 | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-312 | 2026-10-16 | `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4` |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-313 | 2026-10-16 | CI's runner pinned to `ubuntu-24.04` for `v1.2.3` |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
@@ -336,6 +336,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
 | DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [DL-311-326-v1.2.3](archive/DL-311-326-v1.2.3.md) |
+| DL-327 | 2026-10-17 | CI watched by the orchestrator, one `check` per commit, no browser specs for docs, one record pull … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

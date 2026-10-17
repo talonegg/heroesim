@@ -258,3 +258,60 @@ once home; the epic's own defaults are approved as starting points, reviewed in 
 *Note, 2026-10-16 (the owner's word: "a", to push the record, `v1.2.3-dev` and Dependabot's move).* `v1.2.3-dev` is cut from `v1.2.2`'s record, and Dependabot's two `target-branch`es move to it (DL-147 item 6), taking effect when the record is merged into `main`.
 
 *Note, 2026-10-17 (the owner's "a").* Likewise `v1.2.4-dev`, from `v1.2.3`'s record.
+
+## DL-327 — CI watched by the orchestrator, one `check` per commit, no browser specs for docs, one record pull request
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner ("Implement items 4-7" of a review of
+the delivery and CI process, 2026-10-17); Claude (how each is built)
+
+**Context.** The review found four costs. A Haiku agent read each push's CI at about 35 to 40k tokens a
+time (DL-311 item 5). `check` ran twice for one commit when the dev branch's push was followed by the release
+branch's (`63b3052`, `6394ac5`, `303548e`), the browser specs ran on commits that changed only `docs/`, and a
+release's close raised three record pull requests (#72, #73 and a third) where one would do.
+
+**Decision.**
+
+1. **CI watched by the orchestrator** (item 4). After a push on the owner's word, the orchestrator
+   watches the commit's runs itself, in the foreground (`gh run watch <id> --exit-status`,
+   `gh pr checks <n> --watch`), and reports a red one before the next story. The rule, no red run
+   unseen (DL-311 Q-I), stays. This supersedes DL-311 item 5 in part: its Haiku agent. `delivery.md`,
+   A story, step 8.
+2. **One `check` per commit** (item 5). A `plan` job in `check.yml` runs `web/scripts/plan.mjs` first. On a
+   push to a `v*-release` branch it asks GitHub, as `tested.mjs` does for the deploy (DL-235), for a
+   completed, successful push run of `check.yml` on the same head commit, not this run. Found, the
+   output `duplicate=true` skips `check` and `e2e` by their job-level `if`. A pull request's run, a dev
+   branch's and a release push with no such run are never skipped.
+3. **No browser specs for docs** (item 6). `plan.mjs` diffs the push's `before` (a pull request's base)
+   against the commit, with `--no-renames`, and writes `browser=false` when no changed path is one
+   the page or its specs read: `web/`, `engine/`, `content/`, `words/`, `media/`, the root
+   `package.json`, `package-lock.json`, `.npmrc`, `.node-version`, `tsconfig*.json` and `check.yml`.
+   `e2e` runs unless `browser` is the literal `false`. The lint, the typecheck and `npm test` run on
+   every commit.
+4. **Anything uncertain runs both.** No record read, a new branch (an all-zero `before`), a base git
+   cannot fetch (a force push) or a diff it cannot make, an event that is neither a push nor a pull
+   request. Only a literal `true` or `false` skips, so a plan that wrote nothing skips nothing.
+5. **One record pull request** (item 7). The record, its archives, the next dev branch's cut, the
+   move of Dependabot, any fix to the record and the playtest's answer are committed on the dev
+   branch, the owner's questions asked first, and the release branch is fast-forwarded to it and
+   pushed once, on the owner's word: one "Record from `<branch>` (no release)" pull request.
+   `delivery.md`, the Plan step and Release step 4.
+
+*Judgement calls, for the owner to see:*
+- **A `plan` job, not a condition on each step.** A job skipped by its own `if` reports success to a
+  required check, where a step condition would repeat on every step; `check` and `e2e` cost the
+  runner nothing when skipped. `plan` adds a short job before them.
+- **`media/` is on the list**: the build bundles the pictures (`web/src/media.ts`). `cli/`,
+  `harness/`, `tools/` and `docs/` are not: neither the page nor its specs import them. A change to
+  one of their `package.json` files changes `package-lock.json`, which is.
+- **Item 5 is superseded in part, not in full:** the rule stays, only the agent changes.
+
+**Consequences.** `plan.mjs` and `tested.mjs` share one reading of GitHub's record. A commit that
+changes `web/scripts/` is a release, not a record (DL-255). A skipped `e2e` makes a green run, so the
+deploy's `tested.mjs` may count a green run on a docs-only commit that follows a red `e2e` on the
+commit before it; the orchestrator's watch is what sees that red run (item 1). Pushing the release branch
+before the dev branch's run finishes finds no passed run and runs the whole `check`, which is the safe
+way. Only a CI run proves the workflow, after the owner's word to push.
+
+**Evidence.** `.github/workflows/check.yml`; `web/scripts/plan.mjs` with `plan.d.mts` and
+`web/src/plan.test.ts`; `web/src/deploy.test.ts`'s `check.yml` tests; `docs/agents/delivery.md`;
+`docs/deploy.md`; `superseded/DL-311.md`.

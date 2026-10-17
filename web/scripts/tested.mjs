@@ -57,8 +57,8 @@ export function decide({ event, commit, git, checkRuns }) {
   };
 }
 
-/** git in `cwd` through `spawn`: its trimmed output, or `null` when it fails. */
-function gitWith(spawn, cwd) {
+/** git in `cwd` through `spawn`: its trimmed output, or `null` when it fails (plan.mjs reads it too, DL-327). */
+export function gitWith(spawn, cwd) {
   return (args) => {
     const child = spawn('git', args, { cwd, encoding: 'utf8' });
     return child.error || child.status !== 0 ? null : String(child.stdout ?? '').trim();
@@ -68,9 +68,9 @@ function gitWith(spawn, cwd) {
 /**
  * The runs of check.yml on a push of `sha` that GitHub lists as passed, read by `gh api`; `null` when
  * unread. GitHub filters them, and `decide` checks each again, so a first page alone can only miss a
- * passed run and run the tests, never skip them wrongly.
+ * passed run and run the tests, never skip them wrongly. plan.mjs asks it the same (DL-327).
  */
-function checkRunsWith(spawn, cwd, repository) {
+export function checkRunsWith(spawn, cwd, repository) {
   return (sha) => {
     if (!repository) return null;
     const url = `repos/${repository}/actions/workflows/${checkWorkflow}/runs?head_sha=${sha}&event=push&status=success`;

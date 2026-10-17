@@ -16,6 +16,14 @@ name: check
 # merged pull request moves it, whose commit `check` has already passed on the release branch. The
 # deploy runs the suite and the specs again unless the release's tree is the one they passed on
 # (DL-235).
+#
+# DL-327: the `plan` job (web/scripts/plan.mjs) decides what a run does, and `check` and `e2e` wait for
+# it. A push to a release branch of a commit that `check` passed on already, on a dev branch, runs
+# neither, the dev branch's run being the one the deploy reads; and the browser specs run only when a
+# path the page or its specs read changed since the push's `before` or the pull request's base. A job
+# skipped by its own condition reports success to a required check, and only a literal `true` or
+# `false` skips, so a plan that failed to decide runs everything. A pull request's `check` is never
+# skipped as a duplicate.
 on:
   push:
     branches:
@@ -36,7 +44,33 @@ concurrency:
   cancel-in-progress: ${{ !endsWith(github.ref_name, '-release') }}
 
 jobs:
+  plan:
+    # Pinned, not ubuntu-latest, so no runner image change lands mid-release (DL-313).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # actions: read, for plan.mjs to read check's runs, as tested.mjs does (DL-235).
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      duplicate: ${{ steps.plan.outputs.duplicate }}
+      browser: ${{ steps.plan.outputs.browser }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.node-version'
+      - name: Whether this commit passed already, and whether the page or its specs changed
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: node web/scripts/plan.mjs "$EVENT" "$BASE"
+
   check:
+    needs: plan
+    if: needs.plan.outputs.duplicate != 'true'
     # Pinned, not ubuntu-latest, so no runner image change lands mid-release (DL-313).
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -61,6 +95,8 @@ jobs:
       - run: npm test
 
   e2e:
+    needs: plan
+    if: needs.plan.outputs.duplicate != 'true' && needs.plan.outputs.browser != 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

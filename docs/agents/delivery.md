@@ -131,9 +131,12 @@ name its path, or use `rg -u`.
      attribution lines the session gives;
    - stage only the files changed, never `git add -A`;
    - use `git commit -F -` with a heredoc.
-8. **CI, after a push** on the owner's word (DL-311): a Haiku agent reads the pushed commit's runs
-   (`gh run list`, `gh run view --log-failed`) and reports a red one with its failing test before the
-   next story starts; a red run is reported as any failing test is, never rewritten to pass.
+8. **CI, after a push** on the owner's word (DL-311, DL-327): the orchestrator watches the pushed
+   commit's runs itself, in the foreground (`gh run watch <id> --exit-status`, or
+   `gh pr checks <n> --watch`), and reports a red one with its failing test (`gh run view
+   --log-failed`) before the next story starts; no red run goes unseen. A red run is reported as any
+   failing test is, never rewritten to pass. A skipped `check` or `e2e` is a pass: `docs/deploy.md`
+   says when CI skips them.
 
 ## A release
 
@@ -144,7 +147,8 @@ name its path, or use `rg -u`.
    - Add its row to the epics README's register, and make it §3's "Now" in `plan.md`.
    - Its DL entry records the answers and the plan.
    - On the owner's word, cut the dev branch from the previous release's record and move
-     Dependabot to it.
+     Dependabot to it. Both are commits on the new dev branch, pushed with the record, not on
+     their own (step 4 of Release, DL-327).
 2. **Close.**
    - A review of the release's commits, its findings fixed test first, and every check.
    - Prove play: a full `gate` alone meeting `harness/gate.json` where play could move, and
@@ -170,12 +174,16 @@ name its path, or use `rg -u`.
    - the ledger's row in `plan.md` §2: date, pull request, merge commit, decisions, epic;
    - the epic's Status line.
 
-   The record, pushed to the release branch on the owner's word, raises a pull request "Record
-   from `<branch>` (no release)", whose merge releases nothing (`docs/deploy.md`, DL-255).
-
    Then archive, by the steps in `docs/agents/documentation.md`:
    - the epic, to `docs/planning/archive/`;
    - the release's DL entries, to `docs/decisions/archive/`;
    - the committed harness reports that nothing live cites any more.
 
    And `plan.md` §3's "Now" moves on.
+
+   **One push, one record pull request** (DL-327). Ask the owner's questions first (the playtest's
+   answer, the next release's plan, by rule 11), commit everything on the dev branch (the record
+   and its archives, the cut of the next dev branch and the move of Dependabot to it by the Plan
+   step, any fix to the record, the playtest's answer), then fast-forward the release branch to
+   that tip and push once, on the owner's word. That push raises the one pull request, "Record from
+   `<branch>` (no release)", whose merge releases nothing (`docs/deploy.md`, DL-255).

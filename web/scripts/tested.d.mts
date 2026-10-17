@@ -44,5 +44,15 @@ export interface TestedMainOptions {
   readonly warn?: (line: string) => void;
 }
 
+/** git in `cwd` through `spawn`: its trimmed output, or `null` when it fails. plan.mjs reads it too (DL-327). */
+export declare function gitWith(spawn: NonNullable<TestedMainOptions['spawn']>, cwd: string): (args: readonly string[]) => string | null;
+
+/** The runs of check.yml on a push of a commit GitHub lists as passed, or `null` when unread. */
+export declare function checkRunsWith(
+  spawn: NonNullable<TestedMainOptions['spawn']>,
+  cwd: string,
+  repository: string | undefined,
+): (sha: string) => readonly CheckRun[] | null;
+
 /** The command line, `<event> [commit]`; returns the exit status. */
 export declare function main(options?: TestedMainOptions): number;

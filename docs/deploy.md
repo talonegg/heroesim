@@ -19,6 +19,15 @@ branch's pull request moves it, and each merge releases unless it is a record (D
 1. Work lands on a dev branch, the line's `v#.#-dev` or a patch's own `v1.1.N-dev`, and the line's
    `v#.#-release` is moved to it. `check` runs on every push to either: lint, typecheck and the
    tests on `.node-version`, the floor (DL-235), and the browser specs in Chromium at three widths.
+   A `plan` job (`web/scripts/plan.mjs`, DL-327) first decides two things, and a job it skips
+   reports success to a required check:
+   - a push to the release branch of a commit that a push run of `check` passed on already (the
+     dev branch's) runs neither `check` nor `e2e`. A pull request's `check` is never skipped so;
+   - the browser specs run only when a path the page or its specs read changed since the push's
+     `before` or the pull request's base: `web/`, `engine/`, `content/`, `words/`, `media/`, the
+     root `package.json`, `package-lock.json`, `.npmrc`, `.node-version`, `tsconfig*.json` and
+     `check.yml`. The lint, the typecheck and the tests run whatever changed. A new branch, a base
+     git cannot fetch or a diff it cannot make runs them.
 2. A push that leaves the release branch ahead of `main` makes CI open the branch's pull request
    to `main`, or update the open one (`release-pr.yml`). The pull request names the tag its merge
    will release.

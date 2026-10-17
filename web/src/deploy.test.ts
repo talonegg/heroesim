@@ -14,6 +14,7 @@ import {
   type Spawn,
   type SpawnResult,
 } from '../scripts/deploy.mjs';
+import { browserNeeded } from '../scripts/plan.mjs';
 
 // The deploy (DL-68; DL-94; INPUTS 7.8 and 7.9). `npm run deploy` is
 // web/scripts/deploy.mjs: from a clean checkout of a release tag, it builds and gates the page
@@ -922,7 +923,7 @@ function workflowText(name: string): string {
 function jobOf(workflow: string, job: string): string {
   const start = workflow.indexOf(`\n  ${job}:\n`);
   expect(start, job).toBeGreaterThan(-1);
-  const next = workflow.slice(start + 1).search(/\n {2}[a-z-]+:\n/);
+  const next = workflow.slice(start + 1).search(/\n {2}[a-z0-9-]+:\n/);
   return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
 }
 
@@ -1102,6 +1103,53 @@ describe('the release workflows (DL-124)', () => {
     expect(jobOf(check, 'check')).toContain('run: npm test');
     expect((readManifest('package.json') as Manifest & { engines?: { node?: string } }).engines?.node).toBe(`>=${major}`);
     expect(lock.packages['']?.engines?.node).toBe(`>=${major}`);
+  });
+
+  // DL-327: plan.mjs decides what a run does; `check` and `e2e` are skipped by a job-level condition,
+  // which GitHub reports as success to a required check, and only a literal answer that skips: a plan
+  // that wrote nothing runs both.
+  test('check.yml: a plan job decides, and check and e2e wait for it', () => {
+    const check = workflowText('check.yml');
+    const plan = jobOf(check, 'plan');
+
+    expect(plan).toContain('run: node web/scripts/plan.mjs "$EVENT" "$BASE"');
+    expect(plan).toContain('EVENT: ${{ github.event_name }}');
+    expect(plan).toContain("BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}");
+    expect(plan).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(plan).toMatch(/permissions:\n {6}contents: read\n {6}actions: read\n/);
+    expect(plan).toMatch(/timeout-minutes: \d+/);
+    expect(plan).toMatch(/\n {4}outputs:\n {6}duplicate: \$\{\{ steps\.plan\.outputs\.duplicate \}\}\n {6}browser: \$\{\{ steps\.plan\.outputs\.browser \}\}\n/);
+    expect(plan).toContain('id: plan');
+    expect(plan).not.toMatch(/\n {4}if: /);
+    // The plan reads no dependency: nothing it runs needs `npm ci`.
+    expect(plan).not.toContain('npm ci');
+  });
+
+  test('check.yml: a duplicate skips check and e2e, and only a literal "false" skips the specs', () => {
+    const check = workflowText('check.yml');
+
+    expect(jobOf(check, 'check')).toMatch(/\n {4}needs: plan\n {4}if: needs\.plan\.outputs\.duplicate != 'true'\n/);
+    expect(jobOf(check, 'e2e')).toMatch(
+      /\n {4}needs: plan\n {4}if: needs\.plan\.outputs\.duplicate != 'true' && needs\.plan\.outputs\.browser != 'false'\n/,
+    );
+    expect(check).not.toMatch(/outputs\.(duplicate|browser) == /);
+    // No step of either job is conditional on the plan, so a job that runs runs whole.
+    expect(stepsOf(jobOf(check, 'check')).filter((step) => /\n {8}if: /.test(`\n${step}`))).toEqual([]);
+    expect(stepsOf(jobOf(check, 'e2e')).filter((step) => /\n {8}if: /.test(`\n${step}`)).map((step) => step.split('\n')[0])).toEqual([
+      'name: Keep the report of a failure',
+    ]);
+  });
+
+  test('check.yml: the browser specs run for every folder the page is built from', () => {
+    const tsconfig = readText('web/tsconfig.json');
+    const referenced = [...tsconfig.matchAll(/"path": "\.\.\/([a-z]+)"/g)].map((match) => match[1]);
+
+    expect(referenced).toEqual(['engine', 'content', 'words']);
+    for (const folder of [...referenced, 'web', 'media']) expect(browserNeeded(`${folder}/x`), folder).toBe(true);
+    // vite.config.ts reads the content and the pictures by these paths.
+    expect(readText('web/vite.config.ts')).toContain("path.join(repoRoot, 'content')");
+    expect(readText('web/src/media.ts')).toContain('../../media/**/*.{svg,webp}');
+    expect(browserNeeded('.github/workflows/check.yml')).toBe(true);
   });
 
   test('no workflow names a secret but the two Cloudflare credentials', () => {
