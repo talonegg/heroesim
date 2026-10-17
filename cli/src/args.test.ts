@@ -252,6 +252,13 @@ describe('parseArgs', () => {
       in: true,
       years: 3,
     });
+    expect(command('transfer', '--offer', '--hero=hero-000009', '--years', '2', '--save', 'demo')).toEqual({
+      name: 'transfer',
+      save: 'demo',
+      hero: 'hero-000009',
+      offer: true,
+      years: 2,
+    });
     expect(command('accept', '--offer', 'offer-000001')).toEqual({ name: 'accept', save: 'current', offer: 'offer-000001' });
     expect(command('decline', '--offer=offer-000002')).toEqual({ name: 'decline', save: 'current', offer: 'offer-000002' });
     expect(command('show', 'offers')).toEqual({ name: 'show', save: 'current', view: { kind: 'offers' } });
@@ -278,8 +285,10 @@ describe('parseArgs', () => {
     const said = usage.replace(/\s+/g, ' ');
     // show hero gives the Days left, not the wage a renewal would sign at; the History says it once signed.
     expect(said).not.toContain('the wage show hero gives');
-    // transfer --in refuses a Hero Out of Contract (out-of-contract), and the CLI makes no free Offer.
-    expect(said).toContain('--in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI does not make');
+    // transfer --in refuses a Hero Out of Contract (out-of-contract), whom only an Offer takes: --offer makes it (DL-326).
+    expect(said).toContain('--in refuses a Hero Out of Contract, whom only a free Offer takes, which --offer makes');
+    expect(said).toContain('transfer --hero <heroId> --offer --years <years>');
+    expect(said).not.toContain('which the CLI does not make');
     // DL-325: --to sends a Hero Out of Contract only on a free Offer; a released Hero's longer stay in the pool.
     expect(said).toContain('--to sends a Hero Out of Contract, for no fee, only to a Guild whose free Offer stands for them (show offers)');
     expect(said).toContain('where a released Hero stays longer than one the pool brings, unless a Guild signs them');
@@ -401,8 +410,13 @@ describe('parseArgs', () => {
     [['sell', '--item', 'healing-draught'], 'such as item-000001; got "healing-draught"'],
     [['sell', '--stack', 'stack-000001', '--quantity', 'all'], '--quantity needs a whole number from 1; got "all"'],
     [['transfer', '--to', 'guild-000002'], 'transfer needs --hero'],
-    [['transfer', '--hero', 'hero-000001'], 'transfer takes --to <guildId> or --in, and one of them only'],
+    [['transfer', '--hero', 'hero-000001'], 'transfer takes --to <guildId>, --in or --offer, and one of them only'],
     [['transfer', '--hero', 'hero-000001', '--in', '--years', '2', '--to', 'guild-000002'], 'one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--offer', '--in', '--years', '2'], 'one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--offer', '--to', 'guild-000002'], 'one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--offer'], 'transfer needs --years'],
+    [['transfer', '--hero', 'hero-000001', '--offer', '--years', 'two'], '--years needs a whole number of years; got "two"'],
+    [['transfer', '--hero', 'hero-000001', '--offer=yes', '--years', '2'], '--offer takes no value'],
     [['transfer', '--hero', 'hero-000001', '--to', 'hero-000002'], '--to needs a Guild id such as guild-000002; got "hero-000002"'],
     [['transfer', '--hero', 'Brenna', '--in'], '--hero needs a Hero id such as hero-000001; got "Brenna"'],
     [['transfer', '--hero', 'hero-000001', '--in=yes'], '--in takes no value'],

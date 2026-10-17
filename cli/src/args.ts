@@ -150,13 +150,17 @@ Commands:
       Items, to the Market for what show market says each sells for. An Item a Hero carries
       is unequipped first. The Market's stock is drawn afresh each morning.
   transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in --years <years>
+  transfer --hero <heroId> --offer --years <years>
       Transfer a Hero for a fee, the wages left on their Contract times the Transfer fee
       factor at the buying Guildmaster's Negotiation; none once it has ended. --to sends
       one of the player's Heroes to another Guild, which pays; --in takes a Hero from
       another Guild's Roster on a Contract of --years years (a length the rules offer), and
       the player's Guild pays the fee show roster <guildId> and show hero <heroId> give for
-      them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI
-      does not make. --to sends a Hero Out of Contract, for no fee, only to a Guild whose
+      them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which --offer
+      makes: the player's Guild's Offer for another Guild's Hero Out of Contract, for no fee,
+      on a Contract of --years years, which a Rival answers at once, or for a Hero of a Guild
+      that answers its Offers itself, at the fee --in would pay, which waits (show offers).
+      --to sends a Hero Out of Contract, for no fee, only to a Guild whose
       free Offer stands for them (show offers), on the Offer's length, as accept does.
       The other Guild's Disposition chooses the length of a Hero under Contract --to sends.
       The other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
@@ -247,6 +251,7 @@ export type Command =
   | { name: 'sell'; save: string; item: ItemId }
   | { name: 'transfer'; save: string; hero: HeroId; to: GuildId }
   | { name: 'transfer'; save: string; hero: HeroId; in: true; years: number }
+  | { name: 'transfer'; save: string; hero: HeroId; offer: true; years: number }
   | { name: 'accept'; save: string; offer: OfferId }
   | { name: 'decline'; save: string; offer: OfferId }
   | { name: 'rebase'; save: string }
@@ -288,7 +293,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   unequip: { save: 'value', hero: 'value', slot: 'value' },
   buy: { save: 'value', item: 'value', quantity: 'value' },
   sell: { save: 'value', stack: 'value', item: 'value', quantity: 'value' },
-  transfer: { save: 'value', hero: 'value', to: 'value', in: 'switch', years: 'value' },
+  transfer: { save: 'value', hero: 'value', to: 'value', in: 'switch', offer: 'switch', years: 'value' },
   accept: { save: 'value', offer: 'value' },
   decline: { save: 'value', offer: 'value' },
   rebase: { save: 'value' },
@@ -704,8 +709,12 @@ function parse(argv: readonly string[]): Command {
       atMost(positional, 0, 'transfer');
       const hero = heroId(required(flags, name, 'hero'));
       const to = flags.get('to');
-      if ((to === undefined) === !flags.has('in')) refuse('transfer takes --to <guildId> or --in, and one of them only');
-      if (to === undefined) return { name, save, hero, in: true, years: yearsFlag(required(flags, name, 'years')) };
+      const ways = [to !== undefined, flags.has('in'), flags.has('offer')].filter(Boolean).length;
+      if (ways !== 1) refuse('transfer takes --to <guildId>, --in or --offer, and one of them only');
+      if (to === undefined) {
+        const years = yearsFlag(required(flags, name, 'years'));
+        return flags.has('in') ? { name, save, hero, in: true, years } : { name, save, hero, offer: true, years };
+      }
       if (flags.has('years')) refuse('transfer --to takes no --years: the Guild taking the Hero chooses the length');
       return isId('guilds', to) ? { name, save, hero, to } : refuse(`--to needs a Guild id such as guild-000002; got "${to}"`);
     }

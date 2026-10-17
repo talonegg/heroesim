@@ -19,6 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
+import { nightOf } from '@heroesim/engine/testing';
 import { coinLetters, coinWords } from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
 import { exitCodes, playground, thePlayer } from '../play.test-support.js';
@@ -175,6 +176,79 @@ describe('transfer', () => {
 
     expect(back.code).toBe(exitCodes.refused);
     expect(back.err).toContain(`(${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 16 Day 1.`);
+  });
+});
+
+describe('transfer --offer (DL-326)', () => {
+  test('makes a priced Offer for a Hero of a Guild that answers for itself, at the fee transferFee gives, charges nothing and saves', () => {
+    const before = newWorld((world) => {
+      guildOf(world, ambitious).controller = { kind: 'player' }; // no Disposition: it answers through Offers
+      thePlayer(world).wealth = 10_000;
+    });
+    const [heroId] = guildOf(before.world, ambitious).rosterIds as [HeroId];
+    const hero = heroOf(before.world, heroId);
+    const fee = transferFee(hero, undefined, before.world.turn, { config: { ...defaultConfig, ...before.meta.config }, content });
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '2']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const after = document();
+    const [offer] = Object.values(after.world.offers);
+    expect(offer).toMatchObject({ fromGuildId: ambitious, toGuildId: thePlayer(after.world).id, heroId, fee, years: 2 });
+    expect(fee).toBeGreaterThan(0);
+    expect(run.out).toContain(`The Test offered ${guildOf(after.world, ambitious).name} ${coinWords(fee)} for ${hero.name} (${heroId}) (${offer?.id}), until the night of Year 1 Day `);
+    expect(run.out).toContain(`The Test: Wealth ${coinLetters(thePlayer(before.world).wealth)};`);
+    expect(thePlayer(after.world).wealth).toBe(thePlayer(before.world).wealth);
+    expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
+  });
+
+  test('makes a free Offer for a Hero Out of Contract, which a Rival that lets them go answers at once, and saves', () => {
+    newWorld((world) => {
+      const [heroId, ...others] = guildOf(world, reckless).rosterIds as [HeroId, ...HeroId[]];
+      // Out of Contract on the night of Day 2, the Hero the lowest Level of their Roster, so that the Rival does not renew.
+      world.turn = nightOf(1);
+      Object.assign(heroOf(world, heroId), { level: 1, contract: { wage: 100, signedOnTurn: 0, years: 1, endDay: 1 } });
+      for (const other of others) heroOf(world, other).level = 20;
+    });
+    const rolled = document();
+    rolled.meta.config.rivalRosterMin = 0;
+    writeFileSync(current(), serialise(rolled));
+    const [heroId] = guildOf(rolled.world, reckless).rosterIds as [HeroId];
+    const hero = heroOf(rolled.world, heroId);
+    const wealth = thePlayer(rolled.world).wealth;
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '1']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(run.out).toContain(`The Test offered ${guildOf(rolled.world, reckless).name} ${coinWords(0)} for ${hero.name} (${heroId}) (offer-`);
+    const after = document();
+    expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
+    expect(thePlayer(after.world).wealth).toBe(wealth);
+    expect(after.world.offers).toEqual({});
+  });
+
+  test('a Hero under Contract of a Rival, which answers a Transfer at once, is refused an Offer and nothing is written', () => {
+    const before = newWorld();
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    const saved = readFileSync(current(), 'utf8');
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '2']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(`${guildOf(before.world, reckless).name} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`);
+    expect(readFileSync(current(), 'utf8')).toBe(saved);
+  });
+
+  test('a length the rules do not offer is refused by the engine and nothing is written', () => {
+    const before = newWorld();
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    const saved = readFileSync(current(), 'utf8');
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '9']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toMatch(/^A Contract is [\d, or]+ Years long; 9 is not\.\n$/);
+    expect(readFileSync(current(), 'utf8')).toBe(saved);
   });
 });
 

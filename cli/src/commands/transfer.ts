@@ -1,4 +1,4 @@
-// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `accept --offer <id>`,
+// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `transfer --hero <id> --offer`, `accept --offer <id>`,
 // `decline --offer <id>` and `show offers` (M6-S2, R28, DL-57): the player's Guild sends a Hero to
 // another Guild, takes one from another Guild's Roster, or answers a Rival's Transfer Offer. What the
 // commands do to an open save and what they print; `main.ts` opens the save, and writes it back only
@@ -47,7 +47,9 @@ export function done(document: WorldDocument, events: readonly EngineEvent[], gu
 /**
  * `transfer --hero <id> --to <guildId>` sends a Hero of the player's Guild to another Guild, which
  * must consent and pays the fee (`transferOut`); `transfer --hero <id> --in` takes a Hero from another
- * Guild's Roster, which must consent, for the fee (`transferIn`).
+ * Guild's Roster, which must consent, for the fee (`transferIn`); `transfer --hero <id> --offer
+ * --years <y>` makes the player's Guild's Offer for a Hero (`offerTransfer`, as the Hero page's Offer
+ * does): free for a Hero Out of Contract, priced for a Hero of a Guild that answers Offers (DL-326).
  */
 export function transferHero(
   command: Extract<Command, { name: 'transfer' }>,
@@ -64,7 +66,8 @@ export function transferHero(
     if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
   }
-  const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero, years: command.years }, deps);
+  const kind = 'offer' in command ? 'offerTransfer' : 'transferIn';
+  const result = applyAction(document, { kind, guildId: player.id, heroId: command.hero, years: command.years }, deps);
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }

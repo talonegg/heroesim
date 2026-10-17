@@ -859,6 +859,8 @@ page's, Roster's, Guilds' and Offers' views, `contract.test.ts` (CLI), `args.tes
 unchanged. `e2e/contract.spec.ts` at 360, 820 and 1280 wide.
 Verified 2026-10-17 at 9616ae3: the wages, payout, Days left and counts re-derived against the engine, 16 mutations red but the free Offer's length (closed by a test); fixed, test first: "0 Days left" on a last Day still open to renewal, now "the last Day"; a free Offer's card without its wages and its Accept saying "for 0 Silver"; the CLI's stop pointing a free Offer to decline, `release` asking --confirm for a Hero away, and usage promising a wage `show hero` lacks and a Hero Out of Contract taken in.
 
+*Note, 2026-10-17:* the judgement call "The CLI cannot make a free Offer" is superseded in full by DL-326: `transfer --offer`.
+
 ## DL-324 — v1.2.3-S10: the close
 
 **Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** an agent (the epic's S10)
@@ -978,3 +980,40 @@ departures' reading, `pool-refresh.ts`), so it always brings the usual new recru
 Tested red first (`pool-refresh.test.ts`); no pin moved. The quick runs keep `e32118d1…` and `e830a4ef…` (no release
 in them). Verified 2026-10-17 at 87c52e8: 5 mutations red, a re-release red once a test was added; 12 years of four
 seeds, 28 releases, none signed, 26 leaving after 360 Days, 2 still in, never under 8 new Heroes after a night.
+
+## DL-326 — v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer`
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner (Q-Q); an agent (the epic's S12)
+
+**Context.** S9 built the CLI's Contract commands without a way to make an Offer (DL-323's judgement call), so a player on
+the CLI could not make the Offer the Hero page makes. The owner, 2026-10-17, asked "The CLI can't make an Offer. Add one?
+(a) leave it for a later release; (b) add `transfer --hero <id> --offer --years <y>` now, calling `offerTransfer`, free or
+priced, with its usage and tests; (c) (b) plus showing each length's wage and the release payout before acting": "b".
+
+**Decision.**
+
+1. **`transfer --hero <heroId> --offer --years <years>`** makes the player's Guild's Offer through the engine's
+   `offerTransfer`, the action the Hero page's Offer plays: free (fee 0, DL-319) for a Hero Out of Contract on another
+   Guild's Roster, which a Rival answers at once; priced (`transferFee`, DL-318) for a Hero of a Guild that answers its
+   Offers itself, which waits (`show offers`). It saves only on success.
+2. **The parse:** `--to`, `--in` and `--offer` are one of three and one only; `--offer` takes `--years` as `--in`
+   does, a whole number in digits. The length rules offer is the engine's to say (`length-not-offered`), as for `--in`.
+3. **The words:** a refusal is the engine's, in `words/src/refusals.ts` (`offerTransfer …`), and an Offer made is
+   `guild.transfer-offered` in `words/src/narrate.ts`, the History's and the page's, so both agree; the Guild's Wealth and
+   Roster follow as for every Transfer.
+4. **The usage** gives the form and says what `--offer` makes, and no longer says the CLI makes no Offer; so does
+   `docs/requirements.md`'s Contracts row.
+
+*Judgement calls, for the owner to see.*
+- **The same action as the page:** the page offers only for a Hero Out of Contract (a Hero under Contract it takes in,
+  `transferIn`); the CLI's `--offer` asks the engine alone, so a Hero under Contract of a Rival is refused
+  `no-offer-needed` ("ask to take the Hero in"). A priced Offer needs a Guild without a Disposition, which a CLI save
+  has only if one is made by hand; the test makes one.
+- **(c) not built:** no wage per length nor payout is shown before acting.
+- The free Offer's narration reads "offered … 0 Silver for …" as in the History; the page's card says "no fee".
+
+**Consequences.** No engine, content or config change: play and every fingerprint are unmoved, so no Gate or doctor
+reading. A script parsing the old refusal "transfer takes --to <guildId> or --in" finds the new wording.
+
+**Evidence.** This story's commit; the S12 boxes. Tests red first: `args.test.ts` (parse, refusals, usage) and
+`commands/transfer.test.ts` (a priced Offer saved, a free Offer answered at once, an Offer refused, a length refused).
