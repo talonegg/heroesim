@@ -970,9 +970,9 @@ the refusals' words (words and page), the page's targets and release words (`sel
 Verified 2026-10-17 at 9ecab65: the refusals' order, the take and the History's stay re-derived (no entry is dropped, so a Year's is read); `transferOut` ended the free Offer `taken`, a counter and DL-319's assertion telling it from `acceptTransfer`'s accept of the same Offer, and now accepts it, the same events and world, and Transfer… lists the Guild whose Offer stands first, test first; 18 mutations, 17 red, one equivalent, the priced Offer and the Offer's length red once a test was added; a 12-year play of four seeds, 28 releases, 26 leaving after 360 Days and 2 still in the pool, none signed.
 
 *Note, 2026-10-17:* on the owner's "a", to whether released Heroes count toward the pool's size (the verifier's seed 0004
-held up to 20 of them, and 348 nights only them, so no new Hero came for about a Year): the first judgement call above
-is replaced. A released Hero stays beside `unattachedPoolSize`, not in it: the refill counts only the pool's Heroes not
-staying as released (the departures' reading, `pool-refresh.ts`), so it always brings the usual 8 new recruits; a Hero
-back by a fold still counts. Tested red first (`pool-refresh.test.ts`: the released Hero's test now expects the pool one
-over its size, and a new refill test); no pin moved. The quick runs (`v1.2.3-s11-ruling-quick`, `-quick4`) keep
-`e32118d1…` and `e830a4ef…`, 0 counters moved (no release is made in them).
+held up to 20 of them, and 348 nights only them): the first judgement call above is replaced. A released Hero stays
+beside `unattachedPoolSize`, not in it: the refill counts only the pool's Heroes not staying as released (the
+departures' reading, `pool-refresh.ts`), so it always brings the usual new recruits; a Hero back by a fold still counts.
+Tested red first (`pool-refresh.test.ts`); no pin moved. The quick runs keep `e32118d1…` and `e830a4ef…` (no release
+in them). Verified 2026-10-17 at 87c52e8: 5 mutations red, a re-release red once a test was added; 12 years of four
+seeds, 28 releases, none signed, 26 leaving after 360 Days, 2 still in, never under 8 new Heroes after a night.

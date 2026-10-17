@@ -468,8 +468,8 @@ export function releasePayout(
  * What releasing the Guild's last Hero would leave (the owner, Q-B, DL-317): the payout, the Wealth after
  * it, the cheapest signing fee the Guild would then meet and whether that Wealth covers it. The Roster
  * would be empty with Wealth short of every fee in the pool, which is the "Roster wiped" ending
- * (`endings`): for the player's Guild the game ends. The pool counts the released Hero, who joins it
- * tonight, and not the Fame a Hero asks (DL-38), as the ending reads it. `null` unless `hero` is the
+ * (`endings`): for the player's Guild the game ends. The fees read include the released Hero's, who joins
+ * the pool tonight, and not the Fame a Hero asks (DL-38), as the ending reads it. `null` unless `hero` is the
  * Guild's only Hero on the Roster. A warning only: the engine refuses nothing for it, and a Rival's or the
  * policy's release is made without asking it.
  */

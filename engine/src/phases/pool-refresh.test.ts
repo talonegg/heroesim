@@ -278,6 +278,28 @@ describe('a released Hero', () => {
     expect(generatedOn(0)).toBe(1);
     expect(generatedOn(nightOf(1))).toBe(0);
   });
+
+  test('signed again and released again is released by the later release: the stay and the refill read it', () => {
+    const deps = quietDeps({ unattachedStayDays: 1, releasedStayDays: 4 });
+    const start = created('released-twice', deps);
+    const guild = playerGuild(start.world);
+    const heroId = guild?.rosterIds[0];
+    if (guild === undefined || heroId === undefined) throw new Error('The world is incomplete');
+    const first = applyAction(start, { kind: 'release', guildId: guild.id, heroId }, deps);
+    if (!first.ok) throw new Error(`Refused: ${first.rejection.reason}`);
+    const signed = applyAction(first.document, { kind: 'recruit', guildId: guild.id, heroId, years: 1 }, deps);
+    if (!signed.ok) throw new Error(`Refused: ${signed.rejection.reason}`);
+    const later = playTo(signed.document, nightOf(1) + 1, deps).document;
+    const again = applyAction(later, { kind: 'release', guildId: guild.id, heroId }, deps);
+    if (!again.ok) throw new Error(`Refused: ${again.rejection.reason}`);
+    expect(entriesFor(again.document.history, heroId).filter((entry) => entry.type === 'hero.released')).toHaveLength(2);
+
+    // Two nights after the second release, past unattachedStayDays: still in the pool, and beside its size.
+    const { document, events } = playTo(again.document, nightOf(4), deps);
+    expect(ofType(events, 'hero.left-pool').map((event) => event.payload.heroId)).not.toContain(heroId);
+    expect(unattachedHeroes(document.world).map((hero) => hero.id)).toContain(heroId);
+    expect(unattachedHeroes(document.world)).toHaveLength(deps.config.unattachedPoolSize + 1);
+  });
 });
 
 describe('the refill', () => {
