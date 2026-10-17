@@ -95,10 +95,11 @@ among them, so `events` is not a core stream). The core's streams, in the order 
 | `descriptions` | A Guildmaster's descriptive Attributes: fifteen draws each, whatever is written | DL-125 |
 | `hero-portraits` | A Hero's Portrait: one draw for each Hero generated | DL-134 item 2, DL-135 |
 | `hero-descriptions` | A Hero's Appearance and Biography: thirteen draws each, whatever is written | DL-135 item 6 |
+| `contracts` | A founding Hero's Contract: its length and its end Day, two draws each | DL-311 item 2, DL-315 |
 
-The last four are accepted exceptions too: each generates part of a Guildmaster or a Hero apart from
+The last five are accepted exceptions too: each generates part of a Guildmaster or a Hero apart from
 `generation` and `pool`, and takes a fixed number of draws, so a choice or a text moves no later
-draw; the four stand last in `streamNames`, so they move no other stream's draws. A Hero's pictures
+draw; the five stand last in `streamNames`, so they move no other stream's draws. A Hero's pictures
 and words are two streams, so that pictures added later move no Hero's text, and apart from the
 Guildmasters', so that neither role's draws move the other's.
 
@@ -137,8 +138,8 @@ controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKe
 regard:         Record<EntityId, RegardEntry>  reserved: nothing writes or reads it, a Guild's
                                             opinion being its Guildmaster's (DL-43 item 3, DL-84)
 ```
-Upkeep is computed from the Roster, the Hall and its `hallBaseUpkeep`, not stored: the wages and the
-Hall's upkeep, each charged on its own Day (DL-298).
+Upkeep is computed from the Roster, the Hall and its `hallBaseUpkeep`, not stored: the wages, each
+Roster Hero's Contract wage (DL-315), and the Hall's upkeep, each charged on its own Day (DL-298).
 
 **guildmasters**
 ```
@@ -197,6 +198,19 @@ appearance, biography: string               the descriptive Attributes, which no
                                             they are generated, at most 280 and 1,000 characters
                                             (DL-135 item 6). A Hero has no Birthplace
 regard:         Record<EntityId, RegardEntry>
+contract:       { wage, signedOnTurn, years, endDay } | null
+                                            their term with the Guild whose Roster they are on;
+                                            null on no Roster (DL-294 item 6, DL-315). `wage` whole
+                                            Silver each wage Day, set at signing by the wage rule
+                                            (`contractWage`) and fixed for the term; `years` one of
+                                            contractLengthsYears; `endDay` the signing Day plus the
+                                            years' Days (turnsPerYear ÷ turnsPerDay), or for a
+                                            founding Contract a Day drawn over its term on
+                                            `contracts`. Kept past the night of its end Day,
+                                            when the Hero is Out of Contract (`outOfContract`,
+                                            a selector) and `wage` is repriced by
+                                            `outOfContractWage`, until a renewal signs another
+                                            or they leave the Roster (DL-316)
 ```
 A Hero's Gear is not on the Hero: it is the Items, a Unique Item or a stack of one, that the Hero
 holds in a slot (§3.3).
@@ -270,10 +284,17 @@ agree, and `fatigueAtDispatch` name exactly `heroIds`; the validator checks both
 id, kind: "transfer"
 fromGuildId, toGuildId, heroId
 fee
-offeredOnTurn, expiresOnTurn
+years                                       the length of the Contract the offering Guild would
+                                            sign the Hero for, its choice when it offers (DL-315)
+offeredOnTurn, expiresOnTurn                expiresOnTurn the night of its transferOfferDays-th
+                                            Day; for a Hero away when made, counted from their
+                                            Party's returnsOnTurn, stored then (DL-319)
 ```
-A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster; rule 8 says when its row goes,
-and the History keeps its record.
+A pending Transfer Offer. Its Hero is on `fromGuildId`'s Roster, and Under Offer while home: no
+Party takes them (a selector, rule 1). One made while its Hero was Out of Contract, its fee 0, is a
+free Offer, read from the Hero's Contract and never stored: it is not declined, and its Hero is
+taken on its last night unless their Guild has renewed them (DL-319). Rule 8 says when its row
+goes, and the History keeps its record.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
@@ -398,11 +419,14 @@ reads its counters through `byType`, or observes them in play
    and the harness can check determinism by byte equality.
 8. **Row lifecycle.** A Quest's row is removed when it expires, resolves or is abandoned by a
    folding Guild; a Party's when it comes home or its Guild folds; a Transfer Offer's when it is
-   answered or withdrawn (its night passed, its Hero gone from the Roster, a Guild folded); a
+   answered or withdrawn (its night passed, its Hero gone from the Roster, a Guild folded, a free
+   Offer's Hero renewed or taken); a
    stack's when it empties, the Market's at each Market refresh, and a folding Guild's when it is
    discarded. The History keeps their records; unique Items, Patrons, Guilds and Guildmasters keep
    their rows. Dead and retired Heroes keep their rows, with their State. A Hero leaves the
-   Unattached pool `unattachedStayDays` after the Day they entered it (`unattachedSince`); their row
+   Unattached pool `unattachedStayDays` after the Day they entered it (`unattachedSince`), or
+   `releasedStayDays` when the History holds their `hero.released` of that Turn, a Hero the refill
+   does not count toward `unattachedPoolSize` (DL-325); their row
    is removed once the Turn's events are in, unless an entry names them, before their leaving or
    after it in the same Turn (a Module's `onNight`). Then their row stays, out of play with
    `leftPoolOnTurn` set, and their `hero.left-pool` is recorded (DL-27, DL-214). One reading of the
@@ -427,7 +451,7 @@ A new document's `meta.version` is the engine's `schemaVersion`. On load, the mi
 brings an older document forward, one step per version; where no chain leads from its version, the
 load is refused, naming both versions. The chain is empty (`migrations`, `serialise.ts`), so a save
 of any older schema is refused, and a front end says an older Heroesim saved it (DL-125 item 10.2,
-DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282, DL-287, DL-297). Then each installed Module migrates its own slice, reading its
+DL-130, DL-135 item 7, DL-193, DL-262, DL-266, DL-282, DL-287, DL-297, DL-315). Then each installed Module migrates its own slice, reading its
 version from inside it (DL-76); then the validator runs; then the game's config is checked
 ([`approach.md`](./approach.md) §3).
 
@@ -445,6 +469,7 @@ runs per Turn in play. Each check is named as the code names it (`refusalChecks`
 | `dangling-reference` | An id naming no row of its table |
 | `hero-on-two-rosters`, `hero-in-two-parties`, `roster-guild-mismatch`, `party-member-mismatch` | A Hero on two Rosters or in two Parties; a Roster and a Hero's `guildId`, a Party and a Hero's `partyId`, or a Party's Heroes and those whose Fatigue it recorded at dispatch, that disagree |
 | `unattached-mismatch` | A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither |
+| `contract-mismatch` | A Hero on a Roster with no Contract, or one on no Roster with one; a Contract whose wage, Turn signed or years are not whole numbers in range, or whose end Day is not after its signing Day (DL-315) |
 | `guildmaster-guild-mismatch`, `retired-guildmaster-in-office` | A Guildmaster whose `guildId` is not the Guild that names them; a Guild in play naming a retired Guildmaster (DL-102) |
 | `folded-guild-in-play` | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) |
 | `captain-off-roster` | A Guild whose Captain is not on its Roster, or whose last change of Captain is after `world.turn` (DL-287) |

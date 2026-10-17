@@ -726,8 +726,8 @@ describe("M5's counters, from the History", () => {
   test('Wealth spent by category and taken from Quests and the Market, by controller', () => {
     const { document, player, rivals } = fixture('counters-wealth');
     const heroId = firstHero(player);
-    add(document, 3, 'hero.recruited', [heroId, player.id], { heroId, guildId: player.id, fee: 120 });
-    add(document, 4, 'hero.recruited', [heroId, rivals[0].id], { heroId, guildId: rivals[0].id, fee: 80 });
+    add(document, 3, 'hero.recruited', [heroId, player.id], { heroId, guildId: player.id, fee: 120, wage: 20, years: 2, endDay: 100 });
+    add(document, 4, 'hero.recruited', [heroId, rivals[0].id], { heroId, guildId: rivals[0].id, fee: 80, wage: 20, years: 2, endDay: 100 });
     const bought = (turn: number, guild: Guild, quantity: number, unitPrice: number): void => {
       add(document, turn, 'item.bought', [guild.id], {
         guildId: guild.id,
@@ -791,6 +791,13 @@ describe("M5's counters, from the History", () => {
     };
     sold(13, player, 'sale', 2, 60);
     sold(14, rivals[1], 'fold', 1, 300);
+    // A release's payout is a line of its own, by the Guild that pays it; one with none (Out of Contract) adds nothing (DL-317).
+    const releasedBy = (turn: number, guild: Guild, payout: number): void => {
+      add(document, turn, 'hero.released', [guild.id], { heroId: makeId('heroes', 1), guildId: guild.id, payout });
+    };
+    releasedBy(15, player, 633);
+    releasedBy(16, player, 0);
+    releasedBy(17, rivals[0], 100);
     document.world.turn = 20;
 
     const { wealth } = countGame(document, shortYears);
@@ -799,6 +806,7 @@ describe("M5's counters, from the History", () => {
       player: {
         signing: 120,
         transferFeesPaid: 0,
+        releasePayouts: 633,
         items: 200,
         itemsBought: 3,
         improvements: 200,
@@ -813,6 +821,7 @@ describe("M5's counters, from the History", () => {
       rival: {
         signing: 80,
         transferFeesPaid: 0,
+        releasePayouts: 100,
         items: 0,
         itemsBought: 0,
         improvements: 200,
@@ -991,11 +1000,13 @@ describe("M5's counters, from the History", () => {
     move(10, 'item.returned', rivals[1], 'guild-folded');
     // A Hero's gear goes back to the selling Guild with them transferred (DL-57; the merge, DL-63).
     move(11, 'item.returned', rivals[0], 'transferred');
+    // And back to the releasing Guild with them released (DL-317).
+    move(12, 'item.returned', player, 'released');
     document.world.turn = 20;
 
     expect(countGame(document, shortYears).gear).toEqual({
-      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0, transferred: 0 } },
-      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2, transferred: 1 } },
+      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0, transferred: 0, released: 1 } },
+      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2, transferred: 1, released: 0 } },
     });
   });
 
@@ -1078,7 +1089,7 @@ describe("M6's counters, from the History", () => {
   /** Appends a `hero.transferred` and returns its position in the History. */
   function transferred(document: WorldDocument, turn: number, heroId: HeroId, from: Guild, to: Guild, fee: number, offerId: EntityId | null = null): number {
     const position = document.history.entries.length;
-    add(document, turn, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee, offerId });
+    add(document, turn, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee, offerId, wage: 20, years: 2, endDay: 100 });
     return position;
   }
 
@@ -1186,14 +1197,20 @@ describe("M6's counters, from the History", () => {
     ended(11, 3, b, p3, 100, 'expired');
     ended(11, 4, a, p4, 220, 'hero-left');
     ended(11, 5, b, p1, 90, 'guild-folded');
+    // Two free Offers (DL-319): one taken, its Transfer naming it and not counted accepted; one withdrawn by a renewal.
+    offered(12, 7, b, p2, 0);
+    ended(12, 7, b, p2, 0, 'taken');
+    transferred(document, 12, p2, player, b, 0, makeId('offers', 7));
+    offered(12, 8, a, p3, 0);
+    ended(12, 8, a, p3, 0, 'renewed');
     offered(13, 6, a, p2, 150); // still standing when the game stops
     document.world.turn = 15;
 
     const { offers } = countGame(document, shortYears);
 
     expect(offers).toEqual({
-      ambitious: { player: { made: 4, fees: 750, accepted: 1, declined: 1, ended: { expired: 0, 'hero-left': 1, 'guild-folded': 0 } } },
-      miserly: { player: { made: 2, fees: 190, accepted: 0, declined: 0, ended: { expired: 1, 'hero-left': 0, 'guild-folded': 1 } } },
+      ambitious: { player: { made: 5, fees: 750, accepted: 1, declined: 1, ended: { expired: 0, 'hero-left': 1, 'guild-folded': 0, renewed: 1, taken: 0 } } },
+      miserly: { player: { made: 3, fees: 190, accepted: 0, declined: 0, ended: { expired: 1, 'hero-left': 0, 'guild-folded': 1, renewed: 0, taken: 1 } } },
     });
   });
 
@@ -1226,7 +1243,7 @@ describe("M6's counters, from the History", () => {
     add(document, 9, 'hero.died', [firstHero(player), player.id], { heroId: firstHero(player), questId: quest(4) });
     resolved(11, b, quest(3), 'success');
     resolved(11, player, quest(4), 'success');
-    add(document, 12, 'hero.recruited', [firstHero(b), b.id], { heroId: firstHero(b), guildId: b.id, fee: 80 });
+    add(document, 12, 'hero.recruited', [firstHero(b), b.id], { heroId: firstHero(b), guildId: b.id, fee: 80, wage: 20, years: 2, endDay: 100 });
     b.foldedOnTurn = 45;
     add(document, 45, 'guild.folded', [b.id], { guildId: b.id, reason: 'bankruptcy' });
     // Its replacement inherits its Disposition (DL-56 item 7).
@@ -1660,7 +1677,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1, h2, h3] = a.rosterIds;
     if (h1 === undefined || h2 === undefined || h3 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, heroId: HeroId, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, h1, a, b);
     transferred(2, h1, b, a); // back to A a Day after A sold them
@@ -1891,6 +1908,30 @@ describe("the Targets' counters (DL-259)", () => {
     expect(short.value()).toBe(1);
   });
 
+  test("a release on the Turn takes the Hero off their Guild's Roster, as a Retirement does (DL-317)", () => {
+    const { document, rivals } = fixture('counters-short-release');
+    const [a, b] = rivals;
+    const min = shortYears.config.rivalRosterMin;
+    const before = structuredClone(document);
+    const bGuild = before.world.guilds[b.id] as Guild;
+    bGuild.rosterIds = bGuild.rosterIds.slice(0, min + 1);
+    const [k1, k2] = bGuild.rosterIds;
+    if (k1 === undefined || k2 === undefined) throw new Error('A Roster too small');
+    const short = observerOf('transfersShort');
+
+    advanced(
+      short,
+      document,
+      [
+        event(5, 'hero.released', [k2, b.id], { heroId: k2, guildId: b.id, payout: 100 }),
+        event(5, 'hero.transferred', [k1, b.id, a.id], { heroId: k1, fromGuildId: b.id, toGuildId: a.id, fee: 100, offerId: null }), // B, 5 - 1 - 1: below
+      ],
+      before,
+    );
+
+    expect(short.value()).toBe(1);
+  });
+
   test("a recruit and a Retirement on the Turn move the seller's Roster, and the player's Guild as seller is not counted", () => {
     const { document, player, rivals } = fixture('counters-short-moves');
     const [a, b] = rivals;
@@ -1928,7 +1969,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1] = a.rosterIds;
     if (h1 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, a, player);
     transferred(2, player, a); // back to A, from the player
@@ -1947,7 +1988,7 @@ describe("the Targets' counters (DL-259)", () => {
     const [h1] = a.rosterIds;
     if (h1 === undefined) throw new Error('A Roster too small');
     const transferred = (day: number, from: Guild, to: Guild): void => {
-      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null });
+      add(document, day * 3 + 1, 'hero.transferred', [h1, from.id, to.id], { heroId: h1, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null, wage: 20, years: 2, endDay: 100 });
     };
     transferred(1, a, b);
     transferred(200, b, a); // back to A 199 Days after its sale

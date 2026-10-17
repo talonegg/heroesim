@@ -45,7 +45,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-33 | 2026-09-26 | Fast forward: always-on and opt-in stops, the watched Guild, and the CLI's `--until` (M2-S11) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-34 | 2026-09-26 | The automatic policy, the play sweep, validating from where the last validation stopped, and the M2 … | in part by DL-39 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-35 | 2026-09-26 | The first balance pass: the stub's bands, the wage, and how much a Rival keeps before it recruits … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-36 | 2026-09-26 | XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2) |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-36 | 2026-09-26 | XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2) | item 8 by DL-315; item 10 in part by DL-315 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-37 | 2026-09-26 | Potential hints, and the yearly ageing decline beside the Retirement check (M3-S3, M3-S4) | item 9 in part by DL-83 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-38 | 2026-09-26 | Rankings are read, not narrated; Fame gates who will sign; Hall Improvements are built (M3-S5 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-39 | 2026-09-26 | M2 close: verification, the timing tests, and which harness run a tag carries |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -66,9 +66,9 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-54 | 2026-09-26 | Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not … | item 3 in part by DL-58 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-55 | 2026-09-26 | M4 close: M3's verification merged (`configVersion` 6), the M4 counters, and the M4 run |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-56 | 2026-09-26 | Named Dispositions: four rows of weights, one rule, a round-robin deal, and a replacement that … | item 4 in part by DL-69 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-57 | 2026-09-26 | Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and … | item 3 in part by DL-83 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-57 | 2026-09-26 | Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and … | item 3 in part by DL-83; item 2 in part by DL-318; item 1 in part by DL-319; item 6 in part by DL-319; item 5 in part by DL-320 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-58 | 2026-09-26 | Rivals build every facility and buy gear, armour first; one gear-buying rule with the policy … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
-| DL-59 | 2026-09-26 | The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
+| DL-59 | 2026-09-26 | The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range … | item 6 by DL-319; item 3 in part by DL-319; item 5 in part by DL-320 | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-60 | 2026-09-27 | M6 verification: a Rival below `rivalRosterMin` hires by need, a Transfer holds its Hero for … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-61 | 2026-09-26 | Merging the main line's M4 close into M5: `configVersion` 7, content version 11 |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
 | DL-62 | 2026-09-26 | M5 close: the M5 counters, the policy's consumables, Loot for hard Quests (`configVersion` 8 … |  | [DL-001-085-first-build](archive/DL-001-085-first-build.md) |
@@ -320,6 +320,22 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-308 | 2026-10-16 | v1.2.2: the owner's word to release |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-309 | 2026-10-16 | The live check removed from CI: the deploy and the weekly watch play neither address |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
 | DL-310 | 2026-10-16 | v1.2.2: on a phone, a fee's coins beside a sticky name column may stack |  | [DL-295-310-v1.2.2](archive/DL-295-310-v1.2.2.md) |
+| DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … | item 3 by DL-312; item call 5 in part by DL-312 | [decision-log](../decision-log.md) |
+| DL-312 | 2026-10-16 | `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4` |  | [decision-log](../decision-log.md) |
+| DL-313 | 2026-10-16 | CI's runner pinned to `ubuntu-24.04` for `v1.2.3` |  | [decision-log](../decision-log.md) |
+| DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [decision-log](../decision-log.md) |
+| DL-315 | 2026-10-16 | v1.2.3-S2 built: the Contract and its wage |  | [decision-log](../decision-log.md) |
+| DL-316 | 2026-10-16 | v1.2.3-S3 built: renewal, and the Contract's end |  | [decision-log](../decision-log.md) |
+| DL-317 | 2026-10-16 | v1.2.3-S4 built: release, with a payout |  | [decision-log](../decision-log.md) |
+| DL-318 | 2026-10-16 | v1.2.3-S5 built: the Transfer fee from the wages left |  | [decision-log](../decision-log.md) |
+| DL-319 | 2026-10-17 | v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer |  | [decision-log](../decision-log.md) |
+| DL-320 | 2026-10-17 | v1.2.3-S7 built: in debt, and the Rivals' search | item 1 in part by DL-322 | [decision-log](../decision-log.md) |
+| DL-321 | 2026-10-17 | v1.2.3-S8 built: the harness's lines |  | [decision-log](../decision-log.md) |
+| DL-322 | 2026-10-17 | v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4 |  | [decision-log](../decision-log.md) |
+| DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI | item call 2 by DL-326 | [decision-log](../decision-log.md) |
+| DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [decision-log](../decision-log.md) |
+| DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [decision-log](../decision-log.md) |
+| DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

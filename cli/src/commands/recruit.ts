@@ -1,5 +1,5 @@
-// `recruit --hero <heroId>` (M2-S8, DL-27): the player's Guild signs an Unattached Hero for the
-// signing fee. The engine's `recruit` decides; this reads the save, names the player's Guild, says
+// `recruit --hero <heroId> --years <years>` (M2-S8, DL-27, DL-315): the player's Guild signs an Unattached
+// Hero for the signing fee, on a Contract of that length. The engine's `recruit` decides; this reads the save, names the player's Guild, says
 // a refusal in the refusals' words (DL-240) and writes the save back when the World State changed.
 // It opens the save and says what happened through the commands' shared context, context.ts (DL-234).
 
@@ -12,10 +12,10 @@ import { writeSave } from '../saves.js';
 /**
  * Recruits `heroId` for the player's Guild, writes the save, and prints the fee and the new Roster
  * size. A word that is not a Hero id is a bad command line; a Hero the save lacks, one not in the
- * pool, one who will not sign for the Guild's Fame (M3-S5) and a fee above the Guild's Wealth are
+ * pool, one who will not sign for the Guild's Fame (M3-S5) and a fee above the Guild's Wealth and a length the rules do not offer are
  * refused, and nothing is written; so is any signing once the game has ended.
  */
-export function recruitHero(heroId: string, { io, content, path }: Context): Exit {
+export function recruitHero(heroId: string, years: number, { io, content, path }: Context): Exit {
   if (!isId('heroes', heroId)) {
     return refuse(io, `"${heroId}" is not a Hero id such as hero-000001.`, exitCodes.usage);
   }
@@ -30,7 +30,7 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const hero = rowOf(document.world.heroes, heroId);
   if (hero === undefined) return refuse(io, `${path} has no Hero ${heroId}.`);
 
-  const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId }, deps);
+  const result = applyAction(document, { kind: 'recruit', guildId: guild.id, heroId, years }, deps);
   if (!result.ok) return refuse(io, refusalLine(result.rejection, setting));
 
   writeSave(path, result.document);

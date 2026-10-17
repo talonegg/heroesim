@@ -15,7 +15,7 @@ when `HEROESIM_HARNESS` is set, so `npm test` never plays it. `npm run harness` 
 | `npm run harness -- succession` | The Succession probe: 50 games of 12 years, the first Rival's Guildmaster at 50 (M9-F1) |
 | `npm run harness -- estimate` | The estimate probe: 200 Parties and Quests, each resolved 20,000 times (v1.1.4-S5) |
 | `npm run harness -- calibrate` | The calibration of the content, or of drafts (v1.1.4-S9): `docs/quests/calibration.md`, kept, and `calibration.json`, generated and ignored, which `npm run quest-review` reads; v1.1.4's is an asset of its GitHub Release (DL-218) |
-| `npm run harness -- rivals-build-and-buy transfer-generator` | The engine's twenty-year boxes, out of `npm test` (DL-230): Rivals build and buy over 4 seeds, and the Transfer Generator over 100, about fifty minutes alone; a bare `npm run harness` runs them too |
+| `npm run harness -- rivals-build-and-buy transfer-generator` | The engine's twenty-year boxes, out of `npm test` (DL-230): Rivals build and buy over 4 seeds, and the Transfer Generator over 100 in four processes (DL-324), about forty-five minutes alone; a bare `npm run harness` runs them too |
 | `npm run harness -- resolve.harness patron-offers.harness` | The engine's boxes kept apart at full size, out of `npm test` (DL-246): harm that reads the Stats over 20,000 draws a test, and Patron Regard on the Board over 50 seeds, whose first 10 `npm test` plays; seconds, alone, at a close; a bare `npm run harness` runs them too |
 | `npm run harness -- speed` | The tests of a time limit, `*.speed.test.ts`, out of `npm test` (DL-233): the History's range read under 1 ms and the validator under 50 ms; seconds, alone, at a close; a bare `npm run harness` runs them too, beside its sweeps |
 | `npm run harness -- compare <a> <b>` | What moved between two play sweeps' JSON reports: the play counters, and apart from them the save's sizes, measures that the save's shape and its config move (DL-205) |
@@ -117,10 +117,10 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
   Heroes (`availableHeroes`) and the ones `partyPool` leaves out; the share of free Heroes, and of Guild-Days with at least one kept.
   The player's is read on a night's Turn, before the policy sends the Heroes the night brought home and rested (a morning would
   read its pool after that sending, the rested gone and the kept left); a Rival's on a morning's, which its afternoon reads.
-- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken`, `quest.resolved`, `hero.retired` and
-  `hero.left-guild`. A recovery begins when a Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or
+- **Days recovering** (`fatigueRecovery`): from `hero.fatigue-changed`, `quest.taken`, `quest.resolved`, `hero.retired`,
+  `hero.left-guild` and `hero.released`. A recovery begins when a Hero comes home alive in a band at or past the Guild's rest band (`restBandOf`), or
   past fresh, and ends when a night takes them below it; it is cut short if they are sent again first, and ends as gone if they
-  leave every Roster first, retired or at a fold, where no night rests them (DL-291). The mean is over the recoveries that ended,
+  leave every Roster first, retired, released or at a fold, where no night rests them (DL-291, DL-317). The mean is over the recoveries that ended,
   in whole Days from the return (both ends fall on a night); the report also gives how many were cut short, after how many Days,
   how many were gone, and how many were still running when the game stopped.
   The mean to fresh is biased low by the cut-short ones, which a rest band below fresh makes most of them.
@@ -129,6 +129,29 @@ Gate's "Fatigue felt" reads. Each is read from the History or the World State an
   `relievesHurt`, the hurt Hero not their own) who had not died by the Encounter it was taken at, with an Encounter after it, since
   the engine eases the hurt from the next Encounter on; by a heal Item spent on the Hero at that Encounter, which shortens the Injury
   even at the last; by both; or by neither; and how many were taken at the Quest's last Encounter reached, with none after to ease.
+
+### The Contracts' lines
+
+The report's `## Contracts` section (DL-321) states, the player's Guild and the Rivals apart, what the Contracts did. It has no
+band; `v1.2.4` proposes any. Each is read from the History or the World State and draws nothing, so play is as it was without them.
+
+- **Signed, expired, released** (`contracts`): `hero.recruited`, `hero.transferred` (for the Guild the Hero joins) and
+  `hero.contract-renewed`, by the way signed and the years of the term, with the count a Guild-year; `hero.contract-expired`;
+  `hero.released`, whose payout is the Wealth flow `releasePayouts` and is not counted again. A founding Contract has no event
+  and is not among the signings. The mean release payout and the mean Transfer fee paid, a Hero bought (from `transfers`),
+  stand beside them.
+- **Free Offers** (`freeOffers`): the Offers made by a side to a side for a Hero Out of Contract, how many their Guild withdrew
+  by renewing them (cause `renewed`) and how many were taken (cause `taken`). An Offer is free when the Hero's last event
+  before it is a `hero.contract-expired`, no signing or release since: a priced Offer whose fee reads 0 is not.
+- **Days Out of Contract and Under Offer** (`contractDays`): for each Guild in play, before the policy acts, in Hero-Days and
+  the Guild-Days with at least one. The Roster and those Out of Contract (`outOfContract`) are read as each Day begins, on its
+  morning's Turn; those Under Offer (`underOffer`) at every Turn, each Hero and Guild once a Day, since a Rival makes its Offers
+  in the afternoon and the policy answers them at its next choice. An Offer a Rival answers at once is never seen.
+- **The mean wage by Level** (`contractDays`): the wage in force over the Hero-Days of Roster Heroes with a Contract, a Hero Out
+  of Contract on the wage repriced.
+
+The shares of the Wealth spent and taken (`wealth`) are rounded by largest remainder, the earlier part first among equal
+remainders, so each side's sum to 100.0% (`shares`, `src/report.ts`).
 
 ## The Gate
 

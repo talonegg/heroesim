@@ -48,7 +48,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { append, createItem, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
+import { append, createItem, nightOf, playReturnNight, xpForLevel } from '@heroesim/engine/testing';
 import { expect } from 'vitest';
 import { content } from '../content';
 import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
@@ -248,7 +248,7 @@ export function withWealth(state: GameState, wealth: number, belowFloorSince?: n
 export function withRosterReleased(state: GameState, wealth = 1_000_000): GameState {
   return changed(state, (document, player) => {
     for (const heroId of player.rosterIds) {
-      Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn });
+      Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn, contract: null });
     }
     player.rosterIds = [];
     player.wealth = wealth;
@@ -562,6 +562,45 @@ function checkMorale(told: ReturnTold, party: ReturningParty, events: readonly E
   }
 }
 
+/**
+ * `state` with the first Rival's free Offer standing for the player's first Hero (DL-319): their Contract
+ * ended on the night of Day 1 (the world stands on it), which the engine's own `offerTransfer` makes
+ * an Offer of no fee.
+ */
+export function withFreeOffer(state: GameState): GameState {
+  const out = changed(withRichRivals(state), (document, player) => {
+    const hero = document.world.heroes[player.rosterIds[0] as HeroId] as Hero;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+  });
+  const document = documentOf(out);
+  const rival = Object.values(document.world.guilds).find((guild) => guild.id !== playerOf(document).id) as Guild;
+  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: playerOf(document).rosterIds[0] as HeroId, years: 2 }, playDeps(document));
+  if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
+  return { ...out, document: offered.document };
+}
+
+/** `state` with only the player's first Hero on the Roster, the rest in the Unattached pool, as a Guild's last Hero stands. */
+export function withOnlyHero(state: GameState): GameState {
+  return changed(state, (document, player) => {
+    for (const heroId of player.rosterIds.slice(1)) Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn, contract: null });
+    player.rosterIds = player.rosterIds.slice(0, 1);
+  });
+}
+
+/** `state` with the first Rival's first Hero Out of Contract (the world stands on the night of Day 1), and the Rival's name and the Hero's. */
+export function withRivalOutOfContract(state: GameState): { state: GameState; guildName: string; heroName: string } {
+  let names = { guildName: '', heroName: '' };
+  const out = changed(state, (document, player) => {
+    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id) as Guild;
+    const hero = document.world.heroes[rival.rosterIds[0] as HeroId] as Hero;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    names = { guildName: rival.name, heroName: hero.name };
+  });
+  return { state: out, ...names };
+}
+
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */
 export function withRichRivals(state: GameState): GameState {
   return changed(state, (document, player) => {
@@ -581,7 +620,7 @@ export function withOffer(state: GameState): GameState {
   const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id);
   const heroId = player.rosterIds[0];
   if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
-  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, { config: { ...defaultConfig, ...document.meta.config }, content });
+  const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, { config: { ...defaultConfig, ...document.meta.config }, content });
   if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
   return { ...rich, document: offered.document };
 }
@@ -600,7 +639,7 @@ export function withWorldNews(state: GameState): GameState {
     const retiring = world.guildmasters[succeeding.guildmasterId];
     if (retiring === undefined) throw new Error('no Guildmaster');
     retiring.ageAtEntry = { ...defaultConfig, ...document.meta.config }.guildmasterRetirementAge;
-    for (const heroId of folding.rosterIds) Object.assign(world.heroes[heroId] as Hero, { guildId: null, unattachedSince: world.turn });
+    for (const heroId of folding.rosterIds) Object.assign(world.heroes[heroId] as Hero, { guildId: null, unattachedSince: world.turn, contract: null });
     folding.rosterIds = [];
     folding.wealth = 0;
   });

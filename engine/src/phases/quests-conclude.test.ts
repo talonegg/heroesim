@@ -936,7 +936,8 @@ describe('the Quest named on what its return causes', () => {
    * A History entry as it was before DL-112: the new `questId` and the Quest's participation taken out;
    * a founding's Wealth (DL-120 item 4, DL-121); an
    * Encounter's Degree, the Check that decided it and its Checks (DL-152); and (DL-155) each
-   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`.
+   * Hero's own Morale from the Encounters, which with no `steadiedBy` is every Hero's `moraleDelta`; and
+   * (DL-315) a Contract's terms on a signing and each Hero's wage on the wages paid.
    */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
     if (entry.type === 'quest.resolved') {
@@ -949,6 +950,18 @@ describe('the Quest named on what its return causes', () => {
       delete payload.degree;
       delete payload.decidedBy;
       delete payload.checks;
+      return { ...entry, payload };
+    }
+    if (entry.type === 'hero.recruited' || entry.type === 'hero.transferred') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wage;
+      delete payload.years;
+      delete payload.endDay;
+      return { ...entry, payload };
+    }
+    if (entry.type === 'guild.wages-paid') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wages;
       return { ...entry, payload };
     }
     if (entry.type === 'guild.founded') {
@@ -1121,11 +1134,25 @@ describe('the Quest named on what its return causes', () => {
     // Facility's, in `guild.wages-paid` and `guild.hall-upkeep-paid` (DL-298; 1d3cdc9c…, 31fb72fd… and
     // 015a5606…), which moves every Guild's Wealth and so its purchases; and the surplus sold by
     // Rivals outside the purchase step (DL-301; d0d1d4eb…, 52d50c39… and 9bc95dbc…), which moves each
-    // Guild's Wealth and gear.
+    // Guild's Wealth and gear; and the Contract's wage, set at signing from the Level and Stats and
+    // fixed for its term, charged in place of a wage by Level (DL-315; ce0f9958…, c7cff6d6… and
+    // 1e05000c…), which moves every Guild's Wealth from the first wage Day, with no other event before
+    // it, and so its purchases, Parties and Quests; and a Contract's end, its wage repriced Out of
+    // Contract with a premium (DL-316; 99268a02… and 53958f27…, the first game's unchanged, no
+    // Contract on a Roster ending in its 120 Days), which moves its Guild's Wealth from that night; and
+    // the Transfer fee, the wages left × `transferFeeFactor` 0.3 in place of twice the list price
+    // (DL-318; 8c9d6cd5…, 31e1bd8f… and a831d208…), which moves each Transfer's fee, so the Wealth of
+    // the Guilds that deal and what they then buy, and who is wanted; and the free Offer, the Transfer
+    // Generator's pairs holding the player's Guild (DL-319; 4a418501…, e8fd9edb… and a6ed48bb…), which
+    // moves `rivals` from the Generator's first night and so a Rival's Quest drawn, first on Turns 31,
+    // 34 and 79; and the Rivals' hiring weighing a free Hero Out of Contract in a step of its own,
+    // before the pool, with a second draw from `rivals` where a real Transfer was sought and not drawn
+    // (DL-320; c1594279… and 0dae286f…, the first game's unchanged), which moves `rivals` from the
+    // first afternoon it is taken.
     expect(fingerprints).toEqual([
-      'ce0f9958d3fc5b816d08426645ab2809953f0ac9cb78b0e17dcae45e955e5543',
-      'c7cff6d61d943c66a4506a99688cfa8c3aa75ea12401f8ae015c86fb02dedab8',
-      '1e05000c3407cf2e27a678ca5ed2eefb5cb4f0c92514258cb492a03af08c62a6',
+      '1bfb02769cb602971daa805e5cd4022af784b11bb2bad024a3a40a6e6461a8b7',
+      'f20acf9fb051482892dc556b49c9115216f3d643dd488d23996d9db5fe1cffba',
+      'f6b497bbca956165acbea3b3f6a8f46f0d4fd3a03108e5a105e43f30bca05855',
     ]);
   });
 

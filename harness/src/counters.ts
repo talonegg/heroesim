@@ -77,6 +77,7 @@ import {
   topGrade,
   isEngineEvent,
   isId,
+  outOfContract,
   partyPool,
   playerGuild,
   portraitRowOf,
@@ -89,6 +90,7 @@ import {
   restBandOf,
   timeOfDay,
   turnsPerDay,
+  underOffer,
   unlockedTier,
   unsignableHeroes,
   upkeep,
@@ -377,6 +379,11 @@ export interface GameCounters {
   fatigueRecovery: Record<ControllerKind, Recovery>;
   /** `hero.injured` on a Quest, by the relief of the hurt in play (`reliefCounters`), by the controller of the Hero's Guild then. */
   hurtRelief: Record<ControllerKind, ReliefTally>;
+  // The Contracts' lines (DL-321).
+  /** The Contracts signed by way and length, expired and released (`contractCounters`), by the controller of the Guild each names. */
+  contracts: Record<ControllerKind, ContractTally>;
+  /** The free Offers by the side that made them and the side asked, and their ends by a renewal and a taking (`freeOfferCounters`). */
+  freeOffers: Record<string, Record<string, FreeOfferTally>>;
 }
 
 /** The Guildmasters who entered play, and how their Portraits fit them (v1.1.3-S5, DL-134 item 9). */
@@ -461,7 +468,7 @@ export function moduleCounters(document: WorldDocument): Pick<GameCounters, 'mod
 export const saleCauses = ['sale', 'fold'] as const satisfies readonly ItemSaleCause[];
 
 /** Why gear went back to a Guild without an `unequip` (M5-S2, DL-49), or to the selling Guild with a transferred Hero (M6-S2, DL-57). */
-export const gearReturnCauses = ['died', 'retired', 'guild-folded', 'transferred'] as const satisfies readonly GearReturnCause[];
+export const gearReturnCauses = ['died', 'retired', 'guild-folded', 'transferred', 'released'] as const satisfies readonly GearReturnCause[];
 
 /** What a consumable did when it was expended (M5-S3, DL-50). */
 export const consumableEffects = ['bonus', 'reroll', 'heal'] as const;
@@ -470,7 +477,8 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 
 /**
  * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
- * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
+ * (`hero.transferred`'s `fee`, for the buying Guild, M6), release payouts (`hero.released`'s `payout`, DL-317),
+ * Items bought from the Market
  * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and the Upkeep's two charges, the
  * wages (`guild.wages-paid`'s `amount`) and the Hall's upkeep (`guild.hall-upkeep-paid`'s `amount`), split
  * between the Hall's and the Improvements' by `hallUpkeepSplit`, as the Treasury splits it (DL-298,
@@ -481,6 +489,8 @@ export type ConsumableEffectName = (typeof consumableEffects)[number];
 export interface WealthFlows {
   signing: number;
   transferFeesPaid: number;
+  /** The release payouts (`hero.released`), a line of their own and never among the other expenses (Q19, DL-317). */
+  releasePayouts: number;
   items: number;
   /** The Items `item.bought` moved, summed over its `quantity`. */
   itemsBought: number;
@@ -545,6 +555,7 @@ export const difficultyBandWidth = 10;
 export const noWealth = (): WealthFlows => ({
   signing: 0,
   transferFeesPaid: 0,
+  releasePayouts: 0,
   items: 0,
   itemsBought: 0,
   improvements: 0,
@@ -566,7 +577,7 @@ export const noConsumables = (): ConsumableTally => ({
   byDefinition: {},
 });
 
-export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0, transferred: 0 } });
+export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0, transferred: 0, released: 0 } });
 
 export const noDifficulty = (): DifficultyTally => ({ quests: 0, difficulty: 0, strong: 0, loot: 0, unique: 0 });
 
@@ -587,7 +598,7 @@ export type TransferDirection = (typeof transferDirections)[number];
 
 /**
  * How a Transfer between two Rivals happened, as far as the History and the play loop tell (DL-69).
- * `accepted-offer`: the entry names the offer (`offerId`). `generator`: on a night, when only the
+ * `accepted-offer`: the entry names the offer (`offerId`), accepted or, free, taken (DL-319). `generator`: on a night, when only the
  * Transfer Generator moves Heroes (DL-59; Rivals choose in the afternoon). The afternoon's are the
  * buyer's `transferChoice` or the seller's `debtTransfer` (DL-57 item 5), and no entry says which
  * action made a Transfer: `afternoon-seller-in-debt` when the play loop saw the seller in debt as the
@@ -606,14 +617,15 @@ export interface TransferTally {
 
 export const noTransfers = (): TransferTally => ({ transfers: 0, fees: 0 });
 
-/** Why a Transfer Offer ended unanswered (DL-57 item 6). */
-export const offerEndCauses = ['expired', 'hero-left', 'guild-folded'] as const satisfies readonly TransferOfferEndCause[];
+/** Why a Transfer Offer ended unanswered (DL-57 item 6): a free Offer by a renewal or taken too (DL-319). */
+export const offerEndCauses = ['expired', 'hero-left', 'guild-folded', 'renewed', 'taken'] as const satisfies readonly TransferOfferEndCause[];
 
 /**
  * Transfer Offers from one side to another: made (`guild.transfer-offered`), with the fees offered
- * summed; accepted (a `hero.transferred` naming the offer); declined (`guild.transfer-offer-declined`);
- * and ended unanswered (`guild.transfer-offer-expired`) by its `cause`. What none of these counts was
- * still standing when the game stopped.
+ * summed; accepted (a `hero.transferred` naming the offer, but a free Offer's taking); declined
+ * (`guild.transfer-offer-declined`); and ended unanswered (`guild.transfer-offer-expired`) by its
+ * `cause`, a free Offer's taking among them. What none of these counts was still standing when the
+ * game stopped.
  */
 export interface OfferTally {
   made: number;
@@ -623,7 +635,7 @@ export interface OfferTally {
   ended: Record<TransferOfferEndCause, number>;
 }
 
-export const noOffers = (): OfferTally => ({ made: 0, fees: 0, accepted: 0, declined: 0, ended: { expired: 0, 'hero-left': 0, 'guild-folded': 0 } });
+export const noOffers = (): OfferTally => ({ made: 0, fees: 0, accepted: 0, declined: 0, ended: { expired: 0, 'hero-left': 0, 'guild-folded': 0, renewed: 0, taken: 0 } });
 
 /** One Disposition's Rivals: what the balance pass reads its character by (DL-69). */
 export interface DispositionTally {
@@ -1062,6 +1074,9 @@ export function wealthCounters(document: WorldDocument): Record<ControllerKind, 
   each('hero.recruited', (into, entry, what) => {
     into.signing += numberField(entry, 'fee', what);
   });
+  each('hero.released', (into, entry, what) => {
+    into.releasePayouts += numberField(entry, 'payout', what);
+  });
   each('item.bought', (into, entry, what) => {
     into.items += numberField(entry, 'cost', what);
     into.itemsBought += numberField(entry, 'quantity', what);
@@ -1326,15 +1341,18 @@ export function offerCounters(document: WorldDocument): Record<string, Record<st
   entriesOf(document, 'guild.transfer-offer-declined').forEach((entry, index) => {
     tallyOf(entry, `guild.transfer-offer-declined entry ${index}`).declined += 1;
   });
+  const taken = new Set<unknown>();
   entriesOf(document, 'guild.transfer-offer-expired').forEach((entry, index) => {
     const what = `guild.transfer-offer-expired entry ${index}`;
     const cause = payloadField(entry, 'cause');
     if (!isOfferEndCause(cause)) throw new Error(`${what} has no cause`);
     tallyOf(entry, what).ended[cause] += 1;
+    if (cause === 'taken') taken.add(payloadField(entry, 'offerId'));
   });
   entriesOf(document, 'hero.transferred').forEach((entry, index) => {
     const what = `hero.transferred entry ${index}`;
-    if ((payloadField(entry, 'offerId') ?? null) !== null) tallyOf(entry, what).accepted += 1;
+    const offerId = payloadField(entry, 'offerId') ?? null;
+    if (offerId !== null && !taken.has(offerId)) tallyOf(entry, what).accepted += 1;
   });
   return offers;
 }
@@ -1577,6 +1595,8 @@ export interface GameObservations {
   dispatchFatigue: Record<ControllerKind, DispatchFatigue>;
   /** The free Heroes a rest band left out of their Guild's pool, sampled once a Day (`observeRestKept`, DL-290). */
   restKept: Record<ControllerKind, RestKept>;
+  /** The Heroes Out of Contract and the wages in force by Level, sampled as each Day begins, and those Under Offer at any Turn of it (`observeContractDays`, DL-321). */
+  contractDays: Record<ControllerKind, ContractDays>;
 }
 
 /** Every Hero generated in a game, and their Portraits and texts (v1.1.3-S6; DL-134 item 9, DL-135 item 6). */
@@ -2250,7 +2270,7 @@ export function transfersShort(before: World, events: readonly Entry[], config: 
     if (entry.type === 'hero.recruited') {
       move(payloadField(entry, 'guildId'), 1);
       movedTo.set(payloadField(entry, 'heroId'), payloadField(entry, 'guildId'));
-    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') move(payloadField(entry, 'guildId'), -1);
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild' || entry.type === 'hero.released') move(payloadField(entry, 'guildId'), -1);
     else if (entry.type === 'hero.died') move(heroGuild(payloadField(entry, 'heroId')), -1);
     else if (entry.type === 'hero.transferred') {
       move(payloadField(entry, 'toGuildId'), 1);
@@ -2406,11 +2426,11 @@ interface Spell {
 
 /**
  * The Days Heroes take to recover at home (DL-290), from `hero.fatigue-changed` (the band a Hero is
- * in, which a night records only on crossing one), `quest.taken`, `quest.resolved`, `hero.retired` and
- * `hero.left-guild`, in the order of the History. A recovery begins when a Hero comes home alive from a
+ * in, which a night records only on crossing one), `quest.taken`, `quest.resolved`, `hero.retired`,
+ * `hero.left-guild` and `hero.released`, in the order of the History. A recovery begins when a Hero comes home alive from a
  * Quest in a band at or past the one it ends below, for the Guild that sent them; it ends when a night
  * takes them below it, or is cut short when they are sent again, or ends as left when they leave every
- * Roster, retired or sent to the pool at a fold, where no night moves their Fatigue (DL-291), or is left
+ * Roster, retired, released or sent to the pool at a fold, where no night moves their Fatigue (DL-291), or is left
  * open at the game's end. The two bands are the Guild's
  * rest band (`restBandOf`; a Guild with none begins none) and fresh. The Days are the Turns between
  * the Quest's return and the night that ends it, over `turnsPerDay`: 0 for a night the Hero fell on
@@ -2418,7 +2438,7 @@ interface Spell {
  */
 export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps, 'config' | 'content'>): Record<ControllerKind, Recovery> {
   const counts = { player: noRecovery(), rival: noRecovery() };
-  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved', 'hero.retired', 'hero.left-guild'] as const)
+  const events = (['hero.fatigue-changed', 'quest.taken', 'quest.resolved', 'hero.retired', 'hero.left-guild', 'hero.released'] as const)
     .flatMap((type) => positionedEntriesOf(document, type))
     .sort((a, b) => a.position - b.position);
   const bands = new Map<string, number>();
@@ -2438,7 +2458,7 @@ export function recoveryCounters(document: WorldDocument, deps: Pick<EngineDeps,
         return false;
       });
       running.set(heroId, left);
-    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild') {
+    } else if (entry.type === 'hero.retired' || entry.type === 'hero.left-guild' || entry.type === 'hero.released') {
       const heroId = payloadField(entry, 'heroId');
       if (typeof heroId !== 'string') throw new Error(`${what} has no heroId`);
       for (const spell of running.get(heroId) ?? []) spell.tally.left += 1;
@@ -2565,4 +2585,163 @@ export function reliefCounters(document: WorldDocument, deps: Pick<EngineDeps, '
     if (quest !== undefined && at !== undefined && at >= quest.last) tally.atLast += 1;
   });
   return counts;
+}
+
+// ── The Contracts' lines (DL-321) ────────────────────────────────────────────────────────────
+// Reported with no band (v1.2.4 proposes any). Read from the History or the World State, drawing
+// nothing, so that play is as it was without them (DL-239).
+
+/** The ways a Contract is signed, each a signing event that carries its terms (DL-315, DL-316). */
+export const signingKinds = ['recruited', 'transferred', 'renewed'] as const;
+
+export type SigningKind = (typeof signingKinds)[number];
+
+/** A kind of Guild's Contracts: those signed by the way and the years of their term, those that ended, and the Heroes let go. */
+export interface ContractTally {
+  /** `hero.recruited`, `hero.transferred` (for the Guild the Hero joins) and `hero.contract-renewed`, by the length signed, in years. */
+  signed: Record<SigningKind, Record<string, number>>;
+  /** `hero.contract-expired`. */
+  expired: number;
+  /** `hero.released`; its payout is among the Wealth flows (`WealthFlows.releasePayouts`). */
+  released: number;
+}
+
+export const noContracts = (): ContractTally => ({ signed: { recruited: {}, transferred: {}, renewed: {} }, expired: 0, released: 0 });
+
+/** The Contracts signed, expired and released, by the controller of the Guild each event names (the Guild that signs, for a Transfer). */
+export function contractCounters(document: WorldDocument): Record<ControllerKind, ContractTally> {
+  const counts = { player: noContracts(), rival: noContracts() };
+  const sign = (kind: SigningKind, type: EventType, guildField: string): void =>
+    entriesOf(document, type).forEach((entry, index) => {
+      const what = `${type} entry ${index}`;
+      const signed = counts[guildNamed(document, entry, guildField, what).controller.kind].signed[kind];
+      const years = String(numberField(entry, 'years', what));
+      signed[years] = (signed[years] ?? 0) + 1;
+    });
+  sign('recruited', 'hero.recruited', 'guildId');
+  sign('transferred', 'hero.transferred', 'toGuildId');
+  sign('renewed', 'hero.contract-renewed', 'guildId');
+  entriesOf(document, 'hero.contract-expired').forEach((entry, index) => {
+    counts[guildNamed(document, entry, 'guildId', `hero.contract-expired entry ${index}`).controller.kind].expired += 1;
+  });
+  entriesOf(document, 'hero.released').forEach((entry, index) => {
+    counts[guildNamed(document, entry, 'guildId', `hero.released entry ${index}`).controller.kind].released += 1;
+  });
+  return counts;
+}
+
+/** The free Offers (Q8, DL-319) made by a side for the Heroes of another's Roster, and how they ended. */
+export interface FreeOfferTally {
+  made: number;
+  /** Ended by the Hero's Guild renewing them (`guild.transfer-offer-expired`, cause `renewed`). */
+  renewed: number;
+  /** Ended by the Hero being taken (cause `taken`). */
+  taken: number;
+}
+
+/**
+ * The free Offers by the side of the Guild that made them and of the Guild asked, as `offerCounters`
+ * keys its Offers. An Offer is free when its Hero was Out of Contract as it was made: since
+ * their `hero.contract-expired`, with no signing (`hero.recruited`, `hero.transferred`,
+ * `hero.contract-renewed`) or release of theirs after, the History's order (`freeOffer` reads the Hero's
+ * Contract as it stood, which only the World State holds). A priced Offer of a fee of 0 is not free.
+ */
+export function freeOfferCounters(document: WorldDocument): Record<string, Record<string, FreeOfferTally>> {
+  const offers: Record<string, Record<string, FreeOfferTally>> = {};
+  const free = new Set<unknown>();
+  const outOfContractHeroes = new Set<unknown>();
+  const tallyOf = (entry: Entry, what: string): FreeOfferTally =>
+    ((offers[sideOf(guildNamed(document, entry, 'toGuildId', what))] ??= {})[sideOf(guildNamed(document, entry, 'fromGuildId', what))] ??= { made: 0, renewed: 0, taken: 0 });
+  const types = ['hero.contract-expired', 'hero.contract-renewed', 'hero.recruited', 'hero.transferred', 'hero.released', 'guild.transfer-offered'] as const;
+  types
+    .flatMap((type) => positionedEntriesOf(document, type))
+    .sort((a, b) => a.position - b.position)
+    .forEach(({ entry }) => {
+      const heroId = payloadField(entry, 'heroId');
+      if (entry.type === 'hero.contract-expired') outOfContractHeroes.add(heroId);
+      else if (entry.type !== 'guild.transfer-offered') outOfContractHeroes.delete(heroId);
+      else if (outOfContractHeroes.has(heroId)) {
+        free.add(payloadField(entry, 'offerId'));
+        tallyOf(entry, 'guild.transfer-offered entry').made += 1;
+      }
+    });
+  for (const entry of entriesOf(document, 'guild.transfer-offer-expired')) {
+    const cause = payloadField(entry, 'cause');
+    if (free.has(payloadField(entry, 'offerId')) && (cause === 'renewed' || cause === 'taken')) tallyOf(entry, 'guild.transfer-offer-expired entry')[cause] += 1;
+  }
+  return offers;
+}
+
+/**
+ * A kind of Guild's Roster Heroes sampled (`observeContractDays`): the Hero-Days, those Out of Contract
+ * and those Under Offer, the Guild-Days with at least one of each, and the wage in force by Level.
+ */
+export interface ContractDays {
+  guildDays: number;
+  heroDays: number;
+  outOfContractDays: number;
+  guildDaysOutOfContract: number;
+  underOfferDays: number;
+  guildDaysUnderOffer: number;
+  /** For each Level, the Hero-Days of Heroes with a Contract and their wages summed (a Hero Out of Contract on the wage repriced). */
+  wages: Record<string, { heroDays: number; wage: number }>;
+}
+
+export const noContractDays = (): ContractDays => ({
+  guildDays: 0,
+  heroDays: 0,
+  outOfContractDays: 0,
+  guildDaysOutOfContract: 0,
+  underOfferDays: 0,
+  guildDaysUnderOffer: 0,
+  wages: {},
+});
+
+/** The Day `observeContractDays` reads, and the Heroes and Guilds it has counted Under Offer in it. */
+export interface UnderOfferSeen {
+  day: number;
+  heroes: Set<HeroId>;
+  guilds: Set<GuildId>;
+}
+
+export const noUnderOfferSeen = (): UnderOfferSeen => ({ day: -1, heroes: new Set(), guilds: new Set() });
+
+/**
+ * Samples into `taken` each Guild in play, before the policy acts (DL-321). As a Day begins, on its
+ * morning's Turn: its Roster's Heroes, the ones Out of Contract (`outOfContract`), and each Contract's
+ * wage by the Hero's Level. At every Turn: the Heroes Under Offer (`underOffer`: at home, an Offer
+ * standing, free or priced), each Hero and Guild counted once a Day (`seen`), since a Rival makes its
+ * Offers in the afternoon and the policy answers them at its next choice. An Offer a Rival answers at
+ * once stands at no choice and is never seen.
+ */
+export function observeContractDays(taken: Record<ControllerKind, ContractDays>, world: World, seen: UnderOfferSeen): void {
+  const day = dayOf(world.turn);
+  if (seen.day !== day) {
+    seen.day = day;
+    seen.heroes.clear();
+    seen.guilds.clear();
+  }
+  for (const guild of guildsInPlay(world)) {
+    const tally = taken[guild.controller.kind];
+    const heroes = guild.rosterIds.map((heroId) => world.heroes[heroId] as Hero);
+    for (const hero of heroes) {
+      if (seen.heroes.has(hero.id) || !underOffer(world, hero)) continue;
+      seen.heroes.add(hero.id);
+      tally.underOfferDays += 1;
+      if (!seen.guilds.has(guild.id)) tally.guildDaysUnderOffer += 1;
+      seen.guilds.add(guild.id);
+    }
+    if (timeOfDay(world.turn) !== 'morning') continue;
+    const out = heroes.filter((hero) => outOfContract(hero, world.turn)).length;
+    tally.guildDays += 1;
+    tally.heroDays += heroes.length;
+    tally.outOfContractDays += out;
+    if (out > 0) tally.guildDaysOutOfContract += 1;
+    for (const hero of heroes) {
+      if (hero.contract === null) continue;
+      const level = (tally.wages[String(hero.level)] ??= { heroDays: 0, wage: 0 });
+      level.heroDays += 1;
+      level.wage += hero.contract.wage;
+    }
+  }
 }

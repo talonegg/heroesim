@@ -318,6 +318,75 @@ describe('sweepPlay', () => {
     expect(report).toContain('| … by neither | 2 (25.0%) | 4 (100.0%) |');
   });
 
+  test("totals and renders the Contracts' lines, the player's Guild and the Rivals apart, with no band (DL-321)", () => {
+    const games = sweep.games.map((game) => ({
+      ...game,
+      counters: {
+        ...game.counters,
+        contracts: {
+          player: { signed: { recruited: { 2: 1 }, transferred: {}, renewed: { 2: 2, 3: 1 } }, expired: 3, released: 1 },
+          rival: { signed: { recruited: { 1: 2 }, transferred: { 3: 1 }, renewed: { 2: 4 } }, expired: 5, released: 2 },
+        },
+        freeOffers: { ambitious: { player: { made: 3, renewed: 2, taken: 1 } } },
+        // The payouts are the Wealth's, the fees the Transfers': a Hero the player bought came in, one a Rival bought went out or between Rivals.
+        wealth: { player: { ...noWealth(), releasePayouts: 150 }, rival: { ...noWealth(), releasePayouts: 400 } },
+        transfers: { in: { transfers: 1, fees: 300 }, out: { transfers: 2, fees: 500 }, 'rival-to-rival': { transfers: 1, fees: 700 } },
+      },
+      observations: {
+        ...game.observations,
+        contractDays: {
+          player: {
+            guildDays: 10,
+            heroDays: 40,
+            outOfContractDays: 8,
+            guildDaysOutOfContract: 4,
+            underOfferDays: 2,
+            guildDaysUnderOffer: 2,
+            wages: { 1: { heroDays: 30, wage: 600 }, 2: { heroDays: 10, wage: 330 } },
+          },
+          rival: {
+            guildDays: 40,
+            heroDays: 200,
+            outOfContractDays: 50,
+            guildDaysOutOfContract: 20,
+            underOfferDays: 10,
+            guildDaysUnderOffer: 5,
+            wages: { 1: { heroDays: 200, wage: 4500 } },
+          },
+        },
+      },
+    }));
+    const contracted = { ...sweep, games };
+    const summed = sweepTotals(contracted, deps.config.turnsPerYear);
+
+    expect(summed.contracts.player.signed).toEqual({ recruited: { 2: 2 }, transferred: {}, renewed: { 2: 4, 3: 2 } });
+    expect(summed.contracts.rival).toMatchObject({ expired: 10, released: 4 });
+    expect(summed.freeOffers).toEqual({ ambitious: { player: { made: 6, renewed: 4, taken: 2 } } });
+    expect(summed.contractDays.rival.wages).toEqual({ 1: { heroDays: 400, wage: 9000 } });
+    const report = playReport(contracted, { deps, machine: machine(), startedAt: new Date(2026, 9, 17, 12), milestone: 'v1.2.3-s8' });
+    expect(report).toContain('## Contracts (DL-321)');
+    expect(report).toMatch(/\| Signed, in all \| 8 \| [\d.]+ \| 14 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed, of 1 year \| 0 \| [\d.]+ \| 4 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed, of 2 years \| 6 \| [\d.]+ \| 8 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed, of 3 years \| 2 \| [\d.]+ \| 2 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Expired \(`hero.contract-expired`\) \| 6 \| [\d.]+ \| 10 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Released \(`hero.released`\) \| 2 \| [\d.]+ \| 4 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed by a Transfer \(`hero.transferred`, the Guild the Hero joins\) \| 0 \| [\d.]+ \| 2 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Signed by a renewal \(`hero.contract-renewed`\) \| 6 \| [\d.]+ \| 8 \| [\d.]+ \|/);
+    expect(report).toMatch(/\| Release payouts paid \(`hero.released` `payout`\) \| 300 \| [\d.,]+ \| 800 \| [\d.,]+ \|/);
+    expect(report).toContain('| Mean release payout | 150 | 200 |');
+    expect(report).toContain('| Mean Transfer fee paid, a Hero bought | 300 | 400 |');
+    expect(report).toContain('| Guild-Days sampled | 20 | 80 |');
+    expect(report).toContain('| Hero-Days on Rosters | 80 | 400 |');
+    expect(report).toContain('| Hero-Days Out of Contract | 16 (20.0%) | 100 (25.0%) |');
+    expect(report).toContain('| Guild-Days with at least one Hero Out of Contract | 8 (40.0%) | 40 (50.0%) |');
+    expect(report).toContain('| Hero-Days Under Offer | 4 (5.0%) | 20 (5.0%) |');
+    expect(report).toContain('| Guild-Days with at least one Hero Under Offer | 4 (20.0%) | 10 (12.5%) |');
+    expect(report).toContain("| `ambitious` to the player's Guild | 6 | 4 | 2 | 0 |");
+    expect(report).toContain('| 1 | 60 | 20.0 | 400 | 22.5 |');
+    expect(report).toContain('| 2 | 20 | 33.0 | 0 | — |');
+  });
+
   test("totals and renders the Portrait counters, by controller and in all (DL-134 item 9)", () => {
     const games = sweep.games.map((game) => ({
       ...game,
@@ -440,6 +509,12 @@ describe('sweepPlay', () => {
       silentPatronYears: [1, 0],
       transfersBySide: { steady: { ambitious: noTransfers() } },
       offers: { player: { steady: noOffers() } },
+      // DL-321: a signing of each way and a length, and a free Offer.
+      contracts: {
+        player: { signed: { recruited: { 2: 1 }, transferred: { 1: 1 }, renewed: { 3: 1 } }, expired: 1, released: 1 },
+        rival: { signed: { recruited: { 1: 1 }, transferred: { 2: 1 }, renewed: { 2: 1 } }, expired: 1, released: 1 },
+      },
+      freeOffers: { steady: { player: { made: 1, renewed: 1, taken: 1 } } },
       moduleEvents: { 'probe.fired': 1 },
       moduleEffects: { probe: { 'hero.injured': 1 } },
       // Tier 5, which a game this short may offer and leave untaken, given the takings of a Tier it took.
@@ -688,6 +763,21 @@ describe('sweepPlay', () => {
       );
     });
 
+    test('says how the policy answers its Offers, the length it signs for, and its release in debt (DL-315, DL-319, DL-320, DL-322)', () => {
+      const policyLine = report.split('\n').find((line) => line.startsWith('Policy (INPUTS 4.14)')) ?? '';
+      const { contractYears, rosterFloor } = sweep.policy;
+      expect(policyLine).not.toContain('first decline every Transfer Offer');
+      expect(policyLine).toContain(
+        `: first answer the Transfer Offers made for its Heroes, declining every priced one (M6-S2) and renewing for ` +
+          `${contractYears} years a Hero at home a free Offer stands for whose Level is at or above its Roster's median, ` +
+          `or with its Roster at ${rosterFloor} or below, else letting the Offer run out (DL-319); then the gear`,
+      );
+      expect(policyLine).toContain(` else the cheapest Hero who would sign, for ${contractYears} years, while Wealth exceeds `);
+      expect(policyLine).toMatch(
+        /never transfer a Hero in or out\. In debt, once its Holding is sold, it releases one Hero Out of Contract a Turn, the lowest Level first, never one it sends, renews or that is Under Offer \(DL-320, DL-322\)\.$/,
+      );
+    });
+
     test("gives the Rankings' shares without the new world's tie, saying so (DL-86 item 12)", () => {
       expect(report).toContain("the row 'After 1 year or more' leaves the new world out");
       expect(report.match(/\| After 1 year or more \| 0 \| — \|/g)).toHaveLength(2);
@@ -916,7 +1006,7 @@ describe('sweepPlay', () => {
         fees,
         accepted,
         declined,
-        ended: { expired, 'hero-left': left, 'guild-folded': folded },
+        ended: { expired, 'hero-left': left, 'guild-folded': folded, renewed: 0, taken: 0 },
       });
       const disposition = (k: number): DispositionTally => ({
         guilds: 1,
@@ -1022,7 +1112,7 @@ describe('sweepPlay', () => {
       expect(text).toContain('| Spent in all | 3,120 | 3,120.0 | 12,540 | 3,135.0 |');
       expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
       expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
-      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.8%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%;");
+      expect(text).toContain("Shares of the Wealth spent: The player's Guild: wages 48.1%, Hall upkeep 9.6%, Improvements’ upkeep 3.9%, Items 19.2%, Improvements 0.0%, signing 9.6%, Transfers 9.6%, release payouts 0.0%;");
       expect(text).toContain("Shares of the Wealth taken: The player's Guild: Quest rewards 76.3%, Item sales 0.0%, Transfers 23.7%;");
       // The Upkeep's two charges by line, the Hall's as its own part and the Improvements', each of the whole (DL-298, DL-302).
       expect(text).toContain('| Spent: Upkeep, the wages (`guild.wages-paid` `amount`) | 1,500 | 1,500.0 | 4,500 | 1,125.0 |');
@@ -1048,8 +1138,8 @@ describe('sweepPlay', () => {
       expect(text).toContain('| `ambitious` | 3 | 0 | 0 | 9 | 0 |');
       expect(text).toContain('| `reckless` | 0 | 0 | 0 | 0 | 6 |');
       // Offers: made, mean fee, accepted, declined, ended by cause, standing.
-      expect(text).toContain("| `ambitious` to the player's Guild | 18 | 217 | 3 | 6 | 3 | 3 | 0 | 3 |");
-      expect(text).toContain("| `reckless` to the player's Guild | 6 | 250 | 0 | 3 | 0 | 0 | 3 | 0 |");
+      expect(text).toContain("| `ambitious` to the player's Guild | 18 | 217 | 3 | 6 | 3 | 3 | 0 | 0 | 0 | 3 |");
+      expect(text).toContain("| `reckless` to the player's Guild | 6 | 250 | 0 | 3 | 0 | 0 | 3 | 0 | 0 | 0 |");
       // Market purchases a Guild-year: the player's over its own Guild-years.
       expect(text).toContain("| The player's Guild | 12 | 12.00 | 18 | 1,200 | 100 |");
       expect(text).toContain('| The Rivals, `ambitious` | 3 | 0.75 | 3 | 300 | 100 |');
@@ -1114,7 +1204,7 @@ describe('sweepPlay', () => {
             refusals: [
               {
                 turn: 9,
-                action: { kind: 'recruit', guildId: 'guild-000001' as never, heroId: 'hero-000009' as never },
+                action: { kind: 'recruit', guildId: 'guild-000001' as never, heroId: 'hero-000009' as never, years: 2 },
                 rejection: { action: 'recruit', reason: 'insufficient-wealth', fee: 90, wealth: 10 },
               },
             ],

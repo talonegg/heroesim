@@ -3,6 +3,7 @@ import {
   addStack,
   ageOf,
   applyAction,
+  contractWage,
   defaultConfig,
   guildmasterOf,
   holdings,
@@ -11,8 +12,9 @@ import {
   signingFee,
   signingRefusal,
   unattachedHeroes,
+  type Hero,
 } from '@heroesim/engine';
-import { createItem } from '@heroesim/engine/testing';
+import { createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
 import { coinWords, nightOfTurn } from '@heroesim/words';
 import { content } from '../content';
@@ -163,7 +165,10 @@ describe('poolView', () => {
         fee: signingFee(hero, deps, buyer),
         age: ageOf(hero, document.world.turn, defaultConfig),
         signs: refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`,
+        // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
+        terms: defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, deps) })),
       });
+      expect(row.terms.map((term) => term.years)).toEqual(defaultConfig.contractLengthsYears);
     }
     expect(view.rows[0]?.signs).toMatch(/^Needs Fame \d+$/);
     expect(view.note).toBe('The Lantern has 0 Fame. A Hero who needs more will not sign for it until it has that much.');
@@ -236,7 +241,7 @@ describe('offersView', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     expect(offersView(document)).toEqual({ guildName: 'The Lantern', offers: [] });
 
-    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
     if (!offered.ok) throw new Error(offered.rejection.reason);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');
@@ -245,6 +250,9 @@ describe('offersView', () => {
     expect(offersView(offered.document)?.offers).toEqual([
       {
         offerId: offer.id,
+        heroId,
+        free: false,
+        terms: [],
         sentence: `${rival.name} offers ${coinWords(offer.fee)} for ${heroName}, until ${nightOfTurn(offer.expiresOnTurn, offered.document.meta.config)}.`,
         guildName: rival.name,
         heroName,
@@ -257,13 +265,47 @@ describe('offersView', () => {
     ]);
   });
 
+  test('words a free Offer for a Hero Out of Contract: no fee, the Days left to renew them, and the wage of a renewal at each length (DL-323)', () => {
+    const document = structuredClone(newDocument('trade-views'));
+    const guild = playerOf(document);
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
+    const heroId = guild.rosterIds[0];
+    if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
+    const hero = document.world.heroes[heroId] as Hero;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
+    if (!offered.ok) throw new Error(offered.rejection.reason);
+    const [offer] = Object.values(offered.document.world.offers);
+    if (offer === undefined) throw new Error('no offer');
+
+    const [row] = offersView(offered.document)?.offers ?? [];
+
+    // Made on Day 1, it stands through the night of Day 3: two Days left.
+    expect(row).toMatchObject({
+      heroId,
+      free: true,
+      fee: 0,
+      sentence: `${rival.name} offers no fee for ${hero.name}, who is Out of Contract, until ${nightOfTurn(offer.expiresOnTurn, defaultConfig)}: 2 Days left to renew them.`,
+      // Accepting lets the Hero go at once (DL-319's judgement call), not when the Offer runs out.
+      confirm: expect.stringMatching(new RegExp(`^Accepting sends ${hero.name} to ${rival.name} now, for no fee, rather than when the Offer runs out\\. Their Gear stays`)),
+    });
+    expect(row?.terms).toEqual(
+      defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(offered.document.world, hero, guild, years, deps) })),
+    );
+
+    // On its last Day it can still be answered, until that night: never "0 Days left".
+    const lastDay = { ...offered.document, world: { ...offered.document.world, turn: offer.expiresOnTurn - 2 } };
+    expect(offersView(lastDay)?.offers[0]?.sentence).toMatch(/: the last Day to renew them\.$/);
+  });
+
   test('reads the calendar once, however many Offers stand (DL-214)', () => {
     let document = newDocument('trade-views');
     const guild = playerOf(document);
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
     if (rival === undefined) throw new Error('no Rival');
     for (const heroId of guild.rosterIds.slice(0, 2)) {
-      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
       if (!offered.ok) throw new Error(offered.rejection.reason);
       document = offered.document;
     }

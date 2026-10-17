@@ -22,6 +22,7 @@ import {
   guildmasterOf,
   guildmasterRegardForGuild,
   nextImprovement,
+  outOfContract,
   patronRegardFor,
   rankingPlaces,
   regardBand,
@@ -36,6 +37,7 @@ import {
   type Guild,
   type GuildId,
   type GuildmasterId,
+  type Hero,
   type HeroId,
   type RankingMeasure,
   type RegardBand,
@@ -44,6 +46,7 @@ import {
 } from '@heroesim/engine';
 import { capitalised, dateOfTurn, endingWords, facilityDoes, facilityName, nameIn, nightOfTurn, rosterReading, rowOf, traitEffectWords, type Calendar } from '@heroesim/words';
 import { content } from '../content';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { classMarkOf, type ClassMarked, controllerWords, placeWords } from './names';
 import { readingOf } from './reading';
 
@@ -83,6 +86,8 @@ export interface GuildRow {
   wealth: number;
   /** How many Heroes are on its Roster. */
   heroes: number;
+  /** How many of them are Out of Contract (`outOfContract`, DL-323). */
+  outOfContract: number;
   /** Its Upkeep, the engine's `upkeep`. */
   upkeep: number;
   /** `Folded on Year 1 Day 13`, or `null` for a Guild in play (DL-28, DL-33, DL-210). */
@@ -129,6 +134,7 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     fame: guild.fame,
     wealth: guild.wealth,
     heroes: guild.rosterIds.length,
+    outOfContract: guild.rosterIds.filter((id) => outOfContract(world.heroes[id] ?? { contract: null }, world.turn)).length,
     upkeep: upkeep(guild, world, config, content),
     folded: foldedWords(guild, config),
   });
@@ -441,8 +447,14 @@ export interface OtherRosterRow extends ClassMarked {
   age: number;
   morale: number;
   background: string;
+  /** Their Contract (`contractWords`, DL-323): the Days left, Out of Contract, Under Offer. */
+  contract: string;
+  /** Whether they are Out of Contract, so that the player's Guild offers no fee for them (`offerTransfer`) and does not take them in (`transferIn` refuses). */
+  outOfContract: boolean;
   /** What the player's Guild would pay to take them in (`transferFee`); `null` with no player's Guild. */
   fee: number | null;
+  /** The first wage the player's Guild would pay at each Contract length offered (`contractWage`, DL-315); none on the player's own Roster. */
+  terms: ContractTerm[];
 }
 
 export interface GuildPageView {
@@ -490,7 +502,10 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
       age: row.age,
       morale: row.morale,
       background: row.background,
+      contract: row.contract,
+      outOfContract: outOfContract(world.heroes[row.id] as Hero, world.turn),
       fee: row.transferFee,
+      terms: row.transferFee === null ? [] : contractTerms(reading, world.heroes[row.id] as Hero),
     })),
     hall,
     guildmaster: guildmasterView(document, guildId),

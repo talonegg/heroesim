@@ -10,6 +10,7 @@ import {
   percent,
   reportPath,
   reportsDir,
+  shares,
   upkeepsWords,
   whole,
   writeReport,
@@ -47,6 +48,22 @@ describe('numbers', () => {
     expect(percent(1234, 1000)).toBe('123.4%');
     expect(percent(0, 7)).toBe('0.0%');
     expect(percent(5, 0)).toBe('—');
+  });
+
+  // DL-321 (DL-305's note): the shares of one whole are rounded by largest remainder, so that they sum to it.
+  test('shares round by largest remainder to one place and sum to 100.0%, where rounding each alone misses it', () => {
+    // Each alone is 33.3%, 99.9% in all.
+    expect(shares([1, 1, 1])).toEqual(['33.4%', '33.3%', '33.3%']);
+    // 48.077, 9.615, 3.846, 19.231, 0, 9.615, 9.615 round alone to 99.9%; the two largest remainders take the tenths.
+    expect(shares([1500, 300, 120, 600, 0, 300, 300])).toEqual(['48.1%', '9.6%', '3.9%', '19.2%', '0.0%', '9.6%', '9.6%']);
+    // Each alone is 66.7% and 33.3%, 100.0% already: nothing moves.
+    expect(shares([2, 1])).toEqual(['66.7%', '33.3%']);
+    // Each alone is 16.7%, 100.2% in all: four take the tenth up, two do not.
+    expect(shares([1, 1, 1, 1, 1, 1])).toEqual(['16.7%', '16.7%', '16.7%', '16.7%', '16.6%', '16.6%']);
+    // 8.333, 8.333, 83.333: equal remainders, the earlier first, though a float's last bits make the largest part's look larger.
+    expect(shares([1, 1, 10])).toEqual(['8.4%', '8.3%', '83.3%']);
+    // A whole of nothing has no shares.
+    expect(shares([0, 0])).toEqual(['—', '—']);
   });
 });
 

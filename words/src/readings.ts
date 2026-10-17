@@ -26,6 +26,7 @@ import {
   judgedHintBands,
   moraleBand,
   moraleBandNames,
+  outOfContract,
   partyPool,
   playerGuild,
   potentialHint,
@@ -37,6 +38,7 @@ import {
   skillsThatHelp,
   statBreakdown,
   transferFee,
+  underOffer,
   unattachedHeroes,
   type BestParty,
   type BestParties,
@@ -60,6 +62,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { fatigueBandNames, gearSlotKeys, type ClassKey, type FatigueBand, type ContentSet, type ItemDefinitionKey, type Sex, type StatKey } from '@heroesim/engine/content';
+import { contractWords } from './contracts.js';
 import { modifierWords, traitEffectWords } from './effects.js';
 import { capitalised, listed, nameIn, rowOf } from './names.js';
 import { encounterReadings, shownPercent, type EncounterReading } from './query.js';
@@ -145,6 +148,8 @@ export interface HeroRow {
   /** Whether they are their Guild's Captain (DL-287); never for an Unattached Hero. */
   captain: boolean;
   background: string;
+  /** Their Contract (`contractWords`): the Days left, Out of Contract, and Under Offer; empty with none (DL-323). */
+  contract: string;
 }
 
 function heroRow({ world, content, calendar, deps }: PlayerReading, hero: Hero): HeroRow {
@@ -163,6 +168,7 @@ function heroRow({ world, content, calendar, deps }: PlayerReading, hero: Hero):
     fatigueBand: fatigueBand(hero.fatigue, deps.config),
     captain: hero.guildId !== null && rowOf(world.guilds, hero.guildId)?.captainId === hero.id,
     background: nameIn(content.backgrounds, hero.backgroundKey),
+    contract: contractWords(hero, world.turn, underOffer(world, hero)),
   };
 }
 
@@ -179,7 +185,7 @@ export function rosterReading(reading: PlayerReading, guild: Guild): RosterRowRe
   return guild.rosterIds.flatMap((id) => {
     const hero = rowOf(world.heroes, id);
     if (hero === undefined) return [];
-    return [{ ...heroRow(reading, hero), transferFee: theirs ? transferFee(hero, guildmaster, deps) : null }];
+    return [{ ...heroRow(reading, hero), transferFee: theirs ? transferFee(hero, guildmaster, world.turn, deps) : null }];
   });
 }
 
@@ -260,6 +266,8 @@ export interface HeroReading extends HeroRow {
   texts: { label: string; words: string }[];
   /** On another Guild's Roster: what the player's Guild would pay to take them (`transferFee`); `null` otherwise. */
   transferFee: number | null;
+  /** Whether they are Out of Contract (`outOfContract`): the fee is then said "No fee", as the Guild page's cell says it (DL-326). */
+  outOfContract: boolean;
   /** In the Unattached pool, with a player's Guild: the signing fee it would pay and whether they would sign; `null` otherwise. */
   signing: { fee: number; signs: Signs } | null;
   partyId: PartyId | null;
@@ -293,7 +301,8 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
     injury: hero.injury === null ? null : { name: nameIn(content.injuries, hero.injury.typeKey), healsOnTurn: hero.injury.healsOnTurn },
     traits: heroTraits(content, hero),
     texts: heroAttributes.flatMap((attribute) => (hero[attribute] === '' ? [] : [{ label: descriptiveAttributeLabels[attribute], words: hero[attribute] }])),
-    transferFee: theirs ? transferFee(hero, guildmaster, deps) : null,
+    transferFee: theirs ? transferFee(hero, guildmaster, world.turn, deps) : null,
+    outOfContract: outOfContract(hero, world.turn),
     signing: signs === null ? null : { fee: signingFee(hero, deps, guildmaster), signs },
     partyId: hero.partyId,
     died: hero.diedOnTurn,

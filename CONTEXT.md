@@ -40,6 +40,24 @@ The set of Heroes a Guild currently employs. No Guild's Roster is capped: it gro
 Guild's finances support (DL-185).
 _Avoid_: Team, Squad, Stable
 
+**Contract**:
+A Hero's term with their Guild: a wage charged every 10 Days, set at signing from the Hero's Level
+and Stats and fixed for the term, and a length of 1, 2 or 3 years that the signer chooses, a longer
+one cheaper a year (DL-315). A Hero on a Roster holds one; a Hero on no Roster holds none. A Death, a
+Retirement, a Transfer or their Guild's fold ends it. The Guild may renew it at any time the Hero is
+home, replacing the term at the rule's price with no fee, or release the Hero for most of the wages
+left; once its end Day passes, the Hero is Out of Contract (DL-294 item 6 and its note of
+2026-10-12, DL-316, DL-317; renewed and released from the Hero's page and the CLI, DL-323). Not the module contract
+(ADR-0005, `engine/src/modules.ts`), the interface a Module keeps, which is no term and stays lower
+case.
+_Avoid_: Deal, Agreement, Lease
+
+**Out of Contract**:
+A Hero whose Contract has ended: still on their Guild's Roster and playing, at a wage repriced at
+expiry with a premium over the one-year rate (DL-311 item 1, DL-316), and open to a free Offer that
+their Guild can answer only by renewing (DL-294 item 6, DL-319).
+_Avoid_: Expired, Lapsed (of the Hero; a Contract, a Quest or an Offer expires)
+
 **Party**:
 The Heroes a Guild assigns to one Quest, existing for that Quest's duration: no fewer than its
 Quest's least Party, two Heroes or more, and no most; nothing caps the Parties a Guild has out
@@ -90,7 +108,7 @@ _Avoid_: AI, Personality, Strategy
 What makes a Guild's choices: the player for the player's Guild, a Disposition for a Rival. It
 is the only difference between Guilds (ADR-0002). No rule asks which controller a Guild has,
 save the accepted exceptions ADR-0002 lists: the game ends when the player's Guild ends, the
-Transfer Generator never takes from it, its controller acts first on the Board, and Random
+Transfer Generator never takes a Hero under Contract from it, its controller acts first on the Board, and Random
 Events befall it alone (DL-82).
 _Avoid_: AI, Brain, Owner
 
@@ -357,7 +375,7 @@ _Avoid_: Bond, Link, Connection
 **Quest**:
 A piece of work offered by a Patron and undertaken by a Party, whose outcome is determined by
 the Quest Engine.
-_Avoid_: Mission, Commission, Job, Contract, Task
+_Avoid_: Mission, Commission, Job, Task
 
 **Quest template**:
 A content row a Quest is drawn from: its Spheres, Skills, requirements and least Party, the Tiers it
@@ -678,7 +696,7 @@ _Avoid_: Skip, Auto-play, Simulate
 **Fast-forward stop**:
 A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
-and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
+a Contract of its Heroes ending (DL-316) and a module asking; others only when the caller names them: a Quest its rested Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (`StopReason`, DL-33, DL-85,
 DL-101). Both staffing stops read its rested Heroes, the free Heroes its rest band does not keep home (DL-286). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
@@ -765,14 +783,17 @@ The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, re
 History; a part of the Guild's view (DL-111, DL-116). Each change stands on a line of income (Quest
 rewards, Item sales and Transfers out) or of expenses (wages, the Hall's upkeep, the Improvements'
 upkeep, Item purchases, Improvements, signing fees and Transfers in), or on Other, a module's; the
-Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302).
+Hall's charge splits between the Hall's upkeep and the Improvements' (DL-294, DL-302). A release's
+payout is an expense line of its own, Release payouts (DL-311 item 6, DL-317).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
 The recurring cost of keeping a Guild: the Roster's wages, charged every 10 Days, and the Hall's
-upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). One Upkeep, as a
-measure, is a month of them: three charges of wages and one of the Hall's, and every reading of the
-Guild's reserves in Upkeeps counts so (DL-300).
+upkeep, charged every 30, two charges for what is there that night (DL-294, DL-298). Each wage is
+the one its Hero's Contract sets (DL-315), repriced Out of Contract and still charged (DL-294 item 6,
+DL-311 item 1, DL-316).
+One Upkeep, as a measure, is a month of them: three charges of wages and one of the Hall's, and
+every reading of the Guild's reserves in Upkeeps counts so (DL-300).
 _Avoid_: Wages (alone), Salary, Running costs
 
 **Hall**:
@@ -799,7 +820,8 @@ A non-Hero person hired for a wage within Upkeep, whose Stat scales what a Facil
 _Avoid_: Staff, Employee, NPC, Hireling
 
 **Market**:
-Where the Guild buys and sells Items. An Item sells for less than it costs to buy.
+Where the Guild buys and sells Items. An Item sells for less than it costs to buy; a loot-only Item,
+which has no price to buy at, sells at its value when its Guild folds (DL-294 item 5, DL-301).
 _Avoid_: Shop, Store, Exchange, Bazaar
 
 **Market Engine**:
@@ -846,21 +868,35 @@ _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:
 A Hero on no Roster, in a pool the Heroes Generator refreshes and every Guild recruits from
-for a signing fee.
+for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-294 item 6, DL-317),
+and stays a Year unless signed, longer than the Heroes the pool brings (DL-325).
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
-Moving a Hero between Guilds for a fee, in either direction. Transferring out a Hero costs the
-Morale of each Hero who stays and held them in high Regard (R28, pre-M0 review D5); by DL-82 it
-also lowers those Heroes' Regard for the Guildmaster, and by DL-85 Heroes content or close with
-their Roster refuse to leave (both to be built).
+Moving a Hero between Guilds for a fee, in either direction: the fee is the wages left on the Hero's
+Contract times a factor, at the buyer's Negotiation (DL-294 item 6, DL-318). A Hero Out of Contract
+moves only by a free Offer, for no fee: taken when it ends, or sent at once to the Guild that made it
+(DL-319, DL-325).
+Transferring out a Hero costs the Morale of each Hero who stays and held them in high Regard (R28,
+pre-M0 review D5); by DL-82 it also lowers those Heroes' Regard for the Guildmaster, and by DL-85
+Heroes content or close with their Roster refuse to leave (both to be built).
 _Avoid_: Sell, Buy, Trade, Signing, Poach (until poaching is a distinct thing)
 
 **Transfer Offer**:
-A pending bid for a Hero, held until accepted, declined or expired. A Rival answers a bid at
-once and the player's Guild through Transfer Offers: a difference of controller, not a rule
-about the player's Guild (DL-57, DL-85). On the page, Offer alone is short for it (DL-125).
+A pending bid for a Hero, held until accepted, declined, expired, renewed or taken. A priced Offer
+costs the Transfer fee; a free one, at no fee, is made for a Hero Out of Contract on any Guild's
+Roster and stands for `transferOfferDays` Days, and the Hero is taken when it ends unless their
+Guild has renewed them; it cannot be declined (DL-294 item 6, DL-319). A Rival answers a bid at
+once, a free one by renewing a Hero at or above its Roster's median Level or with its Roster at its
+floor, and the player's Guild through Transfer Offers: a difference of controller, not a rule about
+the player's Guild (DL-57, DL-85, DL-319). On the page, Offer alone is short for it (DL-125).
 _Avoid_: Bid, Request
+
+**Under Offer**:
+A Hero a Transfer Offer stands for, free or priced, and so kept from every Party until the Offer
+ends (DL-311 item 4, DL-319). A Hero away on a Quest may be the subject of one; they are Under
+Offer from their return, the Offer's Days counted from then (DL-319).
+_Avoid_: Reserved, Pending, Held (of the Hero; an Offer is pending, an Item held)
 
 **Transfer lock**:
 The Days after a Transfer during which that Hero cannot be transferred again: 90, the same for
@@ -868,8 +904,9 @@ every Guild (DL-60, DL-69; confirmed by DL-85).
 _Avoid_: Cooldown, Embargo
 
 **Transfer Generator**:
-The weekly night rule by which Rivals bid for one another's Heroes. It never takes from the
-player's Guild, an accepted exception to ADR-0002 (listed there, DL-59). Its own bids keep both Rosters
+The weekly night rule by which Rivals bid for Heroes of the other Guilds. It bids for a Hero Out of
+Contract on any Roster, the player's included, by a free Offer, and never for a Hero under Contract
+of the player's Guild, an accepted exception to ADR-0002 (listed there, DL-59, DL-319). Its own bids keep both Rosters
 within the range a Rival is generated with: a bound on the Generator alone, not a cap on any Roster,
 kept for now only to constrain testing load and to be removed (DL-185, in the backlog).
 _Avoid_: Transfer window, Trade market

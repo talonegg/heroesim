@@ -23,7 +23,7 @@ const playTo = playWith(advance);
 // night.
 
 /**
- * INPUTS 5.2 and 5.3's curve and growth, and M2's wage, pinned: these tests are written against
+ * INPUTS 5.2 and 5.3's curve and growth, and a wage per Level, pinned: these tests are written against
  * them. No Rivals, whose Parties would blur what a test watches (DL-30 item 11).
  */
 function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
@@ -158,17 +158,19 @@ describe('levelUps', () => {
     expect(ofType(home.events, 'hero.levelled')).toEqual([]);
   });
 
-  test("the wages rise by wagePerLevel for each Level gained (M2's wage now has an effect)", () => {
+  test('a Level gained leaves the wages as the Contracts set them at signing (DL-294 item 6)', () => {
     const deps = soloDeps();
     const document = eve('upkeep', deps);
     const [heroId] = player(document.world).rosterIds as [HeroId];
     hero(document.world, heroId).xp = xpForLevel(4, deps.config);
-    const wagesBefore = wages(player(document.world), document.world, deps.config);
+    const wagesBefore = wages(player(document.world), document.world);
+    const contract = structuredClone(hero(document.world, heroId).contract);
 
     const { document: after } = playTo(document, nightOf(0), deps);
 
     expect(hero(after.world, heroId).level).toBe(4);
-    expect(wages(player(after.world), after.world, deps.config) - wagesBefore).toBe(3 * 70);
+    expect(hero(after.world, heroId).contract).toEqual(contract);
+    expect(wages(player(after.world), after.world)).toBe(wagesBefore);
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {

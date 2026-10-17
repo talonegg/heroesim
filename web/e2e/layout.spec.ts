@@ -573,7 +573,8 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     expect(feeHeading.x, `a Rival's Roster, ${scheme}: the Transfer fee's heading clear of the name cell`).toBeGreaterThanOrEqual(nameHeading.x + nameHeading.width - 1);
     // On a phone a fee stacks, its Silver under its Gold, so that the Fee column is only one coin part wide
     // whatever the fonts' widths (DL-310); wider, it keeps one line.
-    const fee = rival.getByTestId('fee').filter({ has: page.locator('.coin--silver') }).first();
+    // A fee from the wages left can be under a Gold (DL-318), so the one drawn here has both.
+    const fee = rival.getByTestId('fee').filter({ has: page.locator('.coin--gold') }).filter({ has: page.locator('.coin--silver') }).first();
     const gold = await fee.locator('.coin--gold').boundingBox();
     const silver = await fee.locator('.coin--silver').boundingBox();
     if (gold === null || silver === null) throw new Error(`a Rival's Roster, ${scheme}: no fee in Gold and Silver drawn`);
@@ -1028,7 +1029,7 @@ test("the Roster's Table, its Columns panel and its tabs, in the light and the d
         // The Columns panel open, a group hidden and every column shown again.
         await roster.getByRole('button', { name: 'Columns', exact: true }).click();
         const panel = roster.getByRole('group', { name: 'Columns' });
-        await expect(panel.getByRole('checkbox')).toHaveCount(28);
+        await expect(panel.getByRole('checkbox')).toHaveCount(29);
         await expectNoHorizontalOverflow(page, `the Columns panel, ${at}`);
         await expectTargets(page, `the Columns panel, ${at}`);
         await page.screenshot({ path: test.info().outputPath(`roster-table-${scheme}-${width}.png`), fullPage: true });

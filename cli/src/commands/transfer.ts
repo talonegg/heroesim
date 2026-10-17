@@ -1,14 +1,15 @@
-// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `accept --offer <id>`,
-// `decline --offer <id>` and `show offers` (M6-S2, R28, DL-57): the player's Guild sends a Hero to
-// another Guild, takes one from another Guild's Roster, or answers a Rival's Transfer Offer. What the
-// commands do to an open save and what they print; `main.ts` opens the save, and writes it back only
-// when the command succeeds.
+// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `transfer --hero <id> --offer`
+// (DL-326), `accept --offer <id>`, `decline --offer <id>` and `show offers` (M6-S2, R28, DL-57): the
+// player's Guild sends a Hero to another Guild, takes one from another Guild's Roster, makes an Offer
+// for one, or answers a Rival's Transfer Offer. What the commands do to an open save and what they
+// print; `main.ts` opens the save, and writes it back only when the command succeeds.
 //
 // The CLI holds no rule: the engine's Transfer actions decide, a refusal is their typed rejection in
 // the refusals' words (ADR-0003, DL-240), and a fee is the engine's `transferFee`.
 
 import {
   applyAction,
+  freeOffer,
   offersTo,
   playerGuild,
   type EngineDeps,
@@ -35,7 +36,7 @@ function guildCalled(world: World, guildId: string): string {
 }
 
 /** The lines a successful Transfer prints: each event in the CLI's words, then the Guild's Wealth and Roster. */
-function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
+export function done(document: WorldDocument, events: readonly EngineEvent[], guildId: Guild['id'], deps: EngineDeps): string[] {
   const guild = rowOf(document.world.guilds, guildId);
   return [
     ...events.map((event) => narrateLine(event, deps.content, deps.config)),
@@ -46,7 +47,9 @@ function done(document: WorldDocument, events: readonly EngineEvent[], guildId: 
 /**
  * `transfer --hero <id> --to <guildId>` sends a Hero of the player's Guild to another Guild, which
  * must consent and pays the fee (`transferOut`); `transfer --hero <id> --in` takes a Hero from another
- * Guild's Roster, which must consent, for the fee (`transferIn`).
+ * Guild's Roster, which must consent, for the fee (`transferIn`); `transfer --hero <id> --offer
+ * --years <y>` makes the player's Guild's Offer for a Hero (`offerTransfer`, as the Hero page's Offer
+ * does): free for a Hero Out of Contract, priced for a Hero of a Guild that answers Offers (DL-326).
  */
 export function transferHero(
   command: Extract<Command, { name: 'transfer' }>,
@@ -63,7 +66,8 @@ export function transferHero(
     if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
     return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
   }
-  const result = applyAction(document, { kind: 'transferIn', guildId: player.id, heroId: command.hero }, deps);
+  const kind = 'offer' in command ? 'offerTransfer' : 'transferIn';
+  const result = applyAction(document, { kind, guildId: player.id, heroId: command.hero, years: command.years }, deps);
   if (!result.ok) return { ok: false, problem: refusalLine(result.rejection, setting) };
   return { ok: true, document: result.document, lines: done(result.document, result.events, player.id, deps) };
 }
@@ -96,6 +100,9 @@ export function renderOffers(document: WorldDocument, deps: EngineDeps): string[
   if (offers.length === 0) return [`No Transfer Offer stands for ${player.name}'s Heroes.`];
   return [
     `Transfer Offers for ${player.name}'s Heroes: ${offers.length}. Answer with accept --offer <id> or decline --offer <id>.`,
+    ...(offers.some((offer) => freeOffer(world, offer))
+      ? ['A free Offer, for a Hero Out of Contract, cannot be declined: answer it with renew --hero <id> --years <years>, or the Hero goes when it expires.']
+      : []),
     '',
     ...table(
       [{ heading: 'Offer' }, { heading: 'From' }, { heading: 'For' }, { heading: 'Fee', align: 'right' }, { heading: 'Until' }],
@@ -103,7 +110,7 @@ export function renderOffers(document: WorldDocument, deps: EngineDeps): string[
         offer.id,
         guildCalled(world, offer.toGuildId),
         heroCalled(world, offer.heroId),
-        coinLetters(offer.fee),
+        freeOffer(world, offer) ? 'Free' : coinLetters(offer.fee),
         renderTime(offer.expiresOnTurn, deps.config),
       ]),
     ),

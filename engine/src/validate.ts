@@ -47,6 +47,7 @@ import { questCauses } from './events.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
 import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
+import { dayOf } from './time.js';
 import { excludedPair } from './traits.js';
 import { writeOnce } from './world-copy.js';
 
@@ -62,6 +63,7 @@ export const refusalChecks = [
   'hero-on-two-rosters',
   'roster-guild-mismatch',
   'unattached-mismatch',
+  'contract-mismatch',
   'hero-in-two-parties',
   'party-member-mismatch',
   'guildmaster-guild-mismatch',
@@ -191,6 +193,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   heroOnTwoRosters,
   rosterGuildMismatch,
   unattachedMismatch,
+  contractMismatch,
   heroInTwoParties,
   partyMemberMismatch,
   guildmasterGuildMismatch,
@@ -512,6 +515,7 @@ const heroFields: Shape<Hero> = {
   appearance: 'string',
   biography: 'string',
   regard: 'map',
+  contract: 'map-or-null',
 };
 
 const patronFields: Shape<Patron> = { id: 'string', name: 'string', sex: 'sex-or-null', sphereKey: 'string', regard: 'map' };
@@ -554,6 +558,7 @@ const offerFields: Shape<TransferOffer> = {
   toGuildId: 'string',
   heroId: 'string',
   fee: 'integer',
+  years: 'integer-from-one',
   offeredOnTurn: 'integer',
   expiresOnTurn: 'integer',
 };
@@ -925,6 +930,40 @@ function unattachedMismatch({ world }: WorldDocument): ValidationFailure[] {
   return failures;
 }
 
+/**
+ * A Hero on a Roster holds a Contract, and no other Hero does (DL-294 item 6, DL-315): its wage whole
+ * Silver from 0, signed on a Turn from 0 to the world's, a whole number of years from 1, and its end Day
+ * after its signing Day. No later bound: a founding Contract ends part-way through its term (Q-E), and a
+ * rebase may change the length of a year under Contracts already signed.
+ */
+function contractMismatch({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  const listed = new Set<string>(Object.values(world.guilds).flatMap((guild) => guild.rosterIds));
+  for (const [heroId, hero] of Object.entries(world.heroes)) {
+    // A Hero a Roster lists in play holds one; one no Roster lists, with no Guild or out of play, holds
+    // none. A Roster and a `guildId` that disagree, or a Hero out of play on a Roster, are the other
+    // checks' to say (`roster-guild-mismatch`, `departed-hero-in-play`).
+    const inPlay = hero.diedOnTurn === null && hero.retiredOnTurn === null;
+    const onRoster = listed.has(heroId) && inPlay;
+    const offRoster = !listed.has(heroId) && (hero.guildId === null || !inPlay);
+    const { contract } = hero;
+    let detail: string | undefined;
+    if (offRoster && contract !== null) detail = `${heroId} is on no Roster but holds a Contract`;
+    else if (onRoster && contract === null) detail = `${heroId} is on a Roster but holds no Contract`;
+    else if (onRoster && contract !== null) {
+      const { wage, signedOnTurn, years, endDay } = contract;
+      const sound =
+        isInteger(wage) && wage >= 0 && isInteger(signedOnTurn) && signedOnTurn >= 0 && signedOnTurn <= world.turn &&
+        isInteger(years) && years >= 1 && isInteger(endDay);
+      const signedDay = sound ? dayOf(signedOnTurn) : 0;
+      if (!sound) detail = `${heroId}'s Contract is not a whole wage from 0, a Turn signed from 0 to the world's, whole years from 1 and a whole end Day`;
+      else if (endDay <= signedDay) detail = `${heroId}'s Contract ends on Day ${endDay}, not after its signing Day ${signedDay}`;
+    }
+    if (detail !== undefined) failures.push({ check: 'contract-mismatch', id: heroId, detail });
+  }
+  return failures;
+}
+
 /** No Hero is in two Parties, nor twice in one. */
 function heroInTwoParties({ world }: WorldDocument): ValidationFailure[] {
   const twice = listedTwice(Object.entries(world.parties).map(([key, party]) => [key, party.heroIds]));
@@ -1204,7 +1243,11 @@ function offerHeroNotOnRoster({ world }: WorldDocument): ValidationFailure[] {
   return failures;
 }
 
-/** No offer is past its expiry: it is live through `expiresOnTurn` and removed that night. */
+/**
+ * No offer is past its expiry: it is live through `expiresOnTurn` and removed that night, its Hero
+ * taken if it is free. For a Hero away when it was made, `expiresOnTurn` counts its Days from their
+ * Party's return, so it may stand longer than `transferOfferDays` from `offeredOnTurn` (Q-H, DL-319).
+ */
 function offerExpired({ world }: WorldDocument): ValidationFailure[] {
   return Object.entries(world.offers)
     .filter(([, offer]) => offer.expiresOnTurn < world.turn)
@@ -1388,11 +1431,14 @@ const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
   'guild.hall-upkeep-paid': ['amount', 'wealthAfter', 'base', 'heroes'],
   'guild.below-floor': ['wealth', 'floor'],
   'guild.floor-recovered': ['wealth', 'floor'],
-  'hero.recruited': ['fee'],
+  'hero.recruited': ['fee', 'wage'],
+  'hero.contract-renewed': ['wage'],
+  'hero.contract-expired': ['wage'],
+  'hero.released': ['payout'],
   'guild.improved': ['cost'],
   'item.bought': ['unitPrice', 'cost'],
   'item.sold': ['unitPrice', 'proceeds'],
-  'hero.transferred': ['fee'],
+  'hero.transferred': ['fee', 'wage'],
   'guild.transfer-offered': ['fee'],
   'guild.transfer-offer-declined': ['fee'],
   'guild.transfer-offer-expired': ['fee'],
@@ -1400,8 +1446,12 @@ const moneyFields: Readonly<Partial<Record<EventType, readonly string[]>>> = {
   'quest.resolved': ['wealthDelta'],
 };
 
-/** The maps of amounts an entry carries, each value whole Silver: the Hall's upkeep, each Facility's charge (DL-298). */
+/**
+ * The maps of amounts an entry carries, each value whole Silver: the Hall's upkeep, each Facility's charge
+ * (DL-298); the wages, each Hero's Contract wage (DL-315).
+ */
 const moneyMaps: Readonly<Partial<Record<EventType, readonly string[]>>> = {
+  'guild.wages-paid': ['wages'],
   'guild.hall-upkeep-paid': ['facilities'],
 };
 

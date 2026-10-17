@@ -21,13 +21,16 @@ import {
   compareByCodeUnit,
   consumablePurchase,
   consumablesToCarry,
+  debtRelease,
   fameRefusal,
+  freeOffer,
   gearChoices,
   gearPurchase,
   offeredQuests,
   offersTo,
   partyPool,
   playerGuild,
+  renewsOnOffer,
   surplusChoices,
   upkeep,
   type BestParties,
@@ -70,6 +73,13 @@ export interface PolicyConfig {
    * Upkeeps (DL-62, DL-300), so that a Guild earning little over its Upkeep keeps its margin for its wages.
    */
   consumableReserveUpkeeps: number;
+  /** The length, in years, of the Contract it signs each Hero it recruits for, or renews (Q7c, DL-294 item 6, DL-315). */
+  contractYears: number;
+  /**
+   * The Roster at or below which it renews every Hero Out of Contract a free Offer comes for, whatever
+   * their Level: a Rival's `rivalRosterMin`, as the policy's own (Q15, DL-319).
+   */
+  rosterFloor: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
@@ -79,15 +89,23 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
   buyWealthMultiple: 3,
   consumableStock: 2,
   consumableReserveUpkeeps: 20 / 3,
+  contractYears: 2,
+  rosterFloor: 4,
 });
 
 /**
  * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57,
- * DL-287, DL-301): decline, name a Captain, equip, dispatch, sell its surplus, then one purchase.
+ * DL-287, DL-301, DL-319, DL-320): answer its Offers, name a Captain, equip, dispatch, sell its surplus,
+ * release in debt, then one purchase.
  *
- * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
- *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
- *   seen). Declining moves nothing else, so the choices after it are made on the same document.
+ * - **Answer the Transfer Offers** made for its Heroes, in offer id order, first. It **declines every
+ *   priced Offer** (M6 risk table: "the policy declines all offers in M6"; #20's rest). A **free
+ *   Offer**, for a Hero Out of Contract, it answers as a Rival does (Q15, the engine's
+ *   `renewsOnOffer`): it renews the Hero for `contractYears` once they are home, when their Level is at
+ *   or above its Roster's median or its Roster is at `rosterFloor` or below, and otherwise lets the
+ *   Offer run out, so the Hero is taken. It renews no one an Offer has not come for. Answering moves no
+ *   Wealth; the Parties below are chosen from the Heroes its answers leave free (`partyPool` over the
+ *   Offers that still stand), so every dispatch is one the rules accept after them.
  * - **Name a Captain** to an empty post, as a Rival does: its Hero highest in the captaincy Stat, the
  *   first in Roster order among those tied (the engine's `captainChoice`, DL-287), so that a harness
  *   game meets the Captain's effects. It never changes a Captain it has. Naming moves no Wealth and
@@ -111,6 +129,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   Rival sells, DL-301): the gear in its holding beyond what its Heroes with the slot empty would put
  *   on, consumables above `consumableStock` of each, what its Parties carry counted, and Loot-only
  *   Items; in debt, its whole holding; never what the equips and dispatches above take.
+ * - **Release a Hero Out of Contract** in debt, once its holding is sold, as a Rival does (the engine's
+ *   `debtRelease`, DL-320, DL-322): one a Turn, the lowest Level first, free, never one it sends or renews that
+ *   Turn, nor one Under Offer. It has no debt sale beyond it, since it never transfers.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the next grade of the healing Facility, the first in content's order with the
  *     `healFactor` effect (the infirmary in the core), when Wealth is above `buildWealthMultiple` times
@@ -123,14 +144,15 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   - **Recruit** when the Roster is below `rosterLimit` and Wealth is above
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
- *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
+ *     M3-S5), if Wealth covers the fee, on a Contract of `contractYears`. A Hero who would refuse the
+ *     Guild's Fame is passed over.
  *   - **Buy consumables** toward `consumableStock` of each (DL-62; the engine's `consumablePurchase`,
  *     DL-288, as a Rival buys its heal Items): of the consumables the Market
  *     has for sale, the one the Guild has fewest of, lowest key among equals, as many as it lacks
  *     and the Market has, when Wealth is above `buyWealthMultiple` times their cost and would stay
  *     above `consumableReserveUpkeeps` Upkeeps after paying it.
  * - **Never transfers** a Hero in or out itself (M6-S2): the harness plays the Guild as INPUTS 4.14
- *   describes it, and Rivals' offers are declined above.
+ *   describes it, and Rivals' Offers are answered above.
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
  * dispatch moves no Wealth and a purchase sends no one, a sale only adds Wealth and takes nothing
@@ -148,14 +170,11 @@ export function automaticPolicy(
   if (world.ended !== null || guild === undefined || guild.foldedOnTurn !== null) return [];
 
   const captain = captainChoice(world, guild, deps);
-  const actions: GuildAction[] = [
-    ...offersTo(world, guild.id).map((offer): GuildAction => ({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id })),
-    ...(captain === null ? [] : [captain]),
-    ...gearChoices(world, guild, deps),
-  ];
+  const answers = offerAnswers(world, guild, policy);
+  const actions: GuildAction[] = [...answers.actions, ...(captain === null ? [] : [captain]), ...gearChoices(world, guild, deps)];
   // The world does not change in this call, so one Best Party module answers every question (DL-237).
   const best = bestParties(world, guild, deps);
-  let available = partyPool(world, guild, deps);
+  let available = partyPool({ heroes: world.heroes, offers: answers.standing }, guild, deps);
   // A Quest of a Tier whose Fame minimum is above the Guild's Fame is passed over: dispatch would refuse it (DL-264).
   let choices = staffed(best, offeredQuests(world).filter((quest) => fameRefusal(guild, quest, deps) === null), available);
   const carry = consumablesToCarry(world, guild, everyEffect, deps);
@@ -173,6 +192,11 @@ export function automaticPolicy(
   // DL-301: sell surplus outside the afternoon's one purchase
   const surplus = surplusChoices(world, guild, keeping(policy), deps, actions);
   actions.push(...surplus);
+  // DL-320: in debt, the Holding sold, one Hero Out of Contract is released, free, as a Rival does; not one sent or renewed above,
+  // nor one Under Offer once the answers above are applied (DL-322).
+  const committed = new Set<HeroId>(actions.flatMap((action) => (action.kind === 'dispatch' ? action.heroIds : action.kind === 'renew' ? [action.heroId] : [])));
+  const release = surplus.length > 0 ? null : debtRelease({ heroes: world.heroes, offers: answers.standing, turn: world.turn }, guild, committed);
+  if (release !== null) actions.push(release);
 
   const purchase =
     healingBuild(guild, deps, policy) ??
@@ -184,6 +208,34 @@ export function automaticPolicy(
 }
 
 /**
+ * The policy's answers to the Offers for its Heroes, in offer id order (DL-57, DL-319): a decline of
+ * each priced Offer, and a renewal, once a Hero, of a Hero at home a free Offer stands for whom
+ * `renewsOnOffer` keeps at its `rosterFloor`; and the Offers that stand once they are applied, the free
+ * Offers it lets run out.
+ */
+function offerAnswers(world: World, guild: Guild, policy: Readonly<PolicyConfig>): { actions: GuildAction[]; standing: World['offers'] } {
+  const actions: GuildAction[] = [];
+  const answered = new Set<string>();
+  const renewed = new Set<HeroId>();
+  for (const offer of offersTo(world, guild.id)) {
+    if (!freeOffer(world, offer)) {
+      actions.push({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id });
+      answered.add(offer.id);
+      continue;
+    }
+    const hero = world.heroes[offer.heroId] as Hero;
+    if (!renewed.has(hero.id) && hero.partyId === null && renewsOnOffer(world, guild, hero, policy.rosterFloor)) {
+      actions.push({ kind: 'renew', guildId: guild.id, heroId: hero.id, years: policy.contractYears });
+      renewed.add(hero.id);
+    }
+    // A renewal withdraws every free Offer for the Hero.
+    if (renewed.has(hero.id)) answered.add(offer.id);
+  }
+  const standing = Object.fromEntries(Object.entries(world.offers).filter(([offerId]) => !answered.has(offerId))) as World['offers'];
+  return { actions, standing };
+}
+
+/**
  * A recruit when the Roster is below `rosterLimit` and Wealth above `recruitWealthMultiple` Upkeeps:
  * the cheapest Hero in the pool who would sign (`cheapestUnattached`), if Wealth covers the fee;
  * `null` otherwise.
@@ -192,7 +244,9 @@ function recruitment(world: World, guild: Guild, deps: EngineDeps, policy: Reado
   if (guild.rosterIds.length >= policy.rosterLimit) return null;
   if (guild.wealth <= policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)) return null;
   const cheapest = cheapestUnattached(world, deps, guild);
-  return cheapest !== null && cheapest.fee <= guild.wealth ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id } : null;
+  return cheapest !== null && cheapest.fee <= guild.wealth
+    ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id, years: policy.contractYears }
+    : null;
 }
 
 /** Every consumable's effect: the policy keeps every consumable, a Rival its heal Items alone (DL-288). */

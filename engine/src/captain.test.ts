@@ -81,17 +81,19 @@ describe("a change of Captain's lock", () => {
 });
 
 describe('a Hero leaving the Roster', () => {
-  test('leaves it, and empties the post when they were the Captain, keeping the lock as it was', () => {
+  test('leaves it, its Contract ended, and empties the post when they were the Captain, keeping the lock as it was', () => {
     const { guild, heroes } = scene();
     const [captain, other] = heroes as [Hero, Hero];
     guild.captainId = captain.id;
     guild.captainChangedOnTurn = 3;
 
-    leaveRoster(guild, other.id);
+    expect(other.contract).not.toBeNull();
+    leaveRoster(guild, other);
     expect(guild.rosterIds).not.toContain(other.id);
+    expect(other.contract).toBeNull();
     expect(guild.captainId).toBe(captain.id);
 
-    leaveRoster(guild, captain.id);
+    leaveRoster(guild, captain);
     expect(guild.rosterIds).not.toContain(captain.id);
     expect(guild.captainId).toBeNull();
     expect(guild.captainChangedOnTurn).toBe(3);

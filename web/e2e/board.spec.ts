@@ -1,10 +1,7 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { contentSources, isFolder, parseContent } from '@heroesim/content';
-import { createWorld, defaultConfig, isDeadly, serialise, turnsPerDay, type ContentSet, type Quest, type WorldDocument } from '@heroesim/engine';
+import { writeFileSync } from 'node:fs';
+import { createWorld, defaultConfig, isDeadly, serialise, turnsPerDay, type Quest, type WorldDocument } from '@heroesim/engine';
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
-import { expectNoHorizontalOverflow, openView, region } from './support';
+import { expectNoHorizontalOverflow, openView, region, savedContent } from './support';
 
 // The Board's card and the Party builder in the built page (DL-269), at a phone's width, a
 // tablet's and a desktop's. The card leads with the Quest's Tier, Deadly where it can kill (a mark,
@@ -16,21 +13,6 @@ import { expectNoHorizontalOverflow, openView, region } from './support';
 // written as a save and opened with "Load a save file", and each card is held to its Quest's row.
 
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-10-11T09:00:00.000Z' };
-const contentDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'content');
-
-/**
- * The saved content, as the build bundles it: each kind's one file or its folder's rows, by their path in
- * the content directory, parsed and checked (`parseContent`). The spec reads the files itself, as
- * content's Node entry is the CLI's and the harness's (eslint.config.js).
- */
-function savedContent(): ContentSet {
-  const files: Record<string, string> = {};
-  for (const source of contentSources) {
-    const names = isFolder(source) ? readdirSync(path.join(contentDir, source)).filter((name) => name.endsWith('.json')) : [''];
-    for (const name of names) files[`${source}${name}`] = readFileSync(path.join(contentDir, source, name), 'utf8');
-  }
-  return parseContent(files);
-}
 
 const content = savedContent();
 

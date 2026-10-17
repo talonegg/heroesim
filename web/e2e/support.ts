@@ -1,3 +1,8 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { contentSources, isFolder, parseContent } from '@heroesim/content';
+import type { ContentSet } from '@heroesim/engine';
 import { expect, type FrameLocator, type Locator, type Page } from '@playwright/test';
 
 // What the browser specs share (DL-67): the overflow check DL-66 left to it, and the
@@ -15,6 +20,22 @@ import { expect, type FrameLocator, type Locator, type Page } from '@playwright/
 // journey and for the fast forward that stops at its return (DL-118).
 
 type Scope = Page | FrameLocator;
+
+const contentDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'content');
+
+/**
+ * The saved content, as the build bundles it: each kind's one file or its folder's rows, by their path in
+ * the content directory, parsed and checked (`parseContent`). A spec that makes a world reads the files itself, as
+ * content's Node entry is the CLI's and the harness's (eslint.config.js).
+ */
+export function savedContent(): ContentSet {
+  const files: Record<string, string> = {};
+  for (const source of contentSources) {
+    const names = isFolder(source) ? readdirSync(path.join(contentDir, source)).filter((name) => name.endsWith('.json')) : [''];
+    for (const name of names) files[`${source}${name}`] = readFileSync(path.join(contentDir, source, name), 'utf8');
+  }
+  return parseContent(files);
+}
 
 /**
  * The page is no wider than the viewport: no horizontal scroll at 360px, 820px or 1280px (M7 §0,

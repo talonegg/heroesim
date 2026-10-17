@@ -15,6 +15,7 @@ import {
   type Guildmaster,
   type Hall,
   type Hero,
+  type HeroId,
   type Quest,
   type StatValues,
   type Turn,
@@ -58,7 +59,7 @@ export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
  * Hero Stats through `baseStat`, so a Stat content no longer defines is ignored and one the row
  * lacks reads as the content's default (data-model rule 5).
  *
- * The one place a fee is computed, so every caller pays the same price (R8): `recruit` and
+ * The one place a signing fee is computed, so every caller pays the same price (R8): `recruit` and
  * `cheapestUnattached` pass the buying Guild's Guildmaster as `buyer`, and so do the front ends
  * when they show the player a fee. With no `buyer` it is the list price, which no Guild pays.
  */
@@ -67,45 +68,50 @@ export function signingFee(
   deps: Pick<EngineDeps, 'config' | 'content'>,
   buyer?: Pick<Guildmaster, 'stats'>,
 ): number {
-  return heroFee(hero, 1, deps, buyer);
+  const { config, content } = deps;
+  const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + heroStatSum(hero, content) / config.signingFeeStatDivisor;
+  return Math.floor(list * feeFactor(buyer, content, config));
 }
 
 /**
- * What `buyer`'s Guild pays another Guild to take `hero` from its Roster (M6-S2, R28, INPUTS 7.6,
- * DL-57): the Hero's signing fee before Negotiation times `transferFeeFactor`, times the buying
- * Guildmaster's Negotiation exactly as `signingFee` applies it (DL-43), rounded down once, at the
- * end. The one core both fees share (`heroFee`), so a Transfer is priced by the rule a signing is.
+ * What `buyer`'s Guild pays another Guild to take `hero` from its Roster at `turn` (Q11, DL-294 item 6,
+ * DL-318; R28): the wages left on the Hero's Contract (`wagesLeft`) times `transferFeeFactor`, times
+ * `1 +` the premium (`transferPremium`), times the buying Guildmaster's Negotiation exactly as
+ * `signingFee` applies it (DL-43), rounded down once, at the end; 0 once the Contract has ended. The
+ * Hero's Level and Stats are in it only through the wage they signed for.
  *
- * `transferIn`, `transferOut` and a Rival's Transfer Offer pass the buying Guild's Guildmaster; with
- * no `buyer` it is the list price, which no Guild pays.
+ * `transferIn`, `transferOut` and a Rival's Transfer Offer pass the buying Guild's Guildmaster and the
+ * world's Turn; with no `buyer` it is the fee before Negotiation, which no Guild pays.
  */
 export function transferFee(
-  hero: Pick<Hero, 'level' | 'stats'>,
+  hero: Pick<Hero, 'id' | 'contract'>,
   buyer: Pick<Guildmaster, 'stats'> | undefined,
+  turn: Turn,
   deps: Pick<EngineDeps, 'config' | 'content'>,
 ): number {
-  return heroFee(hero, deps.config.transferFeeFactor, deps, buyer);
+  const { config, content } = deps;
+  return Math.floor(wagesLeft(hero, turn, config) * config.transferFeeFactor * (1 + transferPremium(hero)) * feeFactor(buyer, content, config));
 }
 
 /**
- * The one fee core (DL-43, DL-57): `signingFeeBase`, plus `signingFeePerLevel` for each Level, plus
- * the sum of the Hero's base Stats over `signingFeeStatDivisor`, times `factor` (1 for a signing,
- * `transferFeeFactor` for a Transfer), times the buyer's Negotiation (1 − `negotiation`), rounded
- * down once, at the end.
+ * The premium on a Hero's Transfer fee (Q11, DL-318): a rule for each Hero, nothing stored on them,
+ * giving 0 for now and ready for a mechanic to set it (DL-294's judgement call). `transferFee` adds it to 1.
  */
-function heroFee(
-  hero: Pick<Hero, 'level' | 'stats'>,
-  factor: number,
-  deps: Pick<EngineDeps, 'config' | 'content'>,
-  buyer: Pick<Guildmaster, 'stats'> | undefined,
-): number {
-  const { config, content } = deps;
-  let statSum = 0;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the rule is per Hero, though none reads them yet
+export function transferPremium(_hero: Pick<Hero, 'id'>): number {
+  return 0;
+}
+
+/**
+ * The sum of `hero`'s base Stats over content's Hero Stats (`baseStat`), what the fees and the wage rule
+ * read: a Stat content no longer defines is ignored, and one the row lacks reads as its default (rule 5).
+ */
+export function heroStatSum(hero: Pick<Hero, 'stats'>, content: Pick<ContentSet, 'stats'>): number {
+  let sum = 0;
   for (const stat of Object.values(content.stats)) {
-    if (stat.owner === 'hero') statSum += baseStat(hero.stats, stat);
+    if (stat.owner === 'hero') sum += baseStat(hero.stats, stat);
   }
-  const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor;
-  return Math.floor(list * factor * feeFactor(buyer, content, config));
+  return sum;
 }
 
 /** Why an Unattached Hero refuses to sign for a Guild: its Fame is short of what their Level asks. */
@@ -304,12 +310,22 @@ function livingRoster(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroe
 }
 
 /**
- * A Guild's wages each time they fall due (M2-S7, INPUTS 4.6, DL-298): `wagePerLevel` for each Level of
- * each living Hero on the Roster (`livingRoster`), whole Silver as both are. No Guildmaster Trait
- * scales them (DL-294 item 3, Q17). Computed from the Roster, never stored (data-model §3.2, rule 1).
+ * Each living Hero on the Roster (`livingRoster`) and their Contract's wage, in Roster order: what
+ * `guild.wages-paid` names (DL-298, DL-315). The wage was set at signing and is fixed for the term, so a
+ * Level gained moves nothing (DL-294 item 6). No Guildmaster Trait scales it (DL-294 item 3, Q17).
  */
-export function wages(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>, config: Pick<GameConfig, 'wagePerLevel'>): number {
-  return livingRoster(guild, world).reduce((total, hero) => total + config.wagePerLevel * hero.level, 0);
+export function wageBill(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>): Record<HeroId, number> {
+  const bill: Record<HeroId, number> = {};
+  for (const hero of livingRoster(guild, world)) bill[hero.id] = hero.contract?.wage ?? 0;
+  return bill;
+}
+
+/**
+ * A Guild's wages each time they fall due (DL-298, DL-315): the sum of each living Roster Hero's Contract
+ * wage (`wageBill`), whole Silver as each is. Computed from the Roster, never stored (data-model §3.2, rule 1).
+ */
+export function wages(guild: Pick<Guild, 'rosterIds'>, world: Pick<World, 'heroes'>): number {
+  return Object.values(wageBill(guild, world)).reduce((total, wage) => total + wage, 0);
 }
 
 /** The Hall's upkeep in its parts (`hallUpkeepParts`): what `guild.hall-upkeep-paid` carries and the Treasury shows. */
@@ -384,12 +400,12 @@ export function upkeep(
   world: Pick<World, 'heroes' | 'guildmasters'>,
   config: Pick<
     GameConfig,
-    'wagePerLevel' | 'upkeepEveryDays' | 'hallUpkeepEveryDays' | 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'
+    'upkeepEveryDays' | 'hallUpkeepEveryDays' | 'hallUpkeepPerHero' | 'hallUpkeepHeroExponent' | 'improvementUpkeepGradeFactor'
   >,
   content: Pick<ContentSet, 'facilities' | 'guildmasterTraits'>,
 ): number {
   const hall = hallUpkeepParts(guild, world, config, content).total;
-  return Math.round((wages(guild, world, config) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
+  return Math.round((wages(guild, world) * config.hallUpkeepEveryDays) / config.upkeepEveryDays + hall);
 }
 
 /**
@@ -419,6 +435,64 @@ export function nextWagesDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryDa
  */
 export function nextHallUpkeepDay(turn: Turn, config: Pick<GameConfig, 'hallUpkeepEveryDays'>): number {
   return nextDayOfEvery(turn, config.hallUpkeepEveryDays);
+}
+
+/**
+ * The wages left on `hero`'s Contract at `turn` (DL-317): its wage × the wage charges whose night is still
+ * to come and falls before its end Day, since the night of the end Day reprices the wage and charges that
+ * (`outOfContractWage`, DL-316). 0 once the Contract has ended, and for a Hero with none. Counted by
+ * `nextWagesDay`, so a charge due tonight is still left until the night has been played. Whole Silver, as
+ * the wage is. The one count the release payout reads (`releasePayout`), and the Transfer fee after it.
+ */
+export function wagesLeft(hero: Pick<Hero, 'contract'>, turn: Turn, config: Pick<GameConfig, 'upkeepEveryDays'>): number {
+  if (hero.contract === null) return 0;
+  const first = nextWagesDay(turn, config);
+  const { wage, endDay } = hero.contract;
+  return first >= endDay ? 0 : wage * (Math.floor((endDay - 1 - first) / config.upkeepEveryDays) + 1);
+}
+
+/**
+ * What a Guild pays to release `hero` at `turn` (Q10, DL-294 item 6, DL-317): `releasePayoutFactor` × the
+ * wages left (`wagesLeft`), rounded down once, at the end, to whole Silver as a Market sale is (`sellPrice`);
+ * 0 once the Contract has ended. The one price the `release` action charges and the front ends show.
+ */
+export function releasePayout(
+  hero: Pick<Hero, 'contract'>,
+  turn: Turn,
+  config: Pick<GameConfig, 'upkeepEveryDays' | 'releasePayoutFactor'>,
+): number {
+  return Math.floor(config.releasePayoutFactor * wagesLeft(hero, turn, config));
+}
+
+/**
+ * What releasing the Guild's last Hero would leave (the owner, Q-B, DL-317): the payout, the Wealth after
+ * it, the cheapest signing fee the Guild would then meet and whether that Wealth covers it. The Roster
+ * would be empty with Wealth short of every fee in the pool, which is the "Roster wiped" ending
+ * (`endings`): for the player's Guild the game ends. The fees read include the released Hero's, who joins
+ * the pool tonight, and not the Fame a Hero asks (DL-38), as the ending reads it. `null` unless `hero` is the
+ * Guild's only Hero on the Roster. A warning only: the engine refuses nothing for it, and a Rival's or the
+ * policy's release is made without asking it.
+ */
+export interface ReleaseWarning {
+  payout: number;
+  wealthAfter: number;
+  cheapestFee: number;
+  covers: boolean;
+}
+
+/** `hero`'s release as a warning, or `null` when they are not the Guild's last Hero (`ReleaseWarning`). */
+export function releaseWarning(
+  world: Pick<World, 'heroes' | 'guildmasters' | 'turn'>,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+  guild: Pick<Guild, 'rosterIds' | 'wealth' | 'fame' | 'guildmasterId'>,
+  hero: Pick<Hero, 'id' | 'contract' | 'level' | 'stats'>,
+): ReleaseWarning | null {
+  if (guild.rosterIds.length !== 1 || guild.rosterIds[0] !== hero.id) return null;
+  const payout = releasePayout(hero, world.turn, deps.config);
+  const wealthAfter = guild.wealth - payout;
+  const pooled = cheapestUnattached(world, deps, guild, false)?.fee ?? Number.POSITIVE_INFINITY;
+  const cheapestFee = Math.min(pooled, signingFee(hero, deps, guildmasterOf(guild, world)));
+  return { payout, wealthAfter, cheapestFee, covers: wealthAfter >= cheapestFee };
 }
 
 /** What moves a Hero's Stat from its base (v1.1.6-S13), in the order `statBreakdown` adds them. */

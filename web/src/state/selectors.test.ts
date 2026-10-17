@@ -8,6 +8,7 @@ import {
   bestParties,
   captainLock,
   configVersion,
+  contractWage,
   dayOf,
   defaultConfig,
   effectiveStats,
@@ -19,6 +20,8 @@ import {
   partyPool,
   rankingPlaces,
   rankings,
+  releasePayout,
+  releaseWarning,
   signingFee,
   signingRefusal,
   skillsThatHelp,
@@ -35,9 +38,10 @@ import {
 } from '@heroesim/engine';
 import { append, createItem, nightOf } from '@heroesim/engine/testing';
 import { describe, expect, test, vi } from 'vitest';
-import { capitalised, chanceWords, coinWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, shownPercent, whenOfTurn } from '@heroesim/words';
+import { capitalised, chanceWords, coinWords, dateOfTurn, fatigueBandNames, heroReading, listed, moraleBandNames, nightOfDay, releaseWarningWords, shownPercent, whenOfTurn } from '@heroesim/words';
 import { content } from '../content';
 import { partiesOutView } from './digest';
+import { transferCostWords } from './names';
 import { firstSeedWhere, newDocument, played as playedThrough, playedDocument, playerOf, started } from './game.test-support';
 import { readingOf } from './reading';
 import { initialGameState, type GameState } from './reducer';
@@ -643,7 +647,7 @@ describe('the Party builder (DL-104)', () => {
       { name: 'Ragnvald Brackenridge', why: 'in-party', unavailable: 'Away with a Party, back on the night of Year 1 Day 6', chip: 'Away' },
       { name: 'Cenric Yarrow', why: 'injured', unavailable: 'Injured, healing on the night of Year 1 Day 7', chip: 'Injured' },
     ]);
-    for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
+    for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero, document.world));
     // The full words as the Roster words them; only the Board's chip is short (DL-169 item 2).
     const roster = sortedRoster(rosterRows(document));
     for (const row of rows?.slice(2) ?? []) expect(row.unavailable).toBe(roster.find((each) => each.heroId === row.heroId)?.whereabouts);
@@ -1143,11 +1147,11 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
   // DL-289, the owner's answer (a) to Q21: the State group stands right after the Hero group's short
   // columns, so that Morale and Fatigue show at 1280px; Where, Traits and Items, whose cells are long, follow
   // the Stat areas. The phone's tabs and the Columns panel keep the groups.
-  test("stand in the wide Table's order: Class, Level, Age, then State, then each area, then Where, Traits and Items", () => {
+  test("stand in the wide Table's order: Class, Level, Age, then State and the Contract, then each area, then Where, Traits and Items", () => {
     const groups = rosterColumnGroups();
     const keys = rosterTableColumns(groups).map((column) => column.key);
     const stats = groups.filter((each) => each.kind === 'stat-area').flatMap((each) => each.columns.map((column) => column.key));
-    expect(keys).toEqual(['class', 'level', 'age', 'morale', 'fatigue', ...stats, 'where', 'traits', 'items']);
+    expect(keys).toEqual(['class', 'level', 'age', 'morale', 'fatigue', 'contract', ...stats, 'where', 'traits', 'items']);
     // The same columns the groups hold, none lost and none twice.
     expect([...keys].sort()).toEqual(groups.flatMap((each) => each.columns.map((column) => column.key)).sort());
     // The groups, which the Columns panel and the phone's tabs follow, stay Hero, State, then the areas.
@@ -1170,6 +1174,7 @@ describe("the Roster's Table's columns (DL-169 item 7)", () => {
       { key: 'class', label: 'Class', sort: 'class', number: false },
       { key: 'level', label: 'Level', sort: 'level', number: true },
       { key: 'age', label: 'Age', sort: 'age', number: true },
+      { key: 'contract', label: 'Contract', sort: null, number: false },
       { key: 'where', label: 'Where', sort: 'free', number: false },
       { key: 'traits', label: 'Traits', sort: null, number: false },
       { key: 'items', label: 'Items', sort: null, number: false },
@@ -1498,10 +1503,82 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     ]);
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
-        const fee = transferFee(hero, guildmasterOf(other, document.world), deps);
-        return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`) };
+        const fee = transferFee(hero, guildmasterOf(other, document.world), document.world.turn, deps);
+        return {
+          guildId: other.id,
+          name: other.name,
+          fee,
+          label: `${other.name}, for ${coinWords(fee)}`,
+          sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`),
+        };
       }),
     );
+  });
+
+  test('for a Hero Out of Contract, a Guild whose free Offer stands takes them for no fee, and another says the refusal (DL-325)', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const guild = playerOf(document);
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 0 };
+    document.world.turn = nightOf(0) + 1;
+    const [bidder, other] = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
+    if (bidder === undefined || other === undefined) throw new Error('two Rivals are needed');
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(`Refused: ${offered.rejection.reason}`);
+
+    const page = heroPage(offered.document, hero.id);
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    const at = (guildId: string) => page.actions?.kind === 'own' && page.actions.transferTo.find((each) => each.guildId === guildId);
+
+    expect(at(bidder.id)).toEqual({
+      guildId: bidder.id,
+      name: bidder.name,
+      fee: 0,
+      label: `${bidder.name}, for no fee`,
+      sentence: `${bidder.name}'s Offer stands for ${hero.name}, who is Out of Contract: they go to it now for no fee. ${transferCostWords}`,
+    });
+    expect(at(other.id)).toEqual({
+      guildId: other.id,
+      name: other.name,
+      fee: 0,
+      label: `${other.name}: no Offer`,
+      sentence: `${other.name} has no Offer standing for ${hero.name}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool.`,
+    });
+  });
+
+  test('for a Hero Out of Contract, lists first the Guild whose free Offer stands, the one the page chooses at first (DL-325)', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const guild = playerOf(document);
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 0 };
+    document.world.turn = nightOf(0) + 1;
+    const others = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
+    const bidder = others.at(-1);
+    if (bidder === undefined || others.length < 2) throw new Error('two Rivals are needed');
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(`Refused: ${offered.rejection.reason}`);
+
+    const page = heroPage(offered.document, hero.id);
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    expect(page.actions.transferTo.map((each) => each.guildId)).toEqual([bidder.id, ...others.slice(0, -1).map((each) => each.id)]);
+  });
+
+  test("prices each Guild's fee for the player's Hero by the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 1_080 };
+    document.world.turn = nightOf(99) + 1; // the morning of Day 100, ten wage charges on
+
+    const page = heroPage(document, hero.id);
+
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    const { transferTo } = page.actions;
+    const at = (turn: number) => transferTo.map(({ guildId }) => transferFee(hero, guildmasterOf(document.world.guilds[guildId] as never, document.world), turn, deps));
+    expect(transferTo.map(({ fee }) => fee)).toEqual(at(document.world.turn));
+    expect(transferTo.map(({ fee }) => fee)).not.toEqual(at(0));
   });
 
   test("gives a Unique Item's content key, carried or held, so its picture stands beside its name (DL-125 item 8)", () => {
@@ -1552,11 +1629,14 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const [pooled] = unattachedHeroes(document.world);
     if (theirs === undefined || pooled === undefined) throw new Error('no Hero');
 
-    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, deps) });
+    // The first wage at each length the config offers, the player's Guild signing (DL-315 item 4).
+    const termsOf = (hero: Hero) => defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, deps) }));
+    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, document.world.turn, deps), terms: termsOf(theirs), free: false });
     const refusal = signingRefusal(guild, pooled, defaultConfig);
     expect(heroPage(document, pooled.id)?.actions).toEqual({
       kind: 'pool',
       fee: signingFee(pooled, deps, buyer),
+      terms: termsOf(pooled),
       signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
       willSign: refusal === null,
     });
@@ -1573,7 +1653,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const heroId = rival?.rosterIds[0];
     if (heroId === undefined) throw new Error('no Rival Hero');
     const page = heroPage(document, heroId);
-    const fee = transferFee(document.world.heroes[heroId] as Hero, buyer, deps);
+    const fee = transferFee(document.world.heroes[heroId] as Hero, buyer, document.world.turn, deps);
 
     expect(page?.fee).toBe(fee);
     expect(page?.actions).toMatchObject({ kind: 'rival', fee });
@@ -1704,5 +1784,126 @@ describe('guildBackgrounds', () => {
 
     expect(backgrounds.length).toBeGreaterThan(0);
     for (const { key } of backgrounds) expect(content.backgrounds[key]?.owner).toBe('guild');
+  });
+});
+
+// DL-323: the Contract on the Roster's rows and a Hero's page, in the words of the reading, with the renewal's
+// wages at each length, the release's payout and its warning for the last Hero, and why neither is possible
+// for a Hero away.
+describe('the Contract on the Roster and on a Hero’s page (DL-323)', () => {
+  test("gives each Roster row its Contract: the Days left, Out of Contract, and Under Offer after an Offer", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [first, second] = heroes(document) as [Hero, Hero];
+    const end = (first.contract as NonNullable<Hero['contract']>).endDay;
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+
+    const rows = sortedRoster(rosterRows(document));
+
+    expect(rows.find((row) => row.heroId === first.id)?.contract).toBe(`${end} Days left`);
+    expect(rows.find((row) => row.heroId === second.id)?.contract).toBe('Out of Contract');
+  });
+
+  test('says the Contract on the page: the wage, its end and the Days left; or since when the Hero is Out of Contract', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [first, second] = heroes(document) as [Hero, Hero];
+    const { wage, endDay } = first.contract as NonNullable<Hero['contract']>;
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    const every = `every ${defaultConfig.upkeepEveryDays} Days`;
+
+    const page = (hero: Hero) => {
+      const actions = heroPage(document, hero.id)?.actions;
+      if (actions?.kind !== 'own') throw new Error("the player's Hero");
+      return actions.contract;
+    };
+
+    expect(page(first).words).toBe(`Wage ${coinWords(wage)} ${every}, to ${nightOfDay(endDay, defaultConfig)}: ${endDay} Days left.`);
+    expect(page(second).words).toBe(
+      `Out of Contract since ${nightOfDay(0, defaultConfig)}: wage ${coinWords((second.contract as NonNullable<Hero['contract']>).wage)} ${every}.`,
+    );
+    // The end Day's morning: the Contract stands until that night, its last Day, never "0 Days left".
+    document.world.turn = 0;
+    expect(page(second).words).toMatch(new RegExp(`, to ${nightOfDay(0, defaultConfig)}: the last Day\\.$`));
+  });
+
+  test("gives the renewal's wage at each length the config offers, by the rule the player's Guild signs by", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [hero] = heroes(document) as [Hero];
+    const guild = playerOf(document);
+
+    const actions = heroPage(document, hero.id)?.actions;
+    if (actions?.kind !== 'own') throw new Error("the player's Hero");
+
+    expect(actions.contract.terms).toEqual(
+      defaultConfig.contractLengthsYears.map((years) => ({ years, wage: contractWage(document.world, hero, guild, years, { config: defaultConfig, content }) })),
+    );
+  });
+
+  test('gives the release its payout, 0 once Out of Contract, and no warning while another Hero is on the Roster', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [first, second] = heroes(document) as [Hero, Hero];
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    const payout = (hero: Hero) => {
+      const actions = heroPage(document, hero.id)?.actions;
+      if (actions?.kind !== 'own') throw new Error("the player's Hero");
+      return actions.contract;
+    };
+
+    expect(payout(first).payout).toBe(releasePayout(first, document.world.turn, defaultConfig));
+    expect(payout(first).payout).toBeGreaterThan(0);
+    expect(payout(second).payout).toBe(0);
+    // What the release asks before it is done: the payout, or nothing once the Contract has ended.
+    // The pool's stay for a released Hero (DL-325).
+    const stay = `They join the Unattached pool for ${defaultConfig.releasedStayDays} Days, unless a Guild signs them.`;
+    expect(payout(first).release).toBe(`Releasing ${first.name} pays ${coinWords(payout(first).payout)}. ${stay} ${transferCostWords}`);
+    expect(payout(second).release).toBe(`Releasing ${second.name} costs nothing, their Contract having ended. ${stay} ${transferCostWords}`);
+    expect(payout(first).warning).toBeNull();
+  });
+
+  test("warns, in the estimate's words, when the Hero is the last on the Roster", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const guild = playerOf(document);
+    const [hero] = heroes(document) as [Hero];
+    for (const heroId of guild.rosterIds.slice(1)) Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
+    guild.rosterIds = [hero.id];
+    const warning = releaseWarning(document.world, { config: defaultConfig, content }, guild, hero);
+    if (warning === null) throw new Error('no warning for the last Hero');
+
+    const actions = heroPage(document, hero.id)?.actions;
+    if (actions?.kind !== 'own') throw new Error("the player's Hero");
+
+    expect(actions.contract.warning).toBe(releaseWarningWords(hero.name, warning));
+    expect(actions.contract.warning).toContain(hero.name);
+  });
+
+  test("marks a Rival's Hero Out of Contract as one to offer no fee for, whom a Guild does not take in", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== playerOf(document).id);
+    const theirs = document.world.heroes[(rival?.rosterIds[0] ?? '') as HeroId] as Hero;
+    theirs.contract = { ...(theirs.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+
+    expect(heroPage(document, theirs.id)?.actions).toMatchObject({ kind: 'rival', fee: 0, free: true });
+  });
+
+  test("says why a Hero away cannot be renewed or released, in the refusals' words, and nothing for one at home", () => {
+    const document = structuredClone(newDocument('selectors'));
+    const [hero, home] = heroes(document) as [Hero, Hero];
+    const guild = playerOf(document);
+    hero.partyId = 'party-000001' as PartyId;
+    const refused = (of: Hero) => {
+      const actions = heroPage(document, of.id)?.actions;
+      if (actions?.kind !== 'own') throw new Error("the player's Hero");
+      return actions.contract.refused;
+    };
+
+    expect(refused(home)).toBeNull();
+    expect(refused(hero)).toEqual({
+      renew: `${hero.name} is away with a Party; a Hero's Contract is renewed only in the Hall.`,
+      release: `${hero.name} is away with a Party; a Hero is released only in the Hall.`,
+    });
+    expect(guild.rosterIds).toContain(hero.id);
   });
 });

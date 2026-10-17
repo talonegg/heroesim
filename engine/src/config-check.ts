@@ -226,6 +226,21 @@ function fatigueSteps(each: string, one: string): ConfigRule {
  */
 const declineAreaList: ConfigRule = listOf(statAreas);
 
+/** The Contract lengths (DL-294 item 6): one or more, each a whole number of years from 1, none twice. */
+const contractLengths: ConfigRule = (value) =>
+  Array.isArray(value) && value.length >= 1 && value.every((years) => Number.isSafeInteger(years) && (years as number) >= 1) && new Set(value).size === value.length
+    ? undefined
+    : 'it is a list of one length or more, each a whole number of years from 1, none twice';
+
+/** The wage's factor for each Contract length (DL-294 item 6): one for each, in its order, each a finite number above 0. */
+const contractFactors: ConfigRule = (value, settings) => {
+  const lengths = settings['contractLengthsYears'];
+  const count = Array.isArray(lengths) ? lengths.length : undefined;
+  return Array.isArray(value) && value.length === count && value.every((factor) => isNumber(factor) && factor > 0)
+    ? undefined
+    : `it is a list of one factor for each of contractLengthsYears (${shown(lengths)}), in its order, each a finite number above 0`;
+};
+
 /** A bound of a Tier row's field: a number, or another field of the same row. */
 type RowBound = number | keyof TierRow;
 
@@ -359,7 +374,14 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   guildmasterTraitBudget: finite(),
 
   upkeepEveryDays: whole({ min: 1 }),
+  wageBase: whole({ min: 0 }),
   wagePerLevel: whole({ min: 0 }),
+  wageStatDivisor: finite({ above: 0 }),
+  wageFameFactor: finite({ min: 0 }),
+  contractLengthsYears: contractLengths,
+  contractWageFactors: contractFactors,
+  outOfContractPremium: finite({ min: 0 }),
+  releasePayoutFactor: finite({ min: 0, max: 1 }),
   hallUpkeepEveryDays: whole({ min: 1 }),
   hallBaseUpkeep: whole({ min: 0 }),
   hallUpkeepPerHero: whole({ min: 0 }),
@@ -375,6 +397,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   signingFeePerLevel: whole({ min: 0 }),
   signingFeeStatDivisor: finite({ above: 0 }),
   unattachedStayDays: whole({ min: 0 }),
+  releasedStayDays: whole({ min: 0 }),
   fameRequiredPerLevel: finite({ min: 0 }),
   // A Board holds a whole number of Quests; it grows towards its cap, never shrinks (DL-261).
   boardSizeStart: whole({ min: 0 }),

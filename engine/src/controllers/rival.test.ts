@@ -4,7 +4,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, makeId, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, makeId, type Contract, type Guild, type Hero, type HeroId, type Quest, type QuestId, type World, type WorldDocument } from '../document.js';
 import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
@@ -17,6 +17,7 @@ import { applyAction, applyGuildAction, type GuildAction } from '../actions/acti
 import { availableHeroes, bestParties, partyPool, requiredParty } from '../best-party.js';
 import { rivalChoices, staffableQuests } from './rival.js';
 import { estimateQuest } from '../quest-engine/estimate.js';
+import { nightOf } from '../time.js';
 
 // DL-175: a test may name the chance of success by the size of the Party, in place of
 // the estimate, to set a gain exactly; none set, `partyEstimator` is the real one. `asked` counts the
@@ -634,7 +635,7 @@ describe('steady: recruiting', () => {
     expect(recruits(world, rival)).toEqual([]);
 
     rival.wealth = threshold + 1;
-    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id }]);
+    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id, years: rowOf(rival, deps).contractYears }]);
   });
 
   test('breaks a tie of fees by the lower Hero id', () => {
@@ -645,7 +646,7 @@ describe('steady: recruiting', () => {
     // Every Hero in the pool alike: the same Stats and Level, so the same fee.
     for (const hero of pool) hero.stats = { ...lowestId?.stats };
 
-    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id }]);
+    expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id, years: rowOf(rival, deps).contractYears }]);
   });
 
   test("passes over a Hero who would refuse its Fame for the cheapest who would sign, and asks no one when none would", () => {
@@ -667,7 +668,7 @@ describe('steady: recruiting', () => {
     expect(hire?.kind === 'recruit' && hire.heroId).not.toBe(first.id);
 
     rival.fame = 10;
-    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id }]);
+    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id, years: rowOf(rival, deps).contractYears }]);
 
     rival.fame = 0;
     for (const hero of unattachedHeroes(world)) hero.level = 3;
@@ -698,7 +699,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
 
   /** `rival`'s Roster cut to its first `size` Heroes, the others dead (off the Roster, out of the pool). */
   function cut(world: World, rival: Guild, size: number): void {
-    for (const heroId of rival.rosterIds.splice(size)) heroOf(world, heroId).diedOnTurn = world.turn;
+    for (const heroId of rival.rosterIds.splice(size)) Object.assign(heroOf(world, heroId), { diedOnTurn: world.turn, contract: null });
   }
 
   /** The fee of the cheapest Hero in the pool, and what `rival` must hold to hire them by need: the fee and its reserve. */
@@ -719,7 +720,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     rival.wealth = wealth - 1;
     expect(rivalChoices(world, rival, deps)).toEqual([]);
     rival.wealth = wealth;
-    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId, years: rowOf(rival, deps).contractYears }]);
   });
 
   test('in play, a Rival of every Disposition cut to two Heroes recruits back to rivalRosterMin within ten Days, under its own row', () => {
@@ -771,7 +772,7 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
       const { heroId, wealth } = needed(world, rival, deps);
       rival.wealth = wealth;
 
-      expect(rivalChoices(world, rival, deps), disposition).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+      expect(rivalChoices(world, rival, deps), disposition).toEqual([{ kind: 'recruit', guildId: rival.id, heroId, years: rowOf(rival, deps).contractYears }]);
     }
   });
 
@@ -800,8 +801,10 @@ describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', (
     const reserve = dealing.config.rivalHireReserveUpkeeps * upkeep(rival, world, dealing.config, dealing.content);
     const other = rivalsOf(world).find((guild) => guild.id !== rival.id) as Guild;
     const [dearest] = other.rosterIds as [HeroId];
-    for (const key of Object.keys(heroOf(world, dearest).stats)) heroOf(world, dearest).stats[key] = 20;
-    const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), dealing);
+    // The dearest by the wages left on a long Contract, which the fee reads, not the Stats (DL-318).
+    heroOf(world, dearest).contract = { ...(heroOf(world, dearest).contract as Contract), wage: 100, endDay: 1_080 };
+    const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), world.turn, dealing);
+    expect(Math.max(...other.rosterIds.map((id) => transferFee(heroOf(world, id), guildmasterOf(rival, world), world.turn, dealing)))).toBe(fee);
     // Enough for the dearest Hero's fee, but not with the reserve kept.
     rival.wealth = fee + reserve - 1;
 
@@ -981,7 +984,7 @@ describe('a Rival names its Captain', () => {
     // The player's Guild takes the Rival's Captain once they are home: the post is empty, and filled the next afternoon, free.
     while ((document.world.heroes[first] as Hero).partyId !== null) document = withValid(advance(document, deps).document, deps);
     (playerGuild(document.world) as Guild).wealth = 1_000_000;
-    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first }, deps);
+    const taken = applyAction(document, { kind: 'transferIn', guildId: (playerGuild(document.world) as Guild).id, heroId: first, years: 2 }, deps);
     if (!taken.ok) throw new Error(taken.rejection.reason);
     document = withValid(taken.document, deps);
     expect(rivalOf(document).captainId).toBeNull();
@@ -1066,6 +1069,7 @@ describe('one rule for every Disposition, reading its row', () => {
       transferAppetite: 0.3,
       partyMargin: 0.2,
       restBand: 'weary',
+      contractYears: 2,
     };
     const withFifth = (row: Disposition = cautious): ContentSet =>
       deepFreeze({ ...testContent, dispositions: { ...testContent.dispositions, [row.key]: row } });
@@ -1529,5 +1533,235 @@ describe('surplus and debt (DL-301, Q18)', () => {
       { kind: 'sell', guildId: rival.id, stackId: whetstones, quantity: 2 },
       { kind: 'build', guildId: rival.id, facility: 'infirmary' },
     ]);
+  });
+});
+
+// ── The debt order: the Holding, the Heroes Out of Contract, then the debt sale (Q15, DL-320) ──
+
+describe('a Rival in debt releases its Heroes Out of Contract before its debt sale (Q15, DL-320)', () => {
+  const vaultOf = (guild: Guild) => ({ kind: 'guild', id: guild.id }) as const;
+  const deps = testDeps({ rivalHealItemStock: 2 });
+
+  /** An `ambitious` Rival in debt on an empty Board, every other Rival rich, so that a debt sale has a buyer. */
+  function indebted(seed: string, board = false) {
+    const { world, rival } = scene(seed, deps, 'ambitious');
+    if (!board) world.board = [];
+    for (const other of rivalsOf(world)) if (other.id !== rival.id) other.wealth = 100_000;
+    rival.wealth = -2000;
+    rival.belowFloorSince = 0;
+    // Every Contract runs to Day 1,000, so that only the Heroes a test expires are Out of Contract.
+    world.turn = 9;
+    for (const hero of Object.values(world.heroes)) {
+      if (hero.contract !== null) hero.contract = { ...hero.contract, endDay: 1_000 };
+    }
+    return { world, rival };
+  }
+
+  /** `hero`'s Contract ended on Day 2: Out of Contract on Day 3. */
+  function expire(hero: Hero, level: number): void {
+    hero.level = level;
+    hero.contract = { ...(hero.contract as Contract), endDay: 2 };
+  }
+
+  const releases = (choices: readonly GuildAction[]) => choices.filter((action) => action.kind === 'release');
+
+  test('sells the Holding first, then one Hero Out of Contract a step, the lowest Level first, then the debt sale', () => {
+    const { world, rival } = indebted('debt-order');
+    const [a, b, c, d] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero, Hero, Hero];
+    expire(a, 3);
+    expire(b, 1);
+    expire(c, 2);
+    expect(d.contract?.endDay).toBe(1_000);
+    expect(rival.rosterIds.length).toBeGreaterThan(4);
+    const blade = createItem(world, 'barrow-kings-blade', vaultOf(rival));
+
+    // The Holding first: its sale, no release, no debt sale.
+    let choices = rivalChoices(world, rival, deps);
+    expect(choices).toEqual([{ kind: 'sell', guildId: rival.id, itemId: blade }]);
+    for (const action of choices) expect(applyGuildAction(world, action, deps)).toMatchObject({ ok: true });
+
+    // Then the Heroes Out of Contract, one a step, the lowest Level first, free; no debt sale beside them.
+    for (const expected of [b, c, a]) {
+      choices = rivalChoices(world, rival, deps);
+      expect(choices).toEqual([{ kind: 'release', guildId: rival.id, heroId: expected.id }]);
+      const before = rival.wealth;
+      expect(applyGuildAction(world, choices[0] as GuildAction, deps)).toMatchObject({ ok: true });
+      expect(rival.wealth).toBe(before);
+    }
+
+    // And only then the debt sale, of a Hero under Contract.
+    choices = rivalChoices(world, rival, deps);
+    expect(releases(choices)).toEqual([]);
+    expect(choices).toMatchObject([{ kind: 'transferOut', guildId: rival.id }]);
+  });
+
+  test('breaks a tie of Levels by the lower Hero id', () => {
+    const { world, rival } = indebted('debt-order-tie');
+    const heroes = rival.rosterIds.map((id) => heroOf(world, id)).sort((x, y) => compareByCodeUnit(x.id, y.id));
+    const [first, second] = heroes as [Hero, Hero];
+    expire(first, 2);
+    expire(second, 2);
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'release', guildId: rival.id, heroId: first.id }]);
+  });
+
+  test('releases no Hero away and none under Contract: the lowest Level of those at home and Out of Contract', () => {
+    const { world, rival } = indebted('debt-order-guards');
+    const [away, home, kept] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero, Hero];
+    expire(away, 1);
+    expire(home, 2);
+    kept.level = 1;
+    away.partyId = makeId('parties', 99);
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([{ kind: 'release', guildId: rival.id, heroId: home.id }]);
+  });
+
+  test('releases no Hero Under Offer: the next Hero Out of Contract goes, and none when the only one is Under Offer (Q-N, DL-322)', () => {
+    const { world, rival } = indebted('debt-order-offer');
+    const [offered, next] = rival.rosterIds.map((id) => heroOf(world, id)) as [Hero, Hero];
+    expire(offered, 1);
+    expire(next, 2);
+    const buyer = rivalsOf(world).find((other) => other.id !== rival.id) as Guild;
+    world.offers[makeId('offers', 1)] = {
+      id: makeId('offers', 1),
+      kind: 'transfer',
+      fromGuildId: rival.id,
+      toGuildId: buyer.id,
+      heroId: offered.id,
+      fee: 0,
+      years: 2,
+      offeredOnTurn: world.turn,
+      expiresOnTurn: world.turn + 100,
+    };
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([{ kind: 'release', guildId: rival.id, heroId: next.id }]);
+
+    next.contract = { ...(next.contract as Contract), endDay: 1_000 };
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([]);
+  });
+
+  test('releases no Hero it sends on a Quest this afternoon', () => {
+    const { world, rival } = indebted('debt-order-sent', true);
+    for (const heroId of rival.rosterIds) expire(heroOf(world, heroId), 1);
+    const [quest] = openBoard(world, [10]);
+    world.board = quest === undefined ? [] : [quest.id];
+    const choices = rivalChoices(world, rival, deps);
+    const sent = dispatchOf(world, rival, deps)?.heroIds ?? [];
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent.length).toBeLessThan(rival.rosterIds.length);
+    const [release] = releases(choices);
+    expect(release).toMatchObject({ kind: 'release', guildId: rival.id });
+    expect(sent).not.toContain((release as { heroId: HeroId }).heroId);
+    for (const action of choices) expect(applyGuildAction(world, action, deps), action.kind).toMatchObject({ ok: true });
+  });
+
+  test('does not release while it is out of debt, whoever is Out of Contract', () => {
+    const { world, rival } = indebted('debt-order-solvent');
+    expire(heroOf(world, rival.rosterIds[0] as HeroId), 1);
+    rival.wealth = 0;
+    rival.belowFloorSince = null;
+    expect(releases(rivalChoices(world, rival, deps))).toEqual([]);
+    rival.belowFloorSince = 0;
+    expect(releases(rivalChoices(world, rival, deps))).toHaveLength(1);
+  });
+
+  test('every choice of the debt order is accepted in order, and a released Hero joins the pool with no Contract', () => {
+    const { world, rival } = indebted('debt-order-applied');
+    const hero = heroOf(world, rival.rosterIds[1] as HeroId);
+    expire(hero, 1);
+    const choices = rivalChoices(world, rival, deps);
+    expect(choices).toEqual([{ kind: 'release', guildId: rival.id, heroId: hero.id }]);
+    expect(applyGuildAction(world, choices[0] as GuildAction, deps)).toMatchObject({ ok: true });
+    expect(rival.rosterIds).not.toContain(hero.id);
+    expect(hero.guildId).toBeNull();
+    expect(hero.contract).toBeNull();
+  });
+
+  test('with every Hero Out of Contract, releases down to an empty Roster, one an afternoon, and folds that night, Roster wiped: no guard (Q-B, DL-320)', () => {
+    let { document } = createWorld('debt-order-wiped', setup, deps);
+    const { world } = document;
+    const [rival] = rivalsOf(world).filter((guild) => dispositionOf(guild) === 'ambitious') as [Guild];
+    world.board = [];
+    world.turn = 9;
+    rival.wealth = -2000;
+    rival.belowFloorSince = 0;
+    for (const heroId of rival.rosterIds) expire(heroOf(world, heroId), 1);
+    const roster = rival.rosterIds.length;
+
+    let released = 0;
+    for (let afternoon = 0; afternoon < 2 * roster && rival.rosterIds.length > 0; afternoon += 1) {
+      const choices = rivalChoices(world, rival, deps);
+      expect(releases(choices).length).toBeLessThanOrEqual(1);
+      released += releases(choices).length;
+      for (const action of choices) expect(applyGuildAction(world, action, deps), action.kind).toMatchObject({ ok: true });
+    }
+    expect(released).toBe(roster);
+    expect(rival.rosterIds).toEqual([]);
+
+    const events: TurnEvent[] = [];
+    while (document.world.turn < nightOf(3)) {
+      const result = advance(document, deps);
+      document = result.document;
+      events.push(...result.events);
+    }
+    expect(events).toContainEqual(expect.objectContaining({ type: 'guild.folded', payload: { guildId: rival.id, reason: 'roster-wiped' } }));
+  });
+});
+
+// ── The hiring budget reads the Contracts' wages (DL-315, DL-320) ──────────────────────────────
+
+describe("a Rival's hiring budget and reserve read the Contracts' wages through upkeep (DL-315, DL-320)", () => {
+  // Building, gear and Transfers stilled, an empty Board, Negotiation off: only the hire is in question.
+  const pins = { negotiationRange: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 };
+  const quiet = { buildThreshold: 1_000_000, gearThreshold: 1_000_000, transferAppetite: 0 };
+
+  /** Every living Roster Hero of `rival` on a Contract paying `wage`, Level and Stats untouched. */
+  function paying(world: World, rival: Guild, wage: number): void {
+    for (const heroId of rival.rosterIds) {
+      const hero = heroOf(world, heroId);
+      hero.contract = { ...(hero.contract as Contract), wage };
+    }
+  }
+
+  const upkeepOf = (world: World, rival: Guild, deps: EngineDeps) => upkeep(rival, world, deps.config, deps.content);
+
+  test("by choice: the Wealth above recruitThreshold Upkeeps hires, and the wages the Contracts hold set that Upkeep", () => {
+    const deps = testDeps(pins, withDispositions({ ...quiet, recruitThreshold: 10 }));
+    const { world, rival } = scene('budget-choice', deps);
+    world.board = [];
+    paying(world, rival, 1);
+    const cheap = upkeepOf(world, rival, deps);
+    paying(world, rival, 100);
+    const dear = upkeepOf(world, rival, deps);
+    expect(dear).toBeGreaterThan(cheap);
+
+    // The same Wealth, the same Heroes at the same Levels and Stats: only the Contracts' wages differ.
+    rival.wealth = 10 * cheap + 1;
+    paying(world, rival, 1);
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    paying(world, rival, 100);
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    // And exactly at the threshold the dearer wages set.
+    rival.wealth = 10 * dear + 1;
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    rival.wealth = 10 * dear;
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+  });
+
+  test("by need: the reserve is rivalHireReserveUpkeeps of the Upkeep the Contracts' wages set", () => {
+    const deps = testDeps(pins, withDispositions({ ...quiet, recruitThreshold: 1_000_000 }));
+    const { world, rival } = scene('budget-need', deps);
+    world.board = [];
+    for (const heroId of rival.rosterIds.splice(3)) Object.assign(heroOf(world, heroId), { diedOnTurn: world.turn, contract: null });
+    const [hero] = [...unattachedHeroes(world)].sort((a, b) => signingFee(a, deps) - signingFee(b, deps) || compareByCodeUnit(a.id, b.id));
+    const fee = signingFee(hero as Hero, deps);
+
+    paying(world, rival, 1);
+    const cheapReserve = 3 * upkeepOf(world, rival, deps);
+    rival.wealth = fee + cheapReserve;
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+    // The wages rise and nothing else does: the same Wealth no longer keeps the reserve.
+    paying(world, rival, 100);
+    expect(3 * upkeepOf(world, rival, deps)).toBeGreaterThan(cheapReserve);
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    rival.wealth = fee + 3 * upkeepOf(world, rival, deps);
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
   });
 });

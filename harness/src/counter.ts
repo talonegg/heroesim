@@ -56,7 +56,7 @@ export interface TotalsSweep {
 }
 
 /** The play report's sections a counter's lines stand in, in the report's order (`play-report.ts`). */
-export const sections = ['counters', 'progression', 'quest-engine', 'items', 'rivals', 'fatigue', 'portraits', 'heroes', 'worlds'] as const;
+export const sections = ['counters', 'progression', 'quest-engine', 'items', 'rivals', 'contracts', 'fatigue', 'portraits', 'heroes', 'worlds'] as const;
 
 export type Section = (typeof sections)[number];
 

@@ -46,10 +46,10 @@ export const phases: readonly Phase[] = [
   // Night: the Hall's training XP for the Day just spent at it, Quests conclude, Heroes gain
   // the Levels their XP has reached (DL-36), the Hero State Engine runs with ageing after its
   // Retirement checks (DL-37), the gear of the dead and the retired goes back to their Guilds
-  // (DL-49), the Guild State Engine runs, the Transfer Generator moves Heroes between Rivals on its
-  // night (DL-59), the Patron State Engine returns Patron Regard toward neutral (DL-43), the pool
-  // refreshes, the modules run, Transfer Offers past their night or whose Hero has left go
-  // (DL-57), and the ending checks come last.
+  // (DL-49), the Guild State Engine runs, the Transfer Generator moves Heroes between Guilds on its
+  // night (DL-59, DL-319), the Patron State Engine returns Patron Regard toward neutral (DL-43), the
+  // pool refreshes, the modules run, Transfer Offers meet their night, those past it or whose Hero has
+  // left going and a free Offer's Hero answered or taken (DL-57, DL-319), and the ending checks come last.
   { name: 'training', timeOfDay: 'night', run: training },
   { name: 'questsConclude', timeOfDay: 'night', run: questsConclude },
   { name: 'levelUps', timeOfDay: 'night', run: levelUps },

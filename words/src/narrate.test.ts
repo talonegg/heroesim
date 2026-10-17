@@ -73,7 +73,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
-  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460, wages: { [heroId]: 40 } }),
   'guild.hall-upkeep-paid': event('guild.hall-upkeep-paid', [guildId], {
     guildId,
     amount: 120,
@@ -86,7 +86,10 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   }),
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
-  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
+  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-renewed': event('hero.contract-renewed', [heroId, guildId], { heroId, guildId, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-expired': event('hero.contract-expired', [heroId, guildId], { heroId, guildId, wage: 25 }),
+  'hero.released': event('hero.released', [heroId, guildId], { heroId, guildId, payout: 633 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -222,7 +225,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     itemIds: ['item-000002' as never],
     cause: 'fold',
   }),
-  'hero.transferred': event('hero.transferred', [heroId, guildId, rivalId, offerId], { heroId, fromGuildId: guildId, toGuildId: rivalId, fee: 420, offerId }),
+  'hero.transferred': event('hero.transferred', [heroId, guildId, rivalId, offerId], { heroId, fromGuildId: guildId, toGuildId: rivalId, fee: 420, offerId, wage: 22, years: 2, endDay: 400 }),
   'guild.transfer-offered': event('guild.transfer-offered', [offerId, heroId, guildId, rivalId], { ...terms, expiresOnTurn: 23 }),
   'guild.transfer-offer-declined': event('guild.transfer-offer-declined', [offerId, heroId, guildId, rivalId], terms),
   'guild.transfer-offer-expired': event('guild.transfer-offer-expired', [offerId, heroId, guildId, rivalId], { ...terms, cause: 'hero-left' }),
@@ -285,7 +288,10 @@ const sentences: { [Type in EngineEventType]: string } = {
   'guild.hall-upkeep-paid': `${kestrel} paid 1 Gold 20 Silver in Hall upkeep, leaving 3 Gold 40 Silver.`,
   'guild.below-floor': `${kestrel}'s Wealth, -35 Silver, fell below the Bankruptcy floor of 0 Silver: Bankruptcy on the night of Year 1 Day 35 unless it recovers by then.`,
   'guild.floor-recovered': `${kestrel}'s Wealth, 12 Silver, is back to the Bankruptcy floor of 0 Silver or more, after falling below it on Year 1 Day 2: no Bankruptcy is due.`,
-  'hero.recruited': `${kestrel} signed ${brenna} for 1 Gold 10 Silver.`,
+  'hero.recruited': `${kestrel} signed ${brenna} for 1 Gold 10 Silver, on a Contract at 22 Silver to Year 2 Day 41.`,
+  'hero.contract-renewed': `${kestrel} signed ${brenna} again, on a Contract at 22 Silver to Year 2 Day 41.`,
+  'hero.contract-expired': `${brenna}'s Contract with ${kestrel} ended: Out of Contract, their wage is now 25 Silver.`,
+  'hero.released': `${kestrel} released ${brenna}, paying 6 Gold 33 Silver.`,
   'hero.left-pool': `${brenna} left the Unattached pool.`,
   'quest.offered': `${maud} offered ${barrow}.`,
   'quest.expired': `${maud}'s ${barrow} expired untaken.`,
@@ -320,7 +326,7 @@ const sentences: { [Type in EngineEventType]: string } = {
   'item.returned': `${named(content.items, 'mail-shirt')}<ids:${stackId}> went back to ${kestrel} from ${brenna} as the Guild folded.`,
   'item.bought': `${kestrel} bought 3 × ${named(content.items, 'whetstone')}<ids:> at the Market for 75 Silver.`,
   'item.sold': `${kestrel}'s ${named(content.items, 'barrow-kings-blade')}<ids:item-000002> went to the Market for 3 Gold as the Guild folded.`,
-  'hero.transferred': `${wardens} took ${brenna} from ${kestrel} for 4 Gold 20 Silver, accepting <offer:${offerId}>.`,
+  'hero.transferred': `${wardens} took ${brenna} from ${kestrel} for 4 Gold 20 Silver, accepting <offer:${offerId}>, on a Contract at 22 Silver to Year 2 Day 41.`,
   'guild.transfer-offered': `${wardens} offered ${kestrel} 4 Gold 20 Silver for ${brenna}<ids:${offerId}>, until the night of Year 1 Day 8.`,
   'guild.transfer-offer-declined': `${kestrel} declined ${wardens}'s Offer for ${brenna}<ids:${offerId}>.`,
   'guild.transfer-offer-expired': `${wardens}'s Offer for ${brenna}<ids:${offerId}> lapsed: the Hero left that Roster.`,
@@ -376,7 +382,10 @@ describe('the variations of a sentence', () => {
     ['a Hero healed who kept no Trait', varied('hero.healed', { traitKey: null }), new RegExp(`^${brenna} recovered from [^,]+\\.$`)],
     ['a Level with no Stat risen', varied('hero.levelled', { statDeltas: {} }), new RegExp(`^${brenna} reached Level 3\\.$`)],
     ['a sale of the player\'s own', varied('item.sold', { cause: 'sale' }), new RegExp(`^${kestrel} sold .+<ids:item-000002> at the Market for 3 Gold\\.$`)],
-    ['a Transfer with no Offer', varied('hero.transferred', { offerId: null }), /for 4 Gold 20 Silver\.$/],
+    ['a Transfer with no Offer', varied('hero.transferred', { offerId: null }), /for 4 Gold 20 Silver, on a Contract at 22 Silver to Year 2 Day 41.$/],
+    // The owner's "a" (2026-10-17, DL-326): a free Offer's fee, 0, is said "for no fee", the Offer made as the Transfer it makes is.
+    ['a free Offer made', varied('guild.transfer-offered', { fee: 0 }), `${wardens} offered to take ${brenna}<ids:${offerId}> from ${kestrel} for no fee, until the night of Year 1 Day 8.`],
+    ['a free Offer taken', varied('hero.transferred', { fee: 0 }), `${wardens} took ${brenna} from ${kestrel} for no fee, accepting <offer:${offerId}>, on a Contract at 22 Silver to Year 2 Day 41.`],
     ['a consumable that bonused a Check', varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
     ['a consumable that tried an Encounter again', varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never), /used one .+ to try Encounter 1 again\.$/],
     ['gear with neither id', varied('item.equipped', { stackId: null }), /<ids:> in /],
@@ -391,6 +400,8 @@ describe('the variations of a sentence', () => {
     ["a Hero's Regard after a Quest together", varied('hero.regard-changed', { cause: 'shared-quest', questId } as never), `${brenna}'s Regard for ${aldred} rose from warm to close after a Quest together.`],
     ["a Hero's Regard as time passed apart", varied('hero.regard-changed', { cause: 'decay' } as never), `${brenna}'s Regard for ${aldred} rose from warm to close as time passed apart.`],
     ['gear back from a Hero who died', varied('item.returned', { cause: 'died' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who died.`],
+    ['a release with nothing to pay, the Contract having ended', varied('hero.released', { payout: 0 }), `${kestrel} released ${brenna}, with no payout.`],
+    ['gear back from a Hero who was released', varied('item.returned', { cause: 'released' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who was released.`],
     ['gear back from a Hero who retired', varied('item.returned', { cause: 'retired' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who retired.`],
     ['gear back from a Hero who was transferred', varied('item.returned', { cause: 'transferred' }), `${shirt}<ids:${stackId}> went back to ${kestrel} from ${brenna}, who was transferred.`],
     ['an Offer that expired unanswered', varied('guild.transfer-offer-expired', { cause: 'expired' }), `${wardens}'s Offer for ${brenna}<ids:${offerId}> expired unanswered.`],
@@ -517,11 +528,11 @@ describe("a Guildmaster's Regard names whom it is for by what they are (DL-209, 
   });
 });
 
-describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', () => {
+describe('why a fast forward stopped, ten sentences (DL-209, DL-206 item 2)', () => {
   const offer = { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 };
   const world = {
     guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
-    heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
+    heroes: { [heroId]: { name: 'Brenna Ashcombe', contract: null } },
     offers: { [offerId]: offer },
   } as unknown as Pick<World, 'guilds' | 'heroes' | 'offers'>;
   const kest = `<name:${guildId}|The Kestrel Guild>`;
@@ -555,11 +566,27 @@ describe('why a fast forward stopped, nine sentences (DL-209, DL-206 item 2)', (
       { kind: 'transfer-offer', guildId, offerIds: ['offer-000002' as OfferId, offerId] },
       `Stopped: a Transfer Offer: <offer:offer-000002 withdrawn> and <name:${rivalId}|The Iron Wardens> offers 4 Gold 20 Silver for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-offer>`,
     ],
+    [
+      { kind: 'contract-expired', guildId, heroIds: [heroId] },
+      `Stopped: a Contract ended: ${brenna} of ${kest} is Out of Contract<command:show-roster>.`,
+    ],
+    [
+      { kind: 'contract-expired', guildId, heroIds: [heroId, 'hero-000008' as HeroId] },
+      `Stopped: Contracts ended: ${brenna} and <hero:hero-000008> of ${kest} are Out of Contract<command:show-roster>.`,
+    ],
     [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe Module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId, 'hero-000008' as HeroId] }, `Stopped: new in the Unattached pool: ${brenna} and <hero:hero-000008><command:show-pool>.`],
   ])('puts %j in words', (stop, line) => {
     expect(sentenceText(narrateStop(stop, world, 1080, calendar), shown)).toBe(line);
+  });
+
+  test('a free Offer offers no fee, and the CLI points to renew where every Offer is free, a free Offer not being declined (DL-319, DL-323)', () => {
+    const expired = { contract: { wage: 22, signedOnTurn: 0, years: 1, endDay: 4 } };
+    const free = { ...world, heroes: { [heroId]: { name: 'Brenna Ashcombe', ...expired } }, offers: { [offerId]: { ...offer, fee: 0 } } } as unknown as typeof world;
+    expect(sentenceText(narrateStop({ kind: 'transfer-offer', guildId, offerIds: [offerId] }, free, 1080, calendar), shown)).toBe(
+      `Stopped: a Transfer Offer: <name:${rivalId}|The Iron Wardens> offers no fee for ${brenna} until the night of Year 1 Day 8<ids:${offerId}>.<command:answer-free-offer>`,
+    );
   });
 
   test('a Guild whose row is gone is a name slot with no label', () => {

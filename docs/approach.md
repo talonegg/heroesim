@@ -75,12 +75,14 @@ afternoon  Rival Controllers act on what the player left · Quests in flight adv
 night      Training XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
            Hero State Engine (heal, Morale, Fatigue, Regard decay, Retirement checks) · ageing (Decline
            on those nights) · Gear of the dead and retired back to their Guilds
-           Guild State Engine (the wages and the Hall's upkeep on their Days, the Bankruptcy floor,
-           the Fame floor)
-           Transfer Generator (on its Days: Rivals bid for one another's Heroes)
+           Guild State Engine (the Contracts ending tonight, the wages and the Hall's upkeep on their
+           Days, the Bankruptcy floor, the Fame floor)
+           Transfer Generator (on its Days: Rivals bid for the Heroes of every Guild, the player's
+           Out of Contract by a free Offer)
            Patron State Engine (Patron Regard recovering toward neutral)
            Unattached pool refresh · [modules: onNight]
-           Transfer Offers past their night, or whose Hero has left, removed
+           Transfer Offers meet their night: those past it, or whose Hero has left, removed; a free
+           Offer's Hero answered or taken
            Ending checks (Retirement, Bankruptcy, Roster wiped)
 ```
 

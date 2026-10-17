@@ -15,8 +15,12 @@ import {
   playerGuild,
   rankingPlaces,
   rankings,
+  releasePayout,
+  releaseWarning,
   signingFee,
   signingRefusal,
+  transferFee,
+  transferPremium,
   unattachedHeroes,
   unsignableHeroes,
   hallUpkeepParts,
@@ -24,7 +28,9 @@ import {
   nextHallUpkeepDay,
   nextWagesDay,
   upkeep,
+  wageBill,
   wages,
+  wagesLeft,
 } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
@@ -149,15 +155,20 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
     expect(engine.nextHallUpkeepDay).toBe(nextHallUpkeepDay);
   });
 
-  test('the wages are wagePerLevel × Level over the living Roster: a Hero away counts, the dead and the retired do not', () => {
-    const { deps, world, guild } = hallOf('wages');
+  test("the wages are each living Roster Hero's Contract wage, summed: a Hero away counts, the dead and the retired do not, and a Level gained moves nothing (DL-315)", () => {
+    const { world, guild } = hallOf('wages');
     const [first, second, third, fourth] = guild.rosterIds as [HeroId, HeroId, HeroId, HeroId];
+    guild.rosterIds.forEach((heroId, index) => {
+      (world.heroes[heroId] as Hero).contract = { wage: 10 + index, signedOnTurn: 0, years: 1, endDay: 360 };
+    });
     (world.heroes[first] as Hero).level = 3;
     (world.heroes[second] as Hero).partyId = makeId('parties', 1);
-    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1 + 1 + 1));
+    expect(wageBill(guild, world)).toEqual({ [first]: 10, [second]: 11, [third]: 12, [fourth]: 13 });
+    expect(wages(guild, world)).toBe(10 + 11 + 12 + 13);
     (world.heroes[third] as Hero).diedOnTurn = 5;
     (world.heroes[fourth] as Hero).retiredOnTurn = 5;
-    expect(wages(guild, world, deps.config)).toBe(5 * (3 + 1));
+    expect(wageBill(guild, world)).toEqual({ [first]: 10, [second]: 11 });
+    expect(wages(guild, world)).toBe(10 + 11);
   });
 
   test("the Hall's upkeep: the Guild's own base, the Heroes' share on its curve, and each built Facility's upkeep × the grade factor ^ (grade − 1), each part rounded", () => {
@@ -188,7 +199,7 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
     const { deps, world, guild } = hallOf('hall-traits');
     guild.hall = { infirmary: 2, 'training-yard': 0, quarters: 1 };
     const listed = 40 + 20 + Math.round(15 * 1.73) + 10;
-    const plainWages = wages(guild, world, deps.config);
+    const plainWages = wages(guild, world);
     for (const [trait, factor] of [
       ['thrifty', 0.9],
       ['spendthrift', 1.1],
@@ -197,7 +208,7 @@ describe('wages, hallUpkeepParts and their Days (DL-298)', () => {
       const parts = hallUpkeepParts(guild, world, deps.config, deps.content);
       expect(parts, trait).toMatchObject({ base: 40, heroes: 20, facilities: { infirmary: 26, quarters: 10 }, traitFactor: factor });
       expect(parts.total, trait).toBe(Math.round(listed * factor));
-      expect(wages(guild, world, deps.config), trait).toBe(plainWages);
+      expect(wages(guild, world), trait).toBe(plainWages);
     }
   });
 
@@ -278,12 +289,14 @@ describe("hallUpkeepSplit, a Hall upkeep charge's two lines (DL-302, DL-304)", (
 
 describe('upkeep, the measure the readers of Upkeeps count in (DL-298, DL-300)', () => {
   test("is a month's costs: three wage charges and one of the Hall's (hallUpkeepEveryDays ÷ upkeepEveryDays wage charges and one Hall charge), the sum rounded to whole Silver (DL-300)", () => {
-    const deps = testDeps({ startingRosterSize: 4, wagePerLevel: 5, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
+    // Each Contract's wage 5 by the wage rule's base alone: floor((5 + 0 × Level + a Stat sum ÷ 10⁹) × 1 × 1) (DL-315).
+    const wageOfFive = { wageBase: 5, wagePerLevel: 0, wageStatDivisor: 1e9, contractWageFactors: [1, 1, 1], negotiationRange: 0 };
+    const deps = testDeps({ startingRosterSize: 4, ...wageOfFive, hallUpkeepPerHero: 5, hallUpkeepHeroExponent: 1, upkeepEveryDays: 10, hallUpkeepEveryDays: 30 });
     const { world } = createWorld('upkeep-measure', setup, deps).document;
     const guild = playerGuild(world) as Guild;
     (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
     guild.hallBaseUpkeep = 41;
-    // Wages 20; for 30 Days (3 charges): 60. The Hall's 41 + 20 = 61. Total: 60 + 61 = 121.
+    // Wages 4 × 5 = 20; for 30 Days (3 charges): 60. The Hall's 41 + 20 = 61. Total: 60 + 61 = 121.
     expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 61);
     guild.hallBaseUpkeep = 42;
     expect(upkeep(guild, world, deps.config, deps.content)).toBe(20 * 3 + 62);
@@ -637,5 +650,143 @@ describe('offeredQuests (DL-38)', () => {
 
     expect(offeredQuests(world).map((quest) => quest.id)).toEqual([third, second, ...rest]);
     expect(offeredQuests({ board: [], quests: world.quests })).toEqual([]);
+  });
+});
+
+// DL-318 (Q11): the Transfer fee is the wages left × transferFeeFactor × (1 + the premium) × (1 − Negotiation), rounded down once.
+describe('transferFee and transferPremium (Q11, DL-318)', () => {
+  // Wage Days 9, 19, 29, ...; a Contract of 360 Days is charged on 36 of them: 22 × 36 = 792 left at Turn 0.
+  const deps = testDeps({ upkeepEveryDays: 10, transferFeeFactor: 0.3, negotiationRange: 0.1 });
+  const hero = (endDay: number, wage = 22) => ({ id: makeId('heroes', 1), contract: { wage, signedOnTurn: 0, years: 1, endDay } });
+  const [shrewd, soft, middling] = [{ stats: { negotiation: 20 } }, { stats: { negotiation: 1 } }, { stats: { negotiation: 10.5 } }];
+
+  test('is the wages left × transferFeeFactor, rounded down once, at the end', () => {
+    // 792 × 0.3 = 237.6.
+    expect(transferFee(hero(360), undefined, 0, deps)).toBe(237);
+    expect(transferFee(hero(360, 30), undefined, 0, deps)).toBe(324); // 30 × 36 × 0.3
+    const half = testDeps({ upkeepEveryDays: 10, transferFeeFactor: 0.5, negotiationRange: 0.1 });
+    expect(transferFee(hero(360), undefined, 0, half)).toBe(396);
+  });
+
+  test("is times the buying Guildmaster's Negotiation as signingFee applies it, still rounded down once", () => {
+    expect(transferFee(hero(360), shrewd, 0, deps)).toBe(213); // 237.6 × 0.9 = 213.84
+    expect(transferFee(hero(360), soft, 0, deps)).toBe(261); // 237.6 × 1.1 = 261.36
+    expect(transferFee(hero(360), middling, 0, deps)).toBe(237);
+  });
+
+  test('falls as the wages are charged, and is 0 once the Contract has ended or for a Hero with none', () => {
+    expect(transferFee(hero(360), undefined, 30, deps)).toBe(231); // 22 × 35 × 0.3
+    expect(transferFee(hero(19), undefined, 0, deps)).toBe(6); // one charge left: 22 × 0.3 = 6.6
+    expect(transferFee(hero(100), undefined, nightOf(100), deps)).toBe(0);
+    expect(transferFee(hero(100), shrewd, nightOf(100) + 500, deps)).toBe(0);
+    expect(transferFee({ id: makeId('heroes', 1), contract: null }, undefined, 0, deps)).toBe(0);
+  });
+
+  test("does not read the Hero's Level or Stats, only their Contract", () => {
+    const { world } = createWorld('fee-level', setup, deps).document;
+    const [row] = Object.values(world.heroes) as [Hero];
+    const contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 360 };
+    const low = { ...row, level: 1, contract };
+    const high = { ...row, level: 8, contract };
+    expect(transferFee(high, undefined, 0, deps)).toBe(transferFee(low, undefined, 0, deps));
+    expect(transferFee(high, undefined, 0, deps)).toBe(237);
+  });
+
+  test('the premium is a rule for each Hero giving 0, nothing stored on them', () => {
+    expect(transferPremium(hero(360))).toBe(0);
+    expect(transferPremium({ id: makeId('heroes', 2) })).toBe(0);
+  });
+});
+
+// DL-317: the wages left on a Contract, the one count the release payout reads (and the Transfer fee after it).
+describe('wagesLeft, releasePayout and releaseWarning (DL-317)', () => {
+  // Wage Days 9, 19, 29, ...; a Contract of 360 Days is charged on 36 of them.
+  const config = { upkeepEveryDays: 10 } as const;
+  const contract = (endDay: number, wage = 22) => ({ contract: { wage, signedOnTurn: 0, years: 1, endDay } });
+
+  test('is the wage × the wage charges whose night falls before the end Day: a charge on the end Day itself is the repriced wage, not the Contract\'s', () => {
+    expect(wagesLeft(contract(360), 0, config)).toBe(22 * 36);
+    // Day 349 is the last charge before Day 360; Day 359 is not a wage Day.
+    expect(wagesLeft(contract(350), 0, config)).toBe(22 * 35);
+    expect(wagesLeft(contract(349), 0, config)).toBe(22 * 34);
+    expect(wagesLeft(contract(19), 0, config)).toBe(22);
+    expect(wagesLeft(contract(9), 0, config)).toBe(0);
+  });
+
+  test("counts tonight's charge until the night has been played, then the next", () => {
+    // Turn 27 is the morning of Day 9, whose night (Turn 29) charges the wages; Turn 30 is Day 10's.
+    expect(wagesLeft(contract(360), 27, config)).toBe(22 * 36);
+    expect(wagesLeft(contract(360), 28, config)).toBe(22 * 36);
+    expect(wagesLeft(contract(360), 30, config)).toBe(22 * 35);
+  });
+
+  test('is 0 once the Contract has ended (Out of Contract), for a Hero with none, and never negative', () => {
+    expect(wagesLeft(contract(100), nightOf(100), config)).toBe(0);
+    expect(wagesLeft(contract(100), nightOf(100) + 500, config)).toBe(0);
+    expect(wagesLeft({ contract: null }, 0, config)).toBe(0);
+  });
+
+  test('follows upkeepEveryDays, not a constant', () => {
+    expect(wagesLeft(contract(360), 0, { upkeepEveryDays: 30 })).toBe(22 * 12);
+  });
+
+  test('the release payout is releasePayoutFactor × the wages left, rounded down once, at the end; 0 once expired', () => {
+    // 22 × 36 = 792; × 0.8 = 633.6.
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 0.8 })).toBe(633);
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 1 })).toBe(792);
+    expect(releasePayout(contract(360), 0, { ...config, releasePayoutFactor: 0 })).toBe(0);
+    expect(releasePayout(contract(100), nightOf(100), { ...config, releasePayoutFactor: 0.8 })).toBe(0);
+    expect(releasePayout({ contract: null }, 0, { ...config, releasePayoutFactor: 0.8 })).toBe(0);
+  });
+
+  describe('releaseWarning', () => {
+    // A Guild of one Hero, a pool of four, no Negotiation: every Hero's fee is the list price.
+    const deps = testDeps({ startingRosterSize: 1, unattachedPoolSize: 4, negotiationRange: 0, upkeepEveryDays: 10, releasePayoutFactor: 0.8 });
+
+    function lone() {
+      const { world } = createWorld('release-warning', setup, deps).document;
+      const guild = playerGuild(world) as Guild;
+      const hero = world.heroes[guild.rosterIds[0] as HeroId] as Hero;
+      hero.contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 360 };
+      const pool = unattachedHeroes(world);
+      return { world, guild, hero, pool };
+    }
+
+    test('is null for a Hero who is not the Roster\'s last, and for one not on it', () => {
+      const { world, guild, hero, pool } = lone();
+      expect(releaseWarning(world, deps, guild, pool[0] as Hero)).toBeNull();
+      const other = { ...hero, id: 'hero-999999' as HeroId };
+      guild.rosterIds.push(other.id);
+      world.heroes[other.id] = other;
+      expect(releaseWarning(world, deps, guild, hero)).toBeNull();
+    });
+
+    test('for the last Hero names the payout, the Wealth after it and the cheapest fee, and says whether the Wealth covers it', () => {
+      const { world, guild, hero, pool } = lone();
+      const cheapest = Math.min(...pool.map((each) => signingFee(each, deps)), signingFee(hero, deps));
+      guild.wealth = cheapest + 633 - 1;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 633, wealthAfter: cheapest - 1, cheapestFee: cheapest, covers: false });
+      guild.wealth = cheapest + 633;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 633, wealthAfter: cheapest, cheapestFee: cheapest, covers: true });
+    });
+
+    test('counts the released Hero among the pool they would join, as tonight\'s ending does', () => {
+      const { world, guild, hero, pool } = lone();
+      for (const each of pool) {
+        each.level = 9;
+        each.stats = Object.fromEntries(Object.keys(each.stats).map((key) => [key, 50]));
+      }
+      guild.wealth = 700;
+      expect(releaseWarning(world, deps, guild, hero)?.cheapestFee).toBe(signingFee(hero, deps));
+    });
+
+    test('with nobody in the pool and the Hero released, they are the only one to sign; an empty pool and an expired Contract still name the case', () => {
+      const { world, guild, hero, pool } = lone();
+      for (const each of pool) delete world.heroes[each.id];
+      hero.contract = { wage: 22, signedOnTurn: 0, years: 1, endDay: 5 };
+      world.turn = nightOf(5) + 3;
+      guild.wealth = signingFee(hero, deps) - 1;
+      expect(releaseWarning(world, deps, guild, hero)).toEqual({ payout: 0, wealthAfter: guild.wealth, cheapestFee: signingFee(hero, deps), covers: false });
+    });
   });
 });

@@ -240,7 +240,7 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
   test('a retired Hero off the Roster, keeping their guildId, is accepted', () => {
     const retired = (d: Doc): void => {
       offTheRoster(d);
-      hero(d, idleHero).retiredOnTurn = 38;
+      Object.assign(hero(d, idleHero), { retiredOnTurn: 38, contract: null });
     };
     expect(refusals(retired)).toEqual([]);
   });
@@ -277,7 +277,7 @@ describe('a Hero out of play on a Roster or in a Party (ADR-0011)', () => {
 
   test('a dead Hero still in their Party is refused once, naming the Hero', () => {
     const dead = (d: Doc): void => {
-      hero(d, ids.partyHero).diedOnTurn = 30;
+      Object.assign(hero(d, ids.partyHero), { diedOnTurn: 30, contract: null });
       guild(d, ids.playerGuild).rosterIds = guild(d, ids.playerGuild).rosterIds.filter((id) => id !== ids.partyHero);
     };
     expect(refusals(dead)).toEqual([failure('departed-hero-in-play', ids.partyHero)]);
@@ -289,7 +289,7 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
     [
       'a Hero on a Roster still in the pool',
       (d) => {
-        hero(d, unattachedHero).guildId = ids.rivalGuild;
+        Object.assign(hero(d, unattachedHero), { guildId: ids.rivalGuild, contract: { wage: 20, signedOnTurn: 0, years: 2, endDay: 400 } });
         guild(d, ids.rivalGuild).rosterIds.push(unattachedHero);
       },
       unattachedHero,
@@ -326,6 +326,34 @@ describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
   });
 });
 
+// DL-294 item 6, DL-315: a Hero on a Roster holds a Contract, and no other Hero does.
+describe('§6: a Contract held off a Roster, or missing on one', () => {
+  test.each<[string, Mutation, string]>([
+    ['a Hero on a Roster with none', (d) => (hero(d, idleHero).contract = null), idleHero],
+    ['a pool Hero with one', (d) => (hero(d, unattachedHero).contract = { wage: 20, signedOnTurn: 0, years: 1, endDay: 360 }), unattachedHero],
+    ['a dead Hero off the Roster with one', (d) => (hero(d, ids.deadHero).contract = { wage: 20, signedOnTurn: 0, years: 1, endDay: 360 }), ids.deadHero],
+  ])('%s is refused, naming the Hero', (_, mutate, id) => {
+    expect(refusals(mutate)).toEqual([failure('contract-mismatch', id)]);
+  });
+
+  test.each<[string, Partial<NonNullable<Hero['contract']>>]>([
+    ['ends on its signing Day', { signedOnTurn: 30, endDay: 10 }],
+    ['ends before its signing Day', { signedOnTurn: 30, endDay: 9 }],
+    ['is signed after the world\'s Turn', { signedOnTurn: fixtureTurn + 1, endDay: 400 }],
+    ['has a wage not whole Silver', { wage: 20.5 }],
+    ['has a wage below 0', { wage: -1 }],
+    ['is 0 years long', { years: 0 }],
+    ['ends on a Day not whole', { endDay: 400.5 }],
+  ])('a Contract that %s is refused, naming the Hero', (_, terms) => {
+    expect(refusals((d) => Object.assign(hero(d, idleHero).contract ?? {}, terms))).toEqual([failure('contract-mismatch', idleHero)]);
+  });
+
+  test("a Contract ending the Day after its signing, or past its years' Days (a founding one's or a rebased year's), is accepted", () => {
+    expect(refusals((d) => Object.assign(hero(d, idleHero).contract ?? {}, { signedOnTurn: 30, endDay: 11 }))).toEqual([]);
+    expect(refusals((d) => Object.assign(hero(d, idleHero).contract ?? {}, { signedOnTurn: 0, years: 1, endDay: 5_000 }))).toEqual([]);
+  });
+});
+
 describe('§6: a Guildmaster whose guildId differs from the Guild that names them', () => {
   test('is refused, naming the Guildmaster', () => {
     expect(refusals((d) => (guildmaster(d, ids.playerGuildmaster).guildId = ids.rivalGuild))).toEqual([
@@ -338,7 +366,7 @@ describe('§6: a folded Guild with a Hero on its Roster or a Party of its own (D
   /** Folds the Rival as the endings phase does: its Roster released into the pool. */
   const foldRival = (d: Doc): void => {
     const rival = guild(d, ids.rivalGuild);
-    for (const heroId of rival.rosterIds) Object.assign(hero(d, heroId), { guildId: null, unattachedSince: 38 });
+    for (const heroId of rival.rosterIds) Object.assign(hero(d, heroId), { guildId: null, unattachedSince: 38, contract: null });
     rival.rosterIds = [];
     rival.foldedOnTurn = 38;
     // The Transfer offer was for one of its Heroes: M6 settles what a fold does to an offer.
@@ -725,11 +753,14 @@ describe('document-shape', () => {
     ['guild.wages-paid', ['amount', 'wealthAfter']],
     ['guild.below-floor', ['wealth', 'floor']],
     ['guild.floor-recovered', ['wealth', 'floor']],
-    ['hero.recruited', ['fee']],
+    ['hero.recruited', ['fee', 'wage']],
+    ['hero.contract-renewed', ['wage']],
+    ['hero.contract-expired', ['wage']],
+    ['hero.released', ['payout']],
     ['guild.improved', ['cost']],
     ['item.bought', ['unitPrice', 'cost']],
     ['item.sold', ['unitPrice', 'proceeds']],
-    ['hero.transferred', ['fee']],
+    ['hero.transferred', ['fee', 'wage']],
     ['guild.transfer-offered', ['fee']],
     ['guild.transfer-offer-declined', ['fee']],
     ['guild.transfer-offer-expired', ['fee']],
@@ -738,7 +769,11 @@ describe('document-shape', () => {
   ] as const)("a %s entry whose amount is not whole Silver is refused, naming the entry; whole, it is accepted", (type, fields) => {
     const appended = (fraction: string | null): { document: WorldDocument; at: number } => {
       const { document } = buildDocument();
-      const payload = Object.fromEntries(fields.map((field) => [field, field === fraction ? 100.5 : -100]));
+      const payload = {
+        ...Object.fromEntries(fields.map((field) => [field, field === fraction ? 100.5 : -100])),
+        // The wages name each Hero's wage, a map of amounts (DL-315).
+        ...(type === 'guild.wages-paid' ? { wages: {} } : {}),
+      };
       const at = append(document.history, { turn: fixtureTurn, type, participants: [ids.playerGuild], labels: {}, milestone: false, payload } as Entry);
       return { document, at };
     };
@@ -786,6 +821,23 @@ describe('document-shape', () => {
       { ...whole, facilities: { infirmary: 20, quarters: 10.5 } },
       { ...whole, facilities: [20, 10] },
     ]) {
+      const { document, at } = paying(broken);
+      expect(validate(document, deps), JSON.stringify(broken)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
+    }
+  });
+
+  // DL-315: the wages name each Hero's Contract wage, a map of amounts.
+  test("a guild.wages-paid entry whose map of each Hero's wage is missing, not a map or holds a wage not whole Silver is refused, naming the entry", () => {
+    const whole = { guildId: ids.playerGuild, amount: 45, wealthAfter: 455, wages: { 'hero-000001': 22, 'hero-000002': 23 } };
+    const paying = (payload: object): { document: WorldDocument; at: number } => {
+      const { document } = buildDocument();
+      const entry = { turn: fixtureTurn, type: 'guild.wages-paid', participants: [ids.playerGuild], labels: {}, milestone: false, payload };
+      const at = append(document.history, entry as Entry);
+      return { document, at };
+    };
+
+    expect(validate(paying(whole).document, deps)).toEqual({ ok: true, warnings: [] });
+    for (const broken of [{ ...whole, wages: { 'hero-000001': 22.5 } }, { ...whole, wages: [22, 23] }, { guildId: ids.playerGuild, amount: 45, wealthAfter: 455 }]) {
       const { document, at } = paying(broken);
       expect(validate(document, deps), JSON.stringify(broken)).toMatchObject({ ok: false, failures: [{ check: 'entry-field-missing', id: `$.history.entries[${at}]` }] });
     }
@@ -857,7 +909,7 @@ describe('rule 8: a removed Hero named by a non-passive entry', () => {
     expect(refusals(() => undefined)).toEqual([]);
     const named = (d: Doc): void => {
       const participants = [ids.departedHero, ids.playerGuild];
-      const entry = { turn: fixtureTurn, participants, labels: {}, milestone: false, payload: { fee: 0 } };
+      const entry = { turn: fixtureTurn, participants, labels: {}, milestone: false, payload: { fee: 0, wage: 0 } };
       append(d.history, { ...entry, type: 'hero.recruited' });
     };
     expect(refusals(named)).toEqual([failure('removed-hero-in-history', ids.departedHero)]);
@@ -1133,7 +1185,7 @@ describe('validating from historyFrom', () => {
   function grow(d: Doc): number {
     const from = d.history.entries.length;
     const participants = [ids.partyHero, ids.playerGuild];
-    const entry = { turn: fixtureTurn, labels: {}, payload: { at: from, fee: 0 } };
+    const entry = { turn: fixtureTurn, labels: {}, payload: { at: from, fee: 0, wage: 0 } };
     append(d.history, { ...entry, participants: [...participants], type: 'hero.morale-changed', milestone: false });
     append(d.history, { ...entry, participants: [...participants], type: 'hero.recruited', milestone: true });
     return from;
@@ -1237,7 +1289,7 @@ describe('validating from historyFrom', () => {
 
   test('finds a removed Hero a new entry names, and a counter that would reuse a new entry’s id', () => {
     const naming = (type: 'hero.recruited' | 'hero.left-pool') => (d: Doc) => {
-      const entry = { turn: fixtureTurn, labels: {}, milestone: false, payload: { fee: 0 } };
+      const entry = { turn: fixtureTurn, labels: {}, milestone: false, payload: { fee: 0, wage: 0 } };
       append(d.history, { ...entry, type, participants: [ids.departedHero] });
     };
     expect(refusalsFrom(naming('hero.recruited')).found).toEqual([failure('removed-hero-in-history', ids.departedHero)]);

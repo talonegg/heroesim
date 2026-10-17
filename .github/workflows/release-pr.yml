@@ -23,7 +23,8 @@ concurrency:
 
 jobs:
   pull-request:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest, so no runner image change lands mid-release (DL-313).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:

@@ -84,10 +84,11 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
 redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294).
 
 - **Now: [`v1.2.3`, Contracts](./planning/epics/v1.2.3-release.md)** (DL-294 item 6), on
-  `v1.2.3-dev`, cut from `v1.2.2`'s record, not started: a Contract on every Hero, its wage set at
-  signing and its length chosen; renewal, release with a payout, fee-0 Offers for expired Heroes, and
-  the Transfer fee from the wages left; the Rivals and the harness's policy deciding renewals (#20).
-  It takes in #51's wage. `v1.2.2`, Coin and the Hall, was released (§2): Wealth in whole Silver, the
+  `v1.2.3-dev`, cut from `v1.2.2`'s record, S1 to S9 built and verified (DL-314 to DL-323), the
+  close's review, checks and Gate recorded (DL-324), S11 built on the owner's ruling and verified (DL-325), the CLI's Offer on the owner's "b" (S12, DL-326),
+  the Gate again, the owner's playtest and the release to come: a Contract on every Hero, its wage set at signing and its length chosen;
+  renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer fee from the
+  wages left; the Rivals and the harness's policy deciding renewals (#20). It takes in #51's wage. `v1.2.2`, Coin and the Hall, was released (§2): Wealth in whole Silver, the
   Hall's Facilities as content, its upkeep every 30 Days apart from the wages every 10, one Upkeep a
   month of costs, the surplus sold and the Treasury's lines; its close's costs against `v1.2.1`'s are
   in [the outcomes](./planning/epics/gate-outcomes-monitoring.md), and every one of the player's games
@@ -133,9 +134,10 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
     by what each Hero wants and more factors behind a Guildmaster's preferred length; the wage read
     from a Hero's and the Guild's reputation, personality, Regard and comparable teammates' wages;
     competing bids for an Unattached Hero, weighed by signing fee, wage and Regard; a Guildmaster's
-    premium on a Hero; Rivals renewing early; a choosable starting Hall, with its bonuses and base
-    upkeep; selling Hall assets; patronage by Sphere; investments, gambling, and Random and Inciting
-    Events as income or cost; borrowing and debt; Campaigns and Scenarios with economic stakes.
+    premium on a Hero; Rivals renewing early; a Hero rejecting an Offer made for them (the owner,
+    `v1.2.3`'s Q-G); a choosable starting Hall, with its bonuses and base upkeep; selling Hall
+    assets; patronage by Sphere; investments, gambling, and Random and Inciting Events as income or
+    cost; borrowing and debt; Campaigns and Scenarios with economic stakes.
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Loot's content (#36).
   - Rival encounters during Quests; direct contests between Guilds, a separate later feature

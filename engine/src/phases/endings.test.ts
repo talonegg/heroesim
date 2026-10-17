@@ -82,7 +82,7 @@ function firstRival(world: World): Guild {
 function wipeRoster(world: World, guild: Guild): void {
   for (const heroId of guild.rosterIds) {
     const hero = world.heroes[heroId];
-    if (hero !== undefined) hero.diedOnTurn = world.turn;
+    if (hero !== undefined) Object.assign(hero, { diedOnTurn: world.turn, contract: null });
   }
   guild.rosterIds = [];
 }
@@ -589,7 +589,8 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       for (const name of plannedStreams) {
         // A Guildmaster entering play is given a Portrait and described, each on a stream of its own,
         // and so is each Hero of the new Rival's Roster.
-        const own = ['generation', 'gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions'];
+        // A replacement's founding Contracts draw on `contracts` (DL-311 item 2, DL-315).
+        const own = ['generation', 'gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions', 'contracts'];
         const moved = own.includes(name) && rivalReplacementDays === 0;
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
         else expect(rng[name], name).toEqual(before[name]);

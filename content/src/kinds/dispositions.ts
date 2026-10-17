@@ -1,6 +1,7 @@
 // The Dispositions (DL-56; `dispositions.json`): at least one, since the Guild Generator
 // deals one to every Rival; each appetite, and the `partyMargin` (DL-157), a fraction from 0 to 1, each
-// threshold a multiple of 0 or more, its rest band a Fatigue band or null (DL-286), and the orders it
+// threshold a multiple of 0 or more, its rest band a Fatigue band or null (DL-286), its Contracts'
+// length a whole number of years from 1 (DL-315; the config's lengths are the signing's to hold), and the orders it
 // buys and builds in, each when written a permutation of its keys (DL-202): its build order of content's
 // Facilities (DL-297).
 
@@ -25,6 +26,7 @@ export const dispositionsKind = table<'dispositions', Disposition>(
     transferAppetite: number,
     partyMargin: number,
     restBand: oneOfOrNull(fatigueBands),
+    contractYears: number,
     purchaseOrder: optional(oneOfEach(purchaseStepChoices)),
     gearSlotOrder: optional(oneOfEach(gearSlots)),
     buildOrder: optional(strings),
@@ -48,6 +50,9 @@ export const dispositionsRules: KindRules = {
       for (const field of ['recruitThreshold', 'buildThreshold', 'gearThreshold'] as const) {
         const value = disposition[field];
         if (!(value >= 0)) problems.push(`${where}.${field} is ${value}; it is a number of 0 or more`);
+      }
+      if (!(Number.isSafeInteger(disposition.contractYears) && disposition.contractYears >= 1)) {
+        problems.push(`${where}.contractYears is ${disposition.contractYears}; it is a whole number of years from 1`);
       }
       const { restBand } = disposition;
       if (restBand !== null && !(fatigueBandNames as readonly string[]).includes(restBand)) {

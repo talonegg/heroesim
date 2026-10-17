@@ -54,7 +54,7 @@ export function buildImprovement(
     document: result.document,
     lines: [
       `Built ${nameIn(deps.content.improvements, improvementKey)} for ${coinLetters(cost)}: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
-      `Wealth ${coinLetters(built.wealth)}; wages ${coinLetters(wages(built, world, deps.config))} every ${deps.config.upkeepEveryDays} Days, ` +
+      `Wealth ${coinLetters(built.wealth)}; wages ${coinLetters(wages(built, world))} every ${deps.config.upkeepEveryDays} Days, ` +
         `Hall upkeep ${coinLetters(hallUpkeepParts(built, world, deps.config, deps.content).total)} every ${deps.config.hallUpkeepEveryDays} Days.`,
       next === null
         ? `The ${name} ${is} now at the highest grade.`

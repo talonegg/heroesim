@@ -51,6 +51,9 @@ describe('stopText', () => {
       `Stopped: a Quest to staff: The Lantern's Heroes at home could go on ${narration.questName(quest)}.`,
     );
     if (poolHero === undefined) throw new Error('no Hero in the pool');
+    const [one, two] = player.rosterIds.map((id) => document.world.heroes[id]?.name);
+    expect(said({ kind: 'contract-expired', guildId: player.id, heroIds: player.rosterIds.slice(0, 1) })).toBe(`Stopped: a Contract ended: ${one} of The Lantern is Out of Contract.`);
+    expect(said({ kind: 'contract-expired', guildId: player.id, heroIds: player.rosterIds.slice(0, 2) })).toBe(`Stopped: Contracts ended: ${one} and ${two} of The Lantern are Out of Contract.`);
     expect(said({ kind: 'pool-refreshed', heroIds: [poolHero.id] })).toBe(`Stopped: new in the Unattached pool: ${poolHero.name}.`);
   });
 
@@ -61,7 +64,7 @@ describe('stopText', () => {
     if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
     const rich = structuredClone(document);
     (rich.world.guilds[rival.id] as { wealth: number }).wealth = 100_000;
-    const offered = applyAction(rich, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+    const offered = applyAction(rich, { kind: 'offerTransfer', guildId: rival.id, heroId, years: 2 }, deps);
     if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');

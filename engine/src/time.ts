@@ -38,6 +38,14 @@ export function yearOf(turn: Turn, config: Pick<GameConfig, 'turnsPerYear'>): nu
 }
 
 /**
+ * The Days of a year: `turnsPerYear` ÷ `turnsPerDay`, a whole number since a year is whole Days
+ * (DL-210). What a Contract's term counts in, never a constant (DL-311 item 6).
+ */
+export function daysPerYear(config: Pick<GameConfig, 'turnsPerYear'>): number {
+  return config.turnsPerYear / turnsPerDay;
+}
+
+/**
  * The night Turn of Day `day`: the Turn a Party returns on and its Quest resolves (data-model
  * §3.2, pre-M0 review C4). `nightOf(dayOf(turn) + days)` is the night `days` Days after `turn`'s
  * Day, whichever Turn of its Day `turn` is.

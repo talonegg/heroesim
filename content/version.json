@@ -1,5 +1,5 @@
 {
-  "version": 49,
+  "version": 50,
   "changelog": [
     "2 from M2-S3, which added the Quest templates.",
     "3 from M2-S9, which added the Dispositions.",
@@ -50,6 +50,7 @@
     "46 from v1.2.2-S3, which adds the Facilities (`facilities.json`: the infirmary, the training yard and the quarters, each with its upkeep of 15 and its effects at grade 0) and each Improvement's effects at its grade, the values config held, and keys the training yard `training-yard` (DL-294 item 3, DL-297).",
     "47 from the content editor's Finish of 2026-10-12 (changed infirmary, training-yard, quarters).",
     "48 from v1.2.2-S5, which divides each Disposition's recruitThreshold by 3, one Upkeep becoming a month of costs: steady and miserly 20, ambitious 15, reckless 10 (DL-294 item 4, DL-300).",
-    "49 from v1.2.2-S6, which gives the five loot-only Items their own value of 600 and removes buyPrice from them (DL-294 item 5, DL-301)."
+    "49 from v1.2.2-S6, which gives the five loot-only Items their own value of 600 and removes buyPrice from them (DL-294 item 5, DL-301).",
+    "50 from v1.2.3-S2, which gives each Disposition its `contractYears`, the length of the Contracts it signs: steady 2, ambitious 1, miserly 3, reckless 1 (DL-294 item 6, Q7c; DL-315)."
   ]
 }

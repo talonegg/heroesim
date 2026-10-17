@@ -3158,7 +3158,27 @@ ul.chips {
 }
 
 .pool-table {
-  min-width: 38rem;
+  min-width: 62rem;
+}
+
+/* A signing's length and the button that signs for it, side by side, the length no wider than its words. */
+.sign-for-length {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sign-for-length select {
+  width: auto;
+}
+
+/* On a phone the length stands over its button, so that a row's last column is one button wide and the Fee beside it stays in view. */
+@media (max-width: 599px) {
+  .sign-for-length {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
 }
 
 /* The Stores has no Effect column: it fits a tablet's width, and scrolls on a phone (M9-F6). */

@@ -29,6 +29,7 @@ import {
   nextHallUpkeepDay,
   nextImprovement,
   nextWagesDay,
+  outOfContract,
   playerGuild,
   regardBand,
   regardValue,
@@ -178,6 +179,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       { heading: 'Wealth', align: 'right' },
       { heading: 'Fame', align: 'right' },
       { heading: 'Upkeep', align: 'right' },
+      { heading: 'Out of Contract', align: 'right' },
       ...(anyFolded ? [{ heading: 'Folded' }] : []),
     ],
     guilds.map((guild) => [
@@ -192,6 +194,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       coinLetters(guild.wealth),
       String(guild.fame),
       coinLetters(upkeep(guild, world, config, content)),
+      String(guild.rosterIds.filter((id) => outOfContract(rowOf(world.heroes, id) ?? { contract: null }, world.turn)).length),
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on ${dateOfTurn(guild.foldedOnTurn, config)}`] : []),
     ]),
   );
@@ -259,7 +262,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     player === undefined || !inPlay(player) || world.ended !== null
       ? []
       : [
-          `Wages ${coinLetters(wages(player, world, config))} every ${config.upkeepEveryDays} Days, ` +
+          `Wages ${coinLetters(wages(player, world))} every ${config.upkeepEveryDays} Days, ` +
             `next paid on ${nightOfDay(nextWagesDay(world.turn, config), config)}.`,
           `Hall upkeep ${coinLetters(hallUpkeepParts(player, world, config, deps.content).total)} every ${config.hallUpkeepEveryDays} Days, ` +
             `next paid on ${nightOfDay(nextHallUpkeepDay(world.turn, config), config)}.`,
@@ -390,12 +393,21 @@ function heroTable<Row extends HeroRow>(rows: readonly Row[], more: readonly Her
  */
 export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
   const { world, content } = reading;
-  // The Captain marked beside the others (DL-289), then another Guild's Transfer fee.
+  // The Captain marked beside the others (DL-289), then the Contract (DL-323), then another Guild's Transfer fee.
   const fees: HeroColumn<RosterRowReading>[] = [
     { heading: 'Captain', cell: (row) => (row.captain ? 'Yes' : '') },
+    { heading: 'Contract', cell: (row) => row.contract },
     ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => (row.transferFee === null ? '' : coinLetters(row.transferFee)) }]),
+      : [
+          {
+            heading: 'Transfer fee',
+            align: 'right' as const,
+            // Out of Contract costs nothing to take, said "No fee" as the Guild page's cell says it (DL-326).
+            cell: (row: RosterRowReading) =>
+              row.transferFee === null ? '' : outOfContract(rowOf(world.heroes, row.id) ?? { contract: null }, world.turn) ? 'No fee' : coinLetters(row.transferFee),
+          },
+        ]),
   ];
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
@@ -460,6 +472,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['XP', String(hero.xp)],
     ['Morale', `${hero.morale}, ${hero.moraleBand}`],
     ['Fatigue', `${hero.fatigue}, ${hero.fatigueBand}`],
+    ...(hero.contract === '' ? [] : [['Contract', hero.contract] as [string, string]]),
     [
       'Injury',
       hero.injury === null
@@ -470,7 +483,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['Traits', none(hero.traits.map((trait) => `${trait.name} (${trait.effect})`))],
     ...hero.texts.map(({ label, words }): [string, string] => [label, words]),
   ];
-  if (hero.transferFee !== null) attributes.push(['Transfer fee', coinLetters(hero.transferFee)]);
+  if (hero.transferFee !== null) attributes.push(['Transfer fee', hero.outOfContract ? 'No fee' : coinLetters(hero.transferFee)]);
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.died !== null) attributes.push(['Died', renderDate(hero.died, calendar)]);
   if (hero.retired !== null) attributes.push(['Retired', renderDate(hero.retired, calendar)]);

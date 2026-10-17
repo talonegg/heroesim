@@ -30,7 +30,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { createItem, nightOf, potentialHints } from '@heroesim/engine/testing';
+import { createItem, makeId, nightOf, potentialHints } from '@heroesim/engine/testing';
 import { describe, expect, test } from 'vitest';
 import { encounterReadings, shownPercent } from './query.js';
 import {
@@ -377,9 +377,9 @@ describe("a Hero's reading", () => {
     for (const rival of Object.values(document.world.guilds).filter((guild) => guild.id !== player(document).id)) {
       for (const heroId of rival.rosterIds) {
         const hero = document.world.heroes[heroId] as Hero;
-        const fee = transferFee(hero, buyer, deps);
+        const fee = transferFee(hero, buyer, document.world.turn, deps);
         expect(read(document, hero)).toMatchObject({ transferFee: fee, signing: null, guild: { id: rival.id, name: rival.name } });
-        if (transferFee(hero, guildmasterOf(rival, document.world), deps) !== fee) seller += 1;
+        if (transferFee(hero, guildmasterOf(rival, document.world), document.world.turn, deps) !== fee) seller += 1;
       }
     }
     expect(seller).toBeGreaterThan(0);
@@ -443,12 +443,55 @@ describe('the rows of a Roster and of the pool', () => {
         fatigueBand: fatigueBand(hero.fatigue, defaultConfig),
         captain: guild.captainId === hero.id,
         background: content.backgrounds[hero.backgroundKey]?.name,
+        // The first Day: the Days left are the end Day itself.
+        contract: `${hero.contract?.endDay} Days left`,
         transferFee: null,
       });
     }
     expect(rosterReading(reading, rival).map((row) => [row.id, row.transferFee])).toEqual(
-      rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, deps)]),
+      rival.rosterIds.map((id) => [id, transferFee(document.world.heroes[id] as Hero, buyer, document.world.turn, deps)]),
     );
+  });
+
+  test("gives a Hero's Contract on their row: Out of Contract from the night its end Day falls, and Under Offer while an Offer stands for them at home (DL-323)", () => {
+    const document = newGame();
+    const [first, second, third] = heroes(document) as [Hero, Hero, Hero];
+    const rival = rivalOf(document);
+    first.contract = { ...(first.contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    second.contract = { ...(second.contract as NonNullable<Hero['contract']>), endDay: 5 };
+    const offerId = makeId('offers', 1);
+    document.world.offers[offerId] = {
+      id: offerId,
+      kind: 'transfer',
+      fromGuildId: player(document).id,
+      toGuildId: rival.id,
+      heroId: second.id,
+      fee: 0,
+      years: 1,
+      offeredOnTurn: 0,
+      expiresOnTurn: nightOf(2),
+    };
+    third.contract = null;
+
+    const rows = rosterReading(playerReading(document, deps), player(document));
+
+    expect(rows.map((row) => row.contract).slice(0, 3)).toEqual(['Out of Contract', '5 Days left, Under Offer', '']);
+    expect([first, second, third].map((hero) => read(document, hero).outOfContract)).toEqual([true, false, false]);
+  });
+
+  test("gives another Guild's Hero, on their row and in their reading, the fee of the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
+    const document = newGame();
+    const rival = rivalOf(document);
+    const buyer = guildmasterOf(player(document), document.world);
+    const hero = document.world.heroes[rival.rosterIds[0] as HeroId] as Hero;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 1_080 };
+    document.world.turn = nightOf(99) + 1; // the morning of Day 100, ten wage charges on
+    const fee = transferFee(hero, buyer, document.world.turn, deps);
+    expect(fee).toBeLessThan(transferFee(hero, buyer, 0, deps));
+
+    expect(rosterReading(playerReading(document, deps), rival).find((row) => row.id === hero.id)?.transferFee).toBe(fee);
+    expect(read(document, hero).transferFee).toBe(fee);
   });
 
   test('names the bands a row puts a Hero in, lowest first, so that a front end offers them without the engine', () => {

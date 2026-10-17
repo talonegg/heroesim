@@ -72,9 +72,9 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
  * is wiped whatever its Wealth.
  *
  * Fame is not asked (DL-38). An ending is for good, and a Hero's refusal for Fame is not: every
- * Hero the pool's refill brings is Level 1 and signs for any Guild, and the pool turns over within
- * `unattachedStayDays`. A Guild whose Wealth reaches a Hero who refuses it is waiting, not wiped;
- * it is wiped once its Wealth is short of every fee in the pool.
+ * Hero the pool's refill brings is Level 1, signs for any Guild and leaves within `unattachedStayDays`
+ * (a released Hero stays `releasedStayDays`, DL-325). A Guild whose Wealth reaches a Hero who refuses
+ * it is waiting, not wiped; it is wiped once its Wealth is short of every fee in the pool.
  */
 function cheapestSigningFee(world: World, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number {
   return cheapestUnattached(world, deps, guild, false)?.fee ?? Number.POSITIVE_INFINITY;
@@ -150,7 +150,8 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
  *    one of its Heroes), is withdrawn, in id order, with `guild.transfer-offer-expired` for
  *    `guild-folded` (M6-S2, DL-57): no offer outlives the Guild it names.
  * 6. Its Heroes are released to the Unattached pool, in Roster order, each with `hero.left-guild`,
- *    keeping their Injuries, Levels and Morale; the Roster is emptied and `foldedOnTurn` set.
+ *    keeping their Injuries, Levels and Morale and holding no Contract (DL-315); the Roster is emptied
+ *    and `foldedOnTurn` set.
  * 7. `guild.folded`, a Milestone naming the Guild, its Guildmaster, each Party it disbanded and each
  *    Quest it abandoned, closes the fold. It is made first, while those rows still exist (an event
  *    names only rows the world has, `emit`), and told last.
@@ -205,6 +206,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     );
     hero.guildId = null;
     hero.unattachedSince = ctx.turn;
+    hero.contract = null;
   }
   guild.rosterIds = [];
   guild.captainId = null;

@@ -19,10 +19,12 @@
 import {
   compareByCodeUnit,
   encounterForm,
+  freeOffer,
   isId,
   isModuleEvent,
   parseId,
   regardBandNames,
+  type ContractTerms,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
@@ -46,7 +48,7 @@ import {
   type World,
 } from '@heroesim/engine';
 import { type ContentSet, type Degree } from '@heroesim/engine/content';
-import { dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
+import { dateOfDay, dateOfTurn, nightOfDay, nightOfTurn, type Calendar } from './calendar.js';
 import { coinWords } from './coins.js';
 import { facilityIs, facilityName } from './facilities.js';
 import { listed, nameIn, signed, signedCoins } from './names.js';
@@ -117,6 +119,7 @@ export interface CommandSlot {
     | 'show-board'
     | 'show-pool'
     | 'answer-offer'
+    | 'answer-free-offer'
     | 'show-roster'
     | 'show-rosters'
     | 'show-market'
@@ -276,6 +279,7 @@ const gearReturnWords: Readonly<Record<GearReturnCause, string>> = {
   retired: ', who retired',
   'guild-folded': ' as the Guild folded',
   transferred: ', who was transferred',
+  released: ', who was released',
 };
 
 /** What became of a Transfer Offer that went unanswered (M6-S2), after the Offer. */
@@ -283,7 +287,17 @@ const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
   expired: 'expired unanswered',
   'hero-left': 'lapsed: the Hero left that Roster',
   'guild-folded': 'lapsed as a Guild folded',
+  renewed: "was withdrawn: the Hero's Contract was renewed",
+  taken: 'was taken up: the Hero went for no fee',
 };
+
+/**
+ * A Transfer's fee as a line says it: 0 is "no fee", as the page's Offer card says a free Offer's (DL-326, the owner's
+ * "a"); a priced fee floored to 0, its Contract with no wages left, is no fee too.
+ */
+function feeWords(fee: number): string {
+  return fee === 0 ? 'no fee' : coinWords(fee);
+}
 
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
 export function crossed(before: RegardBand, after: RegardBand): string {
@@ -295,6 +309,14 @@ export function crossed(before: RegardBand, after: RegardBand): string {
 export function itemsWords(content: ContentSet, definitionKey: string, quantity: number): string {
   const name = nameIn(content.items, definitionKey);
   return quantity === 1 ? name : `${quantity} × ${name}`;
+}
+
+/**
+ * A signing's Contract as its sentence ends (DL-315): `, on a Contract at 22 Silver to Year 2 Day 41`, its
+ * wage and its end Day as the calendar names it, which says its length; short enough for the CLI's line.
+ */
+function contractWords({ wage, endDay }: ContractTerms, calendar: Calendar): Sentence {
+  return say`, on a Contract at ${coinWords(wage)} to ${dateOfDay(endDay, calendar)}`;
 }
 
 /** An Item of gear that moved, by content's name and the id `equip` takes: `Arming sword (stack-000004)` in the CLI. */
@@ -332,7 +354,16 @@ const sentences: Sentences = {
     const { guildId, wealth, floor, belowFloorSince } = event.payload;
     return say`${called(event, guildId)}'s Wealth, ${coinWords(wealth)}, is back to the Bankruptcy floor of ${coinWords(floor)} or more, after falling below it on ${dateOfTurn(belowFloorSince, calendar)}: no Bankruptcy is due.`;
   },
-  'hero.recruited': (event) => say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}.`,
+  'hero.recruited': (event, _content, calendar) =>
+    say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${coinWords(event.payload.fee)}${contractWords(event.payload, calendar)}.`,
+  // DL-316: a renewal, its new terms; a Contract's end, the wage repriced Out of Contract.
+  'hero.contract-renewed': (event, _content, calendar) =>
+    say`${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} again${contractWords(event.payload, calendar)}.`,
+  'hero.contract-expired': (event) =>
+    say`${hero(event, event.payload.heroId)}'s Contract with ${called(event, event.payload.guildId)} ended: Out of Contract, their wage is now ${coinWords(event.payload.wage)}.`,
+  // DL-317: a release, its payout; none once the Contract had ended.
+  'hero.released': (event) =>
+    say`${called(event, event.payload.guildId)} released ${hero(event, event.payload.heroId)}${event.payload.payout > 0 ? say`, paying ${coinWords(event.payload.payout)}` : say`, with no payout`}.`,
   'hero.left-pool': (event) => say`${hero(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, content) => {
     const { patronId, templateKey, questId } = event.payload;
@@ -477,15 +508,19 @@ const sentences: Sentences = {
       ? say`${called(event, guildId)}'s ${what} went to the Market for ${coinWords(proceeds)} as the Guild folded.`
       : say`${called(event, guildId)} sold ${what} at the Market for ${coinWords(proceeds)}.`;
   },
-  'hero.transferred': (event) => {
-    // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was.
+  'hero.transferred': (event, _content, calendar) => {
+    // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was; the new Contract's terms (DL-315).
     const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
     const accepted = offerId === null ? '' : say`, accepting ${{ kind: 'offer', id: offerId }}`;
-    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${coinWords(fee)}${accepted}.`;
+    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${feeWords(fee)}${accepted}${contractWords(event.payload, calendar)}.`;
   },
   'guild.transfer-offered': (event, _content, calendar) => {
     const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
-    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${coinWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
+    const until = nightOfTurn(expiresOnTurn, calendar);
+    // No fee is said "for no fee", as the Transfer it makes says it (DL-326's note, the owner's "a").
+    return fee === 0
+      ? say`${called(event, toGuildId)} offered to take ${hero(event, heroId)}${ids(offerId)} from ${called(event, fromGuildId)} for ${feeWords(fee)}, until ${until}.`
+      : say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${feeWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${until}.`;
   },
   'guild.transfer-offer-declined': (event) => {
     const { offerId, fromGuildId, toGuildId, heroId } = event.payload;
@@ -581,7 +616,7 @@ function held(kind: NameSlot['kind'], id: EntityId, rows: Readonly<Record<string
 
 /**
  * Why an advance or a fast forward stopped (M2-S11, M7-S3), one narration for both front ends
- * (DL-206 item 2, DL-209): its nine sentences, the names as slots a
+ * (DL-206 item 2, DL-209): its ten sentences, the names as slots a
  * front end's Namer fills, a Guild, a Hero, a Quest, the Parties counted or listed, an Offer's line,
  * and what to do next (`command`), which the CLI says as a command and the page as a button. `world`
  * is where it stopped, for the names its rows hold; `maxTurns` the cap it played under; `calendar` the
@@ -608,14 +643,23 @@ export function narrateStop(stop: StopReason, world: Pick<World, 'guilds' | 'her
       // M9-S1: `--until staffable`, whether or not a Party is out.
       return say`Stopped: a Quest to staff: ${guild(stop.guildId)}'s Heroes at home could go on ${quests(stop.questIds)}${next('show-board')}.`;
     case 'transfer-offer': {
-      // M6-S2: each Offer that arrived, who made it, for whom and until when.
-      const offers = stop.offerIds.map((offerId): Sentence => {
-        const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
+      // M6-S2: each Offer that arrived, who made it, for whom and until when; a free Offer is answered by
+      // renewing, never declined (DL-319, DL-323).
+      const standing = stop.offerIds.map((offerId) => (Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined));
+      const offers = stop.offerIds.map((offerId, index): Sentence => {
+        const offer = standing[index];
         if (offer === undefined) return [{ kind: 'offer', id: offerId, withdrawn: true }];
-        return say`${guild(offer.toGuildId)} offers ${coinWords(offer.fee)} for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
+        const fee = freeOffer(world, offer) ? 'no fee' : coinWords(offer.fee);
+        return say`${guild(offer.toGuildId)} offers ${fee} for ${heroSlot(offer.heroId)} until ${nightOfTurn(offer.expiresOnTurn, calendar)}${ids(offerId)}`;
       });
-      return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next('answer-offer')}`;
+      const allFree = standing.every((offer) => offer === undefined || freeOffer(world, offer)) && standing.some((offer) => offer !== undefined);
+      return say`Stopped: a Transfer Offer: ${listedSentences(offers)}.${next(allFree ? 'answer-free-offer' : 'answer-offer')}`;
     }
+    case 'contract-expired':
+      // DL-316: the Heroes whose Contracts ended tonight, Out of Contract until renewed.
+      return stop.heroIds.length === 1
+        ? say`Stopped: a Contract ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} is Out of Contract${next('show-roster')}.`
+        : say`Stopped: Contracts ended: ${listedSentences(stop.heroIds.map((id): Sentence => [heroSlot(id)]))} of ${guild(stop.guildId)} are Out of Contract${next('show-roster')}.`;
     case 'module':
       // M8-S2: an installed module's hook asked for the stop.
       return say`Stopped: the ${stop.moduleId} Module asked to stop.`;

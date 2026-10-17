@@ -164,7 +164,7 @@ describe('the Quests by Tier', () => {
 
 // DL-302: the Wealth by line, and each side's shares of what it spent and took.
 describe('the Wealth spent and taken', () => {
-  test("give each line, the Hall's charge as its two parts, and the shares of spending across the seven expense lines and of taking across the three income lines", () => {
+  test("give each line, the Hall's charge as its two parts, and the shares of spending across the eight expense lines and of taking across the three income lines", () => {
     const counter = gameCounters.find((it) => it.key === 'wealth');
     if (counter?.lines === undefined) throw new Error('No wealth counter');
     const player = {
@@ -172,10 +172,11 @@ describe('the Wealth spent and taken', () => {
       wages: 600,
       hallUpkeep: 100,
       improvementUpkeep: 50,
-      items: 100,
+      items: 75,
       improvements: 100,
       signing: 25,
       transferFeesPaid: 25,
+      releasePayouts: 25,
       questRewards: 700,
       transferFeesTaken: 100,
       sales: { sale: 100, fold: 100 },
@@ -188,15 +189,35 @@ describe('the Wealth spent and taken', () => {
     expect(cells("Spent: Upkeep, the Hall's (`guild.hall-upkeep-paid` `amount`, less the Improvements')")?.slice(1, 3)).toEqual(['100', '100.0']);
     expect(cells("Spent: Upkeep, the Improvements' (`guild.hall-upkeep-paid` `facilities` × `traitFactor`, rounded)")?.slice(1, 3)).toEqual(['50', '50.0']);
     expect(cells('Spent: Upkeep in all')?.slice(1, 3)).toEqual(['750', '750.0']);
+    expect(cells('Spent: release payouts (`hero.released` `payout`)')?.slice(1, 3)).toEqual(['25', '25.0']);
     expect(cells('Spent in all')?.slice(1, 3)).toEqual(['1,000', '1,000.0']);
     expect(cells('Taken in all')?.slice(1, 3)).toEqual(['1,000', '1,000.0']);
     expect(lines).toContain(
-      "Shares of the Wealth spent: The player's Guild: wages 60.0%, Hall upkeep 10.0%, Improvements’ upkeep 5.0%, Items 10.0%, " +
-        'Improvements 10.0%, signing 2.5%, Transfers 2.5%; The Rivals: wages —, Hall upkeep —, Improvements’ upkeep —, Items —, ' +
-        'Improvements —, signing —, Transfers —.',
+      "Shares of the Wealth spent: The player's Guild: wages 60.0%, Hall upkeep 10.0%, Improvements’ upkeep 5.0%, Items 7.5%, " +
+        'Improvements 10.0%, signing 2.5%, Transfers 2.5%, release payouts 2.5%; The Rivals: wages —, Hall upkeep —, Improvements’ upkeep —, Items —, ' +
+        'Improvements —, signing —, Transfers —, release payouts —.',
     );
     expect(lines).toContain(
       "Shares of the Wealth taken: The player's Guild: Quest rewards 70.0%, Item sales 20.0%, Transfers 10.0%; The Rivals: Quest rewards —, Item sales —, Transfers —.",
+    );
+  });
+
+  // DL-321 (DL-305's note): thirds that round alone to 99.9% sum to the whole by largest remainder.
+  test("each side's shares sum to the whole, by largest remainder, where rounding each alone misses it", () => {
+    const counter = gameCounters.find((it) => it.key === 'wealth');
+    if (counter?.lines === undefined) throw new Error('No wealth counter');
+    const thirds = { ...noWealth(), wages: 1, hallUpkeep: 1, improvementUpkeep: 1, questRewards: 1, transferFeesTaken: 1, sales: { sale: 1, fold: 0 } };
+    const totals = { wealth: { player: thirds, rival: noWealth() }, guildYears: { player: [1], rival: [2] } };
+
+    const lines = counter.lines(totals as unknown as SweepTotals, {} as never).flatMap((text) => text.split('\n'));
+
+    expect(lines).toContain(
+      "Shares of the Wealth spent: The player's Guild: wages 33.4%, Hall upkeep 33.3%, Improvements’ upkeep 33.3%, Items 0.0%, " +
+        'Improvements 0.0%, signing 0.0%, Transfers 0.0%, release payouts 0.0%; The Rivals: wages —, Hall upkeep —, Improvements’ upkeep —, Items —, ' +
+        'Improvements —, signing —, Transfers —, release payouts —.',
+    );
+    expect(lines).toContain(
+      "Shares of the Wealth taken: The player's Guild: Quest rewards 33.4%, Item sales 33.3%, Transfers 33.3%; The Rivals: Quest rewards —, Item sales —, Transfers —.",
     );
   });
 });

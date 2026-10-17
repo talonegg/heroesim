@@ -143,11 +143,38 @@ export interface GameConfig {
   /** The wages fall due every this many Days (DL-26 says which Days precisely; DL-298). */
   upkeepEveryDays: number;
   /**
-   * Wealth deducted per Level of each living Hero on the Roster, each time the wages fall due: a wage
-   * that weighs against the Quest rewards, so that a Guild must keep succeeding, and that a Roster
-   * gaining Levels can still bear (DL-35, DL-36).
+   * A Contract's wage before its Hero's Level, Stats and Guild: the base of the wage rule
+   * (`contractWage`), whole Silver each time the wages fall due (DL-294 item 6, DL-315).
+   */
+  wageBase: number;
+  /**
+   * The wage rule's part for each Level the Hero holds at signing: a wage that weighs against the
+   * Quest rewards, so that a Guild must keep succeeding, fixed for the Contract's term so that a Level
+   * gained costs nothing until the Contract is signed again (DL-36, DL-294 item 6, DL-315).
    */
   wagePerLevel: number;
+  /** The wage rule's Stat part: the sum of the Hero's base Stats divided by this (DL-294 item 6, DL-315). */
+  wageStatDivisor: number;
+  /** The wage rule's Fame part: this × the signing Guild's Fame, 0 by the owner's word (Q6, DL-294 item 6). */
+  wageFameFactor: number;
+  /** The lengths a Contract may be signed for, in years: the signer chooses one (Q7b, DL-294 item 6). */
+  contractLengthsYears: number[];
+  /**
+   * The wage's factor for each length, in `contractLengthsYears`' order, as long as it: a longer term
+   * cheaper each period (Q7b, DL-294 item 6).
+   */
+  contractWageFactors: number[];
+  /**
+   * What a Hero Out of Contract costs above the shortest term: on the night their Contract ends, the wage
+   * is repriced by the wage rule at the shortest length's factor × (1 + this), charged until they are
+   * renewed, released or taken (Q-D, DL-311 item 1, DL-316).
+   */
+  outOfContractPremium: number;
+  /**
+   * The share of the wages left on a Contract that its Guild pays to release the Hero during the term, at
+   * most all of them; nothing is owed once it has ended (Q10, DL-294 item 6, DL-317).
+   */
+  releasePayoutFactor: number;
   /**
    * The Hall's upkeep, with its Improvements', falls due every this many Days, counted as the wages'
    * are (DL-26), a month by default (DL-294 item 4, DL-298).
@@ -193,6 +220,11 @@ export interface GameConfig {
   signingFeeStatDivisor: number;
   /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
   unattachedStayDays: number;
+  /**
+   * Whole Days a Hero a Guild released stays in the pool in place of `unattachedStayDays`, from the Day of
+   * the release: a Year, the owner's (2026-10-17, DL-325).
+   */
+  releasedStayDays: number;
   /**
    * Fame's first rule (R10 as amended, pre-M0 review B4, INPUTS 5.6, DL-38): an Unattached
    * Hero refuses to sign for a Guild whose Fame is below this times the Hero's Level less one, so
@@ -554,9 +586,9 @@ export interface GameConfig {
 
   // ── `transfers`: Transfers (R28, INPUTS 7.6, pre-M0 review D5, DL-57) ─────────────────────────
   /**
-   * A Transfer fee is the Hero's signing fee before Negotiation (`signingFee`'s list price) times
-   * this, times the buying Guildmaster's Negotiation, rounded down once (`transferFee`; INPUTS 7.6:
-   * two signing fees).
+   * A Transfer fee is the wages left on the Hero's Contract (`wagesLeft`) times this, times the
+   * buying Guildmaster's Negotiation, rounded down once (`transferFee`; Q11, DL-318). Unfitted until
+   * `v1.2.4` tunes it with the wages (DL-312).
    */
   transferFeeFactor: number;
   /**
@@ -574,7 +606,8 @@ export interface GameConfig {
   guildmasterRegardPerTransferDeal: number;
   /**
    * Days a Transfer Offer stands, the Day it is made included: it expires on that last Day's night
-   * and is removed then, with `guild.transfer-offer-expired`, unless answered first.
+   * and is removed then, with `guild.transfer-offer-expired`, unless answered first. For a Hero away
+   * when it is made, the Days after their Party's return night (Q-H, DL-319).
    */
   transferOfferDays: number;
   /**

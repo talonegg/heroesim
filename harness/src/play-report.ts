@@ -74,6 +74,7 @@ const headings: Record<Section, readonly string[]> = {
       "a Rival takes, and whether an afternoon Transfer's seller was in debt.",
     '',
   ],
+  contracts: ['## Contracts (DL-321)', ''],
   fatigue: ['## Fatigue and the Captain (DL-290)', ''],
   portraits: ['## Portraits (v1.1.3-S5)', ''],
   heroes: ['## Heroes described (v1.1.3-S6)', ''],
@@ -150,21 +151,26 @@ export function playReport(sweep: PlaySweep, context: PlayReportContext): string
       `${Object.keys(policyChanged).length === 0 ? '' : `the policy's defaults changed by \`${JSON.stringify(policyChanged)}\` · `}` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
-    `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
+    `Policy (INPUTS 4.14): first answer the Transfer Offers made for its Heroes, declining every priced one (M6-S2) ` +
+      `and renewing for ${sweep.policy.contractYears} years a Hero at home a free Offer stands for whose Level is at ` +
+      `or above its Roster's median, or with its Roster at ${sweep.policy.rosterFloor} or below, else letting the ` +
+      `Offer run out (DL-319); then the gear it holds ` +
       `onto Heroes with the slot empty (M5-S2); of the Quests it can staff, the one whose Party has the highest ` +
       `chance of success by the estimate, ties to the higher reward, then the Quest id, and again from the Heroes ` +
       `left (v1.1.5-S2), each Party the engine's Best Party by the chance estimate at a margin of ` +
       `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
       `serves the Quest (DL-62); one purchase a Turn: the next grade of the first Facility that heals while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
-      `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
+      `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign, for ` +
+      `${sweep.policy.contractYears} years, while ` +
       `Wealth exceeds ${upkeepsWords(sweep.policy.recruitWealthMultiple)} and the Roster is below ${sweep.policy.rosterLimit}, ` +
       `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
       `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${upkeepsWords(sweep.policy.consumableReserveUpkeeps)} ` +
       `(DL-62); outside that purchase, it sells its surplus (DL-301): Gear in its Holding beyond what its Heroes ` +
       `with the slot empty would put on, Consumables above ${sweep.policy.consumableStock} of each, what its Parties ` +
       `carry counted, and Loot-only Items; in debt, its whole Holding but what the Turn's equips and dispatches take; ` +
-      `never transfer a Hero in or out.`,
+      `never transfer a Hero in or out. In debt, once its Holding is sold, it releases one Hero Out of Contract a ` +
+      `Turn, the lowest Level first, never one it sends, renews or that is Under Offer (DL-320, DL-322).`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,

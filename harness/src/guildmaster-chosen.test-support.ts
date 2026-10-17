@@ -57,6 +57,11 @@ export function expectChosenAsNone(seeds: readonly string[], deps: EngineDeps): 
     };
     const none = createWorld(seed, harnessSetup, deps).document;
     const every = createWorld(seed, chosen, deps).document;
+    // A founding wage reads the Guildmaster's Negotiation (DL-315): the Stats chosen move it, though no draw.
+    for (const hero of Object.values(every.world.heroes)) {
+      const was = none.world.heroes[hero.id]?.contract;
+      if (hero.contract !== null && was !== null && was !== undefined) hero.contract.wage = was.wage;
+    }
     expect(parts(every), seed).toEqual(parts(none));
     expect(every.world.rng, seed).toEqual(none.world.rng);
     // The whole world, the player's Guildmaster and every Guildmaster's picture and its texts set aside.

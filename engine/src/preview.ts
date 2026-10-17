@@ -192,7 +192,7 @@ function problemsOf(guild: Guild, heroIds: readonly HeroId[], world: World): Par
   return heroIds.flatMap((heroId): PartyProblem[] => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined || hero.guildId !== guild.id) return [{ heroId, hero, because: 'not-on-roster' }];
-    const because = unavailability(hero);
+    const because = unavailability(hero, world);
     return because === null ? [] : [{ heroId, hero, because }];
   });
 }

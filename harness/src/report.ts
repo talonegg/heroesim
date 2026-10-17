@@ -104,6 +104,26 @@ export function percent(n: number, of: number): string {
   return of === 0 ? '—' : `${fixed((100 * n) / of, 1)}%`;
 }
 
+/**
+ * The shares of one whole, `parts` each over their sum, to one place and rounded by largest remainder
+ * (DL-321, DL-305's note): the tenths of a percent left over when each is rounded down go, one each, to
+ * the parts with the largest remainders, the earlier part first among equals, so the shares sum to
+ * 100.0%. The parts are whole amounts, so each remainder is the whole one of `1000 × part ÷ sum`, and
+ * equal remainders compare equal, as a float's would not. A dash for each of a whole of nothing.
+ */
+export function shares(parts: readonly number[]): string[] {
+  const total = parts.reduce((all, part) => all + part, 0);
+  if (total === 0) return parts.map(() => '—');
+  const remainders = parts.map((part) => (1000 * part) % total);
+  const tenths = parts.map((part, index) => (1000 * part - (remainders[index] as number)) / total);
+  const leftover = 1000 - tenths.reduce((all, tenth) => all + tenth, 0);
+  [...parts.keys()]
+    .sort((a, b) => (remainders[b] as number) - (remainders[a] as number) || a - b)
+    .slice(0, leftover)
+    .forEach((index) => (tenths[index] = (tenths[index] as number) + 1));
+  return tenths.map((tenth) => `${fixed(tenth / 10, 1)}%`);
+}
+
 export type Align = 'left' | 'right';
 
 /**

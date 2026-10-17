@@ -156,7 +156,7 @@ function busyGame(): { state: GameState; gone: Named[] } {
   const signed = (state: GameState): GameState => {
     const signing = poolView(state.document as WorldDocument).rows.find((row) => row.willSign === true);
     if (signing === undefined) throw new Error('no Hero in the pool who signs');
-    return played(state, { kind: 'recruit', heroId: signing.heroId });
+    return played(state, { kind: 'recruit', heroId: signing.heroId, years: 2 });
   };
   // A Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
   const recruited = signed(withPartyOut(signed(withTraitNews(changed6))));

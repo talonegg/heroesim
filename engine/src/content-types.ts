@@ -714,6 +714,12 @@ export interface Disposition {
    */
   restBand: FatigueBand | null;
   /**
+   * The length, in years, of the Contracts it signs, in every signing it chooses: a recruit, a
+   * Transfer in, a Transfer Offer, and a Hero it takes in by `transferOut` (Q7c, DL-294 item 6, DL-315).
+   * One of the config's `contractLengthsYears`, which the signing refuses otherwise.
+   */
+  contractYears: number;
+  /**
    * The order it tries its purchases in, the first that applies made (v1.1.6-S16, DL-186 item 16,
    * DL-202): each of `purchaseSteps` once. When absent, `purchaseSteps`' own order.
    */

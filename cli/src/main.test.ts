@@ -314,7 +314,7 @@ describe('show', () => {
       const guild = thePlayer(world);
       const config = { ...defaultConfig, ...meta.config };
       return [
-        `Wages ${coinLetters(wages(guild, world, config))} every ${config.upkeepEveryDays} Days`,
+        `Wages ${coinLetters(wages(guild, world))} every ${config.upkeepEveryDays} Days`,
         `Hall upkeep ${coinLetters(hallUpkeepParts(guild, world, config, content).total)} every ${config.hallUpkeepEveryDays} Days`,
       ];
     };
@@ -376,7 +376,7 @@ describe('show', () => {
     edit((edited) => {
       const guild = thePlayer(edited.world);
       for (const heroId of guild.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       }
       guild.rosterIds = [];
       guild.foldedOnTurn = 0;
@@ -386,7 +386,7 @@ describe('show', () => {
     expect(folded.out).not.toMatch(/^(Wages|Hall upkeep) /m);
   });
 
-  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
+  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame, Upkeep and Heroes Out of Contract', () => {
     const { world } = document();
 
     const run = play(['show', 'guilds']);
@@ -398,7 +398,7 @@ describe('show', () => {
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
       const due = upkeep(guild, world, defaultConfig, content);
-      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${coinLetters(guild.wealth)}\\s+${guild.fame}\\s+${coinLetters(due)}$`));
+      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${coinLetters(guild.wealth)}\\s+${guild.fame}\\s+${coinLetters(due)}\\s+0$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
   });
@@ -429,7 +429,7 @@ describe('show', () => {
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
       for (const heroId of rival.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       }
       rival.rosterIds = [];
       rival.foldedOnTurn = 0;
@@ -467,7 +467,7 @@ describe('show', () => {
     });
     const sentence = "The save has no player's Guild.";
 
-    for (const argv of [['show', 'roster'], ['show', 'hall'], ['show', 'guildmaster'], ['recruit', '--hero', 'hero-000001'], ['advance', '--until', 'decision']]) {
+    for (const argv of [['show', 'roster'], ['show', 'hall'], ['show', 'guildmaster'], ['recruit', '--hero', 'hero-000001', '--years', '2'], ['advance', '--until', 'decision']]) {
       expect(play(argv), argv.join(' ')).toMatchObject({ code: exitCodes.refused, out: '', err: `${sentence}\n` });
     }
     expect(play(['show', 'offers']).out).toBe(`${sentence}\n`);
@@ -819,7 +819,7 @@ describe('advance --until: fast forward', () => {
       edited.meta.config = { ...edited.meta.config, turnsPerYear: 30 };
       const guild = edited.world.guilds[playerId] as Guild;
       for (const heroId of guild.rosterIds) {
-        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn });
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn, contract: null });
       }
       guild.rosterIds = [];
     });
@@ -881,7 +881,7 @@ describe('dispatch', () => {
     const actions = [
       ['dispatch', '--quest', questId, '--heroes', heroIds.join(',')],
       ['build', '--facility', 'infirmary'],
-      ['recruit', '--hero', pooled.id],
+      ['recruit', '--hero', pooled.id, '--years', '2'],
     ];
     edit((edited) => {
       (edited.world.guilds[playerId] as Guild).wealth = 100_000;
@@ -1041,7 +1041,7 @@ describe("every date under the save's own calendar, not this release's (DL-210)"
     const pooled = (Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero).id;
     edit((edited) => {
       const rival = edited.world.guilds[rivalId] as Guild;
-      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0 });
+      for (const id of rival.rosterIds) Object.assign(edited.world.heroes[id] as Hero, { guildId: null, unattachedSince: 0, contract: null });
       rival.rosterIds = [];
       rival.foldedOnTurn = 13;
       Object.assign(edited.world.heroes[pooled] as Hero, { unattachedSince: null, diedOnTurn: 13 });

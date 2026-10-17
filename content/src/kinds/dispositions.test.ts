@@ -70,6 +70,22 @@ describe('a Disposition', () => {
     );
   });
 
+  // The length of the Contracts it signs, whole years from 1 (DL-294 item 6, Q7c; DL-315).
+  test('has a Contract length, a whole number of years from 1, and one missing or of another kind is refused, naming it', () => {
+    const missing = withJson('dispositions.json', (json) => {
+      Reflect.deleteProperty(reckless(json), 'contractYears');
+    });
+    expect(parse(withJson('dispositions.json', () => {})).dispositions['steady']?.contractYears).toBe(2);
+    expect(refusalOf(() => parse(missing)).message).toContain('dispositions.json: reckless.contractYears is missing');
+    for (const years of [0, 1.5, -1]) {
+      const content = structuredClone(shipped);
+      Object.assign(content.dispositions['steady'] ?? {}, { contractYears: years });
+      expect(refusalOf(() => validateContent(content)).message, String(years)).toContain(
+        `dispositions.steady.contractYears is ${years}; it is a whole number of years from 1`,
+      );
+    }
+  });
+
   test('is required: a set with none is refused, since every Rival is dealt one', () => {
     expect(refusalOf(() => parse(withText('dispositions.json', '{}'))).message).toContain('dispositions is empty');
   });
@@ -85,6 +101,7 @@ describe('a Disposition', () => {
         transferAppetite: 0,
         partyMargin: 0,
         restBand: 'weary',
+        contractYears: 2,
       };
     });
 

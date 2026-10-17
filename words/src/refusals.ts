@@ -160,6 +160,11 @@ function inParty({ heroId, partyId }: Extract<ActionRejection, { reason: 'hero-i
   return say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero is transferred only from the Hall.`;
 }
 
+/** A signing for a length the config does not offer (DL-315): the lengths it does. */
+function lengthNotOffered({ years, offered }: Extract<ActionRejection, { reason: 'length-not-offered' }>): Sentence {
+  return say`A Contract is ${listed(offered.map(String), 'or')} Years long; ${years} is not.`;
+}
+
 function notFound({ offerId }: Extract<ActionRejection, { reason: 'offer-not-found' }>, setting: RefusalSetting): Sentence {
   return say`No such Transfer Offer${ids(offerId)} stands for ${player(setting)}'s Heroes${command('show-offers')}.`;
 }
@@ -247,6 +252,7 @@ const sentences: Sentences = {
 
   // recruit.
   'recruit guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and signs no one.`,
+  'recruit length-not-offered': lengthNotOffered,
   'recruit hero-not-unattached': ({ heroId }, setting) => say`${hero(setting, heroId)} is not in the Unattached pool${command('pool-holds')}.`,
   'recruit signing-refused': ({ heroId, fameRequired, fame, shortfall }, setting) =>
     say`${hero(setting, heroId)} will not sign for a Guild with less than ${fameRequired} Fame; ${player(setting)} has ${fame}, ${shortfall} short.`,
@@ -294,10 +300,13 @@ const sentences: Sentences = {
 
   // The five Transfer actions (DL-57).
   'transferIn guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
+  'transferIn length-not-offered': lengthNotOffered,
   'transferIn hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
   'transferIn same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
   'transferIn hero-in-party': inParty,
   'transferIn recently-transferred': locked,
+  'transferIn out-of-contract': ({ heroId }, setting) =>
+    say`${hero(setting, heroId)} is Out of Contract: a Guild takes them only by a free Offer, which their Guild answers.`,
   'transferIn transfer-refused': refused,
   'transferIn insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
@@ -307,13 +316,17 @@ const sentences: Sentences = {
     say`${hero(setting, heroId)} is not on ${player(setting)}'s Roster${command('show-roster')}.`,
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
+  // DL-325: a Hero Out of Contract goes only on a free Offer, or is released.
+  'transferOut out-of-contract-no-offer': ({ heroId, guildId }, setting) =>
+    say`${guild(setting, guildId)} has no Offer standing for ${hero(setting, heroId)}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool${command('show-offers')}.`,
   'transferOut transfer-refused': refused,
+  'transferOut length-not-offered': lengthNotOffered,
   'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
 
   'offerTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
+  'offerTransfer length-not-offered': lengthNotOffered,
   'offerTransfer hero-not-on-roster': ({ heroId }, setting) => say`${hero(setting, heroId)} is on no other Guild's Roster${command('show-rosters')}.`,
   'offerTransfer same-guild': (_, setting) => say`That Hero is already on ${player(setting)}'s Roster.`,
-  'offerTransfer hero-in-party': inParty,
   'offerTransfer recently-transferred': locked,
   'offerTransfer no-offer-needed': ({ guildId }, setting) =>
     say`${guild(setting, guildId)} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
@@ -326,9 +339,15 @@ const sentences: Sentences = {
   'acceptTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'acceptTransfer offer-not-found': notFound,
   'acceptTransfer hero-in-party': inParty,
+  'acceptTransfer length-not-offered': lengthNotOffered,
   'acceptTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,
   'declineTransfer guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and deals no more.`,
   'declineTransfer offer-not-found': notFound,
+  'declineTransfer free-offer': ({ offerId }, setting) => {
+    const offer = rowOf(setting.world?.offers, offerId);
+    const who = offer === undefined ? 'that Hero' : hero(setting, offer.heroId);
+    return say`The Offer${ids(offerId)} is free, ${who} being Out of Contract: it is answered only by renewing them, or it runs out and they go.`;
+  },
 
   // The Captain (DL-287).
   'nameCaptain guild-folded': ({ guildId }, setting) => say`${guild(setting, guildId)} has folded and names no Captain.`,
@@ -340,6 +359,20 @@ const sentences: Sentences = {
     const { calendar } = setting;
     return say`The Captain was last replaced on ${dateOfTurn(changedOnTurn, calendar)}, and the post cannot change again before ${dateOfTurn(untilTurn, calendar)}.`;
   },
+
+  // A renewal (DL-316).
+  'renew length-not-offered': lengthNotOffered,
+  'renew hero-not-on-roster': ({ heroId, guildId }, setting) =>
+    say`${hero(setting, heroId)} is not on ${guild(setting, guildId)}'s Roster${command('show-roster')}.`,
+  // The owner's Q-A: renewed once home, as a Transfer waits.
+  'renew hero-in-party': ({ heroId, partyId }, setting) =>
+    say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero's Contract is renewed only in the Hall.`,
+
+  // A release (DL-317).
+  'release hero-not-on-roster': ({ heroId, guildId }, setting) =>
+    say`${hero(setting, heroId)} is not on ${guild(setting, guildId)}'s Roster${command('show-roster')}.`,
+  'release hero-in-party': ({ heroId, partyId }, setting) =>
+    say`${hero(setting, heroId)} is away with a Party${ids(partyId)}; a Hero is released only in the Hall.`,
 };
 
 /** Every kind the table has a sentence for: the test holds it to the union. */

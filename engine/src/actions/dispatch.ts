@@ -27,6 +27,7 @@ import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
 import { findStack, itemDefinition, moveStack } from '../items.js';
 import { tierFigures } from '../tiers.js';
 import { returnNightOf } from '../time.js';
+import { underOffer } from '../transfer.js';
 import type { Rejection, WorldActionResult } from './result.js';
 
 export interface DispatchAction {
@@ -79,8 +80,11 @@ export interface HeroNotOnRoster extends Rejection<'dispatch', 'hero-not-on-rost
   guildId: GuildId;
 }
 
-/** Why a Hero of the Guild cannot go: an Injury, Death, Retirement, or a Party already away. */
-export type Unavailability = 'injured' | 'dead' | 'retired' | 'in-party';
+/**
+ * Why a Hero of the Guild cannot go: an Injury, Death, Retirement, a Party already away, or a Transfer
+ * Offer standing for them at home (`under-offer`, Q-G, Q-H, DL-319).
+ */
+export type Unavailability = 'injured' | 'dead' | 'retired' | 'in-party' | 'under-offer';
 
 export interface HeroUnavailable extends Rejection<'dispatch', 'hero-unavailable'> {
   heroId: HeroId;
@@ -144,8 +148,8 @@ export type DispatchRejection =
  * fails is the rejection (DL-25, DL-31): the Guild has not folded (`guild-folded`); the Quest is
  * on the Board (`quest-not-offered`); the Guild's Fame is at least the Fame minimum of the Quest's
  * Tier (`fame-below-minimum`, `fameRefusal`, DL-264); each Hero in turn is on the Guild's Roster
- * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, or in a
- * Party); the Party meets the Quest's requirements (`requirement-unmet`, naming each it
+ * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, in a Party,
+ * or Under Offer); the Party meets the Quest's requirements (`requirement-unmet`, naming each it
  * misses: its size, its required Class, its required Skill; M4-S5, `unmetRequirements`); and each
  * consumable, in the order given, is a consumable (`not-consumable`), held by the Guild
  * (`not-held-by-guild`) in the quantity asked (`insufficient-quantity`; M5-S3, DL-50).
@@ -294,7 +298,7 @@ function refusal(world: World, guild: Guild, request: DispatchRequest, deps: Eng
   const party: Hero[] = [];
   for (const heroId of heroIds) {
     const hero = rowOf(world.heroes, heroId);
-    const because = hero === undefined ? null : unavailability(hero);
+    const because = hero === undefined ? null : unavailability(hero, world);
     // A dead or retired Hero has left the Roster and keeps `guildId` (DL-20 item 3): the Guild's
     // own, unavailable, rather than a stranger.
     const left = because === 'dead' || because === 'retired';
@@ -339,13 +343,15 @@ export function fameRefusal(
 }
 
 /**
- * Why a Hero cannot go, or `null` when they can: Death and Retirement before the rest. What a
- * controller reads to choose a Party that `dispatch` accepts (M2-S9).
+ * Why a Hero cannot go, or `null` when they can: Death and Retirement before the rest, and Under Offer
+ * after a Party (`underOffer`, read from `world`'s Offers, DL-319). What a controller reads to choose
+ * a Party that `dispatch` accepts (M2-S9).
  */
-export function unavailability(hero: Hero): Unavailability | null {
+export function unavailability(hero: Hero, world: Pick<World, 'offers'>): Unavailability | null {
   if (hero.diedOnTurn !== null) return 'dead';
   if (hero.retiredOnTurn !== null) return 'retired';
   if (hero.injury !== null) return 'injured';
   if (hero.partyId !== null) return 'in-party';
+  if (underOffer(world, hero)) return 'under-offer';
   return null;
 }

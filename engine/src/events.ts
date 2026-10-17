@@ -20,6 +20,7 @@ import type {
   TraitKey,
 } from './content-types.js';
 import type {
+  Contract,
   EndingReason,
   EntityId,
   Entry,
@@ -96,10 +97,14 @@ export type WorldRulesAdopted = Entry<
 // ── The Guild State Engine (M2-S7, INPUTS 4.6, DL-26) ────────────────────────────────────────
 
 /**
- * A Guild's wages were deducted from its Wealth on their Day (`wages`, `nextWagesDay`, selectors.ts;
- * DL-298): `amount` taken and Wealth after paying it, which may be negative. Names the Guild.
+ * A Guild's wages were deducted from its Wealth on their Day (`wageBill`, `nextWagesDay`, selectors.ts;
+ * DL-298): `amount` taken, Wealth after paying it, which may be negative, and each Hero's Contract wage
+ * it was the sum of, by Hero (DL-315). Names the Guild.
  */
-export type GuildWagesPaid = Entry<'guild.wages-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+export type GuildWagesPaid = Entry<
+  'guild.wages-paid',
+  { guildId: GuildId; amount: number; wealthAfter: number; wages: Record<HeroId, number> }
+>;
 
 /**
  * A Guild's Hall upkeep with its Improvements' was deducted from its Wealth on its Day
@@ -145,13 +150,40 @@ export type GuildFloorRecovered = Entry<
 // ── Recruitment and the Unattached pool (M2-S8, DL-27) ───────────────────────────────────────
 
 /**
- * A Guild signed an Unattached Hero for `fee` Wealth through `recruit`. A Milestone, naming the
- * Hero and the Guild.
+ * A Contract's terms as a signing's event carries them (DL-315): its wage in whole Silver, its length
+ * in years and its end Day; the Turn signed is the event's.
  */
-export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number }>;
+export type ContractTerms = Pick<Contract, 'wage' | 'years' | 'endDay'>;
 
 /**
- * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
+ * A Guild signed an Unattached Hero for `fee` Wealth through `recruit`, on the Contract's terms. A
+ * Milestone, naming the Hero and the Guild.
+ */
+export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number } & ContractTerms>;
+
+/**
+ * A Guild signed a Hero of its Roster again through `renew`, on the new Contract's terms, its old term
+ * dropped (DL-316). A Milestone, naming the Hero and the Guild.
+ */
+export type HeroContractRenewed = Entry<'hero.contract-renewed', { heroId: HeroId; guildId: GuildId } & ContractTerms>;
+
+/**
+ * A Hero's Contract ended on the night of its end Day, and they play on, Out of Contract, on their Guild's
+ * Roster: `wage` is the wage repriced that night (`outOfContractWage`), charged from then (Q-D, DL-311 item
+ * 1, DL-316). A Milestone for every Guild's Hero alike, naming the Hero and the Guild.
+ */
+export type HeroContractExpired = Entry<'hero.contract-expired', { heroId: HeroId; guildId: GuildId; wage: number }>;
+
+/**
+ * A Guild released a Hero of its Roster through `release`: they join the Unattached pool with no Contract,
+ * and `payout` is what the Guild paid, `releasePayoutFactor` of the wages left, 0 once their Contract has
+ * ended (Q10, DL-317). A Milestone, naming the Hero and the Guild.
+ */
+export type HeroReleased = Entry<'hero.released', { heroId: HeroId; guildId: GuildId; payout: number }>;
+
+/**
+ * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it, or
+ * `releasedStayDays` after a release (DL-325). Names the
  * Hero, whose row is then removed unless an entry names them (data-model rule 8); recorded only
  * then (DL-211).
  */
@@ -315,7 +347,7 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 /**
  * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
  * Morale consequences of a Quest's Encounters, summed (M4-S2), a Hero they held in high Regard
- * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, a module's
+ * transferred away from their Roster (M6-S2, DL-57) or released (DL-317), emitted only on a band crossing, a module's
  * `adjustMorale` effect (M8-S2, DL-77), another Hero named Captain in their place (`captain-changed`),
  * or coming home with their Guild's Captain (`captain-homecoming`; DL-287).
  */
@@ -620,9 +652,9 @@ export type ItemUnequipped = Entry<'item.unequipped', GearMove>;
  * Why gear went back from a Hero to their Guild's holding without an `unequip` (DL-49): the Hero
  * died or retired (the night's `gearReturn`), or the Guild folded (its gear is back before the
  * fold does anything with the Guild's holding), or the Hero was transferred to another Guild, whose
- * gear stays with the Guild they leave (M6-S2, DL-49 item 8, DL-57).
+ * gear stays with the Guild they leave (M6-S2, DL-49 item 8, DL-57), or their Guild released them (DL-317).
  */
-export type GearReturnCause = 'died' | 'retired' | 'guild-folded' | 'transferred';
+export type GearReturnCause = 'died' | 'retired' | 'guild-folded' | 'transferred' | 'released';
 
 /**
  * Gear a Hero carried went back to their Guild's holding, for `cause`, one entry per Item. Names the
@@ -678,11 +710,12 @@ export type ItemSold = Entry<
 /**
  * A Hero moved from `fromGuildId`'s Roster to `toGuildId`'s for `fee` Wealth, paid by the second to
  * the first: through `transferIn`, `transferOut`, or `acceptTransfer`, which names the Transfer Offer
- * accepted as `offerId` (`null` otherwise). A Milestone, naming the Hero, both Guilds and the offer.
+ * accepted as `offerId` (`null` otherwise). Their old Contract ended, and they signed the new one's
+ * terms with the Guild they joined (DL-315). A Milestone, naming the Hero, both Guilds and the offer.
  */
 export type HeroTransferred = Entry<
   'hero.transferred',
-  { heroId: HeroId; fromGuildId: GuildId; toGuildId: GuildId; fee: number; offerId: OfferId | null }
+  { heroId: HeroId; fromGuildId: GuildId; toGuildId: GuildId; fee: number; offerId: OfferId | null } & ContractTerms
 >;
 
 /** A Transfer Offer as its events carry it: the offer, the two Guilds, the Hero and the fee. */
@@ -712,9 +745,12 @@ export type GuildTransferOfferDeclined = Entry<'guild.transfer-offer-declined', 
 /**
  * Why a Transfer Offer was removed unanswered: its time ran out (`expired`, the night of its last
  * Day), its Hero left the Roster it was made for (`hero-left`: transferred, dead or retired), or one
- * of the two Guilds folded (`guild-folded`).
+ * of the two Guilds folded (`guild-folded`). A free Offer, made for a Hero Out of Contract, ends too
+ * when their Guild renews them (`renewed`), or when the Hero is taken (`taken`): its time run out for
+ * a Guild that answers through Offers, or at once by a Rival's answer, the `hero.transferred` that
+ * follows naming the Offer (Q8, Q15, DL-319).
  */
-export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded';
+export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded' | 'renewed' | 'taken';
 
 /**
  * A Transfer Offer was removed unanswered, for `cause`. Names the offer, the Hero and both Guilds.
@@ -745,6 +781,9 @@ export type EngineEvent =
   | GuildBelowFloor
   | GuildFloorRecovered
   | HeroRecruited
+  | HeroContractRenewed
+  | HeroContractExpired
+  | HeroReleased
   | HeroLeftPool
   | QuestOffered
   | QuestExpired
@@ -809,6 +848,9 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guild.below-floor': false,
   'guild.floor-recovered': false,
   'hero.recruited': true,
+  'hero.contract-renewed': true,
+  'hero.contract-expired': true,
+  'hero.released': true,
   'hero.left-pool': false,
   'quest.offered': false,
   'quest.expired': false,

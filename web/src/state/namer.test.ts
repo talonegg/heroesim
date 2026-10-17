@@ -86,7 +86,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
-  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460, wages: { [heroId]: 40 } }),
   'guild.hall-upkeep-paid': event('guild.hall-upkeep-paid', [guildId], {
     guildId,
     amount: 120,
@@ -99,7 +99,10 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   }),
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
-  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
+  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-renewed': event('hero.contract-renewed', [heroId, guildId], { heroId, guildId, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-expired': event('hero.contract-expired', [heroId, guildId], { heroId, guildId, wage: 25 }),
+  'hero.released': event('hero.released', [heroId, guildId], { heroId, guildId, payout: 633 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -288,6 +291,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     toGuildId: rivalId,
     fee: 420,
     offerId,
+    wage: 22,
+    years: 2,
+    endDay: 400,
   }),
   'guild.transfer-offered': event('guild.transfer-offered', [offerId, heroId, guildId, rivalId], {
     ...terms,
@@ -390,7 +396,7 @@ describe('a line as segments: its words, and the names in it the page can open',
     // A Hero who shares the Guild's name: the sentence reads the same twice, the ids do not.
     const twin = { ...samples['hero.recruited'], labels: { [guildId]: 'Wren', [heroId]: 'Wren' } };
 
-    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 1 Gold 10 Silver.');
+    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 1 Gold 10 Silver, on a Contract at 22 Silver to Year 2 Day 41.');
     expect(namesIn(narrateSegments(twin, narration))).toEqual([
       [guildId, 'Wren'],
       [heroId, 'Wren'],
@@ -400,7 +406,7 @@ describe('a line as segments: its words, and the names in it the page can open',
   test('leaves as words someone the event has no label for, capitalised where the line opens with them', () => {
     const unlabelled = { ...samples['hero.recruited'], labels: {} };
 
-    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 1 Gold 10 Silver.' }]);
+    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 1 Gold 10 Silver, on a Contract at 22 Silver to Year 2 Day 41.' }]);
   });
 
   test("marks the names in a module's own event too, from its participants", () => {

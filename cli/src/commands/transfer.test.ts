@@ -19,6 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
+import { nightOf } from '@heroesim/engine/testing';
 import { coinLetters, coinWords } from '@heroesim/words';
 import { describe, expect, test } from 'vitest';
 import { exitCodes, playground, thePlayer } from '../play.test-support.js';
@@ -72,7 +73,7 @@ describe('transfer', () => {
     const moved = guildOf(after.world, ambitious);
     const fee = 1_000_000 - moved.wealth;
     expect(fee).toBeGreaterThan(0);
-    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${coinWords(fee)}.`);
+    expect(run.out).toContain(`${moved.name} took ${hero.name} (${heroId}) from The Test for ${coinWords(fee)}, on a Contract at `);
     expect(run.out).toContain(`The Test: Wealth ${coinLetters(player.wealth + fee)}; ${player.rosterIds.length - 1} Heroes on the Roster.`);
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).rosterIds).not.toContain(heroId);
@@ -91,7 +92,7 @@ describe('transfer', () => {
     writeFileSync(current(), serialise(edited));
     const [heroId] = guildOf(edited.world, reckless).rosterIds as [HeroId];
     const [ownId] = player.rosterIds as [HeroId];
-    const listPrice = transferFee(heroOf(edited.world, heroId), undefined, { config: { ...defaultConfig, ...edited.meta.config }, content });
+    const listPrice = transferFee(heroOf(edited.world, heroId), undefined, edited.world.turn, { config: { ...defaultConfig, ...edited.meta.config }, content });
 
     const roster = play(['show', 'roster', reckless]).out.split(/\r?\n/);
     // The Transfer fee column, in letters (`5g 20s`), back to Silver.
@@ -105,7 +106,7 @@ describe('transfer', () => {
     // The player's own Heroes have no one fee: each Rival pays at its own Guildmaster's Negotiation.
     expect(play(['show', 'roster']).out).not.toContain('Transfer fee');
     expect(play(['show', 'hero', ownId]).out).not.toContain('Transfer fee');
-    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}.`);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${coinWords(shown)}, on a Contract at `);
   });
 
   test('a Rival that will not take the Hero, or a Guild the save lacks, is refused and nothing is written', () => {
@@ -130,12 +131,12 @@ describe('transfer', () => {
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
     const hero = heroOf(before.world, heroId);
 
-    const run = play(['transfer', '--hero', heroId, '--in']);
+    const run = play(['transfer', '--hero', heroId, '--in', '--years', '2']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     const after = document();
     const fee = 10_000 - thePlayer(after.world).wealth;
-    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${coinWords(fee)}.`);
+    expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${coinWords(fee)}, on a Contract at `);
     expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
     expect(guildOf(after.world, reckless).wealth).toBe(guildOf(before.world, reckless).wealth + fee);
   });
@@ -149,7 +150,7 @@ describe('transfer', () => {
     pinned.meta.config.transferLockDays = 30;
     writeFileSync(current(), serialise(pinned));
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
-    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).code).toBe(exitCodes.ok);
     const saved = readFileSync(current(), 'utf8');
 
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
@@ -169,12 +170,86 @@ describe('transfer', () => {
     pinned.meta.config.turnsPerYear = 6;
     writeFileSync(current(), serialise(pinned));
     const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
-    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+    expect(play(['transfer', '--hero', heroId, '--in', '--years', '2']).code).toBe(exitCodes.ok);
 
     const back = play(['transfer', '--hero', heroId, '--to', reckless]);
 
     expect(back.code).toBe(exitCodes.refused);
     expect(back.err).toContain(`(${heroId}) was transferred on Year 1 Day 1 and cannot be transferred again before Year 16 Day 1.`);
+  });
+});
+
+describe('transfer --offer (DL-326)', () => {
+  test('makes a priced Offer for a Hero of a Guild that answers for itself, at the fee transferFee gives, charges nothing and saves', () => {
+    const before = newWorld((world) => {
+      guildOf(world, ambitious).controller = { kind: 'player' }; // no Disposition: it answers through Offers
+      thePlayer(world).wealth = 10_000;
+    });
+    const [heroId] = guildOf(before.world, ambitious).rosterIds as [HeroId];
+    const hero = heroOf(before.world, heroId);
+    const fee = transferFee(hero, undefined, before.world.turn, { config: { ...defaultConfig, ...before.meta.config }, content });
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '2']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const after = document();
+    const [offer] = Object.values(after.world.offers);
+    expect(offer).toMatchObject({ fromGuildId: ambitious, toGuildId: thePlayer(after.world).id, heroId, fee, years: 2 });
+    expect(fee).toBeGreaterThan(0);
+    expect(run.out).toContain(`The Test offered ${guildOf(after.world, ambitious).name} ${coinWords(fee)} for ${hero.name} (${heroId}) (${offer?.id}), until the night of Year 1 Day `);
+    expect(run.out).toContain(`The Test: Wealth ${coinLetters(thePlayer(before.world).wealth)};`);
+    expect(thePlayer(after.world).wealth).toBe(thePlayer(before.world).wealth);
+    expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
+  });
+
+  test('makes a free Offer for a Hero Out of Contract, which a Rival that lets them go answers at once, and saves', () => {
+    newWorld((world) => {
+      const [heroId, ...others] = guildOf(world, reckless).rosterIds as [HeroId, ...HeroId[]];
+      // Out of Contract on the night of Day 2, the Hero the lowest Level of their Roster, so that the Rival does not renew.
+      world.turn = nightOf(1);
+      Object.assign(heroOf(world, heroId), { level: 1, contract: { wage: 100, signedOnTurn: 0, years: 1, endDay: 1 } });
+      for (const other of others) heroOf(world, other).level = 20;
+    });
+    const rolled = document();
+    rolled.meta.config.rivalRosterMin = 0;
+    writeFileSync(current(), serialise(rolled));
+    const [heroId] = guildOf(rolled.world, reckless).rosterIds as [HeroId];
+    const hero = heroOf(rolled.world, heroId);
+    const wealth = thePlayer(rolled.world).wealth;
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '1']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(run.out).toContain(`The Test offered to take ${hero.name} (${heroId}) (offer-`);
+    expect(run.out).toContain(`) from ${guildOf(rolled.world, reckless).name} for no fee, until `);
+    const after = document();
+    expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
+    expect(thePlayer(after.world).wealth).toBe(wealth);
+    expect(after.world.offers).toEqual({});
+  });
+
+  test('a Hero under Contract of a Rival, which answers a Transfer at once, is refused an Offer and nothing is written', () => {
+    const before = newWorld();
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    const saved = readFileSync(current(), 'utf8');
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '2']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(`${guildOf(before.world, reckless).name} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`);
+    expect(readFileSync(current(), 'utf8')).toBe(saved);
+  });
+
+  test('a length the rules do not offer is refused by the engine and nothing is written', () => {
+    const before = newWorld();
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    const saved = readFileSync(current(), 'utf8');
+
+    const run = play(['transfer', '--hero', heroId, '--offer', '--years', '9']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toMatch(/^A Contract is [\d, or]+ Years long; 9 is not\.\n$/);
+    expect(readFileSync(current(), 'utf8')).toBe(saved);
   });
 });
 
@@ -186,7 +261,7 @@ describe('Transfer Offers', () => {
     });
     const [heroId] = thePlayer(before.world).rosterIds as [HeroId];
     const deps = { config: { ...defaultConfig, ...before.meta.config }, content };
-    const made = applyAction(before, { kind: 'offerTransfer', guildId: ambitious as GuildId, heroId }, deps);
+    const made = applyAction(before, { kind: 'offerTransfer', guildId: ambitious as GuildId, heroId, years: 2 }, deps);
     if (!made.ok) throw new Error(`Refused: ${JSON.stringify(made.rejection)}`);
     writeFileSync(current(), serialise(made.document));
     const [offer] = Object.values(made.document.world.offers);
@@ -222,7 +297,7 @@ describe('Transfer Offers', () => {
     const accepted = play(['accept', '--offer', offerId]);
 
     expect(accepted).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(accepted.out).toContain(`from The Test for ${coinWords(fee)}, accepting ${offerId}.`);
+    expect(accepted.out).toContain(`from The Test for ${coinWords(fee)}, accepting ${offerId}, on a Contract at `);
     const after = document();
     expect(heroOf(after.world, heroId).guildId).toBe(ambitious);
     expect(thePlayer(after.world).wealth).toBe(wealth + fee);
@@ -233,7 +308,7 @@ describe('Transfer Offers', () => {
   // Fast forwards up to twenty runs of thirty Turns: a long play beside the whole suite's other workers (DL-304).
   test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', { timeout: 30_000 }, () => {
     newWorld((world) => {
-      // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
+      // A rich ambitious Rival, and one of the player's Heroes the dearest in the world (by wage): when it
       // weighs a Transfer (three times in ten, the core's `transferAppetite` 0.3 since DL-69, hence
       // the tries), it offers for them. Its Hall is built and its Heroes are outfitted, since it
       // builds and buys gear before it weighs a Transfer (DL-58).
@@ -247,7 +322,8 @@ describe('Transfer Offers', () => {
       }
       const [heroId] = thePlayer(world).rosterIds as [HeroId];
       const hero = heroOf(world, heroId);
-      for (const key of Object.keys(hero.stats)) hero.stats[key] = 20;
+      // The fee reads the wages left on the Contract (DL-318): the dearest wage, on the longest Contract.
+      hero.contract = { wage: 100, signedOnTurn: 0, years: 3, endDay: 1_080 };
     });
 
     let stop = '';

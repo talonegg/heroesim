@@ -147,7 +147,7 @@ describe('generateHero', () => {
     const own = ['generation', 'hero-portraits', 'hero-descriptions'];
     for (const name of own) expect((world.rng as Record<string, unknown>)[name], name).not.toEqual((before as Record<string, unknown>)[name]);
     const others = plannedStreams.filter((name) => !own.includes(name));
-    expect(others).toHaveLength(10);
+    expect(others).toHaveLength(11);
     for (const name of others) {
       expect((world.rng as Record<string, unknown>)[name], name).toEqual(
         (before as Record<string, unknown>)[name],

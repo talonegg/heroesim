@@ -80,7 +80,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.generated': event('hero.generated', [heroId], { heroId, guildId: null, classKey: 'rogue' }),
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
-  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.wages-paid': event('guild.wages-paid', [guildId], { guildId, amount: 40, wealthAfter: 460, wages: { [heroId]: 40 } }),
   'guild.hall-upkeep-paid': event('guild.hall-upkeep-paid', [guildId], {
     guildId,
     amount: 120,
@@ -93,7 +93,10 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   }),
   'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
   'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
-  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
+  'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-renewed': event('hero.contract-renewed', [heroId, guildId], { heroId, guildId, wage: 22, years: 2, endDay: 400 }),
+  'hero.contract-expired': event('hero.contract-expired', [heroId, guildId], { heroId, guildId, wage: 25 }),
+  'hero.released': event('hero.released', [heroId, guildId], { heroId, guildId, payout: 633 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow', tier: 2 }),
   'quest.expired': event('quest.expired', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -282,6 +285,9 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     toGuildId: rivalId,
     fee: 420,
     offerId,
+    wage: 22,
+    years: 2,
+    endDay: 400,
   }),
   'guild.transfer-offered': event('guild.transfer-offered', [offerId, heroId, guildId, rivalId], {
     ...terms,
@@ -350,6 +356,11 @@ describe("the CLI's Namer", () => {
     ['the Board to look at', { kind: 'command', command: 'show-board' }, ' (show board)'],
     ['the pool to look at', { kind: 'command', command: 'show-pool' }, ' (show pool)'],
     ['an Offer to answer', { kind: 'command', command: 'answer-offer' }, ' Answer with accept --offer <id> or decline --offer <id> (show offers).'],
+    [
+      'a free Offer to answer, which is not declined (DL-323)',
+      { kind: 'command', command: 'answer-free-offer' },
+      ' Answer with renew --hero <id> --years <years>, or accept --offer <id>: a free Offer is not declined (show offers).',
+    ],
     // Every other command a refusal points to (DL-240), which the refusals' table holds in words alone (DL-248).
     ["another Guild's Roster to look at", { kind: 'command', command: 'show-rosters' }, ' (show roster <guildId>)'],
     ['the Market to look at', { kind: 'command', command: 'show-market' }, ' (show market)'],

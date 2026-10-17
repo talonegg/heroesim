@@ -11,7 +11,8 @@ export interface Availability {
   why: Unavailability | null;
   /**
    * When the Hero is free to go, for the Party builder's order and the Roster's (DL-169 item 4):
-   * `-Infinity` for one who can go now; the Turn the Injury heals or the Party returns; `null` for
+   * `-Infinity` for one who can go now; the Turn the Injury heals, the Party returns or the last Offer
+   * for them ends at the latest (Under Offer, DL-319); `null` for
    * one with no Day to read (the dead, the retired, and one whose Party the world no longer holds),
    * who sorts last.
    */
@@ -34,7 +35,9 @@ export interface Availability {
  * test of `availability.test.ts`).
  */
 export function availabilityOf(hero: Hero, world: World, calendar: Calendar): Availability {
-  const why = unavailability(hero);
+  const why = unavailability(hero, world);
+  // An Offer for them stands until its night at the latest (DL-319); the latest of them, if several.
+  const offerEnds = Object.values(world.offers).flatMap((offer) => (offer.heroId === hero.id ? [offer.expiresOnTurn] : []));
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
   const wording = (): string | null => {
     switch (why) {
@@ -48,12 +51,21 @@ export function availabilityOf(hero: Hero, world: World, calendar: Calendar): Av
         return `Injured, healing on ${nightOfTurn(hero.injury?.healsOnTurn ?? 0, calendar)}`;
       case 'in-party':
         return party === undefined ? 'Away with a Party' : `Away with a Party, back on ${nightOfTurn(party.returnsOnTurn, calendar)}`;
+      case 'under-offer':
+        return `Under Offer, until ${nightOfTurn(Math.max(...offerEnds), calendar)} at the latest`;
     }
   };
   const until = wording();
+  const freeOn: Record<Unavailability, number | null> = {
+    dead: null,
+    retired: null,
+    injured: hero.injury?.healsOnTurn ?? null,
+    'in-party': party?.returnsOnTurn ?? null,
+    'under-offer': offerEnds.length === 0 ? null : Math.max(...offerEnds),
+  };
   return {
     why,
-    freeOnTurn: why === null ? -Infinity : why === 'injured' ? (hero.injury?.healsOnTurn ?? null) : why === 'in-party' ? (party?.returnsOnTurn ?? null) : null,
+    freeOnTurn: why === null ? -Infinity : freeOn[why],
     // A Hero on no Roster is at no Hall; one who is dead or retired says so first.
     where: why === 'dead' || why === 'retired' || hero.guildId !== null ? (until ?? capitalised(atHallWords)) : hero.unattachedSince === null ? 'On no Roster' : 'In the Unattached pool',
     until,

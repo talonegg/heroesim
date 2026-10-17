@@ -70,7 +70,7 @@ export const heroState: PhaseRun = (world, ctx) => {
     const age = ageOf(hero, ctx.turn, ctx.config);
     if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
     hero.retiredOnTurn = ctx.turn;
-    leaveRoster(guild, hero.id);
+    leaveRoster(guild, hero);
     night.captainLifts?.delete(guild.id);
     events.push(
       ctx.emit({ type: 'hero.retired', participants: [hero.id], payload: { heroId: hero.id, guildId: guild.id, age } }),

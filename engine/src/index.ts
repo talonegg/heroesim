@@ -94,6 +94,8 @@ export type {
   RecruitRejection,
   SigningRefusedRejection,
 } from './actions/recruit.js';
+export type { ReleaseAction, ReleaseHeroInParty, ReleaseHeroNotOnRoster, ReleaseRejection } from './actions/release.js';
+export type { RenewAction, RenewHeroInParty, RenewHeroNotOnRoster, RenewRejection } from './actions/renew.js';
 export type { ActionResult, Rejection, WorldActionResult } from './actions/result.js';
 export type {
   SellAction,
@@ -185,12 +187,15 @@ export {
 } from './content-types.js';
 export { availableHeroes, bestParties, partyPool, restBandOf, type BestParties, type BestParty } from './best-party.js';
 export {
+  debtRelease,
+  renewsOnOffer,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
 } from './controllers/rival.js';
 export { captainChoice, captainLock, type CaptainLock } from './captain.js';
 export { classComparator } from './class-order.js';
+export { contractWage, outOfContract, type LengthNotOffered } from './contract.js';
 export { consumablePurchase, consumablesToCarry, type Carry, type ConsumableKeeping } from './consumable-choices.js';
 export { surplusChoices, type SurplusKeeping } from './surplus.js';
 export * from './create.js';
@@ -210,6 +215,7 @@ export {
   isId,
   parseId,
   schemaVersion,
+  type Contract,
   type Controller,
   type DescriptiveAttribute,
   type Ending,
@@ -390,6 +396,8 @@ export {
   playerGuild,
   rankingPlaces,
   rankings,
+  releasePayout,
+  releaseWarning,
   signingFee,
   signingRefusal,
   statBreakdown,
@@ -404,6 +412,7 @@ export {
   type Ranking,
   type RankingMeasure,
   type RankingPlace,
+  type ReleaseWarning,
   type SigningRefusal,
   type StatBreakdown,
   type StatParts,
@@ -414,7 +423,7 @@ export type { ModuleStopReason, PlayedTurn, StopCondition, StopReason, StopReaso
 export { ageOf, dayOf, durationDaysOf, retirementTurn, retiresOn, timeOfDay, turnsPerDay, yearOf, type Aged, type TimeOfDay } from './time.js';
 export { bestFourLevel, boardTopTier, difficultyBand, isDeadly, offeredTiers, tierFigures, unlockedTier } from './tiers.js';
 export { traitOf, type BonusTarget, type HeroTraitContent, type TraitContent } from './traits.js';
-export { offersTo } from './transfer.js';
+export { freeOffer, offersTo, underOffer } from './transfer.js';
 export {
   validate,
   type RefusalCheck,

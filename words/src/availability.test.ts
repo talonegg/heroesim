@@ -10,6 +10,7 @@ describe('why a Hero cannot go', () => {
     ['dead', 'is dead', 'dead'],
     ['retired', 'has retired', 'retired'],
     ['in-party', 'is away with a Party', 'away'],
+    ['under-offer', 'is Under Offer', 'Under Offer'],
   ] as const)('%s: after their name, and on the chip', (because, words, chip) => {
     expect(unavailableWords[because]).toBe(words);
     expect(unavailableChipWords[because]).toBe(chip);
@@ -24,7 +25,7 @@ describe('why a Hero cannot go', () => {
   });
 
   test('each table words every reason and nothing else', () => {
-    expect(Object.keys(unavailableWords)).toEqual(['injured', 'dead', 'retired', 'in-party']);
+    expect(Object.keys(unavailableWords)).toEqual(['injured', 'dead', 'retired', 'in-party', 'under-offer']);
     expect(Object.keys(unavailableChipWords)).toEqual(Object.keys(unavailableWords));
     expect(Object.keys(gearUnavailableWords)).toEqual(['dead', 'retired', 'in-party']);
   });

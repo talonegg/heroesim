@@ -7,6 +7,8 @@
 // Negotiation), whether a Hero signs its `signingRefusal`, and the offers its `offersTo`.
 
 import {
+  dayOf,
+  freeOffer,
   holdings,
   itemDefinition,
   marketStock,
@@ -23,8 +25,9 @@ import {
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
-import { capitalised, coinWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
+import { capitalised, coinWords, daysLeftWords, itemEffectWords, kindOf, nameIn, nightOfTurn, poolNote, poolReading, rowOf, signsWords } from '@heroesim/words';
 import { content } from '../content';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { kindFacet, type Facets } from './facets';
 import { classMarkOf, type ClassMarked, transferCostWords } from './names';
 import { readingOf } from './reading';
@@ -165,6 +168,8 @@ export interface PoolRow extends ClassMarked {
   signs: string | null;
   /** Whether they would sign for the player's Guild now (`signingRefusal`), for the row to be set back when not; `null` as `signs`. */
   willSign: boolean | null;
+  /** The first wage the player's Guild would pay at each Contract length offered (`contractWage`, DL-315). */
+  terms: ContractTerm[];
 }
 
 /** How the pool may be ordered for display (M9-S6): as it lists them, by Class in the content's order, or by fee, lowest first. */
@@ -199,6 +204,7 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
     fee: row.fee,
     signs: row.signs === null ? null : capitalised(signsWords(row.signs)),
     willSign: row.signs === null ? null : row.signs.willSign,
+    terms: contractTerms(reading, world.heroes[row.id] as Hero),
   }));
   // A stable sort: a fee's ties keep the pool's own order; a Class's are the Roster's default order, which begins with the Class.
   if (order === 'class') {
@@ -215,8 +221,17 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
 export interface OfferRow {
   /** What `acceptTransfer` and `declineTransfer` take. */
   offerId: OfferId;
-  /** `The Ashford Guild offers 1 Gold 80 Silver for Bran Tull, until the night of Year 1 Day 13.` */
+  /** The Hero, whom a renewal of a free Offer's names. */
+  heroId: HeroId;
+  /**
+   * `The Ashford Guild offers 1 Gold 80 Silver for Bran Tull, until the night of Year 1 Day 13.`; a free
+   * Offer, for a Hero Out of Contract, says so and the Days left to renew them (`freeOffer`, DL-323).
+   */
   sentence: string;
+  /** Whether it is a free Offer, which the Guild answers only by renewing the Hero, never by declining it (DL-319). */
+  free: boolean;
+  /** For a free Offer, the wage the Guild would pay the Hero at each length a renewal signs (`contractTerms`); none for a priced one. */
+  terms: ContractTerm[];
   /** The Guild that makes the offer. */
   guildName: string;
   heroName: string;
@@ -234,21 +249,34 @@ export interface OfferRow {
  */
 export function offersView(document: WorldDocument): { guildName: string; offers: OfferRow[] } | null {
   const { world } = document;
-  const { guild } = readingOf(document);
+  const reading = readingOf(document);
+  const { guild } = reading;
   if (guild === undefined) return null;
   const calendar = calendarFor(document);
   return {
     guildName: guild.name,
     offers: offersTo(world, guild.id).map((offer) => {
       const bidder = rowOf(world.guilds, offer.toGuildId)?.name ?? 'A Guild';
-      const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
+      const heroRow = rowOf(world.heroes, offer.heroId);
+      const hero = heroRow?.name ?? 'a Hero';
+      const free = freeOffer(world, offer);
+      const until = nightOfTurn(offer.expiresOnTurn, calendar);
+      const left = daysLeftWords(world.turn, dayOf(offer.expiresOnTurn));
       return {
         offerId: offer.id,
-        sentence: `${bidder} offers ${coinWords(offer.fee)} for ${hero}, until ${nightOfTurn(offer.expiresOnTurn, calendar)}.`,
+        heroId: offer.heroId,
+        free,
+        terms: free && heroRow !== undefined ? contractTerms(reading, heroRow) : [],
+        sentence: free
+          ? `${bidder} offers no fee for ${hero}, who is Out of Contract, until ${until}: ${left} to renew them.`
+          : `${bidder} offers ${coinWords(offer.fee)} for ${hero}, until ${until}.`,
         guildName: bidder,
         heroName: hero,
         fee: offer.fee,
-        confirm: `Accepting sends ${hero} to ${bidder} for ${coinWords(offer.fee)}. ${transferCostWords}`,
+        // Accepting a free Offer lets the Hero go at once (DL-319's judgement call).
+        confirm: free
+          ? `Accepting sends ${hero} to ${bidder} now, for no fee, rather than when the Offer runs out. ${transferCostWords}`
+          : `Accepting sends ${hero} to ${bidder} for ${coinWords(offer.fee)}. ${transferCostWords}`,
       };
     }),
   };

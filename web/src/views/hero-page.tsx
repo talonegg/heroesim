@@ -20,21 +20,27 @@
 // `nameCaptain`, disabled while a change of Captain still locks the post, the engine's own words saying so
 // (DL-289). Their Fatigue and its band stand beside Morale's.
 //
+// On the player's Roster a "Contract" part (DL-323) says the wage, its end and the Days left, or since when the
+// Hero is Out of Contract; "Renew" signs them again at the length chosen, each length with its wage; and
+// "Release…" asks first, saying the payout, with the warning for the Guild's last Hero, as an estimate.
+// Both are disabled for a Hero away, the refusals' words saying why. A Rival's Hero Out of Contract is
+// offered for at no fee, not taken in.
+//
 // Their Portrait stands beside who they are, the Silhouette of their sex, and a Unique Item's picture
 // before its name in their Gear and in the Gear the Guild holds (v1.1.2-S2, DL-125 items 2 and 8).
 // Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
-import { coinWords } from '@heroesim/words';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
-import { heroPage, type Captaincy, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
+import { heroPage, type Captaincy, type ContractView, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
 import { Coins } from './coins';
+import { SignForLength, WagesByLength } from './contract-length';
 import { HeroName, Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
 import { Terms } from './section';
-import { Chip, Confirm, fatigueTones, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
+import { Chip, Confirm, fatigueTones, Folded, moraleTones, regardTones, useReturn, VisuallyHidden, type Tone } from './ui';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
 type Levels = 3 | 4;
@@ -49,6 +55,7 @@ const whereIcons: Readonly<Record<Unavailability, IconName>> = {
   'in-party': 'travel',
   dead: 'alert',
   retired: 'alert',
+  'under-offer': 'guild',
 };
 
 const whereTones: Readonly<Record<Unavailability, Tone>> = {
@@ -56,6 +63,7 @@ const whereTones: Readonly<Record<Unavailability, Tone>> = {
   'in-party': 'accent',
   dead: 'bad',
   retired: 'plain',
+  'under-offer': 'warn',
 };
 
 export function HeroPage({
@@ -278,7 +286,8 @@ function State({ view }: { view: HeroPageView }) {
       {view.fee === null ? null : (
         <li>
           <Chip tone="brass" icon="wealth">
-            Transfer fee <Coins silver={view.fee} />
+            {/* Out of Contract: "No fee", as the Guild page's cell says it, the fee named, as no heading over the chip names it (DL-326). */}
+            {view.actions?.kind === 'rival' && view.actions.free ? 'No Transfer fee' : <>Transfer fee <Coins silver={view.fee} /></>}
           </Chip>
         </li>
       )}
@@ -344,42 +353,143 @@ function HeroActionsView({
           <p>
             Signing fee <Coins silver={actions.fee} />. Signs for your Guild: {actions.signs}.
           </p>
+          <WagesByLength terms={actions.terms} />
           <div className="actions">
             {/* Disabled for one who will not sign, the sentence above saying why (DL-109 item 2, Q17). */}
-            <button
-              type="button"
+            <SignForLength
+              terms={actions.terms}
+              name={name}
+              text="Recruit"
+              label={`Recruit ${name}`}
               className="button--primary"
-              aria-label={`Recruit ${name}`}
               disabled={busy || !actions.willSign}
-              onClick={() => play({ kind: 'recruit', heroId })}
-            >
-              Recruit
-            </button>
+              onSign={(years) => play({ kind: 'recruit', heroId, years })}
+            />
           </div>
         </div>
       );
     case 'rival':
       return (
         <div className="hero-page__act">
-          <p>
-            Your Guild would pay {actions.guildName} a Transfer fee of <Coins silver={actions.fee} /> to take {name} in, if{' '}
-            {actions.guildName} is willing to part with them.
-          </p>
+          {actions.free ? (
+            <p>
+              {name} is Out of Contract: your Guild may offer no fee for them, and {actions.guildName} answers at once, renewing them or letting them go.
+            </p>
+          ) : (
+            <p>
+              Your Guild would pay {actions.guildName} a Transfer fee of <Coins silver={actions.fee} /> to take {name} in, if{' '}
+              {actions.guildName} is willing to part with them.
+            </p>
+          )}
+          <WagesByLength terms={actions.terms} />
           <div className="actions">
-            <button type="button" aria-label={`Take ${name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId })}>
-              Take in
-            </button>
+            <SignForLength
+              terms={actions.terms}
+              name={name}
+              text={actions.free ? 'Offer' : 'Take in'}
+              label={actions.free ? `Offer no fee for ${name}` : `Take ${name} in`}
+              disabled={busy}
+              onSign={(years) => play(actions.free ? { kind: 'offerTransfer', heroId, years } : { kind: 'transferIn', heroId, years })}
+            />
           </div>
         </div>
       );
     case 'own':
       return (
         <>
+          <ContractPart contract={actions.contract} heroId={heroId} name={name} busy={busy} play={play} level={level} />
           <CaptainPost captaincy={actions.captaincy} heroId={heroId} name={name} busy={busy} play={play} level={level} />
           <Transfer actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />
         </>
       );
   }
+}
+
+/**
+ * The Contract (DL-323): its words, then Renew at a length chosen, each length with its wage, and Release…,
+ * which asks first, saying the payout and, for the last Hero, the estimate that warns. A Hero away has both
+ * disabled, the refusal's sentence describing each button.
+ */
+function ContractPart({
+  contract,
+  heroId,
+  name,
+  busy,
+  play,
+  level,
+}: {
+  contract: ContractView;
+  heroId: HeroId;
+  name: string;
+  busy: boolean;
+  play: (action: GameAction) => void;
+  level: Levels;
+}) {
+  const [asking, setAsking] = useState(false);
+  const back = useReturn();
+  const renewId = useId();
+  const releaseId = useId();
+  const { refused } = contract;
+  return (
+    <>
+      <Sub level={level}>Contract</Sub>
+      <p>{contract.words}</p>
+      <WagesByLength terms={contract.terms} />
+      <div className="actions">
+        <SignForLength
+          terms={contract.terms}
+          name={name}
+          text="Renew"
+          label={`Renew ${name}`}
+          disabled={busy || refused !== null}
+          describedBy={refused === null ? undefined : renewId}
+          onSign={(years) => play({ kind: 'renew', heroId, years })}
+        />
+      </div>
+      {refused === null ? null : (
+        <p id={renewId} className="subtle">
+          {refused.renew}
+        </p>
+      )}
+      {asking ? (
+        <Confirm
+          label={`Release ${name}?`}
+          confirm="Release"
+          confirmLabel={`Release ${name}`}
+          busy={busy}
+          onConfirm={() => play({ kind: 'release', heroId })}
+          onKeep={() => {
+            setAsking(false);
+            back.closed();
+          }}
+        >
+          <p>{contract.release}</p>
+          {contract.warning === null ? null : <p role="alert">{contract.warning}</p>}
+        </Confirm>
+      ) : (
+        <div className="actions">
+          <button
+            type="button"
+            id={releaseId}
+            aria-label={`Release ${name}…`}
+            aria-describedby={refused === null ? undefined : `${releaseId}-why`}
+            disabled={busy || refused !== null}
+            onClick={() => {
+              back.opened(releaseId);
+              setAsking(true);
+            }}
+          >
+            Release…
+          </button>
+        </div>
+      )}
+      {refused === null ? null : (
+        <p id={`${releaseId}-why`} className="subtle">
+          {refused.release}
+        </p>
+      )}
+    </>
+  );
 }
 
 /**
@@ -477,7 +587,7 @@ function Transfer({
             <select value={target.guildId} onChange={(event) => setTo(event.target.value as GuildId)}>
               {actions.transferTo.map((guild) => (
                 <option key={guild.guildId} value={guild.guildId}>
-                  {guild.name}, for {coinWords(guild.fee)}
+                  {guild.label}
                 </option>
               ))}
             </select>

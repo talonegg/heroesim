@@ -316,7 +316,7 @@ describe('adjustRegard', () => {
       (document) => {
         // Folded as the ending checks fold a Guild: its Heroes to the pool, its Roster empty.
         const rival = Object.values(document.world.guilds).find((row) => row.controller.kind === 'rival') as Guild;
-        for (const heroId of rival.rosterIds) Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        for (const heroId of rival.rosterIds) Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0, contract: null });
         rival.rosterIds = [];
         rival.foldedOnTurn = 0;
       },

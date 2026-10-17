@@ -6,11 +6,15 @@
 // navigation's Roster carries no dot, and the part says nothing (the review's A5). Accept asks first
 // (M9-S6, DL-106; the review's E4), as a Transfer out does: the confirmation states the fee and what
 // letting the Hero go costs, in the words `offersView` gives.
+//
+// A free Offer, for a Hero Out of Contract (DL-319), says so with the Days left and the wage at each length, and
+// is answered by Renew at a length chosen; it cannot be declined (`declineTransfer` refuses it), so it has no Decline (DL-323).
 
 import type { OfferId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useRef, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { offersView, type OfferRow } from '../state/trade-views';
+import { SignForLength, WagesByLength } from './contract-length';
 import { Part } from './section';
 import { Confirm } from './ui';
 
@@ -50,6 +54,7 @@ function Offer({
   return (
     <>
       <p>{offer.sentence}</p>
+      <WagesByLength terms={offer.terms} />
       {asking ? (
         <Confirm
           label={`Accept ${whose}?`}
@@ -81,9 +86,20 @@ function Offer({
           >
             Accept…
           </button>
-          <button type="button" aria-label={`Decline ${whose}`} disabled={busy} onClick={() => play({ kind: 'declineTransfer', offerId: offer.offerId })}>
-            Decline
-          </button>
+          {offer.free ? (
+            <SignForLength
+              terms={offer.terms}
+              name={offer.heroName}
+              text="Renew"
+              label={`Renew ${offer.heroName}`}
+              disabled={busy}
+              onSign={(years) => play({ kind: 'renew', heroId: offer.heroId, years })}
+            />
+          ) : (
+            <button type="button" aria-label={`Decline ${whose}`} disabled={busy} onClick={() => play({ kind: 'declineTransfer', offerId: offer.offerId })}>
+              Decline
+            </button>
+          )}
         </div>
       )}
     </>

@@ -7,9 +7,11 @@ import { createWorld } from './create.js';
 import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from './document.js';
 import type { EngineEvent } from './events.js';
 import { playerGuild } from './selectors.js';
+import { nightOf } from './time.js';
 import {
   alwaysStops,
   belowFloorStop,
+  contractExpiredStop,
   decisionNeededStop,
   isStopCondition,
   partyReturnedStop,
@@ -44,7 +46,7 @@ function requiring(world: World, questId: Quest['id'], requirements: Partial<Que
 }
 
 describe('which stops are always on (approach §2, principle 10, pre-M0 review B7)', () => {
-  test("an ending, the floor, a Party home, a decision, a Transfer Offer and a module's stop always stop; a staffable Quest and the pool only when asked", () => {
+  test("an ending, the floor, a Party home, a decision, a Transfer Offer, a Contract's end and a module's stop always stop; a staffable Quest and the pool only when asked", () => {
     expect(alwaysStops).toEqual({
       ended: true,
       'below-floor': true,
@@ -52,6 +54,7 @@ describe('which stops are always on (approach §2, principle 10, pre-M0 review B
       'decision-needed': true,
       'quest-staffable': false,
       'transfer-offer': true,
+      'contract-expired': true,
       module: true,
       'pool-refreshed': false,
     });
@@ -62,6 +65,7 @@ describe('which stops are always on (approach §2, principle 10, pre-M0 review B
       'decision-needed',
       'quest-staffable',
       'transfer-offer',
+      'contract-expired',
       'module',
       'pool-refreshed',
     ]);
@@ -230,6 +234,40 @@ describe('below-floor (DL-85 item 6)', () => {
     expect(belowFloorStop([below(rival, 31)], watched)).toBeNull();
     expect(belowFloorStop([recovered(watched)], watched)).toBeNull();
     expect(belowFloorStop([], watched)).toBeNull();
+  });
+});
+
+// Q-D, DL-294 item 6, DL-316: one stop at a Contract's end, for the watched Guild's Heroes alone.
+describe('contract-expired', () => {
+  const expired = (guildId: string, heroId: string) =>
+    ({ type: 'hero.contract-expired', turn: 5, payload: { heroId, guildId, wage: 25 } }) as unknown as EngineEvent;
+
+  test("is the watched Guild's Heroes whose Contracts expired this Turn, in the order they expired, and never a Rival's", () => {
+    const watched = 'guild-000001' as GuildId;
+    const rival = 'guild-000002' as GuildId;
+    const events = [expired(watched, 'hero-000003'), expired(rival, 'hero-000009'), expired(watched, 'hero-000002')];
+
+    expect(contractExpiredStop(events, watched)).toEqual({ kind: 'contract-expired', guildId: watched, heroIds: ['hero-000003', 'hero-000002'] });
+    expect(contractExpiredStop([expired(rival, 'hero-000009')], watched)).toBeNull();
+    expect(contractExpiredStop([], watched)).toBeNull();
+  });
+
+  test('played through advance: on the night of the end Day of a Hero of the watched Guild, and not before', () => {
+    let document = created('contract-stop');
+    const guild = player(document.world);
+    const [heroId, ...others] = guild.rosterIds as [HeroId, ...HeroId[]];
+    const contractOf = (id: HeroId) => (document.world.heroes[id] as Hero).contract as NonNullable<Hero['contract']>;
+    contractOf(heroId).endDay = 3;
+    for (const id of others) contractOf(id).endDay = 900;
+    let stops: ReturnType<typeof stopsOfTurn> = [];
+    while (stops.length === 0 && document.world.turn < nightOf(5)) {
+      const before = document.world;
+      const result = advance(document, deps);
+      document = withValid(result.document, deps);
+      stops = stopsOfTurn({ before, after: document.world, events: result.events }, guild.id, deps, ['contract-expired']);
+    }
+    expect(document.world.turn).toBe(nightOf(3));
+    expect(stops).toEqual([{ kind: 'contract-expired', guildId: guild.id, heroIds: [heroId] }]);
   });
 });
 

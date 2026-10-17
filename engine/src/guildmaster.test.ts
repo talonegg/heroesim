@@ -89,7 +89,7 @@ function footprint(stats: Partial<Record<GuildmasterRule, number>>): Footprint {
 
   const recruiting = structuredClone(world);
   const heroId = ids.unattachedHero as HeroId;
-  const signed = applyRecruit(recruiting, { guildId: guild.id, heroId }, deps);
+  const signed = applyRecruit(recruiting, { guildId: guild.id, heroId, years: 2 }, deps);
   if (!signed.ok) throw new Error(`Refused ${signed.rejection.reason}`);
   const fee = signed.events[0]?.type === 'hero.recruited' ? signed.events[0].payload.fee : NaN;
 
@@ -175,7 +175,7 @@ describe('the Guildmaster Stats, each at the bottom and the top of its range (R8
       if (cheapest === null) throw new Error('An empty pool');
       expect(cheapest.fee).toBe(signingFee(cheapest.hero, deps, guildmaster));
       expect(cheapest.fee).toBeLessThan(signingFee(cheapest.hero, deps));
-      const signed = applyRecruit(world, { guildId, heroId: cheapest.hero.id }, deps);
+      const signed = applyRecruit(world, { guildId, heroId: cheapest.hero.id, years: 2 }, deps);
       expect(signed.ok && signed.events[0]?.payload).toMatchObject({ fee: cheapest.fee });
     }
   });
@@ -212,7 +212,7 @@ function traitFootprint(world: World, guild: Guild, content: ContentSet = testCo
     mageStats: effectiveStats(mage, world, content),
     warriorBase: { ...warrior.stats },
     baseline: moraleBaselineFor(warrior, world, deps.config, content),
-    wages: wages(guild, world, deps.config),
+    wages: wages(guild, world),
     hallUpkeep: hallUpkeepParts(guild, world, deps.config, content).total,
     fee: signingFee(warrior, { config: deps.config, content }),
   };

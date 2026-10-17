@@ -414,6 +414,26 @@ export interface Hero {
   appearance: string;
   biography: string;
   regard: RegardMap;
+  /**
+   * The Hero's term with the Guild whose Roster they are on (DL-294 item 6, DL-315); `null` for a Hero
+   * on no Roster. Signed at every signing, ended by a Death, a Retirement, a Transfer or a fold.
+   */
+  contract: Contract | null;
+}
+
+/** A Contract (`CONTEXT.md`): a wage fixed at signing, a length chosen by the signer, and its end Day. */
+export interface Contract {
+  /** Whole Silver each time the wages fall due, set at signing by the wage rule (`contractWage`) and fixed for the term. */
+  wage: number;
+  /** The Turn it was signed: a founding Contract's is its Guild's founding. */
+  signedOnTurn: Turn;
+  /** Its length, one of `contractLengthsYears`. */
+  years: number;
+  /**
+   * The Day its term runs out: the signing Day plus its years' Days (`daysPerYear`), or, for a founding
+   * Contract, part-way through its term, drawn evenly over its Days (Q-E, DL-311 item 2).
+   */
+  endDay: number;
 }
 
 /**
@@ -493,6 +513,8 @@ export interface TransferOffer {
   heroId: HeroId;
   /** In whole Silver (DL-294 item 1). */
   fee: number;
+  /** The length of the Contract the offering Guild would sign the Hero for, chosen when it offers (DL-315). */
+  years: number;
   offeredOnTurn: Turn;
   expiresOnTurn: Turn;
 }
@@ -529,9 +551,10 @@ export interface Stack {
  * `fatigue` and Parties' `fatigueAtDispatch`, refusing every older save likewise (DL-280, DL-282); 11,
  * Guilds' `captainId` and `captainChangedOnTurn`, refusing every older save likewise (DL-280, DL-287);
  * 12, a Guild's Hall keyed by content's Facilities, refusing every older save likewise (DL-294 item 3,
- * DL-297); 13, Guilds' `hallBaseUpkeep`, refusing every older save likewise (DL-294 item 2, DL-298).
+ * DL-297); 13, Guilds' `hallBaseUpkeep`, refusing every older save likewise (DL-294 item 2, DL-298); 14,
+ * Heroes' `contract` and Transfer Offers' `years`, refusing every older save likewise (DL-294 item 6, DL-315).
  */
-export const schemaVersion = 13;
+export const schemaVersion = 14;
 
 export interface Meta {
   /** Schema version of this document: `schemaVersion` when it was written. */

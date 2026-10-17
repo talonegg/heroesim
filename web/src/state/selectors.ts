@@ -28,13 +28,17 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
+  freeOffer,
   guildmasterOf,
   guildmasterTraitCost,
   guildmasterTraitsOf,
   holdings,
   itemDefinition,
+  outOfContract,
   previewDispatch,
   rankingPlaces,
+  releasePayout,
+  releaseWarning,
   sexes,
   skillsThatHelp,
   statBreakdown,
@@ -84,6 +88,7 @@ import {
   dateOfDay,
   dateOfTurn,
   consumableEffectWords,
+  daysLeftWords,
   endedSentence,
   fatigueBandNames,
   formEffectWords,
@@ -101,6 +106,7 @@ import {
   partyFloorWords,
   questClosed,
   readsAsOne,
+  releaseWarningWords,
   reliefWords,
   rosterReading,
   rowOf,
@@ -121,6 +127,7 @@ import { availabilityOf } from './availability';
 import { content } from '../content';
 import { narrateText, questNamer, rejectionSentence, sentenceWords, type Narration } from './namer';
 import type { Facets } from './facets';
+import { contractTerms, type ContractTerm } from './contract-terms';
 import { newestEntries } from './history-reader';
 import { classMarkOf, type ClassMarked, placeWords, transferCostWords } from './names';
 import { readingOf, type PageReading } from './reading';
@@ -713,6 +720,8 @@ export interface RosterRow extends ClassMarked {
   why: Unavailability | null;
   /** Where the Hero is: at the Hall, injured, or away with a Party, and until when: `At the Hall`. */
   whereabouts: string;
+  /** Their Contract (`contractWords`): the Days left, Out of Contract, and Under Offer (DL-323). */
+  contract: string;
   /** Each Trait the Hero holds, by name, with what it does, as their page gives it (v1.1.5-S12, DL-169 item 9). */
   traits: { name: string; effect: string }[];
   /** Their Items: the Gear they carry, by name, with what it does (DL-169 item 9, the agent's reading). */
@@ -852,6 +861,7 @@ export function rosterColumnGroups(set: ContentSet = content): RosterColumnGroup
       { key: 'class', label: 'Class', sort: 'class', number: false },
       { key: 'level', label: 'Level', sort: 'level', number: true },
       { key: 'age', label: 'Age', sort: 'age', number: true },
+      { key: 'contract', label: 'Contract', sort: null, number: false },
       { key: 'where', label: 'Where', sort: 'free', number: false },
       { key: 'traits', label: 'Traits', sort: null, number: false },
       { key: 'items', label: 'Items', sort: null, number: false },
@@ -881,14 +891,20 @@ const trailingColumns: readonly string[] = ['where', 'traits', 'items'];
 
 /**
  * The wide Table's columns after Name, in the order it draws them (DL-289, the owner's answer (a) to Q21):
- * the Hero group's short columns (Class, Level, Age), then State, then each Stat area, then Where, Traits and
- * Items, whose cells are long and would push Morale and Fatigue off a 1280px screen. The groups keep Hero,
+ * the Hero group's short columns (Class, Level, Age), then State and the Contract, then each Stat area, then Where,
+ * Traits and Items, whose cells are long and would push Morale and Fatigue off a 1280px screen. The groups keep Hero,
  * State, then the areas, so the Columns panel and the phone's tabs are as they were; a phone's tab draws its
  * own group's columns in this order.
  */
 export function rosterTableColumns(groups: readonly RosterColumnGroup[]): RosterColumn[] {
   const columns = groups.flatMap((group) => group.columns);
-  return [...columns.filter((column) => !trailingColumns.includes(column.key)), ...columns.filter((column) => trailingColumns.includes(column.key))];
+  const ordered = [...columns.filter((column) => !trailingColumns.includes(column.key)), ...columns.filter((column) => trailingColumns.includes(column.key))];
+  // The Contract follows Fatigue when both are drawn, so that Morale and Fatigue stay in view at 1280px (DL-323).
+  const fatigue = ordered.findIndex((column) => column.key === 'fatigue');
+  const contract = ordered.findIndex((column) => column.key === 'contract');
+  if (fatigue < 0 || contract < 0) return ordered;
+  ordered.splice(fatigue, 0, ...ordered.splice(contract, 1));
+  return ordered;
 }
 
 /**
@@ -996,6 +1012,7 @@ function buildRosterRows(document: WorldDocument): RosterRows {
       captain: read.captain,
       why: availability.why,
       whereabouts: availability.where,
+      contract: read.contract,
       traits: heroTraits(content, hero),
       items,
       carriesUnique: items.some((item) => item.unique),
@@ -1167,11 +1184,16 @@ export interface GearChoice {
   gear: { itemId: ItemId } | { stackId: StackId };
 }
 
-/** Another Guild in play and the fee it would pay the player's Guild to take the Hero (`transferFee`). */
+/**
+ * Another Guild in play and the fee it would pay the player's Guild to take the Hero (`transferFee`); for a
+ * Hero Out of Contract, none, and only on that Guild's free Offer (DL-325).
+ */
 export interface TransferTarget {
   guildId: GuildId;
   name: string;
   fee: number;
+  /** The Guild as the choice of it reads: `The Ashford Guild, for 1 Gold 20 Silver`, `…, for no fee`, `…: no Offer`. */
+  label: string;
   /**
    * What the page asks before the Transfer (M9-S6, the review's E4): the fee, and what it costs in
    * the words the page gives the rule. `The Ashford Guild would pay 1 Gold 20 Silver for Finn Grimshaw, …`
@@ -1192,18 +1214,35 @@ export interface Captaincy {
 }
 
 /**
+ * The Contract of a Hero of the player's Roster, and what the player can do with it (DL-323): the wage, its
+ * end and the Days left, or since when the Hero is Out of Contract; the wage at each length a renewal
+ * signs for (`contractTerms`); the release's payout (`releasePayout`, 0 once the Contract has ended) and,
+ * for the Guild's last Hero, the warning (`releaseWarning`) in the words of an estimate; and, for a Hero
+ * away, the refusal each would meet, in the refusals' words. Whether either is done is the engine's.
+ */
+export interface ContractView {
+  words: string;
+  terms: ContractTerm[];
+  payout: number;
+  /** What the release asks before it is done: the payout, or nothing once the Contract has ended, and what a Transfer costs besides. */
+  release: string;
+  warning: string | null;
+  refused: { renew: string; release: string } | null;
+}
+
+/**
  * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip,
  * transfer out and name Captain (DL-289); on another Guild's Roster, take them in for the Transfer fee; in the Unattached
- * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
+ * pool, recruit them for the signing fee, each at a Contract length with its first wage (`contractTerms`, DL-315). The fees are the engine's (`transferFee`, `signingFee`,
  * at the paying Guildmaster's Negotiation); whether it is done is the engine's too, which refuses
  * with a sentence. Whether a Hero in the pool would sign is the engine's `signingRefusal`, as the
  * pool's row reads it (`poolView`), so Recruit can be disabled for one who will not (DL-109 item 2,
  * Q17).
  */
 export type HeroActions =
-  | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[]; captaincy: Captaincy }
-  | { kind: 'rival'; guildName: string; fee: number }
-  | { kind: 'pool'; fee: number; signs: string; willSign: boolean };
+  | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[]; captaincy: Captaincy; contract: ContractView }
+  | { kind: 'rival'; guildName: string; fee: number; terms: ContractTerm[]; free: boolean }
+  | { kind: 'pool'; fee: number; signs: string; willSign: boolean; terms: ContractTerm[] };
 
 /** History entries as lines, keyed by their place in the list. */
 export function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
@@ -1315,25 +1354,77 @@ function statValues(hero: Hero, world: World): Map<string, { base: number; effec
  * on the player's Roster, equip, unequip, transfer them out and name them Captain (DL-289).
  */
 function heroActions(hero: Hero, read: HeroReading, reading: PageReading, document: WorldDocument): HeroActions | null {
-  const { world, deps, guild: player } = reading;
+  const { world, guild: player } = reading;
   if (player === undefined) return null;
   if (read.signing !== null) {
     const { fee, signs } = read.signing;
-    return { kind: 'pool', fee, signs: signsWords(signs), willSign: signs.willSign };
+    return { kind: 'pool', fee, signs: signsWords(signs), willSign: signs.willSign, terms: contractTerms(reading, hero) };
   }
-  if (read.transferFee !== null) return { kind: 'rival', guildName: read.guild?.name ?? '', fee: read.transferFee };
+  if (read.transferFee !== null) {
+    return { kind: 'rival', guildName: read.guild?.name ?? '', fee: read.transferFee, terms: contractTerms(reading, hero), free: outOfContract(hero, world.turn) };
+  }
   if (read.guild?.id !== player.id || read.relationships === null) return null;
   return {
     kind: 'own',
     equip: gearChoices(world, player),
     captaincy: captaincyOf(hero, read, reading, document),
+    contract: contractOf(hero, player, reading, document),
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
-      .map((other) => {
-        const fee = transferFee(hero, guildmasterOf(other, world), deps);
-        const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
-        return { guildId: other.id, name: other.name, fee, sentence };
-      }),
+      .map((other) => (outOfContract(hero, world.turn) ? freeTarget(hero, other, document) : pricedTarget(hero, other, reading)))
+      // The Guild whose free Offer stands first, so the page chooses it at first (DL-325); a stable sort keeps the rest in order.
+      .sort((a, b) => Number(offerStands(world, hero, b.guildId)) - Number(offerStands(world, hero, a.guildId))),
+  };
+}
+
+/** Whether a free Offer of `guildId`'s stands for `hero` (DL-325). */
+function offerStands(world: World, hero: Hero, guildId: GuildId): boolean {
+  return Object.values(world.offers).some((offer) => offer.heroId === hero.id && offer.toGuildId === guildId && freeOffer(world, offer));
+}
+
+/** `other` as the Guild a Hero under Contract would go to, for the fee it would pay (`transferFee`). */
+function pricedTarget(hero: Hero, other: Guild, { world, deps }: PageReading): TransferTarget {
+  const fee = transferFee(hero, guildmasterOf(other, world), world.turn, deps);
+  const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
+  return { guildId: other.id, name: other.name, fee, label: `${other.name}, for ${coinWords(fee)}`, sentence };
+}
+
+/** `other` as the Guild a Hero Out of Contract would go to: for no fee on its free Offer, or the refusal without one (DL-325). */
+function freeTarget(hero: Hero, other: Guild, document: WorldDocument): TransferTarget {
+  const { world } = document;
+  const base = { guildId: other.id, name: other.name, fee: 0 };
+  if (offerStands(world, hero, other.id)) {
+    const sentence = `${other.name}'s Offer stands for ${hero.name}, who is Out of Contract: they go to it now for no fee. ${transferCostWords}`;
+    return { ...base, label: `${other.name}, for no fee`, sentence };
+  }
+  const refusal = { action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: other.id } as const;
+  return { ...base, label: `${other.name}: no Offer`, sentence: rejectionSentence(refusal, document, content) };
+}
+
+/** `hero`'s Contract on the player's Roster as their page offers to renew or release it (`ContractView`, DL-323). */
+function contractOf(hero: Hero, player: Guild, reading: PageReading, document: WorldDocument): ContractView {
+  const { world, deps } = reading;
+  const { config } = deps;
+  const away = hero.partyId;
+  const refuse = (action: 'renew' | 'release', away: NonNullable<Hero['partyId']>): string =>
+    rejectionSentence({ action, reason: 'hero-in-party', heroId: hero.id, partyId: away }, document, content);
+  let words = '';
+  if (hero.contract !== null) {
+    const { wage, endDay } = hero.contract;
+    const paid = `${coinWords(wage)} every ${config.upkeepEveryDays} Days`;
+    words = outOfContract(hero, world.turn)
+      ? `Out of Contract since ${nightOfDay(endDay, config)}: wage ${paid}.`
+      : `Wage ${paid}, to ${nightOfDay(endDay, config)}: ${daysLeftWords(world.turn, endDay)}.`;
+  }
+  const warning = releaseWarning(world, deps, player, hero);
+  const payout = releasePayout(hero, world.turn, config);
+  return {
+    words,
+    terms: contractTerms(reading, hero),
+    payout,
+    release: `Releasing ${hero.name} ${payout > 0 ? `pays ${coinWords(payout)}` : 'costs nothing, their Contract having ended'}. They join the Unattached pool for ${config.releasedStayDays} Days, unless a Guild signs them. ${transferCostWords}`,
+    warning: warning === null ? null : releaseWarningWords(hero.name, warning),
+    refused: away === null ? null : { renew: refuse('renew', away), release: refuse('release', away) },
   };
 }
 
