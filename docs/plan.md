@@ -68,7 +68,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, on Cloudflare's beacon (DL-278), allowed from `v1.2.1` (DL-279) |
 | `v1.2.1` | 2026-10-12 | #66 | `72d14e9` | DL-279 to DL-293 | [v1.2.1](./planning/archive/v1.2.1-release.md); released as is, its economy broken since S4 and its closing Gate failing the save line (DL-292, DL-293) |
 | `v1.2.2` | 2026-10-16 | #68 | `a7c644a` | DL-294 to DL-310 | [v1.2.2](./planning/archive/v1.2.2-release.md); its closing Gate failing the save line only, no game lasting 20 years (DL-305); the live check left CI (DL-309) |
-| `v1.2.3` | 2026-10-17 | #71 | `2a93c72` | DL-311 to DL-326 | [v1.2.3](./planning/archive/v1.2.3-release.md); its closing Gate passing every line, the player still bankrupt or wiped in most games (DL-324); the owner's playtest played, "played, no score" |
+| `v1.2.3` | 2026-10-17 | #71 | `2a93c72` | DL-311 to DL-326 | [v1.2.3](./planning/archive/v1.2.3-release.md); its closing Gate passing every line, the player still bankrupt or wiped in most games (DL-324); the owner's playtest played, "played, no score". delivered in 20h · 255 turns · 2.4m tokens |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
