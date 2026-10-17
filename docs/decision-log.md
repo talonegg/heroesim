@@ -256,3 +256,5 @@ narrowed to Heroes under Contract at `v1.2.3`-S6. On Q-A, a Hero away on a Quest
 once home; the epic's own defaults are approved as starting points, reviewed in `v1.2.4`'s tuning.
 
 *Note, 2026-10-16 (the owner's word: "a", to push the record, `v1.2.3-dev` and Dependabot's move).* `v1.2.3-dev` is cut from `v1.2.2`'s record, and Dependabot's two `target-branch`es move to it (DL-147 item 6), taking effect when the record is merged into `main`.
+
+*Note, 2026-10-17 (the owner's "a").* Likewise `v1.2.4-dev`, from `v1.2.3`'s record.
