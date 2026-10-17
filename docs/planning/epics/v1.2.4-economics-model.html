@@ -33,24 +33,33 @@
   .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   button { font: inherit; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
     background: var(--surface); color: var(--text); cursor: pointer; }
-  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: 16px; align-items: start; }
+  select { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface); color: var(--text); max-width: 100%; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 500px); gap: 16px; align-items: start; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
   aside { position: sticky; top: 8px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
   th { background: var(--head); font-weight: 600; font-size: 0.85rem; }
-  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  td.n { white-space: nowrap; }
   tr.total td { font-weight: 600; }
   tr.balance td { font-weight: 700; border-top: 2px solid var(--text); }
   .code { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
   .unit { color: var(--muted); font-size: 0.8rem; }
-  input[type="number"] { width: 6.5em; font: inherit; padding: 3px 5px; border: 1px solid var(--border);
+  .derived { color: var(--muted); font-style: italic; }
+  input[type="number"] { width: 4.5em; font: inherit; padding: 3px 5px; border: 1px solid var(--border);
     border-radius: 4px; background: var(--input); color: var(--text); text-align: right; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+  input.locked { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .fld { display: inline-flex; align-items: center; gap: 2px; }
+  .lock { padding: 2px; border: 0; background: none; color: var(--muted); line-height: 0; border-radius: 4px; }
+  .lock[aria-pressed="true"] { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 16px; }
   .grid label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .good { color: var(--good); } .bad { color: var(--bad); }
   .scroll { overflow-x: auto; }
+  #out th, #out td { padding: 4px; font-size: 0.92em; }
   @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } aside { position: static; } }
 </style>
 </head>
@@ -59,12 +68,13 @@
   <h1>Economy baseline model</h1>
   <p>A rough estimate of a Guild-year's balance from each income and expense's range (sections A and B of
     <code>v1.2.4-starting-economics-baseline.md</code>) and the gameplay assumptions. Amounts are Silver in the inputs,
-    shown as Gold and Silver (100 Silver a Gold). Min, Mid and Max read every range at its min, middle and max.</p>
+    shown as Gold and Silver (100 Silver a Gold). Min, Mid and Max read every range at its min, middle and max.
+    A padlock keeps a field's value when you pick or reset a preset.</p>
   <div class="bar">
-    <span>Preset, calibrated to the <code>v1.2.3</code> close:</span>
-    <button type="button" data-preset="player">The player</button>
-    <button type="button" data-preset="rival">A Rival</button>
+    <label for="scenario">Preset, from the <code>v1.2.3</code> close:</label>
+    <select id="scenario"></select>
     <button type="button" id="reset">Reset to the preset</button>
+    <button type="button" id="unlock">Unlock all</button>
     <button type="button" id="export">Export to Markdown</button>
     <span class="unit" id="saved"></span>
     <span class="unit" id="exported" role="status"></span>
@@ -85,108 +95,178 @@
   </aside>
 </main>
 <script>
-// Each unit's range, sections A and B of the baseline (Silver). Edited min and max are the model's inputs.
+// A Roster's mean wage a charge, the Heroes in each Level bucket at their B1 wage.
+const LEVELS = ['L1', 'L5', 'L10', 'L20'];
+const rosterOf = (a) => LEVELS.reduce((t, l) => t + a['h' + l], 0);
+const meanWage = (at, s) => {
+  const roster = rosterOf(s.a);
+  return roster ? LEVELS.reduce((t, l) => t + s.a['h' + l] * at('w' + l), 0) / roster : 0;
+};
+// What the Market pays: its price × the sell ratio, rounded down (`sellPrice`).
+const sale = (price) => (at) => Math.floor(at(price) * at('sellRatio'));
+// A Transfer fee or a release payout: the wages left on the Contract × the factor (`transferFee`, `releasePayout`).
+const onWagesLeft = (factor) => (at, s) => Math.floor(at('chargesLeft') * meanWage(at, s) * at(factor));
+
+// Sections A and B of the baseline. A row with `derive` is computed from the others; `enc` is A1's Encounter swing.
 const ITEMS = [
-  ['A1', 'Quest reward, before Negotiation and Encounters', 'a Quest paid', [
-    ['qT1', 'Tier 1', 54, 190], ['qT2', 'Tier 2', 184, 377], ['qT3', 'Tier 3', 375, 653],
-    ['qT4', 'Tier 4', 622, 996], ['qT5', 'Tier 5', 836, 1275]]],
-  ['A2–A3', 'Item sales (Loot is Wealth once sold)', 'an Item sold', [
-    ['sellCons', 'Consumable', 12, 35], ['sellGear', 'Common gear', 17, 150], ['sellUnique', 'Unique Item', 300, 300]]],
-  ['A4', 'Transfer fee received', 'a Hero sold', [['feeIn', 'A Hero about Level 5', 0, 3240]]],
-  ['A5', 'Starting Wealth', 'once', [['start', 'At founding', 500, 500]]],
-  ['B1', 'Wage, by the Hero’s Level', 'a charge, every 10 Days', [
-    ['wL1', 'About Level 1', 19, 26], ['wL5', 'About Level 5', 100, 115],
-    ['wL10', 'About Level 10', 185, 225], ['wL20', 'About Level 20', 365, 450]]],
-  ['B1a', 'Out of Contract premium', '% on the wage', [['ooc', 'outOfContractPremium', 10, 10]]],
-  ['B2', 'The Hall’s base upkeep', 'a month', [['hallBase', 'hallBaseUpkeep', 30, 30]]],
-  ['B3', 'The Hall’s upkeep by Hero', 'a Hero a month', [['hallHero', 'hallUpkeepPerHero', 5, 5]]],
-  ['B4', 'A Facility’s upkeep', 'a Facility a month', [
-    ['fG1', 'Grade 1', 10, 10], ['fG2', 'Grade 2', 17, 17], ['fG3', 'Grade 3', 30, 30]]],
-  ['B5', 'Transfer fee paid', 'a Hero bought', [['feeOut', 'A Hero about Level 5', 0, 3240]]],
-  ['B6', 'Signing fee, by the Hero’s Level', 'a Hero signed', [
-    ['sL1', 'About Level 1', 97, 118], ['sL5', 'About Level 5', 191, 234],
-    ['sL10', 'About Level 10', 310, 380], ['sL20', 'About Level 20', 551, 674]]],
-  ['B7', 'Release payout', 'a Hero released', [['release', 'A Hero about Level 5', 0, 8640]]],
-  ['B8', 'Improvement built', 'a grade', [['bG1', 'Grade 1', 200, 200], ['bG2', 'Grade 2', 500, 500], ['bG3', 'Grade 3', 1000, 1000]]],
-  ['B9', 'Market purchase', 'an Item bought', [['buyCons', 'Consumable', 25, 70], ['buyGear', 'Common gear', 35, 300]]],
+  { code: 'A1', name: 'Quest reward, before Negotiation', unit: 'a Quest paid; Encounters, one wealth consequence (0.85 to 1.25)', rows: [
+    { id: 'qT1', label: 'Tier 1', min: 54, max: 190, enc: [-8, 48] },
+    { id: 'qT2', label: 'Tier 2', min: 184, max: 377, enc: [-28, 94] },
+    { id: 'qT3', label: 'Tier 3', min: 375, max: 653, enc: [-56, 163] },
+    { id: 'qT4', label: 'Tier 4', min: 622, max: 996, enc: [-93, 249] },
+    { id: 'qT5', label: 'Tier 5', min: 836, max: 1275, enc: [-125, 319] }] },
+  { code: 'A2–A3', name: 'Item sales (Loot is Wealth once sold)', unit: 'an Item sold: its price × the sell ratio', rows: [
+    { id: 'sellRatio', label: 'The Market’s sell ratio (sellRatio)', min: 0.5, max: 0.5, fmt: 'x' },
+    { id: 'uniqueValue', label: 'A Unique Item’s value', min: 600, max: 600 },
+    { id: 'sellCons', label: 'Consumable, from B9', derive: sale('buyCons') },
+    { id: 'sellGear', label: 'Common gear, from B9', derive: sale('buyGear') },
+    { id: 'sellUnique', label: 'Unique Item', derive: sale('uniqueValue') }] },
+  { code: 'A4', name: 'Transfer fee received', unit: 'a Hero sold: the Roster’s mean wage × the charges left × the factor', rows: [
+    { id: 'chargesLeft', label: 'Wage charges left on the Contract (A4, B5, B7)', min: 0, max: 108, fmt: 'n' },
+    { id: 'transferFactor', label: 'transferFeeFactor (A4, B5)', min: 0.3, max: 0.3, fmt: 'x' },
+    { id: 'feeIn', label: 'A Hero sold', derive: onWagesLeft('transferFactor') }] },
+  { code: 'A5', name: 'Starting Wealth', unit: 'once', rows: [{ id: 'start', label: 'At the preset’s start', min: 500, max: 500 }] },
+  { code: 'B1', name: 'Wage, by the Hero’s Level', unit: 'a charge, every 10 Days', rows: [
+    { id: 'wL1', label: 'About Level 1', min: 19, max: 26 }, { id: 'wL5', label: 'About Level 5', min: 100, max: 115 },
+    { id: 'wL10', label: 'About Level 10', min: 185, max: 225 }, { id: 'wL20', label: 'About Level 20', min: 365, max: 450 }] },
+  { code: 'B1a', name: 'Out of Contract premium', unit: '% on the wage', rows: [{ id: 'ooc', label: 'outOfContractPremium', min: 10, max: 10, fmt: 'pct' }] },
+  { code: 'B2', name: 'The Hall’s base upkeep', unit: 'a month', rows: [{ id: 'hallBase', label: 'hallBaseUpkeep', min: 30, max: 30 }] },
+  { code: 'B3', name: 'The Hall’s upkeep by Hero', unit: 'a Hero a month', rows: [{ id: 'hallHero', label: 'hallUpkeepPerHero', min: 5, max: 5 }] },
+  { code: 'B4', name: 'A Facility’s upkeep', unit: 'a Facility a month', rows: [
+    { id: 'fG1', label: 'Grade 1', min: 10, max: 10 }, { id: 'fG2', label: 'Grade 2', min: 17, max: 17 }, { id: 'fG3', label: 'Grade 3', min: 30, max: 30 }] },
+  { code: 'B5', name: 'Transfer fee paid', unit: 'a Hero bought: as A4', rows: [{ id: 'feeOut', label: 'A Hero bought', derive: onWagesLeft('transferFactor') }] },
+  { code: 'B6', name: 'Signing fee, by the Hero’s Level', unit: 'a Hero signed', rows: [
+    { id: 'sL1', label: 'About Level 1', min: 97, max: 118 }, { id: 'sL5', label: 'About Level 5', min: 191, max: 234 },
+    { id: 'sL10', label: 'About Level 10', min: 310, max: 380 }, { id: 'sL20', label: 'About Level 20', min: 551, max: 674 }] },
+  { code: 'B7', name: 'Release payout', unit: 'a Hero released: the Roster’s mean wage × the charges left × the factor', rows: [
+    { id: 'releaseFactor', label: 'releasePayoutFactor', min: 0.8, max: 0.8, fmt: 'x' },
+    { id: 'release', label: 'A Hero released', derive: onWagesLeft('releaseFactor') }] },
+  { code: 'B8', name: 'Improvement built', unit: 'a grade', rows: [
+    { id: 'bG1', label: 'Grade 1', min: 200, max: 200 }, { id: 'bG2', label: 'Grade 2', min: 500, max: 500 }, { id: 'bG3', label: 'Grade 3', min: 1000, max: 1000 }] },
+  { code: 'B9', name: 'Market purchase', unit: 'an Item bought', rows: [
+    { id: 'buyCons', label: 'Consumable', min: 25, max: 70 }, { id: 'buyGear', label: 'Common gear', min: 35, max: 300 }] },
 ];
 
-// Gameplay assumptions: [id, label, the player's default, a Rival's default], fitted to the v1.2.3 close's lines.
+// Gameplay assumptions: [id, label]; each preset gives their values.
 const ASSUME = [
   ['The Roster', [
-    ['hL1', 'Heroes about Level 1', 1.2, 7.0], ['hL5', 'Heroes about Level 5', 6.3, 16.4],
-    ['hL10', 'Heroes about Level 10', 0.4, 0.5], ['hL20', 'Heroes about Level 20', 0, 0],
-    ['oocShare', 'Wage charges Out of Contract, %', 5, 0]]],
+    ['hL1', 'Heroes about Level 1'], ['hL5', 'Heroes about Level 5'], ['hL10', 'Heroes about Level 10'],
+    ['hL20', 'Heroes about Level 20'], ['oocShare', 'Wage charges Out of Contract, %']]],
   ['Quests', [
-    ['quests', 'Quests taken a Year', 130.7, 185.6], ['fail', 'Quests failed, %', 3.5, 11.8],
-    ['mix1', 'Tier 1, % of Quests', 33, 5], ['mix2', 'Tier 2, % of Quests', 55, 29], ['mix3', 'Tier 3, % of Quests', 12, 43],
-    ['mix4', 'Tier 4, % of Quests', 0, 23], ['mix5', 'Tier 5, % of Quests', 0, 0],
-    ['negotiation', 'Negotiation on the reward, % (−10 to 10)', 0, 0], ['encounter', 'Encounters’ wealth factor, mean', 1, 1]]],
+    ['quests', 'Quests taken a Year'], ['fail', 'Quests failed, %'],
+    ['mix1', 'Tier 1, % of Quests'], ['mix2', 'Tier 2, % of Quests'], ['mix3', 'Tier 3, % of Quests'],
+    ['mix4', 'Tier 4, % of Quests'], ['mix5', 'Tier 5, % of Quests'],
+    ['negotiation', 'Negotiation on the reward, % (−10 to 10)'],
+    ['encounter', 'Reward realised, a share of the range’s middle']]],
   ['The Hall', [
-    ['fac1', 'Facilities kept at grade 1', 1.0, 0.2], ['fac2', 'Facilities kept at grade 2', 0.6, 0.7],
-    ['fac3', 'Facilities kept at grade 3', 0.35, 2.0], ['trait', 'Guildmaster’s upkeep factor (0.9, 1, 1.1)', 1, 1],
-    ['build1', 'Grade 1 Improvements built a Year', 0.3, 0.5], ['build2', 'Grade 2 Improvements built a Year', 0.1, 0.3],
-    ['build3', 'Grade 3 Improvements built a Year', 0, 0.12]]],
+    ['fac1', 'Facilities kept at grade 1'], ['fac2', 'Facilities kept at grade 2'], ['fac3', 'Facilities kept at grade 3'],
+    ['trait', 'Guildmaster’s upkeep factor (0.9, 1, 1.1)'], ['build1', 'Grade 1 Improvements built a Year'],
+    ['build2', 'Grade 2 Improvements built a Year'], ['build3', 'Grade 3 Improvements built a Year']]],
   ['The Market', [
-    ['consBought', 'Consumables bought a Year', 30, 30], ['gearBought', 'Common gear bought a Year', 5.7, 3.9],
-    ['consSold', 'Consumables sold a Year', 2.7, 20], ['gearSold', 'Common gear sold a Year', 3, 19.2],
-    ['uniqueSold', 'Unique Items sold a Year', 0, 0]]],
+    ['consBought', 'Consumables bought a Year'], ['gearBought', 'Common gear bought a Year'],
+    ['consSold', 'Consumables sold a Year'], ['gearSold', 'Common gear sold a Year'], ['uniqueSold', 'Unique Items sold a Year']]],
   ['Contracts and Transfers', [
-    ['sign1', 'Heroes about Level 1 signed a Year', 0.43, 2.25], ['sign5', 'Heroes about Level 5 signed a Year', 0, 0],
-    ['sign10', 'Heroes about Level 10 signed a Year', 0, 0], ['sign20', 'Heroes about Level 20 signed a Year', 0, 0],
-    ['sold', 'Heroes sold by Transfer a Year', 0, 0.18], ['bought', 'Heroes bought by Transfer a Year', 0, 0.18],
-    ['released', 'Heroes released with Contract time left a Year', 0, 0]]],
-  ['The projection', [['years', 'Years for the Wealth projection', 2, 2]]],
+    ['sign1', 'Heroes about Level 1 signed a Year'], ['sign5', 'Heroes about Level 5 signed a Year'],
+    ['sign10', 'Heroes about Level 10 signed a Year'], ['sign20', 'Heroes about Level 20 signed a Year'],
+    ['sold', 'Heroes sold by Transfer a Year'], ['bought', 'Heroes bought by Transfer a Year'],
+    ['released', 'Heroes released with Contract time left a Year']]],
+  ['The projection', [['years', 'Years for the Wealth projection']]],
 ];
 
-// The v1.2.3 closing Gate's lines, a Guild-year (gate-outcomes-monitoring.md); a preset's item overrides.
+// The player's mean Guild-year at the v1.2.3 close; every preset changes some of it (baseline §E and §F).
+const PLAYER = {
+  hL1: 1.2, hL5: 6.3, hL10: 0.4, hL20: 0, oocShare: 5,
+  quests: 130.7, fail: 3.5, mix1: 37, mix2: 38.4, mix3: 22.6, mix4: 2, mix5: 0, negotiation: 0, encounter: 0.801,
+  fac1: 0, fac2: 0, fac3: 1, trait: 1, build1: 0.063, build2: 0.063, build3: 0.063,
+  consBought: 30, gearBought: 5.7, consSold: 2.7, gearSold: 3, uniqueSold: 0,
+  sign1: 0.43, sign5: 0, sign10: 0, sign20: 0, sold: 0, bought: 0, released: 0, years: 2,
+};
+// A point in the player's game: its Roster and Hall then, its next Year's Quests, its Wealth then and a Year on.
+const playerAt = (label, a, start, measured) => ({
+  label, a: { build1: 0, build2: 0, build3: 0, sign1: 0.19, years: 1, ...a }, items: { start: [start, start] }, measured,
+});
+
+// Each preset's assumptions, item overrides and the v1.2.3 closing Gate's measures (gate-outcomes-monitoring.md).
 const PRESETS = {
-  player: { measured: { rewards: 32150.3, sales: 313.4, feesIn: 0, wages: 28345.6, hall: 847.4, impUpkeep: 364.1,
-    items: 2381.3, built: 107.8, signing: 46.7, feesOut: 0, releases: 0 }, items: {} },
-  rival: { measured: { rewards: 80912.2, sales: 2077.6, feesIn: 295.6, wages: 72710.2, hall: 1809.3, impUpkeep: 888.9,
-    items: 2073.6, built: 365.2, signing: 242.4, feesOut: 295.6, releases: 0 }, items: { start: [300, 700] } },
+  player: { label: 'The player, a mean Guild-year', a: {}, items: {}, measured: { rewards: 32150.3, sales: 313.4, feesIn: 0,
+    wages: 28345.6, hall: 847.4, impUpkeep: 364.1, items: 2381.3, built: 107.8, signing: 46.7, feesOut: 0, releases: 0 } },
+  y1d100: playerAt('The player, Year 1 Day 100', { hL1: 7.38, hL5: 0.62, hL10: 0, quests: 236.8, fail: 2.9,
+    mix1: 100, mix2: 0, mix3: 0, mix4: 0, encounter: 0.816, sign1: 0, years: 0.72 }, 4643, { wealthAfter: 15416 }),
+  y2: playerAt('The player, Year 2 Day 1', { hL1: 5.13, hL5: 2.87, hL10: 0, quests: 185, fail: 2.6,
+    mix1: 62, mix2: 38, mix3: 0, mix4: 0, encounter: 0.944 }, 15416, { balance: 16598, wealthAfter: 32013 }),
+  y3: playerAt('The player, Year 3 Day 1', { hL1: 3.57, hL5: 4.43, hL10: 0, quests: 189.9, fail: 2.6,
+    mix1: 64, mix2: 36, mix3: 0, mix4: 0, encounter: 0.748 }, 32013, { balance: 4749, wealthAfter: 36762 }),
+  y7: playerAt('The player, Year 7 Day 1', { hL1: 0.54, hL5: 7.42, hL10: 0, quests: 117.7, fail: 3.3,
+    mix1: 27, mix2: 36, mix3: 37, mix4: 0, encounter: 0.792 }, 37564, { balance: -47, wealthAfter: 37517 }),
+  y15: playerAt('The player, Year 15 Day 1', { hL1: 0, hL5: 6.09, hL10: 1.57, quests: 105.2, fail: 2.9,
+    mix1: 5, mix2: 66, mix3: 29, mix4: 0, encounter: 0.975 }, 27680, { balance: -885, wealthAfter: 26795 }),
+  rival: { label: 'A Rival, a mean Guild-year', a: { hL1: 7.0, hL5: 16.4, hL10: 0.5, oocShare: 0,
+    quests: 185.6, fail: 11.8, mix1: 6.6, mix2: 21.5, mix3: 50, mix4: 21.9, encounter: 0.893,
+    fac1: 0.32, fac2: 0.19, fac3: 2.31, build1: 0.5, build2: 0.3, build3: 0.12,
+    gearBought: 3.9, consSold: 20, gearSold: 19.2, sign1: 2.25, sold: 0.216, bought: 0.216 }, items: { start: [300, 700] },
+    measured: { rewards: 80912.2, sales: 2077.6, feesIn: 295.6, wages: 72710.2, hall: 1809.3, impUpkeep: 888.9,
+      items: 2073.6, built: 365.2, signing: 242.4, feesOut: 295.6, releases: 0 } },
 };
 
 const WAGE_CHARGES = 36, HALL_CHARGES = 12; // a Year of 360 Days: every 10 Days, every 30 Days
-const KEY = 'heroesim-economy-model';
-const allItems = ITEMS.flatMap(([, , , rows]) => rows);
+const KEY = 'heroesim-economy-model-3';
+const ROWS = Object.fromEntries(ITEMS.flatMap((g) => g.rows).map((r) => [r.id, r]));
+// Every range the page edits: each row that is not derived, and A1's Encounter swings as `e<id>`.
+const RANGES = Object.fromEntries(ITEMS.flatMap((g) => g.rows).flatMap((r) => [
+  ...(r.derive ? [] : [[r.id, [r.min, r.max]]]), ...(r.enc ? [['e' + r.id, r.enc]] : [])]));
 const allAssume = ASSUME.flatMap(([, rows]) => rows);
 
 function fresh(preset) {
   const over = PRESETS[preset].items;
   return {
     preset,
-    items: Object.fromEntries(allItems.map(([id, , min, max]) => [id, over[id] ? [...over[id]] : [min, max]])),
-    a: Object.fromEntries(allAssume.map(([id, , player, rival]) => [id, preset === 'player' ? player : rival])),
+    items: Object.fromEntries(Object.entries(RANGES).map(([id, range]) => [id, [...(over[id] ?? range)]])),
+    a: { ...PLAYER, ...PRESETS[preset].a },
+    locks: [],
   };
 }
 
-// One Guild-year's lines with every range read at `pos`: 'min', 'mid' or 'max'.
-function lines(s, pos) {
-  const u = (id) => {
-    const lo = Math.min(...s.items[id]), hi = Math.max(...s.items[id]);
+// A field's lock key: `a:<id>` an assumption, `i:<id>:0` or `i:<id>:1` a range's min or max.
+const readKey = (s, key) => { const [kind, id, side] = key.split(':'); return kind === 'a' ? s.a[id] : s.items[id][side]; };
+const writeKey = (s, key, v) => { const [kind, id, side] = key.split(':'); if (kind === 'a') s.a[id] = v; else s.items[id][side] = v; };
+// `next`, a preset's values, with every field `prev` locks kept as it was.
+function keepLocked(prev, next) {
+  for (const key of prev.locks) writeKey(next, key, readKey(prev, key));
+  next.locks = [...prev.locks];
+  return next;
+}
+
+// Each item's value with every range read at `pos`: 'min', 'mid' or 'max'; a derived row reads the same `pos`.
+function reader(s, pos) {
+  const at = (id) => {
+    if (ROWS[id]?.derive) return ROWS[id].derive(at, s);
+    const [x, y] = s.items[id], lo = Math.min(x, y), hi = Math.max(x, y);
     return pos === 'min' ? lo : pos === 'max' ? hi : (lo + hi) / 2;
   };
-  const a = s.a;
+  return at;
+}
+
+// One Guild-year's lines with every range read at `pos`.
+function lines(s, pos) {
+  const at = reader(s, pos), a = s.a;
   const mix = [1, 2, 3, 4, 5].map((t) => a['mix' + t]);
   const mixSum = mix.reduce((t, m) => t + m, 0) || 1;
-  const paidReward = mix.reduce((t, m, i) => t + (m / mixSum) * u('qT' + (i + 1)), 0);
-  const roster = a.hL1 + a.hL5 + a.hL10 + a.hL20;
-  const wageCharge = a.hL1 * u('wL1') + a.hL5 * u('wL5') + a.hL10 * u('wL10') + a.hL20 * u('wL20');
+  const paidReward = mix.reduce((t, m, i) => t + (m / mixSum) * (at('qT' + (i + 1)) + at('eqT' + (i + 1))), 0);
+  const roster = rosterOf(a);
   return {
     roster,
-    start: u('start'),
+    start: at('start'),
     rewards: a.quests * (1 - a.fail / 100) * paidReward * (1 + a.negotiation / 100) * a.encounter,
-    sales: a.consSold * u('sellCons') + a.gearSold * u('sellGear') + a.uniqueSold * u('sellUnique'),
-    feesIn: a.sold * u('feeIn'),
-    wages: wageCharge * WAGE_CHARGES * (1 + (a.oocShare / 100) * (u('ooc') / 100)),
-    hall: (u('hallBase') + u('hallHero') * roster) * HALL_CHARGES * a.trait,
-    impUpkeep: (a.fac1 * u('fG1') + a.fac2 * u('fG2') + a.fac3 * u('fG3')) * HALL_CHARGES * a.trait,
-    items: a.consBought * u('buyCons') + a.gearBought * u('buyGear'),
-    built: a.build1 * u('bG1') + a.build2 * u('bG2') + a.build3 * u('bG3'),
-    signing: a.sign1 * u('sL1') + a.sign5 * u('sL5') + a.sign10 * u('sL10') + a.sign20 * u('sL20'),
-    feesOut: a.bought * u('feeOut'),
-    releases: a.released * u('release'),
+    sales: a.consSold * at('sellCons') + a.gearSold * at('sellGear') + a.uniqueSold * at('sellUnique'),
+    feesIn: a.sold * at('feeIn'),
+    wages: roster * meanWage(at, s) * WAGE_CHARGES * (1 + (a.oocShare / 100) * (at('ooc') / 100)),
+    hall: (at('hallBase') + at('hallHero') * roster) * HALL_CHARGES * a.trait,
+    impUpkeep: (a.fac1 * at('fG1') + a.fac2 * at('fG2') + a.fac3 * at('fG3')) * HALL_CHARGES * a.trait,
+    items: a.consBought * at('buyCons') + a.gearBought * at('buyGear'),
+    built: a.build1 * at('bG1') + a.build2 * at('bG2') + a.build3 * at('bG3'),
+    signing: a.sign1 * at('sL1') + a.sign5 * at('sL5') + a.sign10 * at('sL10') + a.sign20 * at('sL20'),
+    feesOut: a.bought * at('feeOut'),
+    releases: a.released * at('release'),
   };
 }
 
@@ -211,25 +291,45 @@ function money(silver) {
   return (silver < 0 && whole ? '−' : '') + text;
 }
 const signed = (silver) => (Math.round(silver) > 0 ? '+' : '') + money(silver);
+const shown = (row, v) => row.fmt === 'pct' ? `${+v.toFixed(2)}%` : row.fmt === 'x' ? `×${+v.toFixed(3)}`
+  : row.fmt === 'n' ? String(+v.toFixed(1)) : money(v);
 
 let state;
 try { state = JSON.parse(localStorage.getItem(KEY)); } catch { state = null; }
 if (!state || !PRESETS[state.preset]) state = fresh('player');
-for (const [id, , min, max] of allItems) state.items[id] ??= [min, max];
-for (const [id, , player] of allAssume) state.a[id] ??= player;
+for (const [id, range] of Object.entries(RANGES)) state.items[id] ??= [...range];
+for (const [id] of allAssume) state.a[id] ??= PLAYER[id];
+state.locks ??= [];
 
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); document.getElementById('saved').textContent = 'Saved in this browser.'; }
   catch { document.getElementById('saved').textContent = ''; }
 }
 
-const num = (value, onInput, label) => {
-  const input = document.createElement('input');
-  input.type = 'number'; input.step = 'any'; input.value = value; input.setAttribute('aria-label', label);
-  input.addEventListener('input', () => { const v = parseFloat(input.value); if (Number.isFinite(v)) { onInput(v); update(); } });
-  return input;
-};
+const LOCKED = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.5" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+const OPEN = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="3" y="7" width="10" height="7.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V4.6a3 3 0 0 1 5.9-.7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
 const cell = (tag, text, cls) => { const c = document.createElement(tag); c.textContent = text; if (cls) c.className = cls; return c; };
+// A number input for the field `key`, with its padlock.
+function field(key, label) {
+  const wrap = cell('span', '', 'fld');
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = 'any'; input.value = readKey(state, key); input.setAttribute('aria-label', label);
+  input.addEventListener('input', () => { const v = parseFloat(input.value); if (Number.isFinite(v)) { writeKey(state, key, v); update(); } });
+  const lock = document.createElement('button');
+  lock.type = 'button'; lock.className = 'lock'; lock.setAttribute('aria-label', 'Lock ' + label);
+  const show = () => {
+    const on = state.locks.includes(key);
+    lock.setAttribute('aria-pressed', String(on)); lock.innerHTML = on ? LOCKED : OPEN; input.classList.toggle('locked', on);
+  };
+  lock.addEventListener('click', () => {
+    state.locks = state.locks.includes(key) ? state.locks.filter((k) => k !== key) : [...state.locks, key];
+    show(); save();
+  });
+  show();
+  wrap.append(input, lock);
+  return wrap;
+}
 
 function build() {
   const box = document.getElementById('assumptions'); box.replaceChildren();
@@ -238,63 +338,77 @@ function build() {
     const grid = cell('div', '', 'grid');
     for (const [id, label] of rows) {
       const l = document.createElement('label');
-      l.append(cell('span', label), num(state.a[id], (v) => { state.a[id] = v; }, label));
+      l.append(cell('span', label), field('a:' + id, label));
       grid.append(l);
     }
     box.append(grid);
   }
   const table = document.createElement('table');
-  table.innerHTML = '<thead><tr><th></th><th>Item</th><th class="n">Min</th><th class="n">Max</th><th class="n">Mid</th></tr></thead>';
+  table.innerHTML = '<thead><tr><th></th><th>Item</th><th class="n">Min</th><th class="n">Max</th>' +
+    '<th class="n">Encounter min</th><th class="n">Encounter max</th><th class="n">Mid</th></tr></thead>';
   const body = document.createElement('tbody');
-  for (const [code, name, unit, rows] of ITEMS) {
+  for (const group of ITEMS) {
     const head = document.createElement('tr');
-    const title = cell('td', ''); title.colSpan = 4;
-    title.append(cell('strong', name + ' '), cell('span', unit, 'unit'));
-    head.append(cell('td', code, 'code'), title, cell('td', ''));
+    const title = cell('td', ''); title.colSpan = 6;
+    title.append(cell('strong', group.name + ' '), cell('span', group.unit, 'unit'));
+    head.append(cell('td', group.code, 'code'), title);
     body.append(head);
-    for (const [id, label] of rows) {
+    for (const row of group.rows) {
       const tr = document.createElement('tr');
-      const range = state.items[id];
-      const mid = cell('td', '', 'n'); mid.dataset.mid = id;
-      const minCell = cell('td', '', 'n'), maxCell = cell('td', '', 'n');
-      minCell.append(num(range[0], (v) => { range[0] = v; }, label + ' min'));
-      maxCell.append(num(range[1], (v) => { range[1] = v; }, label + ' max'));
-      tr.append(cell('td', ''), cell('td', label), minCell, maxCell, mid);
+      const range = (id, side, label) => {
+        const c = cell('td', '', 'n');
+        if (ROWS[id]?.derive) { c.classList.add('derived'); c.dataset.derived = id; c.dataset.pos = side ? 'max' : 'min'; }
+        else c.append(field(`i:${id}:${side}`, label));
+        return c;
+      };
+      const mid = cell('td', '', 'n'); mid.dataset.mid = row.id;
+      tr.append(cell('td', ''), cell('td', row.label + (row.derive ? ' (derived)' : '')),
+        range(row.id, 0, row.label + ' min'), range(row.id, 1, row.label + ' max'),
+        row.enc ? range('e' + row.id, 0, row.label + ' Encounter min') : cell('td', ''),
+        row.enc ? range('e' + row.id, 1, row.label + ' Encounter max') : cell('td', ''), mid);
       body.append(tr);
     }
   }
   table.append(body);
   document.getElementById('items').replaceChildren(table);
-  for (const b of document.querySelectorAll('[data-preset]')) b.setAttribute('aria-pressed', String(b.dataset.preset === state.preset));
+  document.getElementById('scenario').value = state.preset;
 }
+
+// A row's value at `pos`, A1's with its Encounter swing.
+const rowValue = (at, row) => at(row.id) + (row.enc ? at('e' + row.id) : 0);
 
 // Section C's rows now: each line at Min, Mid and Max, its Impact against the preset's defaults and the close's figure.
 function outputs() {
   const now = estimate(state), base = estimate(fresh(state.preset)), measured = PRESETS[state.preset].measured;
+  // A point in a game measures only its balance and Wealth a Year on; a mean Guild-year measures every line.
+  const lined = 'rewards' in measured;
+  const m = (k) => measured[k] ?? null;
   const rows = [];
   const row = (label, min, mid, max, impact, meas, cls, favour = 1) => rows.push({ label, min, mid, max, impact, meas, cls, favour });
   row('Income', null, null, null, null, null, 'total');
-  for (const [k, label] of INCOME) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], measured[k]);
-  row('Income in all', now.inc('min'), now.inc('mid'), now.inc('max'), now.inc('mid') - base.inc('mid'), sum(measured, INCOME), 'total');
+  for (const [k, label] of INCOME) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], m(k));
+  row('Income in all', now.inc('min'), now.inc('mid'), now.inc('max'), now.inc('mid') - base.inc('mid'), lined ? sum(measured, INCOME) : null, 'total');
   row('Expenses', null, null, null, null, null, 'total');
-  for (const [k, label] of EXPENSE) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], measured[k], '', -1);
-  row('Expenses in all', now.exp('min'), now.exp('mid'), now.exp('max'), now.exp('mid') - base.exp('mid'), sum(measured, EXPENSE), 'total', -1);
+  for (const [k, label] of EXPENSE) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], m(k), '', -1);
+  row('Expenses in all', now.exp('min'), now.exp('mid'), now.exp('max'), now.exp('mid') - base.exp('mid'), lined ? sum(measured, EXPENSE) : null, 'total', -1);
   const b = now.balance;
-  row('The balance', b.min, b.mid, b.max, b.mid - base.balance.mid, sum(measured, INCOME) - sum(measured, EXPENSE), 'balance');
+  row('The balance', b.min, b.mid, b.max, b.mid - base.balance.mid,
+    lined ? sum(measured, INCOME) - sum(measured, EXPENSE) : m('balance'), 'balance');
   const up = { min: now.upkeep(now.at.min), mid: now.upkeep(now.at.mid), max: now.upkeep(now.at.max) };
-  row('One Upkeep, a month of costs', up.min, up.mid, up.max, up.mid - now.upkeep(base.at.mid), (measured.wages + measured.hall + measured.impUpkeep) / 12, '', -1);
+  row('One Upkeep, a month of costs', up.min, up.mid, up.max, up.mid - now.upkeep(base.at.mid),
+    lined ? (measured.wages + measured.hall + measured.impUpkeep) / 12 : null, '', -1);
   const y = state.a.years;
   const wealth = (p) => now.at[p].start + y * b[p];
-  row(`Wealth after ${y} Years`, wealth('min'), wealth('mid'), wealth('max'), wealth('mid') - (base.at.mid.start + y * base.balance.mid), null);
+  row(`Wealth after ${y} Year${y === 1 ? '' : 's'}`, wealth('min'), wealth('mid'), wealth('max'),
+    wealth('mid') - (base.at.mid.start + y * base.balance.mid), m('wealthAfter'));
   return { rows, roster: now.at.mid.roster, months: b.mid / up.mid };
 }
 const impactText = (r) => (Math.round(r.impact) ? signed(r.impact) : '—');
 
 function update() {
-  for (const td of document.querySelectorAll('[data-mid]')) {
-    const [lo, hi] = state.items[td.dataset.mid];
-    td.textContent = td.dataset.mid === 'ooc' ? (lo + hi) / 2 + '%' : money((lo + hi) / 2);
-  }
+  const at = { min: reader(state, 'min'), mid: reader(state, 'mid'), max: reader(state, 'max') };
+  for (const td of document.querySelectorAll('[data-mid]')) td.textContent = shown(ROWS[td.dataset.mid], rowValue(at.mid, ROWS[td.dataset.mid]));
+  for (const td of document.querySelectorAll('[data-derived]')) td.textContent = shown(ROWS[td.dataset.derived], at[td.dataset.pos](td.dataset.derived));
   const { rows, roster, months } = outputs();
   const t = document.getElementById('out');
   t.innerHTML = '<thead><tr><th>Line</th><th class="n">Min</th><th class="n">Mid</th><th class="n">Max</th><th class="n">Impact</th><th class="n">Measured</th></tr></thead>';
@@ -319,15 +433,17 @@ function update() {
 const pad = (n) => String(n).padStart(2, '0');
 const dateText = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-// The model's inputs and outputs now, as a Markdown record; "Yes" marks a value off the preset's default.
+// The model's inputs and outputs now, as a Markdown record; "Yes" marks a value off the preset's default or locked.
 function markdown(when) {
   const { rows, roster, months } = outputs();
   const def = fresh(state.preset);
-  const side = state.preset === 'player' ? 'the player' : 'a Rival';
+  const at = { min: reader(state, 'min'), mid: reader(state, 'mid'), max: reader(state, 'max') };
+  const locked = (...keys) => (keys.some((k) => state.locks.includes(k)) ? 'Yes' : '');
+  const pair = (id) => `${state.items[id][0]} | ${state.items[id][1]}`;
   const md = [
     `# Economy model run, ${dateText(when)}`,
     '',
-    `Exported from [the economy model](./v1.2.4-economics-model.html) with the preset for ${side}. The model's spec is`,
+    `Exported from [the economy model](./v1.2.4-economics-model.html) with the preset "${PRESETS[state.preset].label}". The model's spec is`,
     `[the baseline's section E](./v1.2.4-starting-economics-baseline.md#e-the-estimate-model). Section C is in Gold and`,
     'Silver, 100 Silver a Gold; the item ranges are in Silver.',
     '',
@@ -343,18 +459,24 @@ function markdown(when) {
     '',
     '## Gameplay assumptions',
     '',
-    '| Group | Assumption | Value | Default | Changed |',
-    '| --- | --- | ---: | ---: | --- |',
+    '| Group | Assumption | Value | Default | Changed | Locked |',
+    '| --- | --- | ---: | ---: | --- | --- |',
     ...ASSUME.flatMap(([group, list]) => list.map(([id, label]) =>
-      `| ${group} | ${label} | ${state.a[id]} | ${def.a[id]} | ${state.a[id] !== def.a[id] ? 'Yes' : ''} |`)),
+      `| ${group} | ${label} | ${state.a[id]} | ${def.a[id]} | ${state.a[id] !== def.a[id] ? 'Yes' : ''} | ${locked('a:' + id)} |`)),
     '',
     '## A and B. Item ranges, in Silver',
     '',
-    '| Code | Item | Unit | Sub-item | Min | Max | Mid | Default | Changed |',
-    '| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |',
-    ...ITEMS.flatMap(([code, name, unit, list]) => list.map(([id, label]) => {
-      const [lo, hi] = state.items[id], [dlo, dhi] = def.items[id];
-      return `| ${code} | ${name} | ${unit} | ${label} | ${lo} | ${hi} | ${(lo + hi) / 2} | ${dlo}–${dhi} | ${lo !== dlo || hi !== dhi ? 'Yes' : ''} |`;
+    'A derived row is computed from the others; its Default is "derived".',
+    '',
+    '| Code | Item | Sub-item | Min | Max | Encounter min | Encounter max | Mid | Default | Changed | Locked |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |',
+    ...ITEMS.flatMap((g) => g.rows.map((row) => {
+      const mid = rowValue(at.mid, row);
+      if (row.derive) return `| ${g.code} | ${g.name} | ${row.label} | ${at.min(row.id)} | ${at.max(row.id)} | | | ${+mid.toFixed(2)} | derived | | |`;
+      const ids = row.enc ? [row.id, 'e' + row.id] : [row.id];
+      const changed = ids.some((id) => state.items[id].some((v, i) => v !== def.items[id][i]));
+      const dflt = ids.map((id) => def.items[id].join('–')).join('; ');
+      return `| ${g.code} | ${g.name} | ${row.label} | ${pair(row.id)} | ${row.enc ? pair('e' + row.id) : ' | '} | ${+mid.toFixed(2)} | ${dflt} | ${changed ? 'Yes' : ''} | ${locked(...ids.flatMap((id) => [`i:${id}:0`, `i:${id}:1`]))} |`;
     })),
     '',
   ];
@@ -401,9 +523,13 @@ async function exportMarkdown() {
   status.textContent = `Downloaded ${name}; move it beside the model.`;
 }
 
+const load = (preset) => { state = keepLocked(state, fresh(preset)); build(); update(); };
 document.getElementById('export').addEventListener('click', exportMarkdown);
-for (const b of document.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { state = fresh(b.dataset.preset); build(); update(); });
-document.getElementById('reset').addEventListener('click', () => { state = fresh(state.preset); build(); update(); });
+const picker = document.getElementById('scenario');
+picker.append(...Object.entries(PRESETS).map(([key, { label }]) => new Option(label, key)));
+picker.addEventListener('change', () => load(picker.value));
+document.getElementById('reset').addEventListener('click', () => load(state.preset));
+document.getElementById('unlock').addEventListener('click', () => { state.locks = []; build(); update(); });
 build(); update();
 </script>
 </body>
