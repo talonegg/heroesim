@@ -332,7 +332,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-320 | 2026-10-17 | v1.2.3-S7 built: in debt, and the Rivals' search | item 1 in part by DL-322 | [decision-log](../decision-log.md) |
 | DL-321 | 2026-10-17 | v1.2.3-S8 built: the harness's lines |  | [decision-log](../decision-log.md) |
 | DL-322 | 2026-10-17 | v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4 |  | [decision-log](../decision-log.md) |
-| DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI |  | [decision-log](../decision-log.md) |
+| DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI | item call 2 by DL-326 | [decision-log](../decision-log.md) |
 | DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [decision-log](../decision-log.md) |
 | DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [decision-log](../decision-log.md) |
 | DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [decision-log](../decision-log.md) |

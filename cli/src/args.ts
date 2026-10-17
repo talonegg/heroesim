@@ -157,15 +157,16 @@ Commands:
       another Guild's Roster on a Contract of --years years (a length the rules offer), and
       the player's Guild pays the fee show roster <guildId> and show hero <heroId> give for
       them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which --offer
-      makes: the player's Guild's Offer for another Guild's Hero Out of Contract, for no fee,
-      on a Contract of --years years, which a Rival answers at once, or for a Hero of a Guild
-      that answers its Offers itself, at the fee --in would pay, which waits (show offers).
-      --to sends a Hero Out of Contract, for no fee, only to a Guild whose
-      free Offer stands for them (show offers), on the Offer's length, as accept does.
-      The other Guild's Disposition chooses the length of a Hero under Contract --to sends.
-      The other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
-      and, to buy, its Wealth. The Hero must be at the Hall; their gear stays with the Guild
-      they leave, and the Heroes left behind who held them in high Regard lose Morale.
+      makes: the player's Guild's Offer, for no fee, on a Contract of --years years, for
+      another Guild's Hero Out of Contract, which a Rival answers at once, or the night the
+      Hero comes home, renewing them or letting them go; --offer refuses a Rival's Hero
+      under Contract, whom --in takes. --to sends a Hero Out of Contract, for no fee, only
+      to a Guild whose free Offer stands for them (show offers), on the Offer's length, as
+      accept does. The other Guild's Disposition chooses the length of a Hero under Contract
+      --to sends. The other Guild must be willing, by its Disposition's appetite for
+      Transfers, its Roster and, to buy, its Wealth. The Hero must be at the Hall; their gear
+      stays with the Guild they leave, and the Heroes left behind who held them in high
+      Regard lose Morale.
   accept --offer <offerId>      decline --offer <offerId>
       Answer a Transfer Offer a Rival made for one of the player's Heroes, listed by show
       offers: accept transfers the Hero for the fee offered; decline refuses it. An offer

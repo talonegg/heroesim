@@ -843,8 +843,7 @@ pool's refresh come before the "Roster wiped" check. The bundle stood at 890,069
 *Judgement calls, for the owner to see.*
 - The page asks before every release, as it does before a Transfer, though the epic named the confirmation for the last Hero;
   the CLI asks (`--confirm`) only there.
-- The CLI cannot make a free Offer: `transfer --in` refuses a Hero Out of Contract, in words that name an Offer the CLI has no
-  command for. S9 lists none; a `transfer --offer` is a small story if the owner wants one.
+- *Superseded by DL-326 item 1, 2026-10-17; its text is in [superseded/DL-323.md](decisions/archive/superseded/DL-323.md).*
 - Arranged for the owner to see (DL-315's note), assertions unchanged but for the shape: the tests that list the Roster's columns
   (`roster.test.tsx`, `selectors.test.ts`, the phone's tab), the Guilds table's and a Guild page's headings
   (`rankings.test.tsx`), `render.test.ts`'s Roster and Hero layouts, `main.test.ts`'s `show guilds` row and the Roster's help
@@ -858,8 +857,6 @@ half waiting on a push on the owner's word. Tests red first: `contracts.test.ts`
 page's, Roster's, Guilds' and Offers' views, `contract.test.ts` (CLI), `args.test.ts`. The three doctors before and after,
 unchanged. `e2e/contract.spec.ts` at 360, 820 and 1280 wide.
 Verified 2026-10-17 at 9616ae3: the wages, payout, Days left and counts re-derived against the engine, 16 mutations red but the free Offer's length (closed by a test); fixed, test first: "0 Days left" on a last Day still open to renewal, now "the last Day"; a free Offer's card without its wages and its Accept saying "for 0 Silver"; the CLI's stop pointing a free Offer to decline, `release` asking --confirm for a Hero away, and usage promising a wage `show hero` lacks and a Hero Out of Contract taken in.
-
-*Note, 2026-10-17:* the judgement call "The CLI cannot make a free Offer" is superseded in full by DL-326: `transfer --offer`.
 
 ## DL-324 — v1.2.3-S10: the close
 
@@ -994,21 +991,22 @@ priced, with its usage and tests; (c) (b) plus showing each length's wage and th
 
 1. **`transfer --hero <heroId> --offer --years <years>`** makes the player's Guild's Offer through the engine's
    `offerTransfer`, the action the Hero page's Offer plays: free (fee 0, DL-319) for a Hero Out of Contract on another
-   Guild's Roster, which a Rival answers at once; priced (`transferFee`, DL-318) for a Hero of a Guild that answers its
-   Offers itself, which waits (`show offers`). It saves only on success.
+   Guild's Roster, which a Rival answers at once, or the night the Hero comes home; priced (`transferFee`, DL-318) for a
+   Hero of a Guild that answers its Offers itself, which waits. It saves only on success. Supersedes DL-323's call 2.
 2. **The parse:** `--to`, `--in` and `--offer` are one of three and one only; `--offer` takes `--years` as `--in`
    does, a whole number in digits. The length rules offer is the engine's to say (`length-not-offered`), as for `--in`.
 3. **The words:** a refusal is the engine's, in `words/src/refusals.ts` (`offerTransfer …`), and an Offer made is
    `guild.transfer-offered` in `words/src/narrate.ts`, the History's and the page's, so both agree; the Guild's Wealth and
    Roster follow as for every Transfer.
-4. **The usage** gives the form and says what `--offer` makes, and no longer says the CLI makes no Offer; so does
+4. **The usage** gives the form, what `--offer` makes and that it refuses a Rival's Hero under Contract, whom `--in`
+   takes, and no longer says the CLI makes no Offer; so does
    `docs/requirements.md`'s Contracts row.
 
 *Judgement calls, for the owner to see.*
 - **The same action as the page:** the page offers only for a Hero Out of Contract (a Hero under Contract it takes in,
   `transferIn`); the CLI's `--offer` asks the engine alone, so a Hero under Contract of a Rival is refused
-  `no-offer-needed` ("ask to take the Hero in"). A priced Offer needs a Guild without a Disposition, which a CLI save
-  has only if one is made by hand; the test makes one.
+  `no-offer-needed` ("ask to take the Hero in"). A priced Offer needs a Guild without a Disposition; in a game only
+  the player's has none, so neither the CLI nor the page makes a priced Offer in play; the test makes such a Guild.
 - **(c) not built:** no wage per length nor payout is shown before acting.
 - The free Offer's narration reads "offered … 0 Silver for …" as in the History; the page's card says "no fee".
 
@@ -1017,3 +1015,4 @@ reading. A script parsing the old refusal "transfer takes --to <guildId> or --in
 
 **Evidence.** This story's commit; the S12 boxes. Tests red first: `args.test.ts` (parse, refusals, usage) and
 `commands/transfer.test.ts` (a priced Offer saved, a free Offer answered at once, an Offer refused, a length refused).
+Verified 2026-10-17 at ab57823: the parse, the kind and the page's paths re-derived, 6 mutations red; fixed, test first: the usage promising a waiting Offer in `show offers`, which lists only Offers for the player's Heroes, and not saying `--offer` refuses a Rival's Hero under Contract; DL-323's call 2 a stub and its record.

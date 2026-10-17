@@ -289,6 +289,12 @@ describe('parseArgs', () => {
     expect(said).toContain('--in refuses a Hero Out of Contract, whom only a free Offer takes, which --offer makes');
     expect(said).toContain('transfer --hero <heroId> --offer --years <years>');
     expect(said).not.toContain('which the CLI does not make');
+    // A Rival answers a free Offer at once, or the night the Hero comes home (offerTonight); show offers lists only the
+    // Offers for the player's Heroes, so no Offer of the player's is promised there; a Rival's Hero under Contract is
+    // refused an Offer (no-offer-needed) and taken in by --in (DL-326).
+    expect(said).toContain('which a Rival answers at once, or the night the Hero comes home, renewing them or letting them go');
+    expect(said).toContain("--offer refuses a Rival's Hero under Contract, whom --in takes");
+    expect(said).not.toContain('which waits (show offers)');
     // DL-325: --to sends a Hero Out of Contract only on a free Offer; a released Hero's longer stay in the pool.
     expect(said).toContain('--to sends a Hero Out of Contract, for no fee, only to a Guild whose free Offer stands for them (show offers)');
     expect(said).toContain('where a released Hero stays longer than one the pool brings, unless a Guild signs them');

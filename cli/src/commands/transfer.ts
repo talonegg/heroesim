@@ -1,8 +1,8 @@
-// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `transfer --hero <id> --offer`, `accept --offer <id>`,
-// `decline --offer <id>` and `show offers` (M6-S2, R28, DL-57): the player's Guild sends a Hero to
-// another Guild, takes one from another Guild's Roster, or answers a Rival's Transfer Offer. What the
-// commands do to an open save and what they print; `main.ts` opens the save, and writes it back only
-// when the command succeeds.
+// `transfer --hero <id> --to <guildId>`, `transfer --hero <id> --in`, `transfer --hero <id> --offer`
+// (DL-326), `accept --offer <id>`, `decline --offer <id>` and `show offers` (M6-S2, R28, DL-57): the
+// player's Guild sends a Hero to another Guild, takes one from another Guild's Roster, makes an Offer
+// for one, or answers a Rival's Transfer Offer. What the commands do to an open save and what they
+// print; `main.ts` opens the save, and writes it back only when the command succeeds.
 //
 // The CLI holds no rule: the engine's Transfer actions decide, a refusal is their typed rejection in
 // the refusals' words (ADR-0003, DL-240), and a fee is the engine's `transferFee`.
