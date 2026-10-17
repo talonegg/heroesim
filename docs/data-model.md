@@ -425,7 +425,8 @@ reads its counters through `byType`, or observes them in play
    discarded. The History keeps their records; unique Items, Patrons, Guilds and Guildmasters keep
    their rows. Dead and retired Heroes keep their rows, with their State. A Hero leaves the
    Unattached pool `unattachedStayDays` after the Day they entered it (`unattachedSince`), or
-   `releasedStayDays` when the History holds their `hero.released` of that Turn (DL-325); their row
+   `releasedStayDays` when the History holds their `hero.released` of that Turn, a Hero the refill
+   does not count toward `unattachedPoolSize` (DL-325); their row
    is removed once the Turn's events are in, unless an entry names them, before their leaving or
    after it in the same Turn (a Module's `onNight`). Then their row stays, out of play with
    `leftPoolOnTurn` set, and their `hero.left-pool` is recorded (DL-27, DL-214). One reading of the

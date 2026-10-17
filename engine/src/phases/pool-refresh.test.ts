@@ -213,7 +213,7 @@ describe('departures', () => {
 
 // The owner, 2026-10-17: a released Hero stays a Year in the pool (DL-325).
 describe('a released Hero', () => {
-  test('stays releasedStayDays from the Day of their release, not unattachedStayDays, counted in the pool', () => {
+  test('stays releasedStayDays from the Day of their release, not unattachedStayDays, beside the pool size and not in it', () => {
     const deps = quietDeps({ unattachedStayDays: 1, releasedStayDays: 4 });
     const start = created('released-stay', deps);
     const guild = playerGuild(start.world);
@@ -222,11 +222,12 @@ describe('a released Hero', () => {
     const released = applyAction(start, { kind: 'release', guildId: guild.id, heroId }, deps);
     if (!released.ok) throw new Error(`Refused: ${released.rejection.reason}`);
 
-    // Released on Day 0: still in the pool on the night of Day 3, the pool's own Heroes long gone, and counted in its size.
+    // Released on Day 0: still in the pool on the night of Day 3, the pool's own Heroes long gone, and beside the usual
+    // unattachedPoolSize new recruits, not one of them (the owner, 2026-10-17: released Heroes do not count toward the size).
     const early = playTo(released.document, nightOf(3), deps);
     expect(ofType(early.events, 'hero.left-pool').map((event) => event.payload.heroId)).not.toContain(heroId);
     expect(unattachedHeroes(early.document.world).map((hero) => hero.id)).toContain(heroId);
-    expect(unattachedHeroes(early.document.world)).toHaveLength(deps.config.unattachedPoolSize);
+    expect(unattachedHeroes(early.document.world)).toHaveLength(deps.config.unattachedPoolSize + 1);
     const { events } = playTo(early.document, nightOf(4), deps);
     expect(ofType(events, 'hero.left-pool').filter((event) => event.payload.heroId === heroId).map((event) => event.turn)).toEqual([nightOf(4)]);
   });
@@ -251,6 +252,31 @@ describe('a released Hero', () => {
     // In the pool since their release: stays. Since a later Turn, as a fold of the Guild that signed them again: the pool's stay.
     expect(night(0)).not.toContain(heroId);
     expect(night(nightOf(1))).toContain(heroId);
+  });
+
+  test('is no part of the pool for the refill, while a Hero back by a fold is', () => {
+    const deps = quietDeps({ unattachedStayDays: 100, releasedStayDays: 100 });
+    const start = created('released-refill', deps);
+    const guild = playerGuild(start.world);
+    const heroId = guild?.rosterIds[0];
+    if (guild === undefined || heroId === undefined) throw new Error('The world is incomplete');
+    const released = applyAction(start, { kind: 'release', guildId: guild.id, heroId }, deps);
+    if (!released.ok) throw new Error(`Refused: ${released.rejection.reason}`);
+    // One of the pool's own Heroes is gone, so the pool holds unattachedPoolSize with the Hero in it.
+    const generatedOn = (since: number): number => {
+      const world = structuredClone(released.document.world);
+      const other = unattachedHeroes(world).find((hero) => hero.id !== heroId);
+      const hero = world.heroes[heroId];
+      if (other === undefined || hero === undefined) throw new Error('No row');
+      delete world.heroes[other.id];
+      hero.unattachedSince = since;
+      world.turn = nightOf(1);
+      return ofType(poolRefresh(world, phaseContext(world, deps, released.document.history)), 'hero.generated').length;
+    };
+
+    // Released this Turn: not counted, so the refill brings one. Back by a fold on a later Turn: counted, so none.
+    expect(generatedOn(0)).toBe(1);
+    expect(generatedOn(nightOf(1))).toBe(0);
   });
 });
 

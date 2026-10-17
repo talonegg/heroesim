@@ -1,7 +1,7 @@
 // Night: the Unattached pool refresh (M2-S8, approach §2, DL-27). Heroes who have been in the pool
 // for `unattachedStayDays`, or `releasedStayDays` for a Hero a Guild released (DL-325), leave it, then
 // the Heroes Generator refills it to `unattachedPoolSize` from the `pool` stream (pre-M0 review D7),
-// the only stream this phase draws from. A released Hero counts toward the size as any other.
+// the only stream this phase draws from. A released Hero is not counted toward the size (DL-325).
 //
 // A Hero who leaves is marked gone (`leftPoolOnTurn`) here, and keeps their row only when an entry
 // of the History names them once the Turn's events are in (data-model rule 8, pre-M0 review A9):
@@ -32,9 +32,11 @@ export const poolRefresh: PhaseRun = (world, ctx) => {
     hero.leftPoolOnTurn = ctx.turn;
   }
 
-  // The refill, after the departures, so a Hero who left is replaced the same night.
+  // The refill, after the departures, so a Hero who left is replaced the same night. A released Hero stays beside
+  // the size, not in it (DL-325), so a pool of them brings the usual new recruits.
   const deps = { config, content };
-  for (let size = unattachedHeroes(world).length; size < config.unattachedPoolSize; size += 1) {
+  const staying = unattachedHeroes(world).filter((hero) => !released(hero, ctx.history));
+  for (let size = staying.length; size < config.unattachedPoolSize; size += 1) {
     events.push(...generateHero(world, deps, { stream: 'pool' }).events);
   }
   return events;
