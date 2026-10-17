@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Economy baseline model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root {
+    --bg: #f6f5f1; --surface: #ffffff; --text: #1d1d1b; --muted: #6b6a64; --border: #dddbd3;
+    --accent: #8a5a00; --good: #1f7a3a; --bad: #b3261e; --input: #fbfaf7; --head: #efede6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a09e95; --border: #3a3934;
+      --accent: #e0a940; --good: #6fcf8a; --bad: #ff8a80; --input: #262521; --head: #2a2925;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161614; --surface: #201f1c; --text: #ecebe6; --muted: #a09e95; --border: #3a3934;
+    --accent: #e0a940; --good: #6fcf8a; --bad: #ff8a80; --input: #262521; --head: #2a2925;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, sans-serif; }
+  header, main { max-width: 1280px; margin: 0 auto; padding-block: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 8px; }
+  h3 { font-size: 0.95rem; margin: 14px 0 6px; color: var(--accent); }
+  p { margin: 0 0 8px; color: var(--muted); }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  button { font: inherit; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface); color: var(--text); cursor: pointer; }
+  button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: 16px; align-items: start; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  aside { position: sticky; top: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
+  th { background: var(--head); font-weight: 600; font-size: 0.85rem; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.total td { font-weight: 600; }
+  tr.balance td { font-weight: 700; border-top: 2px solid var(--text); }
+  .code { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+  .unit { color: var(--muted); font-size: 0.8rem; }
+  input[type="number"] { width: 6.5em; font: inherit; padding: 3px 5px; border: 1px solid var(--border);
+    border-radius: 4px; background: var(--input); color: var(--text); text-align: right; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+  .grid label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .good { color: var(--good); } .bad { color: var(--bad); }
+  .scroll { overflow-x: auto; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } aside { position: static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Economy baseline model</h1>
+  <p>A rough estimate of a Guild-year's balance from each income and expense's range (sections A and B of
+    <code>v1.2.4-starting-economics-baseline.md</code>) and the gameplay assumptions. Amounts are Silver in the inputs,
+    shown as Gold and Silver (100 Silver a Gold). Min, Mid and Max read every range at its min, middle and max.</p>
+  <div class="bar">
+    <span>Preset, calibrated to the <code>v1.2.3</code> close:</span>
+    <button type="button" data-preset="player">The player</button>
+    <button type="button" data-preset="rival">A Rival</button>
+    <button type="button" id="reset">Reset to the preset</button>
+    <button type="button" id="export">Export to Markdown</button>
+    <span class="unit" id="saved"></span>
+    <span class="unit" id="exported" role="status"></span>
+  </div>
+</header>
+<main>
+  <div>
+    <section class="card"><h2>Gameplay assumptions</h2><div id="assumptions"></div></section>
+    <section class="card"><h2>A and B. Item ranges, in Silver</h2><div class="scroll" id="items"></div></section>
+  </div>
+  <aside>
+    <section class="card">
+      <h2>C. The balance, a Guild-year</h2>
+      <div class="scroll"><table id="out"></table></div>
+      <p style="margin-top:8px">Impact is Mid against Mid at the preset's defaults. The balance's Min is every income at
+        its min and every expense at its max; its Max the reverse.</p>
+    </section>
+  </aside>
+</main>
+<script>
+// Each unit's range, sections A and B of the baseline (Silver). Edited min and max are the model's inputs.
+const ITEMS = [
+  ['A1', 'Quest reward, before Negotiation and Encounters', 'a Quest paid', [
+    ['qT1', 'Tier 1', 54, 190], ['qT2', 'Tier 2', 184, 377], ['qT3', 'Tier 3', 375, 653],
+    ['qT4', 'Tier 4', 622, 996], ['qT5', 'Tier 5', 836, 1275]]],
+  ['A2–A3', 'Item sales (Loot is Wealth once sold)', 'an Item sold', [
+    ['sellCons', 'Consumable', 12, 35], ['sellGear', 'Common gear', 17, 150], ['sellUnique', 'Unique Item', 300, 300]]],
+  ['A4', 'Transfer fee received', 'a Hero sold', [['feeIn', 'A Hero about Level 5', 0, 3240]]],
+  ['A5', 'Starting Wealth', 'once', [['start', 'At founding', 500, 500]]],
+  ['B1', 'Wage, by the Hero’s Level', 'a charge, every 10 Days', [
+    ['wL1', 'About Level 1', 19, 26], ['wL5', 'About Level 5', 100, 115],
+    ['wL10', 'About Level 10', 185, 225], ['wL20', 'About Level 20', 365, 450]]],
+  ['B1a', 'Out of Contract premium', '% on the wage', [['ooc', 'outOfContractPremium', 10, 10]]],
+  ['B2', 'The Hall’s base upkeep', 'a month', [['hallBase', 'hallBaseUpkeep', 30, 30]]],
+  ['B3', 'The Hall’s upkeep by Hero', 'a Hero a month', [['hallHero', 'hallUpkeepPerHero', 5, 5]]],
+  ['B4', 'A Facility’s upkeep', 'a Facility a month', [
+    ['fG1', 'Grade 1', 10, 10], ['fG2', 'Grade 2', 17, 17], ['fG3', 'Grade 3', 30, 30]]],
+  ['B5', 'Transfer fee paid', 'a Hero bought', [['feeOut', 'A Hero about Level 5', 0, 3240]]],
+  ['B6', 'Signing fee, by the Hero’s Level', 'a Hero signed', [
+    ['sL1', 'About Level 1', 97, 118], ['sL5', 'About Level 5', 191, 234],
+    ['sL10', 'About Level 10', 310, 380], ['sL20', 'About Level 20', 551, 674]]],
+  ['B7', 'Release payout', 'a Hero released', [['release', 'A Hero about Level 5', 0, 8640]]],
+  ['B8', 'Improvement built', 'a grade', [['bG1', 'Grade 1', 200, 200], ['bG2', 'Grade 2', 500, 500], ['bG3', 'Grade 3', 1000, 1000]]],
+  ['B9', 'Market purchase', 'an Item bought', [['buyCons', 'Consumable', 25, 70], ['buyGear', 'Common gear', 35, 300]]],
+];
+
+// Gameplay assumptions: [id, label, the player's default, a Rival's default], fitted to the v1.2.3 close's lines.
+const ASSUME = [
+  ['The Roster', [
+    ['hL1', 'Heroes about Level 1', 1.2, 7.0], ['hL5', 'Heroes about Level 5', 6.3, 16.4],
+    ['hL10', 'Heroes about Level 10', 0.4, 0.5], ['hL20', 'Heroes about Level 20', 0, 0],
+    ['oocShare', 'Wage charges Out of Contract, %', 5, 0]]],
+  ['Quests', [
+    ['quests', 'Quests taken a Year', 130.7, 185.6], ['fail', 'Quests failed, %', 3.5, 11.8],
+    ['mix1', 'Tier 1, % of Quests', 33, 5], ['mix2', 'Tier 2, % of Quests', 55, 29], ['mix3', 'Tier 3, % of Quests', 12, 43],
+    ['mix4', 'Tier 4, % of Quests', 0, 23], ['mix5', 'Tier 5, % of Quests', 0, 0],
+    ['negotiation', 'Negotiation on the reward, % (−10 to 10)', 0, 0], ['encounter', 'Encounters’ wealth factor, mean', 1, 1]]],
+  ['The Hall', [
+    ['fac1', 'Facilities kept at grade 1', 1.0, 0.2], ['fac2', 'Facilities kept at grade 2', 0.6, 0.7],
+    ['fac3', 'Facilities kept at grade 3', 0.35, 2.0], ['trait', 'Guildmaster’s upkeep factor (0.9, 1, 1.1)', 1, 1],
+    ['build1', 'Grade 1 Improvements built a Year', 0.3, 0.5], ['build2', 'Grade 2 Improvements built a Year', 0.1, 0.3],
+    ['build3', 'Grade 3 Improvements built a Year', 0, 0.12]]],
+  ['The Market', [
+    ['consBought', 'Consumables bought a Year', 30, 30], ['gearBought', 'Common gear bought a Year', 5.7, 3.9],
+    ['consSold', 'Consumables sold a Year', 2.7, 20], ['gearSold', 'Common gear sold a Year', 3, 19.2],
+    ['uniqueSold', 'Unique Items sold a Year', 0, 0]]],
+  ['Contracts and Transfers', [
+    ['sign1', 'Heroes about Level 1 signed a Year', 0.43, 2.25], ['sign5', 'Heroes about Level 5 signed a Year', 0, 0],
+    ['sign10', 'Heroes about Level 10 signed a Year', 0, 0], ['sign20', 'Heroes about Level 20 signed a Year', 0, 0],
+    ['sold', 'Heroes sold by Transfer a Year', 0, 0.18], ['bought', 'Heroes bought by Transfer a Year', 0, 0.18],
+    ['released', 'Heroes released with Contract time left a Year', 0, 0]]],
+  ['The projection', [['years', 'Years for the Wealth projection', 2, 2]]],
+];
+
+// The v1.2.3 closing Gate's lines, a Guild-year (gate-outcomes-monitoring.md); a preset's item overrides.
+const PRESETS = {
+  player: { measured: { rewards: 32150.3, sales: 313.4, feesIn: 0, wages: 28345.6, hall: 847.4, impUpkeep: 364.1,
+    items: 2381.3, built: 107.8, signing: 46.7, feesOut: 0, releases: 0 }, items: {} },
+  rival: { measured: { rewards: 80912.2, sales: 2077.6, feesIn: 295.6, wages: 72710.2, hall: 1809.3, impUpkeep: 888.9,
+    items: 2073.6, built: 365.2, signing: 242.4, feesOut: 295.6, releases: 0 }, items: { start: [300, 700] } },
+};
+
+const WAGE_CHARGES = 36, HALL_CHARGES = 12; // a Year of 360 Days: every 10 Days, every 30 Days
+const KEY = 'heroesim-economy-model';
+const allItems = ITEMS.flatMap(([, , , rows]) => rows);
+const allAssume = ASSUME.flatMap(([, rows]) => rows);
+
+function fresh(preset) {
+  const over = PRESETS[preset].items;
+  return {
+    preset,
+    items: Object.fromEntries(allItems.map(([id, , min, max]) => [id, over[id] ? [...over[id]] : [min, max]])),
+    a: Object.fromEntries(allAssume.map(([id, , player, rival]) => [id, preset === 'player' ? player : rival])),
+  };
+}
+
+// One Guild-year's lines with every range read at `pos`: 'min', 'mid' or 'max'.
+function lines(s, pos) {
+  const u = (id) => {
+    const lo = Math.min(...s.items[id]), hi = Math.max(...s.items[id]);
+    return pos === 'min' ? lo : pos === 'max' ? hi : (lo + hi) / 2;
+  };
+  const a = s.a;
+  const mix = [1, 2, 3, 4, 5].map((t) => a['mix' + t]);
+  const mixSum = mix.reduce((t, m) => t + m, 0) || 1;
+  const paidReward = mix.reduce((t, m, i) => t + (m / mixSum) * u('qT' + (i + 1)), 0);
+  const roster = a.hL1 + a.hL5 + a.hL10 + a.hL20;
+  const wageCharge = a.hL1 * u('wL1') + a.hL5 * u('wL5') + a.hL10 * u('wL10') + a.hL20 * u('wL20');
+  return {
+    roster,
+    start: u('start'),
+    rewards: a.quests * (1 - a.fail / 100) * paidReward * (1 + a.negotiation / 100) * a.encounter,
+    sales: a.consSold * u('sellCons') + a.gearSold * u('sellGear') + a.uniqueSold * u('sellUnique'),
+    feesIn: a.sold * u('feeIn'),
+    wages: wageCharge * WAGE_CHARGES * (1 + (a.oocShare / 100) * (u('ooc') / 100)),
+    hall: (u('hallBase') + u('hallHero') * roster) * HALL_CHARGES * a.trait,
+    impUpkeep: (a.fac1 * u('fG1') + a.fac2 * u('fG2') + a.fac3 * u('fG3')) * HALL_CHARGES * a.trait,
+    items: a.consBought * u('buyCons') + a.gearBought * u('buyGear'),
+    built: a.build1 * u('bG1') + a.build2 * u('bG2') + a.build3 * u('bG3'),
+    signing: a.sign1 * u('sL1') + a.sign5 * u('sL5') + a.sign10 * u('sL10') + a.sign20 * u('sL20'),
+    feesOut: a.bought * u('feeOut'),
+    releases: a.released * u('release'),
+  };
+}
+
+const INCOME = [['rewards', 'Quest rewards'], ['sales', 'Item sales'], ['feesIn', 'Transfer fees received']];
+const EXPENSE = [['wages', 'Wages'], ['hall', 'The Hall’s upkeep'], ['impUpkeep', 'The Improvements’ upkeep'],
+  ['items', 'Items bought'], ['built', 'Improvements built'], ['signing', 'Signing fees'],
+  ['feesOut', 'Transfer fees paid'], ['releases', 'Release payouts']];
+const sum = (l, rows) => rows.reduce((t, [k]) => t + l[k], 0);
+
+function estimate(s) {
+  const at = { min: lines(s, 'min'), mid: lines(s, 'mid'), max: lines(s, 'max') };
+  const inc = (p) => sum(at[p], INCOME), exp = (p) => sum(at[p], EXPENSE);
+  const balance = { min: inc('min') - exp('max'), mid: inc('mid') - exp('mid'), max: inc('max') - exp('min') };
+  const upkeep = (l) => (l.wages + l.hall + l.impUpkeep) / 12; // One Upkeep: a month of costs (DL-300)
+  return { at, inc, exp, balance, upkeep };
+}
+
+function money(silver) {
+  if (!Number.isFinite(silver)) return '—';
+  const whole = Math.round(Math.abs(silver)), g = Math.floor(whole / 100), s = whole % 100;
+  const text = [g ? g.toLocaleString('en-GB') + 'g' : '', s || !g ? s + 's' : ''].filter(Boolean).join(' ');
+  return (silver < 0 && whole ? '−' : '') + text;
+}
+const signed = (silver) => (Math.round(silver) > 0 ? '+' : '') + money(silver);
+
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)); } catch { state = null; }
+if (!state || !PRESETS[state.preset]) state = fresh('player');
+for (const [id, , min, max] of allItems) state.items[id] ??= [min, max];
+for (const [id, , player] of allAssume) state.a[id] ??= player;
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); document.getElementById('saved').textContent = 'Saved in this browser.'; }
+  catch { document.getElementById('saved').textContent = ''; }
+}
+
+const num = (value, onInput, label) => {
+  const input = document.createElement('input');
+  input.type = 'number'; input.step = 'any'; input.value = value; input.setAttribute('aria-label', label);
+  input.addEventListener('input', () => { const v = parseFloat(input.value); if (Number.isFinite(v)) { onInput(v); update(); } });
+  return input;
+};
+const cell = (tag, text, cls) => { const c = document.createElement(tag); c.textContent = text; if (cls) c.className = cls; return c; };
+
+function build() {
+  const box = document.getElementById('assumptions'); box.replaceChildren();
+  for (const [group, rows] of ASSUME) {
+    box.append(cell('h3', group));
+    const grid = cell('div', '', 'grid');
+    for (const [id, label] of rows) {
+      const l = document.createElement('label');
+      l.append(cell('span', label), num(state.a[id], (v) => { state.a[id] = v; }, label));
+      grid.append(l);
+    }
+    box.append(grid);
+  }
+  const table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th></th><th>Item</th><th class="n">Min</th><th class="n">Max</th><th class="n">Mid</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const [code, name, unit, rows] of ITEMS) {
+    const head = document.createElement('tr');
+    const title = cell('td', ''); title.colSpan = 4;
+    title.append(cell('strong', name + ' '), cell('span', unit, 'unit'));
+    head.append(cell('td', code, 'code'), title, cell('td', ''));
+    body.append(head);
+    for (const [id, label] of rows) {
+      const tr = document.createElement('tr');
+      const range = state.items[id];
+      const mid = cell('td', '', 'n'); mid.dataset.mid = id;
+      const minCell = cell('td', '', 'n'), maxCell = cell('td', '', 'n');
+      minCell.append(num(range[0], (v) => { range[0] = v; }, label + ' min'));
+      maxCell.append(num(range[1], (v) => { range[1] = v; }, label + ' max'));
+      tr.append(cell('td', ''), cell('td', label), minCell, maxCell, mid);
+      body.append(tr);
+    }
+  }
+  table.append(body);
+  document.getElementById('items').replaceChildren(table);
+  for (const b of document.querySelectorAll('[data-preset]')) b.setAttribute('aria-pressed', String(b.dataset.preset === state.preset));
+}
+
+// Section C's rows now: each line at Min, Mid and Max, its Impact against the preset's defaults and the close's figure.
+function outputs() {
+  const now = estimate(state), base = estimate(fresh(state.preset)), measured = PRESETS[state.preset].measured;
+  const rows = [];
+  const row = (label, min, mid, max, impact, meas, cls, favour = 1) => rows.push({ label, min, mid, max, impact, meas, cls, favour });
+  row('Income', null, null, null, null, null, 'total');
+  for (const [k, label] of INCOME) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], measured[k]);
+  row('Income in all', now.inc('min'), now.inc('mid'), now.inc('max'), now.inc('mid') - base.inc('mid'), sum(measured, INCOME), 'total');
+  row('Expenses', null, null, null, null, null, 'total');
+  for (const [k, label] of EXPENSE) row(label, now.at.min[k], now.at.mid[k], now.at.max[k], now.at.mid[k] - base.at.mid[k], measured[k], '', -1);
+  row('Expenses in all', now.exp('min'), now.exp('mid'), now.exp('max'), now.exp('mid') - base.exp('mid'), sum(measured, EXPENSE), 'total', -1);
+  const b = now.balance;
+  row('The balance', b.min, b.mid, b.max, b.mid - base.balance.mid, sum(measured, INCOME) - sum(measured, EXPENSE), 'balance');
+  const up = { min: now.upkeep(now.at.min), mid: now.upkeep(now.at.mid), max: now.upkeep(now.at.max) };
+  row('One Upkeep, a month of costs', up.min, up.mid, up.max, up.mid - now.upkeep(base.at.mid), (measured.wages + measured.hall + measured.impUpkeep) / 12, '', -1);
+  const y = state.a.years;
+  const wealth = (p) => now.at[p].start + y * b[p];
+  row(`Wealth after ${y} Years`, wealth('min'), wealth('mid'), wealth('max'), wealth('mid') - (base.at.mid.start + y * base.balance.mid), null);
+  return { rows, roster: now.at.mid.roster, months: b.mid / up.mid };
+}
+const impactText = (r) => (Math.round(r.impact) ? signed(r.impact) : '—');
+
+function update() {
+  for (const td of document.querySelectorAll('[data-mid]')) {
+    const [lo, hi] = state.items[td.dataset.mid];
+    td.textContent = td.dataset.mid === 'ooc' ? (lo + hi) / 2 + '%' : money((lo + hi) / 2);
+  }
+  const { rows, roster, months } = outputs();
+  const t = document.getElementById('out');
+  t.innerHTML = '<thead><tr><th>Line</th><th class="n">Min</th><th class="n">Mid</th><th class="n">Max</th><th class="n">Impact</th><th class="n">Measured</th></tr></thead>';
+  const body = document.createElement('tbody');
+  for (const r of rows) {
+    const tr = document.createElement('tr'); if (r.cls) tr.className = r.cls;
+    tr.append(cell('td', r.label));
+    if (r.min === null) { const c = cell('td', ''); c.colSpan = 5; tr.append(c); body.append(tr); continue; }
+    const effect = Math.round(r.impact) * r.favour;
+    tr.append(cell('td', money(r.min), 'n'), cell('td', money(r.mid), 'n'), cell('td', money(r.max), 'n'),
+      cell('td', impactText(r), 'n ' + (effect > 0 ? 'good' : effect < 0 ? 'bad' : '')),
+      cell('td', r.meas === null ? '' : money(r.meas), 'n'));
+    body.append(tr);
+  }
+  const info = document.createElement('tr');
+  const c = cell('td', `Roster ${roster.toFixed(1)} Heroes · the balance is ${months.toFixed(2)} months of Upkeep a Year at Mid`, 'unit');
+  c.colSpan = 6; info.append(c); body.append(info);
+  t.append(body);
+  save();
+}
+
+const pad = (n) => String(n).padStart(2, '0');
+const dateText = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+// The model's inputs and outputs now, as a Markdown record; "Yes" marks a value off the preset's default.
+function markdown(when) {
+  const { rows, roster, months } = outputs();
+  const def = fresh(state.preset);
+  const side = state.preset === 'player' ? 'the player' : 'a Rival';
+  const md = [
+    `# Economy model run, ${dateText(when)}`,
+    '',
+    `Exported from [the economy model](./v1.2.4-economics-model.html) with the preset for ${side}. The model's spec is`,
+    `[the baseline's section E](./v1.2.4-starting-economics-baseline.md#e-the-estimate-model). Section C is in Gold and`,
+    'Silver, 100 Silver a Gold; the item ranges are in Silver.',
+    '',
+    '## C. The balance, a Guild-year',
+    '',
+    '| Line | Min | Mid | Max | Impact | Measured |',
+    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    ...rows.map((r) => (r.min === null
+      ? `| **${r.label}** | | | | | |`
+      : `| ${r.cls ? `**${r.label}**` : r.label} | ${money(r.min)} | ${money(r.mid)} | ${money(r.max)} | ${impactText(r)} | ${r.meas === null ? '' : money(r.meas)} |`)),
+    '',
+    `Roster ${roster.toFixed(1)} Heroes; the balance is ${months.toFixed(2)} months of Upkeep a Year at Mid.`,
+    '',
+    '## Gameplay assumptions',
+    '',
+    '| Group | Assumption | Value | Default | Changed |',
+    '| --- | --- | ---: | ---: | --- |',
+    ...ASSUME.flatMap(([group, list]) => list.map(([id, label]) =>
+      `| ${group} | ${label} | ${state.a[id]} | ${def.a[id]} | ${state.a[id] !== def.a[id] ? 'Yes' : ''} |`)),
+    '',
+    '## A and B. Item ranges, in Silver',
+    '',
+    '| Code | Item | Unit | Sub-item | Min | Max | Mid | Default | Changed |',
+    '| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |',
+    ...ITEMS.flatMap(([code, name, unit, list]) => list.map(([id, label]) => {
+      const [lo, hi] = state.items[id], [dlo, dhi] = def.items[id];
+      return `| ${code} | ${name} | ${unit} | ${label} | ${lo} | ${hi} | ${(lo + hi) / 2} | ${dlo}–${dhi} | ${lo !== dlo || hi !== dhi ? 'Yes' : ''} |`;
+    })),
+    '',
+  ];
+  return md.join('\n');
+}
+
+// Published on claude.ai, the frame blocks every save but its `downloads` capability; opened from the repository,
+// it is the Save dialog where the browser has one (Chrome, Edge), which reopens in the folder last chosen for this
+// page, and elsewhere a download, to be moved beside the model.
+const downloadsReady = window.claude?.use ? window.claude.use('downloads') : Promise.resolve(null);
+async function exportMarkdown() {
+  const when = new Date();
+  const name = `v1.2.4-economics-model-${dateText(when).replace(' ', '-').replaceAll(':', '')}.md`;
+  const text = markdown(when);
+  const status = document.getElementById('exported');
+  const downloads = await downloadsReady.catch(() => null);
+  if (downloads) {
+    try {
+      await downloads.save({ filename: name, data: text });
+      status.textContent = `Saved ${name}.`;
+    } catch (error) {
+      if (error?.code !== 'declined') status.textContent = `The export could not be saved here (${error?.code ?? 'unavailable'}).`;
+    }
+    return;
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({ id: 'economy-model', suggestedName: name,
+        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }] });
+      const file = await handle.createWritable();
+      await file.write(text);
+      await file.close();
+      status.textContent = `Exported ${handle.name}.`;
+      return;
+    } catch (error) {
+      if (error.name === 'AbortError') return; // the dialog cancelled
+    }
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([text], { type: 'text/markdown' }));
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  status.textContent = `Downloaded ${name}; move it beside the model.`;
+}
+
+document.getElementById('export').addEventListener('click', exportMarkdown);
+for (const b of document.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { state = fresh(b.dataset.preset); build(); update(); });
+document.getElementById('reset').addEventListener('click', () => { state = fresh(state.preset); build(); update(); });
+build(); update();
+</script>
+</body>
+</html>
