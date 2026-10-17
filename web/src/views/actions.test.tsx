@@ -592,6 +592,6 @@ describe('the Contract', () => {
 
     expect(screen.queryByRole('alert')).toBeNull();
     expect(wealth()).toBe(before);
-    expect(inHistory(new RegExp(`^The Lantern offered .+ no fee for ${heroName}`))).toBeDefined();
+    expect(inHistory(new RegExp(`^The Lantern offered to take ${heroName} from .+ for no fee, until `))).toBeDefined();
   });
 });

@@ -383,10 +383,10 @@ describe('the variations of a sentence', () => {
     ['a Level with no Stat risen', varied('hero.levelled', { statDeltas: {} }), new RegExp(`^${brenna} reached Level 3\\.$`)],
     ['a sale of the player\'s own', varied('item.sold', { cause: 'sale' }), new RegExp(`^${kestrel} sold .+<ids:item-000002> at the Market for 3 Gold\\.$`)],
     ['a Transfer with no Offer', varied('hero.transferred', { offerId: null }), /for 4 Gold 20 Silver, on a Contract at 22 Silver to Year 2 Day 41.$/],
-    // The owner's "a" (2026-10-17, DL-326): a free Offer's fee, 0, is said as the page's card says it, "no fee".
-    ['a free Offer made', varied('guild.transfer-offered', { fee: 0 }), `${wardens} offered ${kestrel} no fee for ${brenna}<ids:${offerId}>, until the night of Year 1 Day 8.`],
+    // The owner's "a" (2026-10-17, DL-326): a free Offer's fee, 0, is said "for no fee", the Offer made as the Transfer it makes is.
+    ['a free Offer made', varied('guild.transfer-offered', { fee: 0 }), `${wardens} offered to take ${brenna}<ids:${offerId}> from ${kestrel} for no fee, until the night of Year 1 Day 8.`],
     ['a free Offer taken', varied('hero.transferred', { fee: 0 }), `${wardens} took ${brenna} from ${kestrel} for no fee, accepting <offer:${offerId}>, on a Contract at 22 Silver to Year 2 Day 41.`],
-    ['a consumable that bonused a Check',varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
+    ['a consumable that bonused a Check', varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never), /used one .+ on Encounter 3: \+3 to its Check\.$/],
     ['a consumable that tried an Encounter again', varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never), /used one .+ to try Encounter 1 again\.$/],
     ['gear with neither id', varied('item.equipped', { stackId: null }), /<ids:> in /],
     // Each branch of a word table the samples leave out, word for word (DL-231 item 4: `words` holds

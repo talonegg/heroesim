@@ -1018,7 +1018,9 @@ reading. A script parsing the old refusal "transfer takes --to <guildId> or --in
 Verified 2026-10-17 at ab57823: the parse, the kind and the page's paths re-derived, 6 mutations red; fixed, test first: the usage promising a waiting Offer in `show offers`, which lists only Offers for the player's Heroes, and not saying `--offer` refuses a Rival's Hero under Contract; DL-323's call 2 a stub and its record.
 
 *Note, 2026-10-17 (the owner's "a" to the judgement call on the free Offer's wording):* a free Offer's fee, 0, is said "no fee"
-in the shared narration, as the page's card says it: "offered the Guild no fee for the Hero" (`guild.transfer-offered`) and "took
-the Hero from the Guild for no fee, accepting the Offer" (`hero.transferred`, `words/src/narrate.ts`'s `feeWords`), so the CLI's
-and the page's History agree; a priced line is unchanged. Tests moved with it: `narrate.test.ts` (two rows added),
-`commands/transfer.test.ts`, `commands/contract.test.ts` and `views/actions.test.tsx`. No engine change.
+in the shared narration, as the page's card says it: "offered to take the Hero from the Guild for no fee" (`guild.transfer-offered`)
+and "took the Hero from the Guild for no fee, accepting the Offer" (`hero.transferred`, `words/src/narrate.ts`'s `feeWords`), so the
+CLI's and the page's History agree; a priced line is unchanged, but a priced fee floored to 0 (a Contract with no wages left,
+DL-318) reads "no fee" too, which is true. Tests moved with it: `narrate.test.ts` (two rows added), `commands/transfer.test.ts`,
+`commands/contract.test.ts` and `views/actions.test.tsx`. No engine change.
+Verified 2026-10-17 at 09a62e2: the fee rules and every place a fee of 0 is shown re-read, 6 mutations red; fixed, test first: the Offer's line "offered the Guild no fee for the Hero" made "offered to take the Hero from the Guild for no fee", the owner's words, and two stray spaces lost restored.

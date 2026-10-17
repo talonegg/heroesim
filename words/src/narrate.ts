@@ -291,12 +291,15 @@ const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
   taken: 'was taken up: the Hero went for no fee',
 };
 
-/** A Transfer's fee as a line says it: a free Offer's fee, 0, is "no fee", as the page's Offer card says (DL-326, the owner's "a"). */
+/**
+ * A Transfer's fee as a line says it: 0 is "no fee", as the page's Offer card says a free Offer's (DL-326, the owner's
+ * "a"); a priced fee floored to 0, its Contract with no wages left, is no fee too.
+ */
 function feeWords(fee: number): string {
   return fee === 0 ? 'no fee' : coinWords(fee);
 }
 
-/** `rose from neutral to warm`,`fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
+/** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
 export function crossed(before: RegardBand, after: RegardBand): string {
   const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
   return `${way} from ${before} to ${after}`;
@@ -513,7 +516,11 @@ const sentences: Sentences = {
   },
   'guild.transfer-offered': (event, _content, calendar) => {
     const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
-    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${feeWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
+    const until = nightOfTurn(expiresOnTurn, calendar);
+    // No fee is said "for no fee", as the Transfer it makes says it (DL-326's note, the owner's "a").
+    return fee === 0
+      ? say`${called(event, toGuildId)} offered to take ${hero(event, heroId)}${ids(offerId)} from ${called(event, fromGuildId)} for ${feeWords(fee)}, until ${until}.`
+      : say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${feeWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${until}.`;
   },
   'guild.transfer-offer-declined': (event) => {
     const { offerId, fromGuildId, toGuildId, heroId } = event.payload;
