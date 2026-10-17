@@ -323,19 +323,19 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-311 | 2026-10-16 | v1.2.3 planned against v1.2.2's delivery: the owner's answers Q-D to Q-I, the assessment's fixes … | item 3 by DL-312; item call 5 in part by DL-312 | [decision-log](../decision-log.md) |
 | DL-312 | 2026-10-16 | `transferFeeFactor` unfitted in `v1.2.3`: the economy tuned whole in `v1.2.4` |  | [decision-log](../decision-log.md) |
 | DL-313 | 2026-10-16 | CI's runner pinned to `ubuntu-24.04` for `v1.2.3` |  | [decision-log](../decision-log.md) |
-| DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [decision-log](../decision-log.md) |
-| DL-315 | 2026-10-16 | v1.2.3-S2 built: the Contract and its wage |  | [decision-log](../decision-log.md) |
-| DL-316 | 2026-10-16 | v1.2.3-S3 built: renewal, and the Contract's end |  | [decision-log](../decision-log.md) |
-| DL-317 | 2026-10-16 | v1.2.3-S4 built: release, with a payout |  | [decision-log](../decision-log.md) |
-| DL-318 | 2026-10-16 | v1.2.3-S5 built: the Transfer fee from the wages left |  | [decision-log](../decision-log.md) |
-| DL-319 | 2026-10-17 | v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer |  | [decision-log](../decision-log.md) |
-| DL-320 | 2026-10-17 | v1.2.3-S7 built: in debt, and the Rivals' search | item 1 in part by DL-322 | [decision-log](../decision-log.md) |
-| DL-321 | 2026-10-17 | v1.2.3-S8 built: the harness's lines |  | [decision-log](../decision-log.md) |
-| DL-322 | 2026-10-17 | v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4 |  | [decision-log](../decision-log.md) |
-| DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI | item call 2 by DL-326 | [decision-log](../decision-log.md) |
-| DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [decision-log](../decision-log.md) |
-| DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [decision-log](../decision-log.md) |
-| DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [decision-log](../decision-log.md) |
+| DL-314 | 2026-10-16 | v1.2.3-S1 built: the Contract's words, and the baselines |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-315 | 2026-10-16 | v1.2.3-S2 built: the Contract and its wage |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-316 | 2026-10-16 | v1.2.3-S3 built: renewal, and the Contract's end |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-317 | 2026-10-16 | v1.2.3-S4 built: release, with a payout |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-318 | 2026-10-16 | v1.2.3-S5 built: the Transfer fee from the wages left |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-319 | 2026-10-17 | v1.2.3-S6 built: Out of Contract, the free Offer, and Under Offer |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-320 | 2026-10-17 | v1.2.3-S7 built: in debt, and the Rivals' search | item 1 in part by DL-322 | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-321 | 2026-10-17 | v1.2.3-S8 built: the harness's lines |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-322 | 2026-10-17 | v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4 |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI | item call 2 by DL-326 | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
+| DL-326 | 2026-10-17 | v1.2.3-S12 built: the CLI makes an Offer, `transfer --offer` |  | [DL-314-326-v1.2.3](archive/DL-314-326-v1.2.3.md) |
 
 ## Pre-M0 review decisions
 

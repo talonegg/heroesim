@@ -68,6 +68,7 @@ The release ledger: each release's one record, written at its close. The epics a
 | `v1.2.0` | 2026-10-11 | #63 | `9fdb0a8` | DL-257 to DL-278 | [v1.2.0](./planning/archive/v1.2.0-release.md); its live check failed on Pages, on Cloudflare's beacon (DL-278), allowed from `v1.2.1` (DL-279) |
 | `v1.2.1` | 2026-10-12 | #66 | `72d14e9` | DL-279 to DL-293 | [v1.2.1](./planning/archive/v1.2.1-release.md); released as is, its economy broken since S4 and its closing Gate failing the save line (DL-292, DL-293) |
 | `v1.2.2` | 2026-10-16 | #68 | `a7c644a` | DL-294 to DL-310 | [v1.2.2](./planning/archive/v1.2.2-release.md); its closing Gate failing the save line only, no game lasting 20 years (DL-305); the live check left CI (DL-309) |
+| `v1.2.3` | 2026-10-17 | #71 | `2a93c72` | DL-314 to DL-326 | [v1.2.3](./planning/archive/v1.2.3-release.md); its closing Gate passing every line, the player still bankrupt or wiped in most games (DL-324); its plan, DL-311 to DL-313, stays in the open log; the owner's playtest played, its answer left unrecorded on the owner's word |
 
 A release's close adds its row here and fills its epic's Status line, and nothing else records it.
 
@@ -83,27 +84,22 @@ default, as the first build's `INPUTS-REQUIRED.md` §8 asked), names the design'
 and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.md)). The economy is
 redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294).
 
-- **Now: [`v1.2.3`, Contracts](./planning/epics/v1.2.3-release.md)** (DL-294 item 6), on
-  `v1.2.3-dev`, cut from `v1.2.2`'s record, S1 to S9 built and verified (DL-314 to DL-323), the
-  close's review, checks and Gate recorded (DL-324), S11 built on the owner's ruling and verified (DL-325), the CLI's Offer on the owner's "b" (S12, DL-326),
-  the Gate again, the owner's playtest and the release to come: a Contract on every Hero, its wage set at signing and its length chosen;
-  renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer fee from the
-  wages left; the Rivals and the harness's policy deciding renewals (#20). It takes in #51's wage. `v1.2.2`, Coin and the Hall, was released (§2): Wealth in whole Silver, the
-  Hall's Facilities as content, its upkeep every 30 Days apart from the wages every 10, one Upkeep a
-  month of costs, the surplus sold and the Treasury's lines; its close's costs against `v1.2.1`'s are
-  in [the outcomes](./planning/epics/gate-outcomes-monitoring.md), and every one of the player's games
-  is still bankrupt before 20 years (DL-305).
-- **Short term: the economy, then choices that cost something.**
-  1. [`v1.2.4`, the economy pass](./planning/epics/v1.2.4-release.md) (#51), planned, deferred by
-     the owner (DL-293) and placed here by DL-294: Guilds that can live with `v1.2.1`'s Fatigue and
-     form and the redesign's rules, each setting changed measured alone in a full Gate against the
-     bands the owner approves first and [the outcomes](./planning/epics/gate-outcomes-monitoring.md).
-     It restores the player's solvency (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the
-     Rivals' failed Quests (22.3% against 5.6%), their recruiting (2.56 Heroes a game against 85.6)
-     and their folds (10.94 a game against DL-83's 1.5 to 3.5), and games that reach 20 years, so
-     that the save is measured there; then Fatigue's tuning to DL-290's bands (DL-292).
-  2. `v1.2.5`, Rivals who compete, and Fame raising the stakes. It takes in #21, the rest of #25 (gear
-     upgraded) and #51's Rival income.
+- **Now: [`v1.2.4`, the economy pass](./planning/epics/v1.2.4-release.md)** (#51; DL-294 item 7), on
+  `v1.2.4-dev`, cut from `v1.2.3`'s record, not started, deferred by the owner (DL-293) and placed here
+  by DL-294: Guilds that can live with `v1.2.1`'s Fatigue and form and the redesign's rules, each
+  setting changed measured alone in a full Gate against the bands the owner approves first and
+  [the outcomes](./planning/epics/gate-outcomes-monitoring.md). It restores the player's solvency
+  (bankrupt in every game at `v1.2.1`, none at `v1.2.0`), the Rivals' failed Quests (22.3% against
+  5.6%), their recruiting (2.56 Heroes a game against 85.6) and their folds (10.94 a game against
+  DL-83's 1.5 to 3.5), and games that reach 20 years, so that the save is measured there; then
+  Fatigue's tuning to DL-290's bands (DL-292). `v1.2.3`, Contracts, was released (§2): a Contract on
+  every Hero, its wage set at signing and its length chosen; renewal, release with a payout, fee-0
+  Offers for Heroes Out of Contract, the Transfer fee from the wages left, and the Rivals and the
+  harness's policy deciding renewals; its close's costs against `v1.2.2`'s are in
+  [the outcomes](./planning/epics/gate-outcomes-monitoring.md), and the economy is still broken
+  (DL-324).
+- **Short term: choices that cost something.** `v1.2.5`, Rivals who compete, and Fame raising the
+  stakes. It takes in #21, the rest of #25 (gear upgraded) and #51's Rival income.
 - **Medium term: the management core,** in this order:
   - Development: the Training focus, Skill growth, and Decline lowering Potential (#29, #35).
   - Scouting and a deeper Unattached pool: Heroes of every age and Level, and hidden information.
