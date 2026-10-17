@@ -85,7 +85,7 @@ and closes with the owner's playtest ([`agents/delivery.md`](./agents/delivery.m
 redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294).
 
 - **Now: [`v1.2.4`, the economy pass](./planning/epics/v1.2.4-release.md)** (#51; DL-294 item 7), not
-  started, its branch `v1.2.4-dev` to be cut from `v1.2.3`'s record on the owner's word, deferred by the owner (DL-293) and placed here
+  started, on `v1.2.4-dev`, cut from `v1.2.3`'s record, deferred by the owner (DL-293) and placed here
   by DL-294: Guilds that can live with `v1.2.1`'s Fatigue and form and the redesign's rules, each
   setting changed measured alone in a full Gate against the bands the owner approves first and
   [the outcomes](./planning/epics/gate-outcomes-monitoring.md). It restores the player's solvency
