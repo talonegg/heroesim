@@ -182,6 +182,7 @@ const cases: { readonly [Setting in keyof GameConfig]-?: Case } = {
   signingFeePerLevel: wholeFrom(0),
   signingFeeStatDivisor: finiteAbove(0),
   unattachedStayDays: wholeFrom(0),
+  releasedStayDays: wholeFrom(0),
   fameRequiredPerLevel: finiteFrom(0),
   boardSizeStart: wholeFrom(0),
   boardGrowthPerYear: finiteFrom(0),

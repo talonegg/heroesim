@@ -482,7 +482,7 @@ describe('the Contract', () => {
 
     fireEvent.click(within(page()).getByRole('button', { name: `Release ${name}…` }));
     const ask = within(page()).getByRole('group', { name: `Release ${name}?` });
-    const sentence = within(ask).getByText(new RegExp(`^Releasing ${name} pays (${amountPattern})\\. They join the Unattached pool\\. Their Gear stays with your Guild`)).textContent ?? '';
+    const sentence = within(ask).getByText(new RegExp(`^Releasing ${name} pays (${amountPattern})\\. They join the Unattached pool for \\d+ Days, unless a Guild signs them\\. Their Gear stays with your Guild`)).textContent ?? '';
     const payout = silverOfWords(/pays (.+?)\. They/.exec(sentence)?.[1] ?? '');
     expect(payout).toBeGreaterThan(0);
     // Not the last Hero: no warning.
@@ -546,6 +546,36 @@ describe('the Contract', () => {
     // Renewed on Year 1 Day 1 for the three years chosen, at the wage listed for them.
     logSays(new RegExp(`^The Lantern signed ${name} again, on a Contract at ${coinWords(wage)} to Year 4 Day 1\\.$`));
     expect(inHistory(new RegExp(`^${guildName}'s Offer for ${name} was withdrawn: the Hero's Contract was renewed\\.$`))).toBeDefined();
+  });
+
+  test('Transfer… sends a Hero Out of Contract for no fee to the Guild whose free Offer stands, and gives the refusal for another (DL-325)', async () => {
+    const game = withFreeOffer(started());
+    renderGame(game);
+    const offers = section('Transfer Offers');
+    const sentence = within(offers).getByText(/ offers no fee for .+, who is Out of Contract,/).textContent ?? '';
+    const [, guildName = ''] = /^(.+) offers no fee for /.exec(sentence) ?? [];
+    const { name, page } = openFirstHero(game);
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
+    const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
+    const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
+    const labels = [...select.options].map((option) => option.textContent);
+    expect(labels).toContain(`${guildName}, for no fee`);
+    const other = [...select.options].find((option) => option.textContent !== `${guildName}, for no fee`);
+    fireEvent.change(select, { target: { value: other?.value } });
+    const otherName = (other?.textContent ?? '').replace(/: no Offer$/, '');
+    expect(within(ask).getByText(new RegExp(`^${otherName} has no Offer standing for ${name}, who is Out of Contract: `))).toBeDefined();
+    fireEvent.change(select, { target: { value: [...select.options].find((option) => option.textContent === `${guildName}, for no fee`)?.value } });
+    expect(within(ask).getByText(`${guildName}'s Offer stands for ${name}, who is Out of Contract: they go to it now for no fee.`, { exact: false })).toBeDefined();
+    const before = wealth();
+
+    fireEvent.click(within(ask).getByRole('button', { name: `Transfer ${name} to ${guildName}` }));
+    await idle();
+
+    expect(wealth()).toBe(before);
+    fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
+    expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
+    expect(inHistory(new RegExp(`^${guildName}'s Offer for ${name} was taken up: the Hero went for no fee\\.$`))).toBeDefined();
   });
 
   test("offers no fee for a Rival's Hero Out of Contract, in place of Taking them in, and the Rival answers at once", async () => {

@@ -868,13 +868,15 @@ _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:
 A Hero on no Roster, in a pool the Heroes Generator refreshes and every Guild recruits from
-for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-294 item 6, DL-317).
+for a signing fee. A Hero a Guild releases joins the pool with no Contract (DL-294 item 6, DL-317),
+and stays a Year unless signed, longer than the Heroes the pool brings (DL-325).
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
 Moving a Hero between Guilds for a fee, in either direction: the fee is the wages left on the Hero's
 Contract times a factor, at the buyer's Negotiation (DL-294 item 6, DL-318). A Hero Out of Contract
-moves only by a free Offer, for no fee (DL-319).
+moves only by a free Offer, for no fee: taken when it ends, or sent at once to the Guild that made it
+(DL-319, DL-325).
 Transferring out a Hero costs the Morale of each Hero who stays and held them in high Regard (R28,
 pre-M0 review D5); by DL-82 it also lowers those Heroes' Regard for the Guildmaster, and by DL-85
 Heroes content or close with their Roster refuse to leave (both to be built).

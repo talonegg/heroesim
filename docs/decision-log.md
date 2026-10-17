@@ -909,3 +909,60 @@ Verified 2026-10-17 at 70a2cd4: the two fixes bite (the pool's help, and each of
 Verified 2026-10-17 at ff4a182: the three tests byte-identical, `sweep` whole, the child path deep-equal to the in-process one; fixed test first, the setup now rejects a child's output that is not its JSON (it hung to the limit) and a seed dropped or out of order (both survived), and reads a child's output on `close`.
 
 *Note, 2026-10-17:* on the owner's "a", the Generator box's setup plays its seeds in four processes, 25 each, the three tests and their assertions unchanged, each seed's end and the validator's problems still checked by seed, and the hook's limit is 3,600 s; item 5's box then passed, 3 of 3, in 2,598 s (43 minutes), not the 31 the seeds' mean of 75 s promised, the four processes sharing the machine.
+
+## DL-325 — v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the pool
+
+**Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner (Q-P); an agent (the epic's S11)
+
+**Context.** S10's review found `transferOut` sends a Hero Out of Contract away for no fee with no Offer (DL-324 item 2).
+The owner, 2026-10-17, of (a) keep it and say "for no fee", (b) refuse it, (c) leave it: "a, but only if there is an
+offer. by default, out of contract heroes can be released to the pool. a released hero in the pool will stay for 1 year
+before leaving the pool".
+
+**Decision.**
+
+1. **`transferOut` of a Hero Out of Contract** goes only to a Guild whose free Offer (`freeOffer`, DL-319) stands for
+   them: the Offer is taken at once (`takeOffer`, its end `taken`, then the Transfer naming it), for no fee on its
+   length, the Offer the taking Guild's consent as `acceptTransfer` reads one. Any other Offer for the Hero lapses
+   `hero-left`, so none is left standing. Without one: `out-of-contract-no-offer` `{ heroId, guildId }`, checked after
+   `recently-transferred`, its sentence in `words/src/refusals.ts` (the CLI's and the page's). A Hero under Contract is
+   unchanged.
+2. **A released Hero stays `releasedStayDays`** in the Unattached pool, in place of `unattachedStayDays`: 360, a
+   Year's Days (`turnsPerYear` ÷ 3), added by hand (config 38 → 39; a rule of a whole number, at least 0). The pool's
+   refresh reads it from the History: a Hero whose `hero.released` falls on the Turn they entered the pool
+   (`unattachedSince`), the scan reading back only their entries since. No field is stored and the schema stays 14.
+   A Hero signed again and back in the pool by a fold stays `unattachedStayDays`.
+3. **Release of a Hero Out of Contract** for nothing, from the Hero page and `release`, was built (DL-317, DL-323):
+   unchanged.
+4. **The words.** The Hero page's Transfer… lists each Guild for a Hero Out of Contract as "…, for no fee" with
+   "<Guild>'s Offer stands for <Hero>, who is Out of Contract: they go to it now for no fee.", or "…: no Offer" with the
+   refusal (`TransferTarget.label`). The release's sentence: "They join the Unattached pool for 360 Days, unless a
+   Guild signs them." (the setting's Days). The CLI's usage for `transfer --to` and `release`; the glossary's Unattached
+   Hero and Transfer, R46 and R47, and data-model rule 8.
+
+*Judgement calls, for the owner to see.*
+- **Released Heroes count toward `unattachedPoolSize`** as every pool Hero does (the smallest change): while they
+  stay, the refill brings fewer new Heroes, and a pool of released Heroes alone brings none for up to a Year.
+- **A fold's Heroes** stay `unattachedStayDays`, though a fold "releases" them in the code's words: only the
+  `release` action is a release.
+- **The Offer taken, not accepted:** `transferOut` ends it `taken`, as its running out does, so the counters count it
+  among free Offers taken; `acceptTransfer` of a free Offer still removes it with no end event, as built (DL-319).
+- **Read from the History, not stored:** the smallest correct reading; a stored `releasedOnTurn` would be a schema
+  raise.
+- A priced Offer standing for a Hero whose Contract then ended is no free Offer: `transferOut` refuses, and
+  `acceptTransfer` takes it at its fee.
+- Arranged for the owner to see (DL-315's note), assertions unchanged but for the shape: `selectors.test.ts`'s Transfer
+  targets gain `label`. Changed with the words: the release's sentence in `selectors.test.ts`, `actions.test.tsx` and
+  `e2e/contract.spec.ts`.
+
+**Consequences.** Config 39: every save's fingerprint moves. Play moves only where a release is made, which no
+quick run reaches (DL-320); the Gate's 20 years release 1,344 Heroes (DL-324 item 7), whose stay it will show.
+- Quick run, 2 years (`v1.2.3-s11-quick`, `e32118d1…`) against `v1.2.3-qnv-quick` (`387107e0…`): 0 counters
+  moved, 685 the same; saves +184 bytes, the config alone. The Gate PASS, refusals 0, stopped 0.
+- Quick run, 4 years (`v1.2.3-s11-quick4`, `e830a4ef…`) against `v1.2.3-qn-quick4` (`c2806185…`): 0 moved, 833
+  the same. The Gate PASS, refusals 0, stopped 0. The reports are not committed.
+- No pin of play moved: no fingerprint or History pin fails.
+
+**Evidence.** This story's commit; the S11 boxes. Tests red first: `free-offer.test.ts` (2), `pool-refresh.test.ts` (2),
+the refusals' words (words and page), the page's targets and release words (`selectors.test.ts`); then
+`actions.test.tsx`, `contract.test.ts`, `args.test.ts`. The doctors before and after, unchanged.

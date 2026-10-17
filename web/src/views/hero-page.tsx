@@ -31,7 +31,6 @@
 // Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
-import { coinWords } from '@heroesim/words';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type Captaincy, type ContractView, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
@@ -587,7 +586,7 @@ function Transfer({
             <select value={target.guildId} onChange={(event) => setTo(event.target.value as GuildId)}>
               {actions.transferTo.map((guild) => (
                 <option key={guild.guildId} value={guild.guildId}>
-                  {guild.name}, for {coinWords(guild.fee)}
+                  {guild.label}
                 </option>
               ))}
             </select>

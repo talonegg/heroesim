@@ -104,7 +104,8 @@ Commands:
       rest is dropped; a Hero Out of Contract is under Contract again, and a free Offer for
       them is withdrawn.
   release --hero <heroId> [--confirm]
-      Let one of the player's Heroes at home go to the Unattached pool. During their Contract
+      Let one of the player's Heroes at home go to the Unattached pool, where a released Hero
+      stays longer than one the pool brings, unless a Guild signs them. During their Contract
       the Guild pays part of the wages left on it (a payout, none once it has ended), and
       their Gear goes back to the Guild's Holding. If they are the Guild's last Hero the
       command says what releasing them would leave, as an estimate, and does it only with
@@ -155,7 +156,9 @@ Commands:
       another Guild's Roster on a Contract of --years years (a length the rules offer), and
       the player's Guild pays the fee show roster <guildId> and show hero <heroId> give for
       them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI
-      does not make. The other Guild's Disposition chooses the length of a Hero --to sends.
+      does not make. --to sends a Hero Out of Contract, for no fee, only to a Guild whose
+      free Offer stands for them (show offers), on the Offer's length; the Offer is taken.
+      The other Guild's Disposition chooses the length of a Hero under Contract --to sends.
       The other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
       and, to buy, its Wealth. The Hero must be at the Hall; their gear stays with the Guild
       they leave, and the Heroes left behind who held them in high Regard lose Morale.

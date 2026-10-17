@@ -334,6 +334,7 @@ fails when it is stale, or when a `DL-nn` cited anywhere in the repository is no
 | DL-322 | 2026-10-17 | v1.2.3: in debt the release order skips a Hero Under Offer; the debt sale left for v1.2.4 |  | [decision-log](../decision-log.md) |
 | DL-323 | 2026-10-17 | v1.2.3-S9 built: the Contract on the page and the CLI |  | [decision-log](../decision-log.md) |
 | DL-324 | 2026-10-17 | v1.2.3-S10: the close |  | [decision-log](../decision-log.md) |
+| DL-325 | 2026-10-17 | v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the … |  | [decision-log](../decision-log.md) |
 
 ## Pre-M0 review decisions
 

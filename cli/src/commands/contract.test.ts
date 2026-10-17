@@ -92,6 +92,36 @@ describe('renew', () => {
   });
 });
 
+describe('transfer --to of a Hero Out of Contract (DL-325)', () => {
+  test('is refused in the refusal’s words with no free Offer, writing nothing; to the Guild whose Offer stands, the Hero goes for no fee', () => {
+    const { first, called } = newWorld();
+    outOfContract(first);
+    const [bidder, other] = Object.values(document().world.guilds).filter((guild) => guild.id !== thePlayer(document().world).id);
+    if (bidder === undefined || other === undefined) throw new Error('two Rivals are needed');
+    edit((edited) => {
+      const offered = applyAction(edited, { kind: 'offerTransfer', guildId: bidder.id, heroId: first, years: 2 }, { config: { ...defaultConfig, ...edited.meta.config }, content });
+      if (!offered.ok) throw new Error(offered.rejection.reason);
+      Object.assign(edited, { world: offered.document.world, history: offered.document.history });
+    });
+    const before = saved();
+    const wealth = thePlayer(document().world).wealth;
+
+    expect(play(['transfer', '--hero', first, '--to', other.id])).toMatchObject({
+      code: exitCodes.refused,
+      err: `${other.name} has no Offer standing for ${called(first)}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool (show offers).\n`,
+    });
+    expect(saved()).toBe(before);
+
+    const run = play(['transfer', '--hero', first, '--to', bidder.id]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(run.out).toContain(`was taken up: the Hero went for no fee.`);
+    expect(heroOf(first).guildId).toBe(bidder.id);
+    expect(thePlayer(document().world).wealth).toBe(wealth);
+    expect(play(['show', 'offers']).out).toContain("No Transfer Offer stands for The Test's Heroes.");
+  });
+});
+
 describe('release', () => {
   test('lets the Hero go, the Guild paying its share of the wages left, and saves', () => {
     const { first, called } = newWorld();

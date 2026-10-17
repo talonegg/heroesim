@@ -1504,9 +1504,47 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
         const fee = transferFee(hero, guildmasterOf(other, document.world), document.world.turn, deps);
-        return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`) };
+        return {
+          guildId: other.id,
+          name: other.name,
+          fee,
+          label: `${other.name}, for ${coinWords(fee)}`,
+          sentence: expect.stringContaining(`${other.name} would pay ${coinWords(fee)} for ${hero.name}`),
+        };
       }),
     );
+  });
+
+  test('for a Hero Out of Contract, a Guild whose free Offer stands takes them for no fee, and another says the refusal (DL-325)', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const guild = playerOf(document);
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 0 };
+    document.world.turn = nightOf(0) + 1;
+    const [bidder, other] = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
+    if (bidder === undefined || other === undefined) throw new Error('two Rivals are needed');
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(`Refused: ${offered.rejection.reason}`);
+
+    const page = heroPage(offered.document, hero.id);
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    const at = (guildId: string) => page.actions?.kind === 'own' && page.actions.transferTo.find((each) => each.guildId === guildId);
+
+    expect(at(bidder.id)).toEqual({
+      guildId: bidder.id,
+      name: bidder.name,
+      fee: 0,
+      label: `${bidder.name}, for no fee`,
+      sentence: `${bidder.name}'s Offer stands for ${hero.name}, who is Out of Contract: they go to it now for no fee. ${transferCostWords}`,
+    });
+    expect(at(other.id)).toEqual({
+      guildId: other.id,
+      name: other.name,
+      fee: 0,
+      label: `${other.name}: no Offer`,
+      sentence: `${other.name} has no Offer standing for ${hero.name}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool.`,
+    });
   });
 
   test("prices each Guild's fee for the player's Hero by the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
@@ -1799,8 +1837,10 @@ describe('the Contract on the Roster and on a Hero’s page (DL-323)', () => {
     expect(payout(first).payout).toBeGreaterThan(0);
     expect(payout(second).payout).toBe(0);
     // What the release asks before it is done: the payout, or nothing once the Contract has ended.
-    expect(payout(first).release).toBe(`Releasing ${first.name} pays ${coinWords(payout(first).payout)}. They join the Unattached pool. ${transferCostWords}`);
-    expect(payout(second).release).toBe(`Releasing ${second.name} costs nothing, their Contract having ended. They join the Unattached pool. ${transferCostWords}`);
+    // The pool's stay for a released Hero (DL-325).
+    const stay = `They join the Unattached pool for ${defaultConfig.releasedStayDays} Days, unless a Guild signs them.`;
+    expect(payout(first).release).toBe(`Releasing ${first.name} pays ${coinWords(payout(first).payout)}. ${stay} ${transferCostWords}`);
+    expect(payout(second).release).toBe(`Releasing ${second.name} costs nothing, their Contract having ended. ${stay} ${transferCostWords}`);
     expect(payout(first).warning).toBeNull();
   });
 

@@ -72,9 +72,9 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
  * is wiped whatever its Wealth.
  *
  * Fame is not asked (DL-38). An ending is for good, and a Hero's refusal for Fame is not: every
- * Hero the pool's refill brings is Level 1 and signs for any Guild, and the pool turns over within
- * `unattachedStayDays`. A Guild whose Wealth reaches a Hero who refuses it is waiting, not wiped;
- * it is wiped once its Wealth is short of every fee in the pool.
+ * Hero the pool's refill brings is Level 1, signs for any Guild and leaves within `unattachedStayDays`
+ * (a released Hero stays `releasedStayDays`, DL-325). A Guild whose Wealth reaches a Hero who refuses
+ * it is waiting, not wiped; it is wiped once its Wealth is short of every fee in the pool.
  */
 function cheapestSigningFee(world: World, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number {
   return cheapestUnattached(world, deps, guild, false)?.fee ?? Number.POSITIVE_INFINITY;

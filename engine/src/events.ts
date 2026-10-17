@@ -182,7 +182,8 @@ export type HeroContractExpired = Entry<'hero.contract-expired', { heroId: HeroI
 export type HeroReleased = Entry<'hero.released', { heroId: HeroId; guildId: GuildId; payout: number }>;
 
 /**
- * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
+ * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it, or
+ * `releasedStayDays` after a release (DL-325). Names the
  * Hero, whose row is then removed unless an entry names them (data-model rule 8); recorded only
  * then (DL-211).
  */

@@ -229,6 +229,42 @@ describe('the free Offer (Q8)', () => {
   });
 });
 
+describe('transferOut of a Hero Out of Contract (the owner, 2026-10-17; DL-325)', () => {
+  test('is refused, out-of-contract-no-offer, to a Guild with no Offer standing for them, its own or another Guild\'s', () => {
+    const document = created('out-no-offer');
+    const guild = player(document.world);
+    const hero = heroOf(document.world, guild.rosterIds[0] as HeroId);
+    expire(document.world, hero);
+    const [first, second] = Object.values(document.world.guilds).filter((each) => dispositionOf(each) !== null);
+    if (first === undefined || second === undefined) throw new Error('Two Rivals are needed');
+    const out = { kind: 'transferOut', guildId: guild.id, heroId: hero.id } as const;
+    expect(refused(document, { ...out, toGuildId: first.id })).toEqual({ action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: first.id });
+    const offered = accepted(applyAction(document, { kind: 'offerTransfer', guildId: first.id, heroId: hero.id, years: 2 }, deps)).document;
+    expect(refused(offered, { ...out, toGuildId: second.id })).toEqual({ action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: second.id });
+  });
+
+  test("to the Guild whose free Offer stands, the Offer is taken at once for no fee on its length, though that Guild's Disposition would not take a Hero in", () => {
+    const { document, guild, bidder, hero, offerId } = freeOffered('out-to-offer');
+    const [, other] = Object.values(document.world.guilds).filter((each) => dispositionOf(each) !== null);
+    if (other === undefined) throw new Error('Two Rivals are needed');
+    const second = accepted(applyAction(document, { kind: 'offerTransfer', guildId: other.id, heroId: hero.id, years: 1 }, deps)).document;
+    const otherOfferId = Object.keys(second.world.offers).find((id) => id !== offerId);
+    const wealth = { player: guild.wealth, bidder: bidder.wealth };
+
+    const { document: after, events } = accepted(applyAction(second, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: bidder.id }, deps));
+
+    expect(ofType(events, 'guild.transfer-offer-expired').map((event) => [event.payload.offerId, event.payload.cause])).toEqual([
+      [offerId, 'taken'],
+      [otherOfferId, 'hero-left'],
+    ]);
+    expect(ofType(events, 'hero.transferred')[0]?.payload).toMatchObject({ heroId: hero.id, fromGuildId: guild.id, toGuildId: bidder.id, fee: 0, offerId, years: 2 });
+    expect(after.world.offers).toEqual({});
+    expect(heroOf(after.world, hero.id).guildId).toBe(bidder.id);
+    expect((after.world.guilds[guild.id] as Guild).wealth).toBe(wealth.player);
+    expect((after.world.guilds[bidder.id] as Guild).wealth).toBe(wealth.bidder);
+  });
+});
+
 describe("a Rival's answer, at once (Q15)", () => {
   /** The player's free Offer for the first Rival's Hero `index`, its Levels set to `levels` in Roster order. */
   function answered(seed: string, levels: readonly number[], index: number, with_: EngineDeps = deps) {

@@ -221,6 +221,11 @@ export interface GameConfig {
   /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
   unattachedStayDays: number;
   /**
+   * Whole Days a Hero a Guild released stays in the pool in place of `unattachedStayDays`, from the Day of
+   * the release: a Year, the owner's (2026-10-17, DL-325).
+   */
+  releasedStayDays: number;
+  /**
    * Fame's first rule (R10 as amended, pre-M0 review B4, INPUTS 5.6, DL-38): an Unattached
    * Hero refuses to sign for a Guild whose Fame is below this times the Hero's Level less one, so
    * a Level 1 Hero signs anywhere (`signingRefusal`).

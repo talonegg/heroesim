@@ -85,7 +85,8 @@ redesigned in `v1.2.2` and `v1.2.3` and tuned in `v1.2.4`, its pass (#51; DL-294
 
 - **Now: [`v1.2.3`, Contracts](./planning/epics/v1.2.3-release.md)** (DL-294 item 6), on
   `v1.2.3-dev`, cut from `v1.2.2`'s record, S1 to S9 built and verified (DL-314 to DL-323), the
-  close's review, checks and Gate recorded (DL-324), the owner's playtest and the release to come: a Contract on every Hero, its wage set at signing and its length chosen;
+  close's review, checks and Gate recorded (DL-324), S11 built on the owner's ruling (DL-325), its
+  verification, the Gate again, the owner's playtest and the release to come: a Contract on every Hero, its wage set at signing and its length chosen;
   renewal, release with a payout, fee-0 Offers for expired Heroes, and the Transfer fee from the
   wages left; the Rivals and the harness's policy deciding renewals (#20). It takes in #51's wage. `v1.2.2`, Coin and the Hall, was released (§2): Wealth in whole Silver, the
   Hall's Facilities as content, its upkeep every 30 Days apart from the wages every 10, one Upkeep a

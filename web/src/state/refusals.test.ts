@@ -201,6 +201,7 @@ const samples: Samples = {
   'transferOut hero-not-on-roster': { action: 'transferOut', reason: 'hero-not-on-roster', heroId: rivalHero.id },
   'transferOut hero-in-party': { action: 'transferOut', reason: 'hero-in-party', ...heroInParty },
   'transferOut recently-transferred': { action: 'transferOut', reason: 'recently-transferred', ...lock },
+  'transferOut out-of-contract-no-offer': { action: 'transferOut', reason: 'out-of-contract-no-offer', heroId, guildId: rival.id },
   'transferOut length-not-offered': { action: 'transferOut', reason: 'length-not-offered', years: 4, offered: [1, 2, 3] },
   'transferOut transfer-refused': {
     action: 'transferOut',
@@ -350,6 +351,7 @@ const exactly: Record<keyof Samples, string> = {
   'transferOut hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
+  'transferOut out-of-contract-no-offer': `${rival.name} has no Offer standing for ${hero.name}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool.`,
   'transferOut length-not-offered': 'A Contract is 1, 2 or 3 Years long; 4 is not.',
   'transferOut transfer-refused': `${rival.name} will not take ${hero.name}: it is not rich enough to hire now.`,
   'transferOut insufficient-wealth': `The fee is 1 Gold 80 Silver; ${rival.name} has 40 Silver.`,

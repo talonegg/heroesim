@@ -28,6 +28,7 @@ import {
   descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
+  freeOffer,
   guildmasterOf,
   guildmasterTraitCost,
   guildmasterTraitsOf,
@@ -1183,11 +1184,16 @@ export interface GearChoice {
   gear: { itemId: ItemId } | { stackId: StackId };
 }
 
-/** Another Guild in play and the fee it would pay the player's Guild to take the Hero (`transferFee`). */
+/**
+ * Another Guild in play and the fee it would pay the player's Guild to take the Hero (`transferFee`); for a
+ * Hero Out of Contract, none, and only on that Guild's free Offer (DL-325).
+ */
 export interface TransferTarget {
   guildId: GuildId;
   name: string;
   fee: number;
+  /** The Guild as the choice of it reads: `The Ashford Guild, for 1 Gold 20 Silver`, `…, for no fee`, `…: no Offer`. */
+  label: string;
   /**
    * What the page asks before the Transfer (M9-S6, the review's E4): the fee, and what it costs in
    * the words the page gives the rule. `The Ashford Guild would pay 1 Gold 20 Silver for Finn Grimshaw, …`
@@ -1348,7 +1354,7 @@ function statValues(hero: Hero, world: World): Map<string, { base: number; effec
  * on the player's Roster, equip, unequip, transfer them out and name them Captain (DL-289).
  */
 function heroActions(hero: Hero, read: HeroReading, reading: PageReading, document: WorldDocument): HeroActions | null {
-  const { world, deps, guild: player } = reading;
+  const { world, guild: player } = reading;
   if (player === undefined) return null;
   if (read.signing !== null) {
     const { fee, signs } = read.signing;
@@ -1365,12 +1371,28 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading, docume
     contract: contractOf(hero, player, reading, document),
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
-      .map((other) => {
-        const fee = transferFee(hero, guildmasterOf(other, world), world.turn, deps);
-        const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
-        return { guildId: other.id, name: other.name, fee, sentence };
-      }),
+      .map((other) => (outOfContract(hero, world.turn) ? freeTarget(hero, other, document) : pricedTarget(hero, other, reading))),
   };
+}
+
+/** `other` as the Guild a Hero under Contract would go to, for the fee it would pay (`transferFee`). */
+function pricedTarget(hero: Hero, other: Guild, { world, deps }: PageReading): TransferTarget {
+  const fee = transferFee(hero, guildmasterOf(other, world), world.turn, deps);
+  const sentence = `${other.name} would pay ${coinWords(fee)} for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
+  return { guildId: other.id, name: other.name, fee, label: `${other.name}, for ${coinWords(fee)}`, sentence };
+}
+
+/** `other` as the Guild a Hero Out of Contract would go to: for no fee on its free Offer, or the refusal without one (DL-325). */
+function freeTarget(hero: Hero, other: Guild, document: WorldDocument): TransferTarget {
+  const { world } = document;
+  const offered = Object.values(world.offers).some((offer) => offer.heroId === hero.id && offer.toGuildId === other.id && freeOffer(world, offer));
+  const base = { guildId: other.id, name: other.name, fee: 0 };
+  if (offered) {
+    const sentence = `${other.name}'s Offer stands for ${hero.name}, who is Out of Contract: they go to it now for no fee. ${transferCostWords}`;
+    return { ...base, label: `${other.name}, for no fee`, sentence };
+  }
+  const refusal = { action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: other.id } as const;
+  return { ...base, label: `${other.name}: no Offer`, sentence: rejectionSentence(refusal, document, content) };
 }
 
 /** `hero`'s Contract on the player's Roster as their page offers to renew or release it (`ContractView`, DL-323). */
@@ -1394,7 +1416,7 @@ function contractOf(hero: Hero, player: Guild, reading: PageReading, document: W
     words,
     terms: contractTerms(reading, hero),
     payout,
-    release: `Releasing ${hero.name} ${payout > 0 ? `pays ${coinWords(payout)}` : 'costs nothing, their Contract having ended'}. They join the Unattached pool. ${transferCostWords}`,
+    release: `Releasing ${hero.name} ${payout > 0 ? `pays ${coinWords(payout)}` : 'costs nothing, their Contract having ended'}. They join the Unattached pool for ${config.releasedStayDays} Days, unless a Guild signs them. ${transferCostWords}`,
     warning: warning === null ? null : releaseWarningWords(hero.name, warning),
     refused: away === null ? null : { renew: refuse('renew', away), release: refuse('release', away) },
   };

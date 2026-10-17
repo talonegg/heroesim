@@ -3,7 +3,8 @@
 // front end by `applyAction` and a Rival's controller on the Turn's copy (ADR-0002):
 //
 // - `transferIn`: a Guild takes a Hero from another Guild's Roster, if that Guild consents now;
-// - `transferOut`: a Guild sends one of its Heroes to another Guild, if that Guild consents now;
+// - `transferOut`: a Guild sends one of its Heroes to another Guild, if that Guild consents now, or a
+//   Hero Out of Contract to a Guild whose free Offer stands for them, taking it (DL-325);
 // - `offerTransfer`: a Guild offers a fee for a Hero of a Guild that answers for itself, writing a
 //   Transfer Offer (data-model §3.2) that waits for an answer, or a fee of 0 for a Hero Out of
 //   Contract on any Guild's Roster, a free Offer, which a Rival answers at once (DL-319);
@@ -150,6 +151,16 @@ export interface TransferHeroOutOfContract extends Rejection<'transferIn', 'out-
   heroId: HeroId;
 }
 
+/**
+ * The Hero is Out of Contract and `guildId`, the Guild they would go to, has no free Offer standing for
+ * them: their Guild sends them, for no fee, only to a Guild whose Offer stands, or releases them (the
+ * owner, 2026-10-17; DL-325).
+ */
+export interface TransferOutOfContractNoOffer extends Rejection<'transferOut', 'out-of-contract-no-offer'> {
+  heroId: HeroId;
+  guildId: GuildId;
+}
+
 /** The Offer is free, for a Hero Out of Contract: their Guild answers it only by renewing them (Q8, DL-319). */
 export interface FreeOfferDeclined extends Rejection<'declineTransfer', 'free-offer'> {
   offerId: OfferId;
@@ -211,6 +222,7 @@ export type TransferOutRejection =
   | TransferHeroNotOnRoster<'transferOut'>
   | TransferHeroInParty<'transferOut'>
   | TransferHeroRecentlyTransferred<'transferOut'>
+  | TransferOutOfContractNoOffer
   | TransferRefused<'transferOut'>
   | LengthNotOffered<'transferOut'>
   | TransferInsufficientWealth<'transferOut'>;
@@ -335,10 +347,15 @@ export function applyTransferIn(
  * `makeTransfer` does, the Hero signed on a Contract of the length its Disposition signs for
  * (`contractYearsOf`): the taking Guild chooses it (DL-315).
  *
+ * A Hero Out of Contract goes only to a Guild whose free Offer stands for them, which is taken at once
+ * (`takeOffer`, `taken`): for no fee, on the Offer's length, the Offer the taking Guild's consent, as
+ * `acceptTransfer` reads one (the owner, 2026-10-17; DL-325).
+ *
  * Refused, changing nothing: `guild-folded` (either Guild), `same-guild`, `hero-not-on-roster`,
- * `hero-in-party`, `recently-transferred`, `transfer-refused`, `length-not-offered` (a Disposition's
- * length the config does not offer), `insufficient-wealth` (of the Guild taking the Hero), in that order. Throws only on a Guild id the world does not hold, which a front
- * end checks first.
+ * `hero-in-party`, `recently-transferred`, `out-of-contract-no-offer` (a Hero Out of Contract, no
+ * free Offer of `toGuildId`'s standing for them), `transfer-refused`, `length-not-offered` (a Disposition's
+ * or an Offer's length the config does not offer), `insufficient-wealth` (of the Guild taking the Hero),
+ * in that order. Throws only on a Guild id the world does not hold, which a front end checks first.
  *
  * Changes `world` in place and returns its events rather than appending them: `applyAction` runs
  * it on a copy of a document's world, a Rival controller on the Turn's copy (DL-30).
@@ -362,6 +379,13 @@ export function applyTransferOut(
   if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
   const lockedOut = locked(action, hero, world, deps);
   if (lockedOut !== null) return { ok: false, rejection: lockedOut };
+  if (outOfContract(hero, world.turn)) {
+    const offer = Object.values(world.offers).find((each) => each.heroId === heroId && each.toGuildId === to.id && freeOffer(world, each));
+    if (offer === undefined) return { ok: false, rejection: { action, reason: 'out-of-contract-no-offer', heroId, guildId: toGuildId } };
+    const length = lengthNotOffered(action, offer.years, deps.config);
+    if (length !== null) return { ok: false, rejection: length };
+    return { ok: true, events: takeOffer(world, offer, deps, eventEmitter(world)) };
+  }
   const answer = transferAnswer(world, to, 'in', deps);
   if (!answer.consents) {
     return { ok: false, rejection: { action, reason: 'transfer-refused', guildId: toGuildId, heroId, side: 'in', because: answer.because } };

@@ -280,6 +280,9 @@ describe('parseArgs', () => {
     expect(said).not.toContain('the wage show hero gives');
     // transfer --in refuses a Hero Out of Contract (out-of-contract), and the CLI makes no free Offer.
     expect(said).toContain('--in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI does not make');
+    // DL-325: --to sends a Hero Out of Contract only on a free Offer; a released Hero's longer stay in the pool.
+    expect(said).toContain('--to sends a Hero Out of Contract, for no fee, only to a Guild whose free Offer stands for them (show offers)');
+    expect(said).toContain('where a released Hero stays longer than one the pool brings, unless a Guild signs them');
     // Gear and the Holding are glossary terms (ui-text.md).
     expect(said).toContain("their Gear goes back to the Guild's Holding");
     expect(usage.split('\n').filter((line) => line.length > 100)).toEqual([]);

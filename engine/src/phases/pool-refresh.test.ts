@@ -211,6 +211,49 @@ describe('departures', () => {
   });
 });
 
+// The owner, 2026-10-17: a released Hero stays a Year in the pool (DL-325).
+describe('a released Hero', () => {
+  test('stays releasedStayDays from the Day of their release, not unattachedStayDays, counted in the pool', () => {
+    const deps = quietDeps({ unattachedStayDays: 1, releasedStayDays: 4 });
+    const start = created('released-stay', deps);
+    const guild = playerGuild(start.world);
+    const heroId = guild?.rosterIds[0];
+    if (guild === undefined || heroId === undefined) throw new Error('The world is incomplete');
+    const released = applyAction(start, { kind: 'release', guildId: guild.id, heroId }, deps);
+    if (!released.ok) throw new Error(`Refused: ${released.rejection.reason}`);
+
+    // Released on Day 0: still in the pool on the night of Day 3, the pool's own Heroes long gone, and counted in its size.
+    const early = playTo(released.document, nightOf(3), deps);
+    expect(ofType(early.events, 'hero.left-pool').map((event) => event.payload.heroId)).not.toContain(heroId);
+    expect(unattachedHeroes(early.document.world).map((hero) => hero.id)).toContain(heroId);
+    expect(unattachedHeroes(early.document.world)).toHaveLength(deps.config.unattachedPoolSize);
+    const { events } = playTo(early.document, nightOf(4), deps);
+    expect(ofType(events, 'hero.left-pool').filter((event) => event.payload.heroId === heroId).map((event) => event.turn)).toEqual([nightOf(4)]);
+  });
+
+  test('signed again and back in the pool another way, as at a fold, stays unattachedStayDays', () => {
+    const deps = quietDeps({ unattachedStayDays: 1, releasedStayDays: 4 });
+    const start = created('released-again', deps);
+    const guild = playerGuild(start.world);
+    const heroId = guild?.rosterIds[0];
+    if (guild === undefined || heroId === undefined) throw new Error('The world is incomplete');
+    const released = applyAction(start, { kind: 'release', guildId: guild.id, heroId }, deps);
+    if (!released.ok) throw new Error(`Refused: ${released.rejection.reason}`);
+    const night = (since: number): HeroId[] => {
+      const world = structuredClone(released.document.world);
+      const hero = world.heroes[heroId];
+      if (hero === undefined) throw new Error('No row');
+      hero.unattachedSince = since;
+      world.turn = nightOf(2);
+      return ofType(poolRefresh(world, phaseContext(world, deps, released.document.history)), 'hero.left-pool').map((event) => event.payload.heroId);
+    };
+
+    // In the pool since their release: stays. Since a later Turn, as a fold of the Guild that signed them again: the pool's stay.
+    expect(night(0)).not.toContain(heroId);
+    expect(night(nightOf(1))).toContain(heroId);
+  });
+});
+
 describe('the refill', () => {
   test('refills the pool to unattachedPoolSize the night a Hero is recruited, with Unattached Heroes', () => {
     const deps = quietDeps();

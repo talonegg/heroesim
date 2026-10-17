@@ -154,7 +154,7 @@ test('a Hero is renewed for three years from their page, the Roster’s Table gi
   const page2 = roster.getByRole('article');
   await page2.getByRole('button', { name: `Release ${released}…`, exact: true }).click();
   const ask = page2.getByRole('group', { name: `Release ${released}?` });
-  await expect(ask).toContainText(new RegExp(`^Releasing ${escaped(released)} pays ${amountPattern}\\. They join the Unattached pool\\.`));
+  await expect(ask).toContainText(new RegExp(`^Releasing ${escaped(released)} pays ${amountPattern}\\. They join the Unattached pool for \\d+ Days, unless a Guild signs them\\.`));
   await expect(ask).not.toContainText("last Hero");
   await expectNoHorizontalOverflow(page, 'the release asking first');
   await expectTargets(page, 'the release asking first');

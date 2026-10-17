@@ -316,6 +316,9 @@ const sentences: Sentences = {
     say`${hero(setting, heroId)} is not on ${player(setting)}'s Roster${command('show-roster')}.`,
   'transferOut hero-in-party': inParty,
   'transferOut recently-transferred': locked,
+  // DL-325: a Hero Out of Contract goes only on a free Offer, or is released.
+  'transferOut out-of-contract-no-offer': ({ heroId, guildId }, setting) =>
+    say`${guild(setting, guildId)} has no Offer standing for ${hero(setting, heroId)}, who is Out of Contract: they go to another Guild only on its Offer, for no fee, or are released to the Unattached pool${command('show-offers')}.`,
   'transferOut transfer-refused': refused,
   'transferOut length-not-offered': lengthNotOffered,
   'transferOut insufficient-wealth': ({ guildId, fee, wealth }, setting) => say`The fee is ${coinWords(fee)}; ${guild(setting, guildId)} has ${coinWords(wealth)}.`,

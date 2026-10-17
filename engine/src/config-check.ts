@@ -397,6 +397,7 @@ export const configRules: { readonly [Setting in keyof GameConfig]-?: ConfigRule
   signingFeePerLevel: whole({ min: 0 }),
   signingFeeStatDivisor: finite({ above: 0 }),
   unattachedStayDays: whole({ min: 0 }),
+  releasedStayDays: whole({ min: 0 }),
   fameRequiredPerLevel: finite({ min: 0 }),
   // A Board holds a whole number of Quests; it grows towards its cap, never shrinks (DL-261).
   boardSizeStart: whole({ min: 0 }),
