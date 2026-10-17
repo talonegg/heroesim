@@ -286,7 +286,7 @@ function State({ view }: { view: HeroPageView }) {
       {view.fee === null ? null : (
         <li>
           <Chip tone="brass" icon="wealth">
-            Transfer fee <Coins silver={view.fee} />
+            Transfer fee {view.actions?.kind === 'rival' && view.actions.free ? 'No fee' : <Coins silver={view.fee} />}
           </Chip>
         </li>
       )}

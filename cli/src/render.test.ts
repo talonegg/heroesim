@@ -12,6 +12,7 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
+import { nightOf } from '@heroesim/engine/testing';
 import { loadContent } from '@heroesim/content/node';
 import {
   bestPartyReading,
@@ -210,6 +211,7 @@ describe("show's layouts of the readings (DL-241)", () => {
     traits: [{ name: 'Lame', effect: '-2 Dexterity, -1 Endurance' }],
     texts: [{ label: 'Biography', words: 'Once a drover.' }],
     transferFee: 180,
+    outOfContract: false,
     signing: null,
     partyId: 'party-000004' as PartyId,
     died: 2_198,
@@ -333,6 +335,23 @@ describe("show's layouts of the readings (DL-241)", () => {
     expect(captain).toHaveLength(1);
     expect(rowFor(renderRoster(reading, guild), (captain[0] as { id: string }).id)).toMatch(/\sYes\s+\d+ Days left$/);
     for (const row of rosterReading(playerReading(document, playDeps(document)), guild).filter((each) => !each.captain)) expect(rowFor(renderRoster(reading, guild), row.id)).toMatch(/\s{2,}\d+ Days left$/);
+  });
+
+  // The owner's "a" (2026-10-17, DL-326): a Hero Out of Contract costs nothing to take, said "No fee" as the Guild page's cell says it, not "0s".
+  test("show hero and show roster say 'No fee' for an Out of Contract Hero's Transfer fee, and the fee for one under Contract, even a fee that floors to 0", () => {
+    const field = (all: readonly string[], label: string) => all.find((line) => line.startsWith(`${label} `))?.replace(/\s+/g, ' ');
+    expect(field(renderHero({ ...hero, contract: 'Out of Contract', outOfContract: true, transferFee: 0 }, defaultConfig), 'Transfer fee')).toBe('Transfer fee No fee');
+    expect(field(renderHero({ ...hero, transferFee: 0 }, defaultConfig), 'Transfer fee')).toBe('Transfer fee 0s');
+
+    const document = newGame();
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== playerGuild(document.world)?.id) as Guild;
+    const [out, under] = rival.rosterIds as [HeroId, HeroId];
+    (document.world.heroes[out] as Hero).contract = { ...((document.world.heroes[out] as Hero).contract as NonNullable<Hero['contract']>), endDay: 0 };
+    document.world.turn = nightOf(0);
+    const roster = renderRoster(playerReading(document, playDeps(document)), rival);
+
+    expect(rowFor(roster, out)).toMatch(/\sOut of Contract\s+No fee$/);
+    expect(rowFor(roster, under)).toMatch(/\s\d+ Days left\s+\d+[gs]/);
   });
 
   test("show board lays out the Board's readings: a row of terms each, the Skills that help and the Encounters' kinds, then each Quest's Encounters and its Best Party", () => {

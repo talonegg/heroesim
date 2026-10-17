@@ -477,6 +477,7 @@ describe('the rows of a Roster and of the pool', () => {
     const rows = rosterReading(playerReading(document, deps), player(document));
 
     expect(rows.map((row) => row.contract).slice(0, 3)).toEqual(['Out of Contract', '5 Days left, Under Offer', '']);
+    expect([first, second, third].map((hero) => read(document, hero).outOfContract)).toEqual([true, false, false]);
   });
 
   test("gives another Guild's Hero, on their row and in their reading, the fee of the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {

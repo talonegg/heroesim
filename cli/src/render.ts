@@ -399,7 +399,15 @@ export function renderRoster(reading: PlayerReading, guild: Guild): string[] {
     { heading: 'Contract', cell: (row) => row.contract },
     ...(reading.guild === undefined || reading.guild.id === guild.id
       ? []
-      : [{ heading: 'Transfer fee', align: 'right' as const, cell: (row: RosterRowReading) => (row.transferFee === null ? '' : coinLetters(row.transferFee)) }]),
+      : [
+          {
+            heading: 'Transfer fee',
+            align: 'right' as const,
+            // Out of Contract costs nothing to take, said "No fee" as the Guild page's cell says it (DL-326).
+            cell: (row: RosterRowReading) =>
+              row.transferFee === null ? '' : outOfContract(rowOf(world.heroes, row.id) ?? { contract: null }, world.turn) ? 'No fee' : coinLetters(row.transferFee),
+          },
+        ]),
   ];
   const held = holdings(world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
@@ -475,7 +483,7 @@ export function renderHero(hero: HeroReading, calendar: Calendar): string[] {
     ['Traits', none(hero.traits.map((trait) => `${trait.name} (${trait.effect})`))],
     ...hero.texts.map(({ label, words }): [string, string] => [label, words]),
   ];
-  if (hero.transferFee !== null) attributes.push(['Transfer fee', coinLetters(hero.transferFee)]);
+  if (hero.transferFee !== null) attributes.push(['Transfer fee', hero.outOfContract ? 'No fee' : coinLetters(hero.transferFee)]);
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.died !== null) attributes.push(['Died', renderDate(hero.died, calendar)]);
   if (hero.retired !== null) attributes.push(['Retired', renderDate(hero.retired, calendar)]);

@@ -1024,3 +1024,9 @@ CLI's and the page's History agree; a priced line is unchanged, but a priced fee
 DL-318) reads "no fee" too, which is true. Tests moved with it: `narrate.test.ts` (two rows added), `commands/transfer.test.ts`,
 `commands/contract.test.ts` and `views/actions.test.tsx`. No engine change.
 Verified 2026-10-17 at 09a62e2: the fee rules and every place a fee of 0 is shown re-read, 6 mutations red; fixed, test first: the Offer's line "offered the Guild no fee for the Hero" made "offered to take the Hero from the Guild for no fee", the owner's words, and two stray spaces lost restored.
+
+*Note, 2026-10-17 (the owner's "a" to the Transfer fee shown as 0):* a Hero Out of Contract (`outOfContract`, the Guild page's
+test for its "No fee" cell) has their Transfer fee said "No fee", not 0, in the three places that said it: the Hero page's chip,
+and the CLI's `show roster <guildId>` and `show hero` lines (`HeroReading.outOfContract`, `cli/src/render.ts`); `show offers`
+keeps its "Free". A Hero under Contract whose fee floors to 0 still shows 0. Tested red first: `actions.test.tsx`,
+`render.test.ts` and `readings.test.ts`. No engine change.

@@ -26,6 +26,7 @@ import {
   judgedHintBands,
   moraleBand,
   moraleBandNames,
+  outOfContract,
   partyPool,
   playerGuild,
   potentialHint,
@@ -265,6 +266,8 @@ export interface HeroReading extends HeroRow {
   texts: { label: string; words: string }[];
   /** On another Guild's Roster: what the player's Guild would pay to take them (`transferFee`); `null` otherwise. */
   transferFee: number | null;
+  /** Whether they are Out of Contract (`outOfContract`): the fee is then said "No fee", as the Guild page's cell says it (DL-326). */
+  outOfContract: boolean;
   /** In the Unattached pool, with a player's Guild: the signing fee it would pay and whether they would sign; `null` otherwise. */
   signing: { fee: number; signs: Signs } | null;
   partyId: PartyId | null;
@@ -299,6 +302,7 @@ export function heroReading(reading: PlayerReading, hero: Hero): HeroReading {
     traits: heroTraits(content, hero),
     texts: heroAttributes.flatMap((attribute) => (hero[attribute] === '' ? [] : [{ label: descriptiveAttributeLabels[attribute], words: hero[attribute] }])),
     transferFee: theirs ? transferFee(hero, guildmaster, world.turn, deps) : null,
+    outOfContract: outOfContract(hero, world.turn),
     signing: signs === null ? null : { fee: signingFee(hero, deps, guildmaster), signs },
     partyId: hero.partyId,
     died: hero.diedOnTurn,
