@@ -36,7 +36,8 @@ name its path, or use `rg -u`.
    `npm run edit -- quests doctor` and `npm run edit -- facilities doctor` before the first change
    and after the last of every story that touches `engine/src/` or the content's checks
    (`content/src/validate.ts` and the content kinds, `content/src/kinds/`), and record both
-   readings of each.
+   readings of each. A story that touches neither `engine/src/` nor `content/src/` (nor the
+   content's checks, `content/src/validate.ts` and `content/src/kinds/`) runs no doctors.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:
@@ -96,7 +97,14 @@ name its path, or use `rg -u`.
    - the decisions the story cites.
 2. **Build** test first. Run single test files and `npm run typecheck` as you go.
 3. **Check** at the end:
-   - `npm run lint`, `npm run typecheck` and `npm test`;
+   - `npm run lint`, `npm run typecheck` and `npx vitest run --changed <base>`, where `<base>` is the
+     last commit a verifier verified (a sha, so unpushed commits stacking up are still covered; plain
+     `--changed` reads only uncommitted files), with `--project` naming the area's project where a file
+     read from disk, not imported, changed: `content` for `content/`, `engine` for
+     `engine/src/config.json`, `web` for `.github/workflows/` (which web's deploy tests read),
+     `decisions` for `docs/`;
+   - the full `npm test` instead when the test setup changed (`vitest.config.ts`, any `test-setup.ts`
+     or `*.test-support.ts`, the root package files) or when `engine/src/` or `content/src/` changed;
    - `npm run build`, check-bundle and `npm run e2e -w web` where the story names them;
    - the doctors, by rule 2.
 
@@ -122,6 +130,7 @@ name its path, or use `rg -u`.
    - it re-derives what the story claims;
    - it tries mutations, each red and then restored;
    - it fixes what it finds, test first;
+   - it runs the full `npm test` once, the one local full run before the commit;
    - it records all of that in its commit message, and adds one line to the entry's Evidence:
      `Verified <date> at <sha>: <what it found and fixed, in a sentence>.`
 6. **The epic:** tick the story's boxes as they are met, and set its Status line.
@@ -182,8 +191,11 @@ name its path, or use `rg -u`.
    And `plan.md` §3's "Now" moves on.
 
    **One push, one record pull request** (DL-327). Ask the owner's questions first (the playtest's
-   answer, the next release's plan, by rule 11), commit everything on the dev branch (the record
-   and its archives, the cut of the next dev branch and the move of Dependabot to it by the Plan
-   step, any fix to the record, the playtest's answer), then fast-forward the release branch to
-   that tip and push once, on the owner's word. That push raises the one pull request, "Record from
-   `<branch>` (no release)", whose merge releases nothing (`docs/deploy.md`, DL-255).
+   answer, the next release's plan, by rule 11). The record is committed on the old dev branch, as
+   its last commit. The next dev branch is cut from that commit, and the move of Dependabot to it
+   (by the Plan step), the playtest's answer and any fix to the record are committed on the new dev
+   branch. Then, on the owner's word, the new dev branch and the release branch, fast-forwarded to
+   the new dev branch's tip, are pushed together, in one go. The old dev branch needs no push of its
+   own: its commits are under the new one. That push raises the one pull request, "Record from
+   `<branch>` (no release)", whose merge releases nothing (`docs/deploy.md`, DL-255). `check` runs on
+   both pushes; the release push is not a duplicate (DL-327's Consequences).
