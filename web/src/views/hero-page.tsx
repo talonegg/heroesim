@@ -286,7 +286,8 @@ function State({ view }: { view: HeroPageView }) {
       {view.fee === null ? null : (
         <li>
           <Chip tone="brass" icon="wealth">
-            Transfer fee {view.actions?.kind === 'rival' && view.actions.free ? 'No fee' : <Coins silver={view.fee} />}
+            {/* Out of Contract: "No fee", as the Guild page's cell says it, the fee named, as no heading over the chip names it (DL-326). */}
+            {view.actions?.kind === 'rival' && view.actions.free ? 'No Transfer fee' : <>Transfer fee <Coins silver={view.fee} /></>}
           </Chip>
         </li>
       )}

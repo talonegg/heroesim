@@ -1027,6 +1027,7 @@ Verified 2026-10-17 at 09a62e2: the fee rules and every place a fee of 0 is show
 
 *Note, 2026-10-17 (the owner's "a" to the Transfer fee shown as 0):* a Hero Out of Contract (`outOfContract`, the Guild page's
 test for its "No fee" cell) has their Transfer fee said "No fee", not 0, in the three places that said it: the Hero page's chip,
-and the CLI's `show roster <guildId>` and `show hero` lines (`HeroReading.outOfContract`, `cli/src/render.ts`); `show offers`
+there "No Transfer fee", as no heading over it names the fee, and the CLI's `show roster <guildId>` and `show hero` lines (`HeroReading.outOfContract`, `cli/src/render.ts`); `show offers`
 keeps its "Free". A Hero under Contract whose fee floors to 0 still shows 0. Tested red first: `actions.test.tsx`,
 `render.test.ts` and `readings.test.ts`. No engine change.
+Verified 2026-10-17 at 6cb6c8c: the chip's `actions.free`, the roster cell and `HeroReading.outOfContract` re-derived against the engine's `outOfContract` at the reading's Turn (the player's own Hero shows no fee, no chip nor line), and the chip seen at 360, 820 and 1280 wide, 7 mutations red; fixed, test first: the chip's "Transfer fee No fee", a stutter, made "No Transfer fee".

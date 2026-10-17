@@ -595,7 +595,7 @@ describe('the Contract', () => {
     expect(inHistory(new RegExp(`^The Lantern offered to take ${heroName} from .+ for no fee, until `))).toBeDefined();
   });
 
-  test("says 'No fee' in a Rival's Hero Out of Contract's Transfer fee chip, as the Guild page's cell does, not the coins of 0 (the owner's 'a', DL-326)", () => {
+  test("says 'No Transfer fee' in a Rival's Hero Out of Contract's chip, as the Guild page's cell says 'No fee', not the coins of 0 (the owner's 'a', DL-326)", () => {
     const { state, guildName, heroName } = withRivalOutOfContract(withRichRivals(started()));
     renderGame(state);
     fireEvent.click(within(section('Guilds')).getByRole('button', { name: `Open ${guildName}` }));
@@ -603,6 +603,6 @@ describe('the Contract', () => {
     fireEvent.click(within(within(row).getByRole('rowheader')).getByRole('button'));
 
     const page = within(section('Guilds')).getByRole('article');
-    expect(within(page).getByText('Transfer fee No fee')).toBeDefined();
+    expect(within(page).getByText('No Transfer fee')).toBeDefined();
   });
 });
