@@ -1149,6 +1149,9 @@ describe('the release workflows (DL-124)', () => {
     // vite.config.ts reads the content and the pictures by these paths.
     expect(readText('web/vite.config.ts')).toContain("path.join(repoRoot, 'content')");
     expect(readText('web/src/media.ts')).toContain('../../media/**/*.{svg,webp}');
+    // The journey spec loads the exported game with the CLI.
+    expect(readText('web/e2e/journey.spec.ts')).toContain("'cli/src/main.ts'");
+    expect(browserNeeded('cli/src/main.ts')).toBe(true);
     expect(browserNeeded('.github/workflows/check.yml')).toBe(true);
   });
 

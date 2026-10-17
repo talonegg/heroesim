@@ -19,9 +19,10 @@ name: check
 #
 # DL-327: the `plan` job (web/scripts/plan.mjs) decides what a run does, and `check` and `e2e` wait for
 # it. A push to a release branch of a commit that `check` passed on already, on a dev branch, runs
-# neither, the dev branch's run being the one the deploy reads; and the browser specs run only when a
-# path the page or its specs read changed since the push's `before` or the pull request's base. A job
-# skipped by its own condition reports success to a required check, and only a literal `true` or
+# neither, the dev branch's run being the one the deploy reads; and the browser specs run unless no
+# path the page or its specs read changed since the push's `before` or the pull request's base and a
+# push run of `check` passed on that base, so that no green run stands on specs that never passed. A
+# job skipped by its own condition reports success to a required check, and only a literal `true` or
 # `false` skips, so a plan that failed to decide runs everything. A pull request's `check` is never
 # skipped as a duplicate.
 on:

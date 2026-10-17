@@ -11,10 +11,13 @@
  *   same commit left. Then `check` and `e2e` are skipped, and the run still reports success. The record
  *   is read as tested.mjs reads it for the deploy (DL-235). A pull request's run is never skipped.
  * - `browser`: `false` only when every path that differs between `<base>` (a push's `before`, a pull
- *   request's base) and the commit lies outside what the built page and its specs read (`browserNeeded`).
+ *   request's base) and the commit lies outside what the built page and its specs read (`browserNeeded`),
+ *   and a push run of check.yml passed on `<base>`. A run whose `e2e` was skipped is green, and the
+ *   deploy's tested.mjs takes a green run for the specs passed; so each green run stands on one before
+ *   it with the same page, back to one that ran them, and a red, cancelled or unfinished base runs them.
  *
- * Anything uncertain runs: no record, a base that is no commit (a new branch) or that git cannot fetch
- * (a force push), a diff git cannot make. `<base>` may be empty.
+ * Anything uncertain runs: no record, a base whose run did not pass, a base that is no commit (a new
+ * branch) or that git cannot fetch (a force push), a diff git cannot make. `<base>` may be empty.
  */
 
 import { appendFileSync } from 'node:fs';
@@ -38,7 +41,14 @@ export function decideDuplicate({ event, branch, sha, runId, checkRuns }) {
   if (!sha) return { duplicate: false, reason: 'No commit named: check runs.' };
   const runs = checkRuns(sha);
   if (runs === null) return { duplicate: false, reason: `GitHub's record of check on ${sha} could not be read: check runs.` };
-  const passed = runs.find(
+  const passed = passedRun(runs, sha, runId);
+  if (passed === undefined) return { duplicate: false, reason: `check has not passed on ${sha} before: check runs.` };
+  return { duplicate: true, reason: `check passed on ${sha} already (run ${passed.id}): this run's check and browser specs are skipped.` };
+}
+
+/** A completed, successful push run of check.yml on `sha` among `runs`, other than run `runId`; as tested.mjs reads it (DL-235). */
+const passedRun = (runs, sha, runId) =>
+  runs.find(
     (run) =>
       run.path === `.github/workflows/${checkWorkflow}` &&
       run.head_sha === sha &&
@@ -47,12 +57,12 @@ export function decideDuplicate({ event, branch, sha, runId, checkRuns }) {
       run.conclusion === 'success' &&
       String(run.id) !== String(runId),
   );
-  if (passed === undefined) return { duplicate: false, reason: `check has not passed on ${sha} before: check runs.` };
-  return { duplicate: true, reason: `check passed on ${sha} already (run ${passed.id}): this run's check and browser specs are skipped.` };
-}
 
-/** The folders whose files the build or the browser specs read: the page, the engine, the content, the words and the pictures. */
-const browserFolders = ['web/', 'engine/', 'content/', 'words/', 'media/'];
+/**
+ * The folders whose files the build or the browser specs read: the page, the engine, the content, the
+ * words, the pictures, and the CLI, which e2e/journey.spec.ts loads the exported game with.
+ */
+const browserFolders = ['web/', 'engine/', 'content/', 'words/', 'media/', 'cli/'];
 /** The root files the install, the build or the typecheck of the page reads, and check.yml itself. */
 const browserFiles = new Set(['package.json', 'package-lock.json', '.npmrc', '.node-version', '.github/workflows/check.yml']);
 /** The root tsconfig files, which the page's own extends. */
@@ -68,9 +78,10 @@ const listed = (files) => `${files.slice(0, 5).join(', ')}${files.length > 5 ? `
 
 /**
  * Whether the browser specs run for `sha`, whose change since `base` they read. `git(args)` gives
- * git's trimmed output or `null` when git fails.
+ * git's trimmed output or `null` when git fails; `checkRuns` is as for `decideDuplicate`, asked of
+ * `base` only when no path the page reads changed.
  */
-export function decideBrowser({ event, sha, base, git }) {
+export function decideBrowser({ event, sha, base, git, checkRuns }) {
   const runs = (why) => ({ browser: true, reason: `${why}: the browser specs run.` });
   if (event !== 'push' && event !== 'pull_request') return runs(`${event} is neither a push nor a pull request`);
   if (!sha) return runs('No commit named');
@@ -85,9 +96,13 @@ export function decideBrowser({ event, sha, base, git }) {
   const changed = diff.split('\0').filter((file) => file !== '');
   const needed = changed.find(browserNeeded);
   if (needed !== undefined) return runs(`${needed} changed since ${base}, which the page or its specs read`);
+  const baseRuns = checkRuns(base);
+  if (baseRuns === null) return runs(`GitHub's record of check on ${base} could not be read`);
+  const passed = passedRun(baseRuns, base);
+  if (passed === undefined) return runs(`check has not passed on ${base}, the base`);
   return {
     browser: false,
-    reason: `${changed.length} path(s) changed since ${base}${changed.length > 0 ? ` (${listed(changed)})` : ''}, none read by the page or its specs: the browser specs are not run.`,
+    reason: `${changed.length} path(s) changed since ${base}${changed.length > 0 ? ` (${listed(changed)})` : ''}, none read by the page or its specs, and check passed on ${base} (run ${passed.id}): the browser specs are not run.`,
   };
 }
 
@@ -106,18 +121,19 @@ export function main({
     return 2;
   }
   const git = gitWith(spawn, cwd);
+  const checkRuns = checkRunsWith(spawn, cwd, env.GITHUB_REPOSITORY);
   const sha = env.GITHUB_SHA;
   const { duplicate, reason: duplicateReason } = decideDuplicate({
     event,
     branch: env.GITHUB_REF_NAME,
     sha,
     runId: env.GITHUB_RUN_ID,
-    checkRuns: checkRunsWith(spawn, cwd, env.GITHUB_REPOSITORY),
+    checkRuns,
   });
   // A duplicate runs no job, so what the browser specs would do is not worked out.
   const { browser, reason: browserReason } = duplicate
     ? { browser: false, reason: 'Skipped with the check.' }
-    : decideBrowser({ event, sha, base, git });
+    : decideBrowser({ event, sha, base, git, checkRuns });
   const reasons = `${duplicateReason}\n${browserReason}`;
   log(reasons);
   if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `duplicate=${duplicate}\nbrowser=${browser}\n`);

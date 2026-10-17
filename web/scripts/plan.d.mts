@@ -38,6 +38,8 @@ export interface BrowserOptions {
   readonly base: string | undefined;
   /** git's trimmed output, or `null` when git fails. */
   readonly git: (args: readonly string[]) => string | null;
+  /** As for `decideDuplicate`, asked of the base: the specs are skipped only after a base check passed on. */
+  readonly checkRuns: (sha: string) => readonly CheckRun[] | null;
 }
 
 /** Whether the browser specs run for the commit, and why. */

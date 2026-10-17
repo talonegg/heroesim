@@ -51,6 +51,8 @@ function repository(first: Record<string, string>, change: Record<string, string
 const passedOn = (sha: string, overrides: Partial<CheckRun> = {}): CheckRun[] => [
   { id: 7, path: `.github/workflows/${checkWorkflow}`, head_sha: sha, event: 'push', status: 'completed', conclusion: 'success', ...overrides },
 ];
+/** GitHub's record as a stand-in in which check passed on every commit asked about. */
+const passedOnAny = (asked: string): CheckRun[] => passedOn(asked);
 
 const sha = 'a'.repeat(40);
 
@@ -107,6 +109,9 @@ describe('the browser specs: only when something the page or its specs read chan
     'content/items/short-sword.json',
     'words/src/index.ts',
     'media/items/silhouette.svg',
+    // e2e/journey.spec.ts loads the exported game with the CLI.
+    'cli/src/main.ts',
+    'cli/package.json',
     'package.json',
     'package-lock.json',
     '.npmrc',
@@ -126,7 +131,6 @@ describe('the browser specs: only when something the page or its specs read chan
     'CONTEXT.md',
     'harness/reports/x.json',
     'harness/src/main.ts',
-    'cli/src/main.ts',
     'tools/editor/src/main.ts',
     '.github/workflows/deploy.yml',
     '.github/dependabot.yml',
@@ -145,8 +149,8 @@ describe('the browser specs: only when something the page or its specs read chan
     const { dir, before, after } = repository({ 'docs/a.md': 'a', 'web/src/a.ts': 'a' }, { 'docs/a.md': 'b', 'web/src/a.ts': 'b' });
     const docs = repository({ 'docs/a.md': 'a', 'web/src/a.ts': 'a' }, { 'docs/a.md': 'b', 'docs/b.md': 'b' });
 
-    expect(decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir) }).browser).toBe(true);
-    const skipped = decideBrowser({ event: 'push', sha: docs.after, base: docs.before, git: gitIn(docs.dir) });
+    expect(decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir), checkRuns: passedOnAny }).browser).toBe(true);
+    const skipped = decideBrowser({ event: 'push', sha: docs.after, base: docs.before, git: gitIn(docs.dir), checkRuns: passedOnAny });
     expect(skipped.browser).toBe(false);
     expect(skipped.reason).toContain('docs/a.md');
   });
@@ -161,7 +165,7 @@ describe('the browser specs: only when something the page or its specs read chan
     git(dir, 'commit', '--quiet', '-m', 'moved');
     const after = git(dir, 'rev-parse', 'HEAD');
 
-    const result = decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir) });
+    const result = decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir), checkRuns: passedOnAny });
 
     expect(result.browser).toBe(true);
     expect(result.reason).toContain('web/src/a.ts');
@@ -171,13 +175,57 @@ describe('the browser specs: only when something the page or its specs read chan
     const { dir, before } = repository({ 'docs/a.md': 'a' }, { 'web/src/a.ts': 'x' });
     const after = commit(dir, { 'docs/a.md': 'c' });
 
-    expect(decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir) }).browser).toBe(true);
+    expect(decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(dir), checkRuns: passedOnAny }).browser).toBe(true);
   });
 
   test('a change of nothing runs nothing', () => {
     const { dir, after } = repository({ 'docs/a.md': 'a' }, { 'docs/b.md': 'b' });
 
-    expect(decideBrowser({ event: 'push', sha: after, base: after, git: gitIn(dir) }).browser).toBe(false);
+    expect(decideBrowser({ event: 'push', sha: after, base: after, git: gitIn(dir), checkRuns: passedOnAny }).browser).toBe(false);
+  });
+});
+
+// A run whose e2e was skipped is green, and the deploy's tested.mjs reads a green run as the tests
+// passed: so the specs are skipped only when the base's own push run of check passed, which by the
+// same rule ran them on the same page, or on one its run stood for.
+describe('the browser specs are skipped only after a base on which check passed', () => {
+  const docsOnly = repository({ 'docs/a.md': 'a', 'web/src/a.ts': 'a' }, { 'docs/a.md': 'b' });
+  const decided = (runs: readonly CheckRun[] | null) =>
+    decideBrowser({ event: 'push', sha: docsOnly.after, base: docsOnly.before, git: gitIn(docsOnly.dir), checkRuns: () => runs });
+
+  test('a docs change after a base whose push run of check passed skips them, naming that run', () => {
+    const result = decided(passedOn(docsOnly.before));
+
+    expect(result.browser).toBe(false);
+    expect(result.reason).toContain('run 7');
+  });
+
+  test('a docs change after a base whose run failed, was cancelled, is still going, was a pull request, or is unread runs them', () => {
+    for (const runs of [
+      passedOn(docsOnly.before, { conclusion: 'failure' }),
+      passedOn(docsOnly.before, { conclusion: 'cancelled' }),
+      passedOn(docsOnly.before, { status: 'in_progress', conclusion: null }),
+      passedOn(docsOnly.before, { event: 'pull_request' }),
+      passedOn(docsOnly.before, { path: '.github/workflows/deploy.yml' }),
+      passedOn(docsOnly.after),
+      [],
+      null,
+    ]) {
+      const result = decided(runs);
+
+      expect(result.browser, JSON.stringify(runs)).toBe(true);
+      expect(result.reason, JSON.stringify(runs)).toMatch(/specs run/);
+    }
+  });
+
+  test('GitHub is asked about the base only when no path the page reads changed', () => {
+    const web = repository({ 'docs/a.md': 'a' }, { 'web/src/a.ts': 'b' });
+    const asked: string[] = [];
+
+    const result = decideBrowser({ event: 'push', sha: web.after, base: web.before, git: gitIn(web.dir), checkRuns: (base) => (asked.push(base), passedOn(base)) });
+
+    expect(result.browser).toBe(true);
+    expect(asked).toEqual([]);
   });
 });
 
@@ -202,11 +250,26 @@ describe('anything uncertain runs the browser specs', () => {
       'an event that is neither': { event: 'schedule', base: after },
       'a diff git cannot make': { base: after, git: (args: readonly string[]) => (args[0] === 'diff' ? null : git(args)) },
     })) {
-      const result = decideBrowser({ event: 'push', sha: after, git, ...options });
+      const result = decideBrowser({ event: 'push', sha: after, git, checkRuns: passedOnAny, ...options });
 
       expect(result.browser, name).toBe(true);
       expect(result.reason, name).toMatch(/specs run/);
     }
+  });
+
+  test('an all-zero base is a new branch, and neither git nor GitHub is asked', () => {
+    const asked: string[] = [];
+    const result = decideBrowser({
+      event: 'push',
+      sha,
+      base: '0'.repeat(40),
+      git: (args) => (asked.push(args.join(' ')), null),
+      checkRuns: (base) => (asked.push(base), passedOn(base)),
+    });
+
+    expect(result.browser).toBe(true);
+    expect(result.reason).toContain('a new branch');
+    expect(asked).toEqual([]);
   });
 
   test("a base only the remote has is fetched, a shallow clone as CI's checkout is, and judged by its tree", () => {
@@ -217,7 +280,7 @@ describe('anything uncertain runs the browser specs', () => {
     expect(cloned.status, cloned.stderr).toBe(0);
     expect(spawnSync('git', ['cat-file', '-e', `${before}^{commit}`], { cwd: clone }).status).not.toBe(0);
 
-    const result = decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(clone) });
+    const result = decideBrowser({ event: 'push', sha: after, base: before, git: gitIn(clone), checkRuns: passedOnAny });
 
     expect(result.browser).toBe(false);
     expect(result.reason).toContain('docs/b.md');
@@ -266,11 +329,19 @@ describe('the command line', () => {
     ]);
   });
 
-  test('a dev branch push of docs: not a duplicate, no browser specs, and GitHub is not asked', () => {
-    const result = run(['push', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: 'v1.2-dev' }, passedOn(docsOnly.after), docsOnly.dir);
+  test('a dev branch push of docs after a base check passed on: not a duplicate, no browser specs, and GitHub asked of the base alone', () => {
+    const result = run(['push', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: 'v1.2-dev' }, passedOn(docsOnly.before), docsOnly.dir);
 
     expect(result.output).toBe('duplicate=false\nbrowser=false\n');
-    expect(result.asked).toEqual([]);
+    expect(result.asked).toEqual([
+      ['gh', 'api', `repos/owner/heroesim/actions/workflows/${checkWorkflow}/runs?head_sha=${docsOnly.before}&event=push&status=success`],
+    ]);
+  });
+
+  test('a dev branch push of docs after a base check did not pass on: the browser specs run', () => {
+    const result = run(['push', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: 'v1.2-dev' }, passedOn(docsOnly.before, { conclusion: 'failure' }), docsOnly.dir);
+
+    expect(result.output).toBe('duplicate=false\nbrowser=true\n');
   });
 
   test('a release branch push not passed before: the check runs, and the browser specs by what changed', () => {
@@ -280,17 +351,20 @@ describe('the command line', () => {
     expect(result.output).toBe('duplicate=false\nbrowser=true\n');
   });
 
-  test("GitHub's record unread: the check runs", () => {
+  test("GitHub's record unread: the check and the browser specs run", () => {
     const result = run(['push', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: 'v1.2-release' }, null, docsOnly.dir);
 
-    expect(result.output).toBe('duplicate=false\nbrowser=false\n');
+    expect(result.output).toBe('duplicate=false\nbrowser=true\n');
   });
 
   test('a pull request: never a duplicate, the browser specs by its base', () => {
-    const result = run(['pull_request', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: '12/merge' }, passedOn(docsOnly.after), docsOnly.dir);
+    const result = run(['pull_request', docsOnly.before], { GITHUB_SHA: docsOnly.after, GITHUB_REF_NAME: '12/merge' }, passedOn(docsOnly.before), docsOnly.dir);
 
     expect(result.output).toBe('duplicate=false\nbrowser=false\n');
-    expect(result.asked).toEqual([]);
+    // The base's push run is asked about, never a duplicate's run of this commit.
+    expect(result.asked).toEqual([
+      ['gh', 'api', `repos/owner/heroesim/actions/workflows/${checkWorkflow}/runs?head_sha=${docsOnly.before}&event=push&status=success`],
+    ]);
   });
 
   test('no sha named: both run', () => {

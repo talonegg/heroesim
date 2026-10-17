@@ -23,11 +23,15 @@ branch's pull request moves it, and each merge releases unless it is a record (D
    reports success to a required check:
    - a push to the release branch of a commit that a push run of `check` passed on already (the
      dev branch's) runs neither `check` nor `e2e`. A pull request's `check` is never skipped so;
-   - the browser specs run only when a path the page or its specs read changed since the push's
-     `before` or the pull request's base: `web/`, `engine/`, `content/`, `words/`, `media/`, the
-     root `package.json`, `package-lock.json`, `.npmrc`, `.node-version`, `tsconfig*.json` and
-     `check.yml`. The lint, the typecheck and the tests run whatever changed. A new branch, a base
-     git cannot fetch or a diff it cannot make runs them.
+   - the browser specs are skipped only when no path the page or its specs read changed since the
+     push's `before` or the pull request's base, and a push run of `check` passed on that base:
+     the paths are `web/`, `engine/`, `content/`, `words/`, `media/`, `cli/` (the journey spec
+     loads the exported game with the CLI), the root `package.json`, `package-lock.json`, `.npmrc`,
+     `.node-version`, `tsconfig*.json` and `check.yml`. A green run whose specs were skipped thus
+     stands on a base whose run was green, back to one that ran them, and the deploy's reading of
+     a green run holds. The lint, the typecheck and the tests run whatever changed. A new branch, a
+     base whose run failed, was cancelled or has not finished, a base git cannot fetch, a diff it
+     cannot make or GitHub's record unread runs them.
 2. A push that leaves the release branch ahead of `main` makes CI open the branch's pull request
    to `main`, or update the open one (`release-pr.yml`). The pull request names the tag its merge
    will release.
