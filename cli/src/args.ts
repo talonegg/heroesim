@@ -157,7 +157,7 @@ Commands:
       the player's Guild pays the fee show roster <guildId> and show hero <heroId> give for
       them; --in refuses a Hero Out of Contract, whom only a free Offer takes, which the CLI
       does not make. --to sends a Hero Out of Contract, for no fee, only to a Guild whose
-      free Offer stands for them (show offers), on the Offer's length; the Offer is taken.
+      free Offer stands for them (show offers), on the Offer's length, as accept does.
       The other Guild's Disposition chooses the length of a Hero under Contract --to sends.
       The other Guild must be willing, by its Disposition's appetite for Transfers, its Roster
       and, to buy, its Wealth. The Hero must be at the Hall; their gear stays with the Guild

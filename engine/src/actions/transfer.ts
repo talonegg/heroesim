@@ -347,9 +347,9 @@ export function applyTransferIn(
  * `makeTransfer` does, the Hero signed on a Contract of the length its Disposition signs for
  * (`contractYearsOf`): the taking Guild chooses it (DL-315).
  *
- * A Hero Out of Contract goes only to a Guild whose free Offer stands for them, which is taken at once
- * (`takeOffer`, `taken`): for no fee, on the Offer's length, the Offer the taking Guild's consent, as
- * `acceptTransfer` reads one (the owner, 2026-10-17; DL-325).
+ * A Hero Out of Contract goes only to a Guild whose free Offer stands for them, which is accepted at once
+ * as `acceptTransfer` accepts it, the Guild's choice and not a taking (no `taken` end, DL-319's harness
+ * assertion): for no fee, on the Offer's length, the Offer the taking Guild's consent (the owner, 2026-10-17; DL-325).
  *
  * Refused, changing nothing: `guild-folded` (either Guild), `same-guild`, `hero-not-on-roster`,
  * `hero-in-party`, `recently-transferred`, `out-of-contract-no-offer` (a Hero Out of Contract, no
@@ -384,7 +384,7 @@ export function applyTransferOut(
     if (offer === undefined) return { ok: false, rejection: { action, reason: 'out-of-contract-no-offer', heroId, guildId: toGuildId } };
     const length = lengthNotOffered(action, offer.years, deps.config);
     if (length !== null) return { ok: false, rejection: length };
-    return { ok: true, events: takeOffer(world, offer, deps, eventEmitter(world)) };
+    return { ok: true, events: makeTransfer(world, { hero, from, to, fee: offer.fee, years: offer.years, offerId: offer.id }, deps, eventEmitter(world)) };
   }
   const answer = transferAnswer(world, to, 'in', deps);
   if (!answer.consents) {

@@ -1371,8 +1371,15 @@ function heroActions(hero: Hero, read: HeroReading, reading: PageReading, docume
     contract: contractOf(hero, player, reading, document),
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
-      .map((other) => (outOfContract(hero, world.turn) ? freeTarget(hero, other, document) : pricedTarget(hero, other, reading))),
+      .map((other) => (outOfContract(hero, world.turn) ? freeTarget(hero, other, document) : pricedTarget(hero, other, reading)))
+      // The Guild whose free Offer stands first, so the page chooses it at first (DL-325); a stable sort keeps the rest in order.
+      .sort((a, b) => Number(offerStands(world, hero, b.guildId)) - Number(offerStands(world, hero, a.guildId))),
   };
+}
+
+/** Whether a free Offer of `guildId`'s stands for `hero` (DL-325). */
+function offerStands(world: World, hero: Hero, guildId: GuildId): boolean {
+  return Object.values(world.offers).some((offer) => offer.heroId === hero.id && offer.toGuildId === guildId && freeOffer(world, offer));
 }
 
 /** `other` as the Guild a Hero under Contract would go to, for the fee it would pay (`transferFee`). */
@@ -1385,9 +1392,8 @@ function pricedTarget(hero: Hero, other: Guild, { world, deps }: PageReading): T
 /** `other` as the Guild a Hero Out of Contract would go to: for no fee on its free Offer, or the refusal without one (DL-325). */
 function freeTarget(hero: Hero, other: Guild, document: WorldDocument): TransferTarget {
   const { world } = document;
-  const offered = Object.values(world.offers).some((offer) => offer.heroId === hero.id && offer.toGuildId === other.id && freeOffer(world, offer));
   const base = { guildId: other.id, name: other.name, fee: 0 };
-  if (offered) {
+  if (offerStands(world, hero, other.id)) {
     const sentence = `${other.name}'s Offer stands for ${hero.name}, who is Out of Contract: they go to it now for no fee. ${transferCostWords}`;
     return { ...base, label: `${other.name}, for no fee`, sentence };
   }

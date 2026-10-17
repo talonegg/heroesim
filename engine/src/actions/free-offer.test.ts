@@ -243,7 +243,7 @@ describe('transferOut of a Hero Out of Contract (the owner, 2026-10-17; DL-325)'
     expect(refused(offered, { ...out, toGuildId: second.id })).toEqual({ action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: second.id });
   });
 
-  test("to the Guild whose free Offer stands, the Offer is taken at once for no fee on its length, though that Guild's Disposition would not take a Hero in", () => {
+  test("to the Guild whose free Offer stands, the Offer is accepted at once for no fee on its length, though that Guild's Disposition would not take a Hero in", () => {
     const { document, guild, bidder, hero, offerId } = freeOffered('out-to-offer');
     const [, other] = Object.values(document.world.guilds).filter((each) => dispositionOf(each) !== null);
     if (other === undefined) throw new Error('Two Rivals are needed');
@@ -253,15 +253,49 @@ describe('transferOut of a Hero Out of Contract (the owner, 2026-10-17; DL-325)'
 
     const { document: after, events } = accepted(applyAction(second, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: bidder.id }, deps));
 
-    expect(ofType(events, 'guild.transfer-offer-expired').map((event) => [event.payload.offerId, event.payload.cause])).toEqual([
-      [offerId, 'taken'],
-      [otherOfferId, 'hero-left'],
-    ]);
+    // Accepted, as acceptTransfer accepts it: no end of its own, named by the Transfer; the other lapses.
+    expect(ofType(events, 'guild.transfer-offer-expired').map((event) => [event.payload.offerId, event.payload.cause])).toEqual([[otherOfferId, 'hero-left']]);
     expect(ofType(events, 'hero.transferred')[0]?.payload).toMatchObject({ heroId: hero.id, fromGuildId: guild.id, toGuildId: bidder.id, fee: 0, offerId, years: 2 });
     expect(after.world.offers).toEqual({});
     expect(heroOf(after.world, hero.id).guildId).toBe(bidder.id);
     expect((after.world.guilds[guild.id] as Guild).wealth).toBe(wealth.player);
     expect((after.world.guilds[bidder.id] as Guild).wealth).toBe(wealth.bidder);
+  });
+
+  test("is refused on a priced Offer made while the Hero was under Contract, which acceptTransfer takes at its fee; and on an Offer's length no longer offered", () => {
+    const document = created('out-priced');
+    const guild = player(document.world);
+    const bidder = rival(document.world);
+    const hero = heroOf(document.world, guild.rosterIds[0] as HeroId);
+    bidder.wealth = 1_000_000;
+    const offered = accepted(applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps)).document;
+    const [offer] = Object.values(offered.world.offers);
+    if (offer === undefined || offer.fee === 0) throw new Error('No priced Offer');
+    expire(offered.world, heroOf(offered.world, hero.id));
+    offer.expiresOnTurn = nightOf(dayOf(offered.world.turn) + 1);
+    expect(freeOffer(offered.world, offer)).toBe(false);
+    const out = { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: bidder.id } as const;
+    expect(refused(offered, out)).toEqual({ action: 'transferOut', reason: 'out-of-contract-no-offer', heroId: hero.id, guildId: bidder.id });
+    const { events } = accepted(applyAction(offered, { kind: 'acceptTransfer', guildId: guild.id, offerId: offer.id }, deps));
+    expect(ofType(events, 'hero.transferred')[0]?.payload).toMatchObject({ fee: offer.fee, offerId: offer.id });
+
+    const free = freeOffered('out-length');
+    const rebased = testDeps({ ...pins, contractLengthsYears: [1, 3], contractWageFactors: [1, 0.9] }, quiet);
+    expect(refused(free.document, { ...out, heroId: free.hero.id, guildId: free.guild.id, toGuildId: free.bidder.id }, rebased)).toEqual({
+      action: 'transferOut',
+      reason: 'length-not-offered',
+      years: 2,
+      offered: [1, 3],
+    });
+  });
+
+  test("accepts the free Offer as acceptTransfer does, the Guild's own choice and not a taking (DL-319's assertion): the same events and the same world", () => {
+    const { document, guild, bidder, hero, offerId } = freeOffered('out-as-accept');
+    const sent = accepted(applyAction(document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: bidder.id }, deps));
+    const taken = accepted(applyAction(document, { kind: 'acceptTransfer', guildId: guild.id, offerId }, deps));
+    expect(ofType(sent.events, 'guild.transfer-offer-expired')).toEqual([]);
+    expect(sent.events).toEqual(taken.events);
+    expect(sent.document).toEqual(taken.document);
   });
 });
 

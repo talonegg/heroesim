@@ -1547,6 +1547,24 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     });
   });
 
+  test('for a Hero Out of Contract, lists first the Guild whose free Offer stands, the one the page chooses at first (DL-325)', () => {
+    const document = structuredClone(newDocument('selectors'));
+    const guild = playerOf(document);
+    const [hero] = heroes(document);
+    if (hero === undefined || hero.contract === null) throw new Error('no Hero under Contract');
+    hero.contract = { ...hero.contract, endDay: 0 };
+    document.world.turn = nightOf(0) + 1;
+    const others = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
+    const bidder = others.at(-1);
+    if (bidder === undefined || others.length < 2) throw new Error('two Rivals are needed');
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: bidder.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(`Refused: ${offered.rejection.reason}`);
+
+    const page = heroPage(offered.document, hero.id);
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    expect(page.actions.transferTo.map((each) => each.guildId)).toEqual([bidder.id, ...others.slice(0, -1).map((each) => each.id)]);
+  });
+
   test("prices each Guild's fee for the player's Hero by the wages left on the world's Turn, not at the Contract's signing (DL-318)", () => {
     const document = structuredClone(newDocument('selectors'));
     const [hero] = heroes(document);

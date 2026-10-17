@@ -922,8 +922,8 @@ before leaving the pool".
 **Decision.**
 
 1. **`transferOut` of a Hero Out of Contract** goes only to a Guild whose free Offer (`freeOffer`, DL-319) stands for
-   them: the Offer is taken at once (`takeOffer`, its end `taken`, then the Transfer naming it), for no fee on its
-   length, the Offer the taking Guild's consent as `acceptTransfer` reads one. Any other Offer for the Hero lapses
+   them: the Offer is accepted at once as `acceptTransfer` accepts it (the Transfer naming it), for no fee on its
+   length, the Offer the taking Guild's consent. Any other Offer for the Hero lapses
    `hero-left`, so none is left standing. Without one: `out-of-contract-no-offer` `{ heroId, guildId }`, checked after
    `recently-transferred`, its sentence in `words/src/refusals.ts` (the CLI's and the page's). A Hero under Contract is
    unchanged.
@@ -945,8 +945,9 @@ before leaving the pool".
   stay, the refill brings fewer new Heroes, and a pool of released Heroes alone brings none for up to a Year.
 - **A fold's Heroes** stay `unattachedStayDays`, though a fold "releases" them in the code's words: only the
   `release` action is a release.
-- **The Offer taken, not accepted:** `transferOut` ends it `taken`, as its running out does, so the counters count it
-  among free Offers taken; `acceptTransfer` of a free Offer still removes it with no end event, as built (DL-319).
+- **The Offer accepted, not taken:** sending the Hero is the Guild's choice, so the History reads as an accept's: no
+  `taken` end, counted accepted, and DL-319's harness assertion fires on it as on an accept (the policy does neither).
+  As built it ended `taken`, which the verification found let the assertion pass a Transfer the policy chose.
 - **Read from the History, not stored:** the smallest correct reading; a stored `releasedOnTurn` would be a schema
   raise.
 - A priced Offer standing for a Hero whose Contract then ended is no free Offer: `transferOut` refuses, and
@@ -966,3 +967,4 @@ quick run reaches (DL-320); the Gate's 20 years release 1,344 Heroes (DL-324 ite
 **Evidence.** This story's commit; the S11 boxes. Tests red first: `free-offer.test.ts` (2), `pool-refresh.test.ts` (2),
 the refusals' words (words and page), the page's targets and release words (`selectors.test.ts`); then
 `actions.test.tsx`, `contract.test.ts`, `args.test.ts`. The doctors before and after, unchanged.
+Verified 2026-10-17 at 9ecab65: the refusals' order, the take and the History's stay re-derived (no entry is dropped, so a Year's is read); `transferOut` ended the free Offer `taken`, a counter and DL-319's assertion telling it from `acceptTransfer`'s accept of the same Offer, and now accepts it, the same events and world, and Transfer… lists the Guild whose Offer stands first, test first; 18 mutations, 17 red, one equivalent, the priced Offer and the Offer's length red once a test was added; a 12-year play of four seeds, 28 releases, 26 leaving after 360 Days and 2 still in the pool, none signed.

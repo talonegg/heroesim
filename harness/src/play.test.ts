@@ -535,6 +535,21 @@ describe('the harness assertion (DL-69, DL-319): no hero.transferred names the p
     expect(playerTransferred(current)).toBeNull();
   });
 
+  test('fires on a Hero Out of Contract sent on a free Offer (transferOut), as on one accepted: the policy sends no one (DL-325)', () => {
+    const document = createWorld('play-free-out', harnessSetup, deps).document;
+    const guild = playerGuild(document.world) as Guild;
+    const rival = Object.values(document.world.guilds).find((other) => other.id !== guild.id) as Guild;
+    const hero = document.world.heroes[guild.rosterIds[0] as HeroId] as Hero;
+    document.world.turn = 9;
+    hero.contract = { ...(hero.contract as NonNullable<Hero['contract']>), endDay: 2 };
+    const offered = applyAction(document, { kind: 'offerTransfer', guildId: rival.id, heroId: hero.id, years: 2 }, deps);
+    if (!offered.ok) throw new Error(JSON.stringify(offered.rejection));
+    const sent = applyAction(offered.document, { kind: 'transferOut', guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, deps);
+    if (!sent.ok) throw new Error(JSON.stringify(sent.rejection));
+    expect(sent.document.world.heroes[hero.id]?.guildId).toBe(rival.id);
+    expect(playerTransferred(sent.document)).toMatchObject({ check: 'player-transferred' });
+  });
+
   test("fires on a free Offer taken into the player's Guild: the policy makes no Offer (DL-319)", () => {
     const document = createWorld('play-free-in', harnessSetup, deps).document;
     const guild = playerGuild(document.world) as Guild;
