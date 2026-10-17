@@ -7,7 +7,7 @@ One epic per milestone of the delivery plan, and, after the first build, one per
 needs a plan of its own. Each epic turns a milestone's or a release's increments into stories with
 acceptance boxes, the files and functions each story lands, the tests that prove it, the
 configuration fields it introduces and the harness counters it must report. This folder holds the
-open release's epic and those planned after it; the epics of finished milestones and releases, M0 to v1.2.2, are in
+open release's epic and those planned after it; the epics of finished milestones and releases, M0 to v1.2.3, are in
 [`../archive/`](../archive/README.md), and each release is a row of `plan.md` §2's ledger. The
 inputs the first build needed from the owner, cited in code as `INPUTS n.m`, are archived there too
 ([`INPUTS-REQUIRED.md`](../archive/INPUTS-REQUIRED.md)); a later epic asks its own inputs as a
@@ -30,7 +30,6 @@ when its release closes; the release itself is recorded in `plan.md` §2's ledge
 
 | ID | Epic | Gate | Sessions | Depends on |
 | --- | --- | --- | --- | --- |
-| `v1.2.3` | [Contracts](./v1.2.3-release.md) | A full `gate`'s correctness and performance lines, the save after 20 years failing by absence; play unchanged at S1; each side's wages near `v1.2.2`'s, its fees reported (DL-312); DL-83's targets reported, not tuned; the owner's playtest, by sentence 5 | 15–19 | `v1.2.2` (DL-294, DL-311) |
 | `v1.2.4` | [The economy pass](./v1.2.4-release.md) | Every line of `gate.json`, the save after 20 years included; the bands the owner approves at S1 met or accepted; each change measured alone; the owner's playtest | 10–14 | `v1.2.3` (DL-294) |
 
 The first build's estimate, 60–78 sessions for M0 to M8, and the wall clock it actually took are in

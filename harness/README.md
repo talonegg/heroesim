@@ -76,7 +76,7 @@ v1.1.6 baselines among them, are read from git at `efa515b` (DL-229). Those v1.1
 removed, its stories' `neutral` runs, S1's baseline and v1.1.8's `neutral` reference among them, are
 read from git at `fb55a8c`. The baseline v1.2.0's close replaced, `v1.1.8-gate`, is read from git at
 `4220f57` (DL-274). Those v1.2.0's record removed, its stories' quick runs and `neutral` runs, S2's
-full `gate` and v1.1.9's `neutral` reference among them, are read from git at `240de81`. The 84 committed before 2026-10-08 that nothing live cited are
+full `gate` and v1.1.9's `neutral` reference among them, are read from git at `240de81`. Those v1.2.3's record removed, its stories' quick runs (S1's baseline among them), are read from git at `63b3052`. The 84 committed before 2026-10-08 that nothing live cited are
 read from git history: `git ls-tree --name-only b6d455c harness/reports/` lists them, and
 `git show b6d455c:harness/reports/<name>` prints one.
 
