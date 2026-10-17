@@ -82,7 +82,18 @@ Converts each upload for a trial, and changes nothing else.
 - **A WebP source** needs `--out`, since its picture would write over it.
 - **JSON:** `{ "converted": [{ "source", "picture": { "file", "bytes", "quality" }, "thumbnail": { … }, "natural": { "width", "height" } }] }`.
 
+### `convert-tree <sourceDir> --out <dir> [--overwrite] [--concurrency <n>]`
+
+Converts an entire directory tree of pictures, preserving subfolders relative to `<sourceDir>`.
+
+- **What it writes.** `<name>.webp` and `<name>.thumb.webp` in each mirrored subfolder.
+- **Skip.** Already converted pictures (both picture and thumbnail exist) are skipped by default.
+  Pass `--overwrite` to convert all again.
+- **Workers.** `--concurrency` (default 4) runs multiple Chromium worker pages concurrently.
+- **JSON:** `{ "ok": true, "total": n, "converted": [...], "skipped": [...], "failures": [...] }`.
+
 ### `fingerprint <file or folder>... [--nearest <n>]`
+
 
 Fingerprints each picture named, or every picture in a folder, however deep: the inbox, say. It
 compares each with the register and with the others named, and changes nothing.
