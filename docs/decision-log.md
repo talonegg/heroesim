@@ -910,6 +910,8 @@ Verified 2026-10-17 at ff4a182: the three tests byte-identical, `sweep` whole, t
 
 *Note, 2026-10-17:* on the owner's "a", the Generator box's setup plays its seeds in four processes, 25 each, the three tests and their assertions unchanged, each seed's end and the validator's problems still checked by seed, and the hook's limit is 3,600 s; item 5's box then passed, 3 of 3, in 2,598 s (43 minutes), not the 31 the seeds' mean of 75 s promised, the four processes sharing the machine.
 
+*Note, 2026-10-17:* after S11 (DL-325) the Gate ran again alone at `5c0f792`, `v1.2.3-s11-gate`, PASS every line, fingerprint `43dd20c7…`: bankruptcy 29, roster-wiped 6, survived 15; Rival folds 161 bankrupt and 41 roster-wiped, 202 in all; refusals, assertions and unfinished games 0; the save after 20 years mean 19.79 MiB, max 24.32 MiB; the copy's share 0.2491; `seed-0002` identical, round trips 50 of 50. The twenty-year boxes passed, 6 of 6 in 2,630 s; the boxes kept apart, 3 of 3; the speed run, 2 of 2.
+
 ## DL-325 — v1.2.3-S11 built: a Hero Out of Contract sent only on an Offer, and a released Hero a Year in the pool
 
 **Status:** Accepted · **Date:** 2026-10-17 · **Decided by:** the owner (Q-P); an agent (the epic's S11)

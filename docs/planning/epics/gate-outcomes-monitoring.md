@@ -31,6 +31,7 @@ processes, on one machine (Node v26.9.0, AMD RYZEN AI MAX+ 395, 32 logical cores
 | v1.2.1 closing Gate (the release) | `v1.2.1-close-gate-2026-10-12`, in the tree; committed in `95f2b57` | 2026-10-12 08:04 | after S12, the play of `3170082` | 30, 45, 11 | `027d238a…`, the baseline's |
 | v1.2.2 closing Gate | `v1.2.2-close-gate-2026-10-16`, in the tree; committed with DL-305's record of the close | 2026-10-16 02:27 | `6b5abd6`, S1 to S9 built and verified, the review's fixes in (DL-305) | 34, 49, 13 | `6729030490de637566ac5241eb06945a23492057458f6507ffd7f905e6a6bbd4` |
 | v1.2.3 closing Gate | `v1.2.3-close-gate-2026-10-17`, in the tree; committed with DL-324's record of the close | 2026-10-17 04:26 | `8050db0`, S1 to S9 built and verified, the review's fixes in (DL-324) | 38, 50, 14 | `2c37bfa72aceb89f543beab6d6c7a9648728a960b050f9f2cf4bf7060648035e` |
+| v1.2.3 Gate after S11 | `v1.2.3-s11-gate-2026-10-17`, in the tree; committed with DL-324's note of the re-run | 2026-10-17 13:15 | `5c0f792`, S1 to S11 built and verified, the pool's refill not counting released Heroes (DL-325) | 39, 50, 14 | `43dd20c75abd15cd61e8b52fc33ec6bac12063e5ffffa2a857fe8b7cbd2c9b64` |
 
 - **v1.1.8 has a full run of its own**: `v1.1.8-gate`, its closing Gate (DL-229), whose report left the tree at
   v1.2.0's close and is read from git at `4220f57`. It was not a `neutral --expect` alone.
