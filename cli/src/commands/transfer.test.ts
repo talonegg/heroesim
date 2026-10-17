@@ -220,7 +220,7 @@ describe('transfer --offer (DL-326)', () => {
     const run = play(['transfer', '--hero', heroId, '--offer', '--years', '1']);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(run.out).toContain(`The Test offered ${guildOf(rolled.world, reckless).name} ${coinWords(0)} for ${hero.name} (${heroId}) (offer-`);
+    expect(run.out).toContain(`The Test offered ${guildOf(rolled.world, reckless).name} no fee for ${hero.name} (${heroId}) (offer-`);
     const after = document();
     expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
     expect(thePlayer(after.world).wealth).toBe(wealth);

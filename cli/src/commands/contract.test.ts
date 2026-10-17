@@ -115,7 +115,7 @@ describe('transfer --to of a Hero Out of Contract (DL-325)', () => {
     const run = play(['transfer', '--hero', first, '--to', bidder.id]);
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
-    expect(run.out).toContain(`took ${called(first)} from The Test for 0 Silver, accepting `);
+    expect(run.out).toContain(`took ${called(first)} from The Test for no fee, accepting `);
     expect(heroOf(first).guildId).toBe(bidder.id);
     expect(thePlayer(document().world).wealth).toBe(wealth);
     expect(play(['show', 'offers']).out).toContain("No Transfer Offer stands for The Test's Heroes.");

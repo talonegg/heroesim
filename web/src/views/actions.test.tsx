@@ -575,7 +575,7 @@ describe('the Contract', () => {
     expect(wealth()).toBe(before);
     fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
     expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
-    expect(inHistory(new RegExp(`^${guildName} took ${name} from .+ for 0 Silver, accepting `))).toBeDefined();
+    expect(inHistory(new RegExp(`^${guildName} took ${name} from .+ for no fee, accepting `))).toBeDefined();
   });
 
   test("offers no fee for a Rival's Hero Out of Contract, in place of Taking them in, and the Rival answers at once", async () => {
@@ -592,6 +592,6 @@ describe('the Contract', () => {
 
     expect(screen.queryByRole('alert')).toBeNull();
     expect(wealth()).toBe(before);
-    expect(inHistory(new RegExp(`^The Lantern offered .+ for ${heroName}`))).toBeDefined();
+    expect(inHistory(new RegExp(`^The Lantern offered .+ no fee for ${heroName}`))).toBeDefined();
   });
 });

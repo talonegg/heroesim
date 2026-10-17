@@ -291,7 +291,12 @@ const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
   taken: 'was taken up: the Hero went for no fee',
 };
 
-/** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
+/** A Transfer's fee as a line says it: a free Offer's fee, 0, is "no fee", as the page's Offer card says (DL-326, the owner's "a"). */
+function feeWords(fee: number): string {
+  return fee === 0 ? 'no fee' : coinWords(fee);
+}
+
+/** `rose from neutral to warm`,`fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
 export function crossed(before: RegardBand, after: RegardBand): string {
   const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
   return `${way} from ${before} to ${after}`;
@@ -504,11 +509,11 @@ const sentences: Sentences = {
     // M6-S2: who moved, from whom to whom, for how much, and the Offer accepted, if one was; the new Contract's terms (DL-315).
     const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
     const accepted = offerId === null ? '' : say`, accepting ${{ kind: 'offer', id: offerId }}`;
-    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${coinWords(fee)}${accepted}${contractWords(event.payload, calendar)}.`;
+    return say`${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${feeWords(fee)}${accepted}${contractWords(event.payload, calendar)}.`;
   },
   'guild.transfer-offered': (event, _content, calendar) => {
     const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
-    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${coinWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
+    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${feeWords(fee)} for ${hero(event, heroId)}${ids(offerId)}, until ${nightOfTurn(expiresOnTurn, calendar)}.`;
   },
   'guild.transfer-offer-declined': (event) => {
     const { offerId, fromGuildId, toGuildId, heroId } = event.payload;
