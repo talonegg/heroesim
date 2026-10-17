@@ -37,7 +37,8 @@ name its path, or use `rg -u`.
    and after the last of every story that touches `engine/src/` or the content's checks
    (`content/src/validate.ts` and the content kinds, `content/src/kinds/`), and record both
    readings of each. A story that touches neither `engine/src/` nor `content/src/` (nor the
-   content's checks, `content/src/validate.ts` and `content/src/kinds/`) runs no doctors.
+   content's checks, `content/src/validate.ts` and `content/src/kinds/`) runs no doctors of its
+   own; an edit through the editor's commands or skills still runs the doctor they name.
 3. **Tuning values** change only through the content editor's config kind
    (`docs/agents/config.md`). A new setting is added by hand as that page says.
 4. **A test a config or tuning change fails** is never rewritten to pass. Report it to the owner:
@@ -99,10 +100,14 @@ name its path, or use `rg -u`.
 3. **Check** at the end:
    - `npm run lint`, `npm run typecheck` and `npx vitest run --changed <base>`, where `<base>` is the
      last commit a verifier verified (a sha, so unpushed commits stacking up are still covered; plain
-     `--changed` reads only uncommitted files), with `--project` naming the area's project where a file
-     read from disk, not imported, changed: `content` for `content/`, `engine` for
-     `engine/src/config.json`, `web` for `.github/workflows/` (which web's deploy tests read),
-     `decisions` for `docs/`;
+     `--changed` reads only uncommitted files). It runs the tests, in any project, that import a
+     changed file, not those that read one from disk;
+   - then, where a file read from disk changed, the area's project whole:
+     `npx vitest run --project <name>`, a `--project` for each, with `content` for `content/`,
+     `engine` for `engine/src/config.json`, `web` for `.github/workflows/` (which web's deploy tests
+     read), `decisions` for `docs/` (every story's, for its DL entry). It is a second command, not a
+     `--project` beside `--changed`: the two together run only that project's tests that import a
+     changed file, for `docs/` none;
    - the full `npm test` instead when the test setup changed (`vitest.config.ts`, any `test-setup.ts`
      or `*.test-support.ts`, the root package files) or when `engine/src/` or `content/src/` changed;
    - `npm run build`, check-bundle and `npm run e2e -w web` where the story names them;
